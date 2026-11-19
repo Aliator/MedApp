@@ -71,12 +71,12 @@ describe('ScheduledJobsPage', () => {
     const reminders = await rowOf('Appointment reminders');
     expect(within(reminders).getByText('Overdue')).toBeInTheDocument();
     expect(within(reminders).getByText('Failed')).toBeInTheDocument();
-    expect(within(reminders).getByText('Failed 3 times in a row (SqlException)')).toBeInTheDocument();
+    expect(within(reminders).getByText('Failed 3 times in a row (database error)')).toBeInTheDocument();
 
     expect(screen.getByRole('heading', {name: 'Scheduled Jobs', level: 1})).toBeInTheDocument();
     expect(screen.getByText('2 jobs')).toBeInTheDocument();
-    expect(screen.getByText(/Only one copy of the API runs each job at a time/)).toBeInTheDocument();
-    expect(screen.getByText(/fails three times in a row notifies everyone who manages setup/)).toBeInTheDocument();
+    expect(screen.getByText(/These jobs run automatically on a schedule/)).toBeInTheDocument();
+    expect(screen.getByText(/If one fails three times in a row, everyone who manages setup is/)).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${JOBS}`]);
   });
 
@@ -122,7 +122,7 @@ describe('ScheduledJobsPage', () => {
     await user.click(runButton(await rowOf('Operational data purge')));
     await user.click(dialog().getByRole('button', {name: 'Run Now'}));
 
-    expect(await screen.findByText('Operational data purge failed (TimeoutException).')).toBeInTheDocument();
+    expect(await screen.findByText('Operational data purge failed (timed out).')).toBeInTheDocument();
   });
 
   it('runs nothing when Run Now is called off', async () => {
@@ -163,7 +163,7 @@ describe('ScheduledJobsPage', () => {
     const reminders = await rowOf('Appointment reminders');
     expect(within(reminders).getByText('Off')).toBeInTheDocument();
     expect(within(reminders).getByText('Not scheduled')).toBeInTheDocument();
-    expect(runButton(reminders)).toHaveAccessibleName("Run Now: Appointment reminders, switched off in the API's settings");
+    expect(runButton(reminders)).toHaveAccessibleName('Run Now: Appointment reminders, switched off in the server settings');
     expect(isDisabled(runButton(reminders))).toBe(true);
   });
 
@@ -196,14 +196,14 @@ describe('words', () => {
 
   it('says how many times running a job has failed, if any', () => {
     expect(failureWords(PURGE)).toBeNull();
-    expect(failureWords({...REMINDERS, consecutiveFailures: 1})).toBe('Failed once (SqlException)');
+    expect(failureWords({...REMINDERS, consecutiveFailures: 1})).toBe('Failed once (database error)');
     expect(failureWords({...REMINDERS, lastErrorType: null})).toBe('Failed 3 times in a row');
   });
 
   it("says why a job can't run now", () => {
     expect(whyCantRun(PURGE)).toBeNull();
     expect(whyCantRun({...PURGE, isRunning: true})).toBe('Already running');
-    expect(whyCantRun({...PURGE, enabled: false})).toBe("Switched off in the API's settings");
+    expect(whyCantRun({...PURGE, enabled: false})).toBe('Switched off in the server settings');
   });
 
   it('says what a run did', () => {

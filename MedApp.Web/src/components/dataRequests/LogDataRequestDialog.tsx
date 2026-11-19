@@ -94,7 +94,7 @@ export function LogDataRequestDialog({isOpen, patientId, patient, onClose}: LogD
           isRequired
           status={fieldStatus(errors, 'receivedOn')}
         />
-        <RadioList label="Asked by" value={askedBy} onChange={setAskedBy} isRequired status={fieldStatus(errors, 'requestedByPatient')}>
+        <RadioList label="Requested by" value={askedBy} onChange={setAskedBy} isRequired status={fieldStatus(errors, 'requestedByPatient')}>
           <RadioListItem value="patient" label="The patient" />
           <RadioListItem value="other" label="Someone on their behalf" />
         </RadioList>

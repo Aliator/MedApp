@@ -30,14 +30,14 @@ describe('DataRequestsPage', () => {
     expect(screen.getByText('Open: 2 requests')).toBeInTheDocument();
     const row = within(patient.closest('tr')!);
     expect(row.getByRole('link', {name: 'Received 2 Nov 2026'})).toHaveAttribute('href', `/data-requests/${DATA_REQUEST_ID}`);
-    expect(row.getByText('Asked by the patient')).toBeInTheDocument();
+    expect(row.getByText('Requested by the patient')).toBeInTheDocument();
     expect(row.getByText('2 Dec 2026')).toBeInTheDocument();
     expect(row.queryByText('Overdue')).not.toBeInTheDocument();
     expect(row.getAllByText('Not yet')).toHaveLength(2);
 
     const other = within(screen.getByRole('link', {name: 'Ivy Example'}).closest('tr')!);
     expect(other.getByText('Overdue')).toBeInTheDocument();
-    expect(other.getByText('Asked on their behalf')).toBeInTheDocument();
+    expect(other.getByText('Requested on their behalf')).toBeInTheDocument();
     expect(other.getByText('Yes')).toBeInTheDocument();
     expect(calls(fetch)).toEqual(['GET /api/data-requests/search?Status=Open&Page=1&PageSize=10']);
   });

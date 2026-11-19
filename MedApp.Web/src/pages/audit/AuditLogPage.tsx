@@ -127,7 +127,8 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
     ? 'Loading the audit log...'
     : pathwayTitle
       ? `${total} ${noun} for ${pathwayTitle}`
-      : `${total} ${noun}${isFiltered ? ' found' : ''}`;
+      : // What it holds, so it isn't mistaken for the Activity Log (record access, sign-ins and accounts).
+        `Changes to pathways · ${total} ${noun}${isFiltered ? ' found' : ''}`;
 
   return (
     <Page

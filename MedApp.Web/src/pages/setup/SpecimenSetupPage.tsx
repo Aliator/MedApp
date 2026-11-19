@@ -95,7 +95,7 @@ export function SpecimenSetupPage() {
   const deletingType = dialog?.kind === 'delete-type' ? dialog.type : null;
   const deletingTest = dialog?.kind === 'delete-test' ? dialog.test : null;
 
-  const failed = (action: 'archive' | 'restore' | 'delete', subject: 'specimen type' | 'lab test') => (e: unknown) => {
+  const failed = (action: 'archive' | 'restore' | 'delete', subject: 'sample type' | 'lab test') => (e: unknown) => {
     setError(actionProblem(e, action, subject));
     close();
   };
@@ -105,10 +105,10 @@ export function SpecimenSetupPage() {
       {id: editingType?.id, name: name.trim(), expectedTurnaroundDays: days ?? 0, snomedCode: snomedCode.trim() || null},
       {
         onSuccess: () => {
-          announce(editingType ? 'Specimen type saved' : 'Specimen type added');
+          announce(editingType ? 'Sample type saved' : 'Sample type added');
           close();
         },
-        onError: (e) => setProblem(saveProblem(e, editingType ? 'save' : 'add', 'specimen type')),
+        onError: (e) => setProblem(saveProblem(e, editingType ? 'save' : 'add', 'sample type')),
       },
     );
 
@@ -125,7 +125,7 @@ export function SpecimenSetupPage() {
     actions: typeof typeActions | typeof testActions,
     item: T,
     archive: boolean,
-    subject: 'specimen type' | 'lab test',
+    subject: 'sample type' | 'lab test',
   ) => {
     setError(null);
     (archive ? actions.archive : actions.restore).mutate(item.id ?? '', {
@@ -136,10 +136,10 @@ export function SpecimenSetupPage() {
 
   const typeList = (
     <SetupList
-      label="Specimen types"
+      label="Sample types"
       isLoading={types.isPending}
       isError={types.isError}
-      emptyText="No specimen types yet. Add the ones the clinic takes, such as a skin biopsy."
+      emptyText="No sample types yet. Add the ones the clinic takes, such as a skin biopsy."
       items={activeFirst(types.data ?? []).map((type) => ({
         id: type.id ?? '',
         name: type.name ?? '',
@@ -147,7 +147,7 @@ export function SpecimenSetupPage() {
         isArchived: type.isArchived ?? false,
         canBeDeleted: type.canBeDeleted ?? false,
         onEdit: () => editType(type),
-        onArchive: (archive: boolean) => setArchived(typeActions, type, archive, 'specimen type'),
+        onArchive: (archive: boolean) => setArchived(typeActions, type, archive, 'sample type'),
         onDelete: () => {
           setError(null);
           setDialog({kind: 'delete-type', type});
@@ -178,12 +178,12 @@ export function SpecimenSetupPage() {
     />
   );
 
-  const addType = <Button label="Add Specimen Type" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editType(null)} />;
+  const addType = <Button label="Add Sample Type" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editType(null)} />;
   const addTest = <Button label="Add Lab Test" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editTest(null)} />;
 
   return (
     <Page
-      title="Specimen Types and Lab Tests"
+      title="Sample Types and Lab Tests"
       subtitle={
         types.data && tests.data
           ? `${types.data.filter((t) => !t.isArchived).length} active types, ${tests.data.filter((t) => !t.isArchived).length} active lab tests`
@@ -195,14 +195,14 @@ export function SpecimenSetupPage() {
         <>
           <ConfirmDialog
             isOpen={dialog?.kind === 'type'}
-            title={editingType ? 'Edit Specimen Type' : 'Add Specimen Type'}
+            title={editingType ? 'Edit Sample Type' : 'Add Sample Type'}
             message={
               editingType
-                ? 'Specimens of this type show the change. A new expected time applies to every open one.'
-                : 'A kind of specimen staff take, such as a skin biopsy, with how long its lab is expected to take.'
+                ? 'Samples of this type show the change. A new expected time applies to every open one.'
+                : 'A kind of sample staff take, such as a skin biopsy, with how long its lab is expected to take.'
             }
             icon={editingType ? AppIcon.Edit : AppIcon.Add}
-            confirmText={editingType ? 'Save' : 'Add Specimen Type'}
+            confirmText={editingType ? 'Save' : 'Add Sample Type'}
             confirmDisabled={!name.trim() || days === null}
             isProcessing={saveType.isPending}
             hasSaveShortcut
@@ -255,24 +255,24 @@ export function SpecimenSetupPage() {
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete-type'}
             title="Confirm Delete"
-            message="No specimen has this type. This action cannot be undone."
+            message="No sample has this type. This action cannot be undone."
             isDanger
-            confirmText="Delete Specimen Type"
+            confirmText="Delete Sample Type"
             isProcessing={typeActions.remove.isPending}
             onConfirm={() =>
               deletingType &&
               typeActions.remove.mutate(deletingType.id ?? '', {
                 onSuccess: () => {
-                  announce('Specimen type deleted');
+                  announce('Sample type deleted');
                   close();
                 },
-                onError: failed('delete', 'specimen type'),
+                onError: failed('delete', 'sample type'),
               })
             }
             onCancel={close}>
             {deletingType && (
               <MetadataList>
-                <MetadataListItem label="Specimen type">{deletingType.name}</MetadataListItem>
+                <MetadataListItem label="Sample type">{deletingType.name}</MetadataListItem>
               </MetadataList>
             )}
           </ConfirmDialog>
@@ -306,7 +306,7 @@ export function SpecimenSetupPage() {
       {isNarrow ? (
         <FoldingCard
           sections={[
-            {key: 'types', title: 'Specimen Types', isOpen: open.types, onToggle: () => setOpen((o) => ({...o, types: !o.types})), children: typeList},
+            {key: 'types', title: 'Sample Types', isOpen: open.types, onToggle: () => setOpen((o) => ({...o, types: !o.types})), children: typeList},
             {key: 'tests', title: 'Lab Tests', isOpen: open.tests, onToggle: () => setOpen((o) => ({...o, tests: !o.tests})), children: testList},
           ]}
           footerActions={
@@ -319,7 +319,7 @@ export function SpecimenSetupPage() {
       ) : (
         <TwoColumns
           start={
-            <PanelCard title="Specimen Types" isBodyPadded={false} footerActions={addType}>
+            <PanelCard title="Sample Types" isBodyPadded={false} footerActions={addType}>
               {typeList}
             </PanelCard>
           }

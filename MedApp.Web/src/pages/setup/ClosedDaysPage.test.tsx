@@ -77,7 +77,7 @@ describe('ClosedDaysPage', () => {
 
     const christmas = await rowOf('Christmas Day');
     expect(within(christmas).getByText('Fri 25 Dec 2026')).toBeInTheDocument();
-    expect(within(christmas).getByText('To come')).toBeInTheDocument();
+    expect(within(christmas).getByText('Upcoming')).toBeInTheDocument();
     expect(within(await rowOf('Spring bank holiday')).getByText('Past')).toBeInTheDocument();
     expect(screen.getByText('2026: 2 closed days')).toBeInTheDocument();
     expect(screen.getByText(/like a weekend on every calendar/)).toBeInTheDocument();

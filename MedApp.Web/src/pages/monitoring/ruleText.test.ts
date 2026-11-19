@@ -21,7 +21,7 @@ describe('describeRule', () => {
   it.each([
     ['PathwayCreated', 'Notify me when anyone creates a pathway'],
     ['StageFinished', 'Notify me when anyone finishes a stage on a pathway'],
-    ['PathwayCompleted', 'Notify me when anyone discharges a pathway'],
+    ['PathwayCompleted', 'Notify me when anyone completes a pathway'],
     ['PathwayBlocked', 'Notify me when anyone puts a pathway on hold'],
     ['PathwayCancelled', 'Notify me when anyone cancels a pathway'],
     ['PathwayAssigned', 'Notify me when anyone is assigned to a pathway'],

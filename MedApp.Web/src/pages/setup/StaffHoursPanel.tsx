@@ -47,7 +47,7 @@ export function StaffHoursPanel({owner, onError}: {owner: TemplatesOwner; onErro
   if (hours.isError) return <AlertMessage label="Working hours not loaded" message="The working hours could not be loaded. Please try again." />;
 
   const data = hours.data;
-  const whose = owner.isOwn ? 'You work' : `${owner.ownerName || 'They'} works`;
+  const whose = owner.isOwn ? 'You work' : owner.ownerName ? `${owner.ownerName} works` : 'They work';
   const openSites = (sites.data ?? []).filter((s) => !s.isArchived);
   // A site they already work at stays choosable, archived or not.
   const siteOptions = [

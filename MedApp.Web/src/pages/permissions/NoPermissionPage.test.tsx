@@ -8,14 +8,14 @@ describe('NoPermissionPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'No permission', level: 1})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: "You don't have permission to use this page"})).toBeInTheDocument();
-    expect(screen.getAllByText('It needs the permission to: See Insights. Ask an administrator if you need it.').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', {name: 'Go home'})).toHaveAttribute('href', '/');
+    expect(screen.getAllByText('This page needs the ‘View insights’ permission. Ask an admin if you need it.').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', {name: 'Go Home'})).toHaveAttribute('href', '/');
   });
 
   it('still says so when the address names no permission it knows', async () => {
     renderWithApp(<NoPermissionPage />, {user: staffUser});
 
     expect(await screen.findByRole('heading', {name: "You don't have permission to use this page"})).toBeInTheDocument();
-    expect(screen.getAllByText('Ask an administrator if you need it.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ask an admin if you need it.').length).toBeGreaterThan(0);
   });
 });

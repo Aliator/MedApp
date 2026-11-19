@@ -21,11 +21,11 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   Staff: 'Staff',
 };
 
-/** What each type may do, in a line, for Account Settings and the Users page. */
+/** What each type may do, in a line, to the person themselves (Account Settings). */
 export const ACCOUNT_TYPE_DESCRIPTIONS: Record<AccountType, string> = {
-  Admin: 'Overview, Insights, accounts and setup; reads every team’s records but makes no clinical changes.',
-  ClinicAdmin: 'Staff who also look after their clinic: clinical work as their roles allow, in their teams.',
-  Staff: 'Clinical work as their roles allow, in their teams.',
+  Admin: 'Overview, Insights, accounts and setup. You can read every team’s records, but make no clinical changes.',
+  ClinicAdmin: 'Clinical work as your roles allow, in your teams, and looking after your clinic.',
+  Staff: 'Clinical work as your roles allow, in your teams.',
 };
 
 export const isAccountType = (value: unknown): value is AccountType =>

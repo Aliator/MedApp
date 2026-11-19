@@ -24,8 +24,8 @@ export interface RuleDescription {
 
 /** The choices for "only pathways of this priority or higher", and how each reads in a sentence. */
 export const MINIMUM_PRIORITIES = [
-  {value: 'Medium', label: 'Medium or higher', reads: 'Medium, High or Urgent'},
-  {value: 'High', label: 'High or higher', reads: 'High or Urgent'},
+  {value: 'Medium', label: 'Medium, High or Urgent', reads: 'Medium, High or Urgent'},
+  {value: 'High', label: 'High or Urgent', reads: 'High or Urgent'},
   {value: 'Urgent', label: 'Urgent only', reads: 'Urgent'},
 ] as const;
 
@@ -145,7 +145,7 @@ export function describeRule(rule: RuleDescription): SentencePart[] {
       case 'StageFinished':
         return [{text: ' finishes '}, ...stage(rule), {text: ' on '}, ...what];
       case 'PathwayCompleted':
-        return [{text: ' discharges '}, ...what];
+        return [{text: ' completes '}, ...what];
       case 'PathwayBlocked':
         return [{text: ' puts '}, ...what, {text: ' on hold'}];
       case 'PathwayCancelled':

@@ -301,7 +301,7 @@ export function MonitoringPage() {
   const subtitle = rules.isPending
     ? 'Loading rules...'
     : data.length === 0
-      ? "What staff do that you're told about"
+      ? "Rules for when you're notified about pathway changes and service alerts"
       : `${data.length} ${data.length === 1 ? 'rule' : 'rules'}, ${on} on`;
 
   return (

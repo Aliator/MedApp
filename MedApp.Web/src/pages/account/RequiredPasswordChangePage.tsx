@@ -46,8 +46,8 @@ export function RequiredPasswordChangePage() {
             size="lg"
           />
 
-          <Button type="submit" label="Change password" variant="primary" size="lg" isLoading={form.isPending} />
-          <Button label="Sign out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />
+          <Button type="submit" label="Change Password" variant="primary" size="lg" isLoading={form.isPending} />
+          <Button label="Sign Out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />
         </VStack>
       </form>
     </StandalonePage>

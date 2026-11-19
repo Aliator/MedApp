@@ -127,13 +127,13 @@ describe('LetterTemplatesPage', () => {
 
     await user.click(row.getByRole('button', {name: 'Delete letter template'}));
     dialog = within(openDialog()!);
-    await user.click(dialog.getByRole('button', {name: 'Delete'}));
+    await user.click(dialog.getByRole('button', {name: 'Delete Letter Template'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     await expectAnnounced('Discharge deleted');
     expect(calls(fetch)).toContain(`DELETE ${BASE}/l2`);
 
     await user.click(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Delete letter template'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Letter Template'}));
     expect(await findAlert('A letter has been written from it since: archive it instead.')).toBeInTheDocument();
     expect(openDialog()).toBeNull();
   });

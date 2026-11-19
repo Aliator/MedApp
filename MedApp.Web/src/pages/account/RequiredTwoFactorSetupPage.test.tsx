@@ -31,10 +31,10 @@ describe('RequiredTwoFactorSetupPage', () => {
 
     await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     // Signing out now would lose the codes before they're saved: Continue is the way on.
-    expect(screen.queryByRole('button', {name: 'Sign out'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Sign Out'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Continue'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/pathways'));
@@ -53,7 +53,7 @@ describe('RequiredTwoFactorSetupPage', () => {
     expect(await screen.findByRole('img', {name: 'QR code for your authenticator app'})).toBeInTheDocument();
     // Switching proves the current factor too: an emailed code, or a recovery code.
     expect(await screen.findByLabelText(/code from the email, or a recovery code/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Email me a code'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Email Me a Code'})).toBeInTheDocument();
   });
 
   it("doesn't mention codes by email to an admin without two-factor", async () => {
@@ -66,7 +66,7 @@ describe('RequiredTwoFactorSetupPage', () => {
   it('signs out', async () => {
     const {user, router, fetch} = renderPage({'POST /api/auth/logout': () => new Response(null, {status: 204})});
 
-    await user.click(await screen.findByRole('button', {name: 'Sign out'}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(calls(fetch)).toContain('POST /api/auth/logout');
