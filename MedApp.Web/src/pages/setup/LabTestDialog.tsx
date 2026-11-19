@@ -104,11 +104,7 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
     <ConfirmDialog
       isOpen={isOpen}
       title={test ? 'Edit Lab Test' : 'Add Lab Test'}
-      message={
-        test
-          ? 'Cases already open keep the steps they started with.'
-          : 'A test the lab does, with its time limits and the steps a case goes through.'
-      }
+      message={test ? 'Cases already open keep the steps they started with.' : undefined}
       icon={test ? AppIcon.Edit : AppIcon.Add}
       confirmText={test ? 'Save' : 'Add Lab Test'}
       confirmDisabled={!isComplete}
