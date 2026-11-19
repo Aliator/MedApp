@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
@@ -97,7 +98,7 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
     public async Task<PagedResult<ReferralRow>> SearchAsync(
         SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today, CancellationToken ct)
     {
-        var filtered = context.Referrals.AsNoTracking().Filter(query, teamIds, today);
+        var filtered = context.Referrals.AsNoTracking().Filter(query, teamIds, today, context.PathwayAccess);
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
@@ -124,17 +125,11 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
         return new PagedResult<ReferralRow>(rows, totalCount);
     }
 
-    public async Task<int> CountAwaitingTriageAsync(IReadOnlyCollection<Guid>? teamIds, CancellationToken ct)
-    {
-        var awaiting = context.Referrals.Where(r => r.Status == ReferralStatus.AwaitingTriage);
-        if (teamIds is not null)
-        {
-            var ids = teamIds.ToList();
-            awaiting = awaiting.Where(r => ids.Contains(r.TeamId));
-        }
-
-        return await awaiting.CountAsync(ct);
-    }
+    public async Task<int> CountAwaitingTriageAsync(TeamScope scope, CancellationToken ct) =>
+        await context.Referrals
+            .Where(r => r.Status == ReferralStatus.AwaitingTriage)
+            .Visible(scope, context.PathwayAccess)
+            .CountAsync(ct);
 
     public async Task<IReadOnlyList<Referral>> GetAwaitingTriageForPatientAsync(Guid patientId, CancellationToken ct) =>
         await context.Referrals

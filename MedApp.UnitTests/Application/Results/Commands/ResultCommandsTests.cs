@@ -25,15 +25,15 @@ namespace MedApp.UnitTests.Application.Results.Commands;
 [TestFixture]
 public sealed class ResultCommandsTests : ResultTestBase
 {
-    private MarkResultSeenHandler SeenHandler => new(Repository.Object, Identity.Object, Holders.Object, Clock);
+    private MarkResultSeenHandler SeenHandler => new(Repository.Object, Walls.Boundary, Identity.Object, Holders.Object, Clock);
 
     private SignOffResultHandler SignOffHandler =>
-        new(Repository.Object, Identity.Object, Holders.Object, Notifications.Object, Clock);
+        new(Repository.Object, Walls.Boundary, Identity.Object, Holders.Object, Notifications.Object, Clock);
 
     private ReassignResultHandler ReassignHandler =>
-        new(Repository.Object, Identity.Object, Holders.Object, Notifications.Object, Clock);
+        new(Repository.Object, Walls.Boundary, Identity.Object, Holders.Object, Notifications.Object, Clock);
 
-    private MarkResultEnteredInErrorHandler ErrorHandler => new(Repository.Object, Identity.Object, Holders.Object, Clock);
+    private MarkResultEnteredInErrorHandler ErrorHandler => new(Repository.Object, Walls.Boundary, Identity.Object, Holders.Object, Clock);
 
     [Test]
     public async Task MarkSeen_Awaiting_MarksItSeenAndAudits()
@@ -283,7 +283,7 @@ public sealed class RecordExternalResultTests : ResultTestBase
     }
 
     private RecordExternalResultHandler Handler =>
-        new(Repository.Object, _patients.Object, _pathways.Object, Identity.Object, Holders.Object, Notifications.Object, Clock);
+        new(Repository.Object, Walls.Boundary, _patients.Object, _pathways.Object, Identity.Object, Holders.Object, Notifications.Object, Clock);
 
     private Attachment GivenFile(Guid? pathwayId, Guid? referralId = null)
     {

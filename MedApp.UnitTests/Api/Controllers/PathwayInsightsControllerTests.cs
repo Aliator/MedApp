@@ -24,11 +24,14 @@ public sealed class PathwayInsightsControllerTests
         var mediator = new RecordingMediator(_ => insights);
         using var cts = new CancellationTokenSource();
 
+        var user = SignedIn("Admin");
+
         var result = await new PathwayInsightsController(mediator)
-            .WithRequest(SignedIn("Admin"))
+            .WithRequest(user)
             .GetPathwayInsights(new GetPathwayInsightsRequest { Weeks = 26, TemplateId = TemplateId, TeamId = PathwaysTestConstants.TeamId }, cts.Token);
 
-        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId, PathwaysTestConstants.TeamId));
+        // With the caller's team walls, so only what their teams may see is counted.
+        mediator.Request.Should().Be(new GetPathwayInsightsQuery(26, TemplateId, PathwaysTestConstants.TeamId, user.ToTeamScope()));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(insights);
     }

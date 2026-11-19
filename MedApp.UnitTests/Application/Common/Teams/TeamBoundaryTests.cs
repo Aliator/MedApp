@@ -155,4 +155,28 @@ public sealed class TeamBoundaryTests
         await change.Should().ThrowAsync<ConflictException>()
             .WithMessage(TeamWalls.RecordNotYours("This referral", "Synthetic gynaecology"));
     }
+
+    [Test]
+    public async Task EnsureRecordVisible_OwnTeam_PathwaySeen_Admin_OrA404Recorded()
+    {
+        var record = Guid.NewGuid();
+        var lab = Guid.NewGuid();
+        var pathway = Given(Gynaecology);
+        _grants.Add(new PathwayAccess
+        {
+            Id = Guid.NewGuid(), PathwayId = pathway.Id, PatientId = pathway.PatientId, TeamId = lab,
+            Reason = PathwayAccessReason.StageOwner, StartedAtUtc = Now
+        });
+
+        (await _boundary.EnsureRecordVisibleAsync("Letter", record, Dermatology, pathway.Id, StaffOf(Dermatology), "gone", _cts.Token))
+            .Should().Be(TeamAccessKind.Owner);
+        (await _boundary.EnsureRecordVisibleAsync("Letter", record, Gynaecology, pathway.Id, StaffOf(lab), "gone", _cts.Token))
+            .Should().Be(TeamAccessKind.StageOwner);
+        (await _boundary.EnsureRecordVisibleAsync("Letter", record, Gynaecology, null, new TeamScope(Guid.NewGuid(), [], true), "gone", _cts.Token))
+            .Should().Be(TeamAccessKind.Admin);
+
+        var hidden = () => _boundary.EnsureRecordVisibleAsync("Letter", record, Gynaecology, pathway.Id, StaffOf(Dermatology), "gone", _cts.Token);
+        await hidden.Should().ThrowAsync<NotFoundException>().WithMessage("gone");
+        _activity.Once.Should().ContainSingle(e => e.Action == ActivityAction.TeamBoundaryRefused);
+    }
 }

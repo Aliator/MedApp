@@ -40,4 +40,10 @@ public sealed class SearchAppointmentsRequest
     /// same stage (or pathway) and no decision of no further appointment, each with how many were missed on its pathway.
     /// </summary>
     public string? View { get; set; }
+
+    /// <summary>
+    /// The clinic picker: only this team's appointments (by the appointment's own team). Admins may pick any team;
+    /// anyone else only one of their own (another is a 400). All the viewer's teams when left out.
+    /// </summary>
+    public Guid? TeamId { get; set; }
 }

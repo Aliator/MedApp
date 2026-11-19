@@ -1,7 +1,9 @@
 using FluentValidation;
 using FluentValidation.Results;
+using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
@@ -45,9 +47,16 @@ public sealed class RecordExternalResultValidator : AbstractValidator<RecordExte
 /// hold SignOffResults (400). A restricted or anonymised record's can't be recorded (409: new work, decision 75). The
 /// result and its <c>ResultRecorded</c> entry are one save; the responsible clinician is told (<c>ResultReady</c>)
 /// unless they recorded it.
+/// <para>
+/// The team walls: a file behind the viewer's wall is a 404 (recorded), as for one that isn't there; a pathway behind it
+/// is the same 400 as one that isn't the patient's (recorded); a pathway the viewer sees but another team owns is a 409
+/// (<see cref="TeamWalls.NotYourTeams"/>), and so is a file with no pathway that another team owns
+/// (<see cref="TeamWalls.RecordNotYours"/>): a result belongs to its pathway's team, or its file's.
+/// </para>
 /// </summary>
 public sealed class RecordExternalResultHandler(
     IResultRepository repository,
+    ITeamBoundary boundary,
     IPatientRepository patients,
     IPatientPathwayRepository pathways,
     IIdentityReadService identity,
@@ -61,13 +70,17 @@ public sealed class RecordExternalResultHandler(
 
     public const string AlreadyResultMessage = "This file is already a result's report.";
 
+    public const string NotPatientsPathwayMessage = "Choose one of this patient's pathways.";
+
     public const string PathwayMismatchMessage = "The file is attached to another pathway: choose that one, or leave it out.";
 
     public async Task<ResultResponse> Handle(RecordExternalResultCommand request, CancellationToken cancellationToken)
     {
         var file = await repository.GetReportAsync(request.AttachmentId, cancellationToken);
         if (file is null || file.IsDeleted)
-            throw new NotFoundException($"File '{request.AttachmentId}' was not found.");
+            throw new NotFoundException(AttachmentWalls.NotFoundMessage(request.AttachmentId));
+        var scope = request.Actor.Teams;
+        await AttachmentWalls.EnsureVisibleAsync(file, boundary, scope, cancellationToken);
         if (file.ReferralId is not null)
             throw Invalid(nameof(request.AttachmentId), ReferralFileMessage);
 
@@ -82,7 +95,20 @@ public sealed class RecordExternalResultHandler(
         var pathwayId = file.PathwayId ?? request.PathwayId;
         var pathway = pathwayId is { } id ? await pathways.GetByIdAsync(id, cancellationToken) : null;
         if (pathwayId is not null && (pathway is null || pathway.PatientId != file.PatientId))
-            throw Invalid(nameof(request.PathwayId), "Choose one of this patient's pathways.");
+            throw Invalid(nameof(request.PathwayId), NotPatientsPathwayMessage);
+        if (pathway is not null)
+        {
+            // Behind the viewer's wall: the same 400 as a pathway that isn't the patient's, so it isn't confirmed.
+            if (await boundary.GetPathwayAccessAsync(pathway.Id, scope, cancellationToken) is null)
+            {
+                await boundary.RefuseAsync(TeamWalls.PathwayTarget, pathway.Id, NotPatientsPathwayMessage, cancellationToken);
+                throw Invalid(nameof(request.PathwayId), NotPatientsPathwayMessage);
+            }
+            await boundary.EnsureCanChangePathwayAsync(
+                pathway, scope, PathwayRepositoryExtensions.NotFoundMessage(pathway.Id), cancellationToken);
+        }
+        else
+            await boundary.EnsureCanChangeTeamAsync(file.TeamId, scope, "This file", cancellationToken);
 
         await permissionHolders.EnsureCanBeResponsibleAsync(
             request.ResponsibleUserId, nameof(request.ResponsibleUserId), cancellationToken);

@@ -9,7 +9,7 @@ namespace MedApp.UnitTests.Application.Referrals.Commands;
 [TestFixture]
 public sealed class SetReferralInformationRequestedHandlerTests : TriageCommandTestBase
 {
-    private SetReferralInformationRequestedHandler Handler => new(Repository.Object, Clock);
+    private SetReferralInformationRequestedHandler Handler => new(Repository.Object, Boundary, Clock);
 
     [Test]
     public async Task Ask_KeepsItOpenWaitingForInformation_AndRecordsIt_ThenReceivedPutsItBack()

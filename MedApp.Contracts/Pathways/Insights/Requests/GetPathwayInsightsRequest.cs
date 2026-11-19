@@ -9,6 +9,9 @@ public sealed class GetPathwayInsightsRequest
     /// <summary>Only pathways made from this template. Unset: every pathway.</summary>
     public Guid? TemplateId { get; set; }
 
-    /// <summary>Only pathways in this team (their own, copied from the template). Unset: every team.</summary>
+    /// <summary>
+    /// The clinic picker: only pathways in this team (their own, copied from the template), one of the caller's (any team
+    /// for an admin; another is a 400). Unset: every team the caller may see.
+    /// </summary>
     public Guid? TeamId { get; set; }
 }

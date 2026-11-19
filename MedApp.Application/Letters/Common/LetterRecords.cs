@@ -1,6 +1,7 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
@@ -8,6 +9,7 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Application.Practices.Common;
 using MedApp.Application.Practices.Repositories;
+using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
 using MedApp.Application.Sites.Repositories;
 using MedApp.Contracts.Letters.Responses;
@@ -31,9 +33,15 @@ public sealed record LetterRecipientInput(
     string? Email);
 
 /// <summary>
-/// What letters' handlers share: loading a letter with its patient and its pathway or referral, filling its merge
-/// fields from the record (identity and administrative data only), working out its recipients' names and addresses,
-/// and its page's response.
+/// What letters' handlers share: loading a letter with its patient and its pathway or referral, through the team walls,
+/// filling its merge fields from the record (identity and administrative data only), working out its recipients' names
+/// and addresses, and its page's response.
+/// <para>
+/// The team walls (MC5, the light demo's <c>findLetter</c>): a letter follows its pathway, or its own team when it has
+/// none (a referral's letter; <see cref="TeamAccess.ByPathway{T}"/>). Behind the viewer's wall it's a 404 with a missing
+/// one's words, recorded; seen but another team's (an admin's, the lab's through the pathway), every change is a 409, but
+/// a withdrawal by someone who corrects records (<see cref="LoadForWithdrawalAsync"/>).
+/// </para>
 /// </summary>
 public sealed class LetterRecords(
     ILetterRepository letters,
@@ -45,8 +53,15 @@ public sealed class LetterRecords(
     IStaffDetailsService staff,
     ISiteRepository sites,
     ILetterTransport transport,
-    IOptions<LettersOptions> options)
+    IOptions<LettersOptions> options,
+    ITeamBoundary boundary)
 {
+    /// <summary>What a refusal across a team wall names a letter as (<c>TeamBoundaryRefused</c>'s <c>targetKind</c>).</summary>
+    public const string Target = "Letter";
+
+    /// <summary>What the 409 to another team's change calls it (<see cref="TeamWalls.RecordNotYours"/>).</summary>
+    public const string What = "This letter";
+
     public ILetterRepository Letters => letters;
 
     public bool SecureEmailAvailable => transport.IsAvailable;
@@ -58,20 +73,77 @@ public sealed class LetterRecords(
     public const string NoUnlistedPracticeMessage =
         "This patient has no GP practice outside the directory recorded. Choose the practice from the directory.";
 
-    /// <summary>A pathway to write a letter about, with its patient, read-only (letters never change a pathway).</summary>
-    public Task<Domain.Pathways.PatientPathways.PatientPathway?> GetPathwayAsync(Guid id, CancellationToken ct) =>
-        pathways.GetByIdAsync(id, ct);
-
-    /// <summary>A referral to write a letter about, with its patient and team, read-only.</summary>
-    public Task<Referral?> GetReferralAsync(Guid id, CancellationToken ct) => referrals.GetByIdAsync(id, ct);
-
-    /// <summary>A letter with its patient and its pathway or referral; tracked for changes when <paramref name="forUpdate"/>. 404 if there's none.</summary>
-    public async Task<LetterRecord> LoadAsync(Guid id, bool forUpdate, CancellationToken ct)
+    /// <summary>
+    /// A pathway to write a letter about, with its patient, read-only (letters never change a pathway): a 404 if there's
+    /// none or it's behind the writer's team wall (recorded), a 409 if it's another team's
+    /// (<see cref="ITeamBoundary.EnsureCanChangePathwayAsync"/>, the demo's <c>pathwayToChange</c>).
+    /// </summary>
+    public async Task<Domain.Pathways.PatientPathways.PatientPathway> GetPathwayToWriteAboutAsync(
+        Guid id, TeamScope scope, CancellationToken ct)
     {
-        var letter = (forUpdate ? await letters.GetForUpdateAsync(id, ct) : await letters.GetByIdAsync(id, ct))
-                     ?? throw NotFound(id);
+        var notFound = PathwayRepositoryExtensions.NotFoundMessage(id);
+        var pathway = await pathways.GetByIdAsync(id, ct) ?? throw new NotFoundException(notFound);
+        await boundary.EnsureCanChangePathwayAsync(pathway, scope, notFound, ct);
+        return pathway;
+    }
+
+    /// <summary>
+    /// A referral to write a letter about, with its patient and team, read-only: a 404 if there's none or it's behind the
+    /// writer's team wall (recorded), a 409 if it's another team's (only its own team writes about it).
+    /// </summary>
+    public async Task<Referral> GetReferralToWriteAboutAsync(Guid id, TeamScope scope, CancellationToken ct)
+    {
+        var referral = await referrals.GetByIdAsync(id, ct)
+                       ?? throw new NotFoundException(ReferralRepositoryExtensions.NotFoundMessage(id));
+        await boundary.EnsureReferralVisibleAsync(referral, scope, ct);
+        await boundary.EnsureCanChangeTeamAsync(referral.TeamId, scope, ReferralRepositoryExtensions.What, ct);
+        return referral;
+    }
+
+    /// <summary>
+    /// A letter the viewer sees, read-only, with its patient and its pathway or referral, and why they see it (for the
+    /// activity log's <c>access</c>); a 404 if there's none or it's behind their team wall (recorded).
+    /// </summary>
+    public async Task<(LetterRecord Record, TeamAccessKind Access)> LoadVisibleAsync(Guid id, TeamScope scope, CancellationToken ct)
+    {
+        var letter = await letters.GetByIdAsync(id, ct) ?? throw NotFound(id);
+        var access = await EnsureVisibleAsync(letter, scope, ct);
+        return (await LoadForAsync(letter, ct), access);
+    }
+
+    /// <summary>
+    /// A letter for its own team to change (tracked when <paramref name="forUpdate"/>), with its patient and its pathway
+    /// or referral: a 404 if there's none or it's behind the actor's team wall (recorded); a 409 if it's another team's
+    /// (<see cref="TeamWalls.RecordNotYours"/>).
+    /// </summary>
+    public async Task<LetterRecord> LoadForChangeAsync(Guid id, PathwayActor actor, CancellationToken ct, bool forUpdate = true)
+    {
+        var letter = await LoadLetterAsync(id, forUpdate, ct);
+        await EnsureVisibleAsync(letter, actor.Teams, ct);
+        await boundary.EnsureCanChangeTeamAsync(letter.TeamId, actor.Teams, What, ct);
         return await LoadForAsync(letter, ct);
     }
+
+    /// <summary>
+    /// A letter, tracked, to withdraw it: as <see cref="LoadForChangeAsync"/>, except that someone who corrects records
+    /// (<c>CorrectRecords</c>, a governance correction like an admin's on a pathway) may withdraw one they see of another
+    /// team's.
+    /// </summary>
+    public async Task<LetterRecord> LoadForWithdrawalAsync(Guid id, PathwayActor actor, CancellationToken ct)
+    {
+        var letter = await LoadLetterAsync(id, forUpdate: true, ct);
+        await EnsureVisibleAsync(letter, actor.Teams, ct);
+        if (!actor.Has(Permission.CorrectRecords))
+            await boundary.EnsureCanChangeTeamAsync(letter.TeamId, actor.Teams, What, ct);
+        return await LoadForAsync(letter, ct);
+    }
+
+    /// <summary>Why the viewer sees the letter (its team's, or its pathway's), or a 404 with a missing one's words, recorded.</summary>
+    public Task<TeamAccessKind> EnsureVisibleAsync(Letter letter, TeamScope scope, CancellationToken ct) =>
+        boundary.EnsureRecordVisibleAsync(Target, letter.Id, letter.TeamId, letter.PathwayId, scope, NotFound(letter.Id).Message, ct);
+
+    private async Task<Letter> LoadLetterAsync(Guid id, bool forUpdate, CancellationToken ct) =>
+        (forUpdate ? await letters.GetForUpdateAsync(id, ct) : await letters.GetByIdAsync(id, ct)) ?? throw NotFound(id);
 
     /// <summary>The letter's patient, and its pathway or referral (the pathway's referral when it has none of its own).</summary>
     public async Task<LetterRecord> LoadForAsync(Letter letter, CancellationToken ct)

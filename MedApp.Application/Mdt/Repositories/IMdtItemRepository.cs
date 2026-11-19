@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Mdt.Common;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Mdt;
@@ -18,11 +19,15 @@ public interface IMdtItemRepository
     /// <summary>An item with everything its response shows, tracked so <see cref="SaveAsync"/> saves changes to it.</summary>
     Task<MdtItem?> GetForUpdateAsync(Guid id, CancellationToken ct);
 
-    /// <summary>A meeting's items, in the order they were listed (then by ID).</summary>
-    Task<IReadOnlyList<MdtItem>> GetForMeetingAsync(Guid meetingId, CancellationToken ct);
+    /// <summary>
+    /// A meeting's items the viewer may see (<see cref="MdtWalls.Visible"/>), in the order they were listed (then by ID).
+    /// </summary>
+    Task<IReadOnlyList<MdtItem>> GetForMeetingAsync(Guid meetingId, TeamScope scope, CancellationToken ct);
 
-    /// <summary>Open items whose meeting was cancelled, oldest listed first, in one team or all.</summary>
-    Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? teamId, CancellationToken ct);
+    /// <summary>
+    /// Open items whose meeting was cancelled, of those the viewer may see, oldest listed first, in one team or all.
+    /// </summary>
+    Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? teamId, TeamScope scope, CancellationToken ct);
 
     /// <summary>A pathway's items, newest listed first.</summary>
     Task<IReadOnlyList<MdtItem>> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);
@@ -33,11 +38,18 @@ public interface IMdtItemRepository
     /// <summary>A meeting with its attendees, read-only; null if there's none.</summary>
     Task<Meeting?> GetMeetingAsync(Guid meetingId, CancellationToken ct);
 
-    /// <summary>MDTs starting in the window, in one team or all, by start, with their counts and team's name.</summary>
-    Task<IReadOnlyList<MdtMeetingRow>> GetMeetingsAsync(Guid? teamId, DateTime fromUtc, DateTime toUtc, CancellationToken ct);
+    /// <summary>
+    /// MDTs starting in the window, in one team or all, by start, with their team's name and counts of the items the
+    /// viewer may see.
+    /// </summary>
+    Task<IReadOnlyList<MdtMeetingRow>> GetMeetingsAsync(
+        Guid? teamId, DateTime fromUtc, DateTime toUtc, TeamScope scope, CancellationToken ct);
 
-    /// <summary>One MDT with its counts and team's name; null if there's no such meeting or it isn't an MDT.</summary>
-    Task<MdtMeetingRow?> GetMeetingRowAsync(Guid meetingId, CancellationToken ct);
+    /// <summary>
+    /// One MDT with its team's name and counts of the items the viewer may see; null if there's no such meeting or it
+    /// isn't an MDT.
+    /// </summary>
+    Task<MdtMeetingRow?> GetMeetingRowAsync(Guid meetingId, TeamScope scope, CancellationToken ct);
 
     /// <summary>How many items on a meeting are still to be discussed, and how many have an outcome.</summary>
     Task<(int Open, int Discussed)> CountOnMeetingAsync(Guid meetingId, CancellationToken ct);

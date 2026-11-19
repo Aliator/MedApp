@@ -51,8 +51,11 @@ public static class DemoActivity
     public static (ActivityAction Action, object Details) RefusedSignIn { get; } =
         (ActivityAction.SignInFailed, new { reason = "InvalidCredentials" });
 
-    /// <summary>What opening a referral records with its <c>ReferralViewed</c> entry (<c>GetReferralByIdHandler</c>): its ID only.</summary>
-    public static object ReferralViewDetails(Guid referralId) => new { referralId };
+    /// <summary>
+    /// What opening a referral records with its <c>ReferralViewed</c> entry (<c>GetReferralByIdHandler</c>): its ID, and
+    /// why the viewer sees it (<c>access</c>, decision 207; the seed's viewers are its own team's, <c>Owner</c>).
+    /// </summary>
+    public static object ReferralViewDetails(Guid referralId, string access = "Owner") => new { referralId, access };
 
     /// <summary>A patient search's entry details (<c>SearchPatientsHandler</c>): the filters used, and how many it found.</summary>
     public static object SearchDetails(IReadOnlyList<string> filters, int resultCount) => new { filters, resultCount };

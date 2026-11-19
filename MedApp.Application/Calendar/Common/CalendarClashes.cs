@@ -57,23 +57,27 @@ public static class CalendarClashes
         Guid? ignoreTemplateBlockId = null,
         Guid? ignoreAppointmentId = null,
         Guid? ignoreMeetingId = null,
-        Guid? ignoreSessionId = null)
+        Guid? ignoreSessionId = null,
+        Func<Domain.Calendar.Meeting, bool>? seesMeeting = null)
     {
         var start = UkTime.Utc(startUtc);
         var end = UkTime.Utc(endUtc);
         var date = UkTime.DateOf(start);
 
-        return BusyTimes(data, ignoreBlockId, ignoreAppointmentId, ignoreMeetingId, (ignoreTemplateBlockId, date), ignoreSessionId)
+        return BusyTimes(data, ignoreBlockId, ignoreAppointmentId, ignoreMeetingId, (ignoreTemplateBlockId, date), ignoreSessionId, seesMeeting)
             .FirstOrDefault(c => Overlaps(start, end, c.StartUtc, c.EndUtc));
     }
 
     /// <summary>
     /// Everything that makes the person busy over the data's range, by start then end: appointments (Booked, Attended
     /// and Did not attend), stored blocks, template blocks and meetings, but not a meeting the person declined. A
-    /// meeting being moved is left out (<paramref name="ignoreMeetingId"/>).
+    /// meeting being moved is left out (<paramref name="ignoreMeetingId"/>). A meeting the viewer can't see
+    /// (<paramref name="seesMeeting"/> false: another team's, <see cref="CalendarWalls"/>) is called "a meeting", without
+    /// its title.
     /// </summary>
-    public static IReadOnlyList<CalendarClash> BusyTimes(CalendarData data, Guid? ignoreMeetingId = null) =>
-        BusyTimes(data, null, null, ignoreMeetingId, (null, default), null);
+    public static IReadOnlyList<CalendarClash> BusyTimes(
+        CalendarData data, Guid? ignoreMeetingId = null, Func<Domain.Calendar.Meeting, bool>? seesMeeting = null) =>
+        BusyTimes(data, null, null, ignoreMeetingId, (null, default), null, seesMeeting);
 
     /// <summary>
     /// For an appointment recorded after the event: a message naming the first of the person's appointments (Booked,
@@ -118,7 +122,8 @@ public static class CalendarClashes
         Guid? ignoreAppointmentId,
         Guid? ignoreMeetingId,
         (Guid? Id, DateOnly Date) ignoreTemplateBlock,
-        Guid? ignoreSessionId)
+        Guid? ignoreSessionId,
+        Func<Domain.Calendar.Meeting, bool>? seesMeeting)
     {
         var appointments = data.Appointments
             .Where(a => a.Id != ignoreAppointmentId
@@ -137,7 +142,8 @@ public static class CalendarClashes
         // A meeting the person declined isn't busy time for them, though it still is for everyone else going.
         var meetings = data.Meetings
             .Where(m => m.Id != ignoreMeetingId && !MeetingReplies.HasDeclined(m, data.StaffUserId))
-            .Select(m => new CalendarClash(m.StartUtc, m.EndUtc, Describe(m)));
+            .Select(m => new CalendarClash(
+                m.StartUtc, m.EndUtc, seesMeeting?.Invoke(m) == false ? CalendarWalls.HiddenMeeting : Describe(m)));
 
         var sessions = data.Sessions
             .Where(s => s.Id != ignoreSessionId && s.Status == Domain.Clinics.ClinicSessionStatus.Planned)

@@ -54,9 +54,9 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(TeamCalendarResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [RequirePermission(Permission.ArrangeMeetings)]
+    [RequirePermission(Permission.UseApp)]
     public async Task<IActionResult> GetTeamCalendar([FromQuery] GetTeamCalendarRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetTeamCalendarQuery(request.Date, request.StaffUserIds ?? [], User.ToCalendarActor()), ct));
+        Ok(await mediator.Send(new GetTeamCalendarQuery(request.Date, request.StaffUserIds ?? [], User.ToCalendarActor(), request.TeamId), ct));
 
     /// <summary>
     /// When several people are all free (admins, for arranging a meeting): each working day's free time, suggested
@@ -73,7 +73,8 @@ public sealed class CalendarController(IMediator mediator) : ControllerBase
             request.From,
             request.To,
             request.DurationMinutes,
-            request.ExceptMeetingId), ct));
+            request.ExceptMeetingId,
+            User.ToTeamScope()), ct));
 
     /// <summary>
     /// Everyone whose calendar can be shown (anyone with a role), with their default week template. With

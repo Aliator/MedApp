@@ -74,7 +74,8 @@ public sealed class PatientsControllerTests
 
         mediator.Request.Should().Be(new SearchPatientsQuery(
             request.Page, request.PageSize, request.Sort, request.Ascending, request.FirstName, request.LastName,
-            request.Email, request.DateOfBirthFrom, request.DateOfBirthTo, request.NhsNumber));
+            request.Email, request.DateOfBirthFrom, request.DateOfBirthTo, request.NhsNumber, request.TeamId,
+            MedApp.Application.Common.Teams.TeamScope.For(UserId, [], MedApp.UnitTests.Common.Constants.TestPermissions.Staff)));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }

@@ -29,7 +29,7 @@ public sealed class WriteLetterCorrectionHandler(LetterRecords records, TimeProv
 {
     public async Task<LetterResponse> Handle(WriteLetterCorrectionCommand request, CancellationToken cancellationToken)
     {
-        var old = await records.LoadAsync(request.LetterId, forUpdate: false, cancellationToken);
+        var old = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken, forUpdate: false);
         var hasCorrection = await records.Letters.GetCorrectionIdAsync(old.Letter.Id, cancellationToken) is not null;
         if (!LetterWorkflow.CanBeCorrected(old.Letter, hasCorrection))
             throw new ConflictException(hasCorrection

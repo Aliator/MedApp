@@ -1,6 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -16,11 +17,13 @@ public sealed record GetPathwayConsentRecordsQuery(Guid PathwayId, PathwayActor 
     : IRequest<IReadOnlyList<ConsentRecordResponse>>;
 
 /// <summary>
-/// 404 for an unknown pathway. Read on the pathway page, so it records <c>PathwayViewed</c> as the page does
-/// (decision 76; deduplicated with it over the view window).
+/// 404 for an unknown pathway, and for one behind the viewer's team wall (recorded). Read on the pathway page, so it
+/// records <c>PathwayViewed</c> as the page does, with why the viewer sees it (<c>access</c>; decision 76; deduplicated
+/// with it over the view window).
 /// </summary>
 public sealed class GetPathwayConsentRecordsHandler(
     IPatientPathwayRepository pathways,
+    ITeamBoundary boundary,
     IConsentRepository repository,
     IIdentityReadService identity,
     IActivityLog activityLog,
@@ -31,10 +34,13 @@ public sealed class GetPathwayConsentRecordsHandler(
         GetPathwayConsentRecordsQuery request, CancellationToken cancellationToken)
     {
         var pathway = await pathways.GetByIdAsync(request.PathwayId, cancellationToken)
-                      ?? throw new NotFoundException($"Pathway '{request.PathwayId}' was not found.");
+                      ?? throw new NotFoundException(PathwayRepositoryExtensions.NotFoundMessage(request.PathwayId));
+        var access = await boundary.EnsurePathwayVisibleAsync(
+            pathway, request.Viewer.Teams, PathwayRepositoryExtensions.NotFoundMessage(request.PathwayId), cancellationToken);
 
         var records = await repository.GetForPathwayAsync(pathway.Id, cancellationToken);
-        await activityLog.RecordViewsAsync(ActivityAction.PathwayViewed, [pathway.PatientId], cancellationToken, pathway.Id);
+        await activityLog.RecordViewsAsync(
+            ActivityAction.PathwayViewed, [pathway.PatientId], cancellationToken, pathway.Id, new { access = access.ToString() });
 
         var usernames = await identity.GetUsernamesByIdAsync(records.SelectMany(ConsentMapper.PeopleIn).Distinct(), cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;

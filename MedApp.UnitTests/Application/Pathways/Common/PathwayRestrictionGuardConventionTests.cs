@@ -154,11 +154,11 @@ public sealed class PathwayRestrictionGuardConventionTests
     [Test]
     public void EveryAppointmentCommandHandler_ThatChangesOne_LoadsItThroughAGuard()
     {
-        var guards = new[]
-        {
-            typeof(AppointmentRepositoryExtensions).GetMethod(nameof(AppointmentRepositoryExtensions.GetForUpdateOrThrowAsync))!,
-            typeof(AppointmentRepositoryExtensions).GetMethod(nameof(AppointmentRepositoryExtensions.GetForCancelOrThrowAsync))!,
-        };
+        // Each guard, with the team walls (MC5) or without (system work).
+        var guards = typeof(AppointmentRepositoryExtensions).GetMethods()
+            .Where(m => m.Name is nameof(AppointmentRepositoryExtensions.GetForUpdateOrThrowAsync)
+                or nameof(AppointmentRepositoryExtensions.GetForCancelOrThrowAsync))
+            .ToArray();
         var handlers = Application.GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false })
             .Where(type => RequestTypes(type).Any(request => request.Namespace?.StartsWith("MedApp.Application.Appointments.Commands") == true))
@@ -172,6 +172,30 @@ public sealed class PathwayRestrictionGuardConventionTests
                             || (CheckTheirOwnPatient.Contains(handler) && calls.Any(m => Same(m, EnsureCanChange)));
             isGuarded.Should().BeTrue($"{handler.Name} changes an appointment, so it must check the patient's record first");
         }
+    }
+
+    [Test]
+    public void EveryAppointmentCommandHandler_ThatLoadsOneByItsId_LoadsItWithTheTeamWalls()
+    {
+        var guards = typeof(AppointmentRepositoryExtensions).GetMethods()
+            .Where(m => m.Name is nameof(AppointmentRepositoryExtensions.GetForUpdateOrThrowAsync)
+                or nameof(AppointmentRepositoryExtensions.GetForCancelOrThrowAsync))
+            .ToList();
+        var walled = guards.Where(m => m.GetParameters().Any(p => p.ParameterType == typeof(MedApp.Application.Common.Teams.ITeamBoundary))).ToList();
+        walled.Should().HaveCount(2);
+
+        // Recording a visit after the event loads the stage's waiting visit without them: its pathway was walled first.
+        var handlers = Application.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false } && type != typeof(RecordPastAppointmentHandler))
+            .Where(type => RequestTypes(type).Any(request => request.Namespace?.StartsWith("MedApp.Application.Appointments.Commands") == true))
+            .Where(type => CallsMadeBy(type, includeNested: true).Any(m => guards.Any(g => Same(m, g))))
+            .ToList();
+
+        handlers.Should().HaveCountGreaterThanOrEqualTo(6, "the scan must find the appointment commands");
+        foreach (var handler in handlers)
+            CallsMadeBy(handler, includeNested: true).Should().OnlyContain(
+                m => !guards.Any(g => Same(m, g)) || walled.Any(g => Same(m, g)),
+                $"{handler.Name} changes a team's appointment, so only its own team may (MC5)");
     }
 
     [Test]

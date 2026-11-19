@@ -96,7 +96,7 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
 
     public async Task<PagedResult<Appointment>> SearchAsync(SearchAppointmentsQuery query, CancellationToken ct)
     {
-        var filtered = context.Appointments.AsNoTracking().Filter(query, context.Appointments.AsNoTracking());
+        var filtered = context.Appointments.AsNoTracking().Filter(query, context.Appointments.AsNoTracking(), context.PathwayAccess);
 
         var totalCount = await filtered.CountAsync(ct);
 

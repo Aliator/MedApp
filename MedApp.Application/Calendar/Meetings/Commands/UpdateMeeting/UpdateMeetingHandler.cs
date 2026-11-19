@@ -2,6 +2,7 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
 using MedApp.Application.Teams.Repositories;
@@ -30,13 +31,16 @@ public sealed class UpdateMeetingHandler(
     INotificationSender notificationSender,
     ITeamRepository teams,
     IMdtItemRepository mdtItems,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateMeetingCommand, MeetingResponse>
 {
     public async Task<MeetingResponse> Handle(UpdateMeetingCommand request, CancellationToken cancellationToken)
     {
         var existing = await repository.GetAsync(request.MeetingId, cancellationToken)
-                       ?? throw new NotFoundException($"Meeting '{request.MeetingId}' was not found.");
+                       ?? throw new NotFoundException(MeetingWalls.NotFoundMessage(request.MeetingId));
+        // Another team's meeting is a 404, as if it weren't there (MC11).
+        await MeetingWalls.EnsureVisibleAsync(existing, request.Actor.Teams, calendarRepository, boundary, cancellationToken);
 
         // The validator requires it; compared here first so a stale change fails without taking anyone's lock.
         var expected = UkTime.Utc(request.ExpectedLastUpdated!.Value);
@@ -57,6 +61,8 @@ public sealed class UpdateMeetingHandler(
         var previousAttendees = existing.Attendees.Select(a => a.StaffUserId).ToList();
         var staff = await identityReadService.GetStaffAsync(cancellationToken);
         var attendees = MeetingStaff.ChooseOrThrow(staff, request.AttendeeUserIds, previousAttendees);
+        // The meeting rule (MC11): everyone invited shares a team with the organiser, except at an MDT.
+        await MeetingWalls.EnsureWithOwnTeamAsync(request.Actor, attendees, mdtTeamId is not null, calendarRepository, cancellationToken);
         var locked = previousAttendees.Concat(attendees.Select(a => a.UserId)).Distinct().ToList();
 
         // Holding the locks of everyone going before and after, so nothing can take the new time meanwhile.
@@ -79,7 +85,7 @@ public sealed class UpdateMeetingHandler(
             var moved = start != tracked.StartUtc || end != tracked.EndUtc;
             var decliners = MeetingReplies.Decliners(tracked);
             await calendarRepository.EnsureEveryoneFreeAsync(
-                attendees.Where(a => !decliners.Contains(a.UserId)).ToList(), start, end, tracked.Id, ct);
+                attendees.Where(a => !decliners.Contains(a.UserId)).ToList(), start, end, tracked.Id, ct, request.Actor.Teams);
             var keepDeclined = moved
                 ? await BusyAtAsync(attendees.Where(a => decliners.Contains(a.UserId)), start, end, tracked.Id, ct)
                 : null;

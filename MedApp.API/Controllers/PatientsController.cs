@@ -86,7 +86,8 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// One page of patients, filtered and sorted on the server. Used by MedApp.Web; the Blazor client still loads
+    /// One page of patients, filtered and sorted on the server, optionally those with a pathway, referral or
+    /// appointment in one team (<c>TeamId</c>, the clinic picker). Used by MedApp.Web; the Blazor client still loads
     /// the whole list from <c>GET api/patients</c>, which goes once it is retired.
     /// </summary>
     [HttpGet("search")]
@@ -105,7 +106,9 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
             request.Email,
             request.DateOfBirthFrom,
             request.DateOfBirthTo,
-            request.NhsNumber);
+            request.NhsNumber,
+            request.TeamId,
+            User.ToTeamScope());
 
         return Ok(await mediator.Send(query, cancellationToken));
     }

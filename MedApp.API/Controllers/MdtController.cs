@@ -31,7 +31,7 @@ public sealed class MdtController(IMediator mediator) : ControllerBase
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(IReadOnlyList<MdtMeetingResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMeetings([FromQuery] Guid? teamId, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetMdtMeetingsQuery(teamId), ct));
+        Ok(await mediator.Send(new GetMdtMeetingsQuery(teamId, User.ToTeamScope()), ct));
 
     /// <summary>One MDT's list, in the order items were listed. Records PatientListed for each patient on it.</summary>
     [HttpGet("meetings/{meetingId:guid}/items")]

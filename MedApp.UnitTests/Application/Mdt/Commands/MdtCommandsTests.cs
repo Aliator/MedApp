@@ -32,11 +32,13 @@ public abstract class MdtCommandTestBase
     protected List<PatientPathwayAuditEntry> Audit { get; } = [];
     protected FixedTimeProvider Clock { get; } = new(Now);
     protected CancellationToken Token { get; } = new CancellationTokenSource().Token;
+    protected TeamWallsTestBoundary Walls { get; private set; } = null!;
 
     [SetUp]
     public void SetUpMdtMocks()
     {
         Audit.Clear();
+        Walls = new TeamWallsTestBoundary();
         Repository = new Mock<IMdtItemRepository>();
         Repository
             .Setup(r => r.SaveAsync(It.IsAny<PatientPathwayAuditEntry>(), It.IsAny<CancellationToken>()))
@@ -88,7 +90,7 @@ public sealed class ListForMdtHandlerTests : MdtCommandTestBase
             .Returns(Task.CompletedTask);
     }
 
-    private ListForMdtHandler Handler() => new(Repository.Object, _pathways.Object, Teams.Object, Clock);
+    private ListForMdtHandler Handler() => new(Repository.Object, _pathways.Object, Walls.Boundary, Teams.Object, Clock);
 
     private ListForMdtCommand Command(Guid? meetingId = null) => new(_pathway.Id, meetingId ?? _meeting.Id, $"  {Question}  ", Nurse);
 
@@ -167,7 +169,7 @@ public sealed class ListForMdtHandlerTests : MdtCommandTestBase
 [TestFixture]
 public sealed class WithdrawMdtItemHandlerTests : MdtCommandTestBase
 {
-    private WithdrawMdtItemHandler Handler() => new(Repository.Object, Clock);
+    private WithdrawMdtItemHandler Handler() => new(Repository.Object, Walls.Boundary, Clock);
 
     [Test]
     public async Task Handle_OpenItem_WithdrawsItAndAudits()
@@ -233,7 +235,7 @@ public sealed class WithdrawMdtItemHandlerTests : MdtCommandTestBase
 [TestFixture]
 public sealed class DeferMdtItemHandlerTests : MdtCommandTestBase
 {
-    private DeferMdtItemHandler Handler() => new(Repository.Object, Teams.Object, Clock);
+    private DeferMdtItemHandler Handler() => new(Repository.Object, Walls.Boundary, Teams.Object, Clock);
 
     [Test]
     public async Task Handle_ToALaterMdt_DefersItAndAuditsBothMeetings()
@@ -317,7 +319,7 @@ public sealed class RecordMdtOutcomeHandlerTests : MdtCommandTestBase
             .Returns(Task.CompletedTask);
     }
 
-    private RecordMdtOutcomeHandler Handler() => new(Repository.Object, _identity.Object, _notifications.Object, Clock);
+    private RecordMdtOutcomeHandler Handler() => new(Repository.Object, Walls.Boundary, _identity.Object, _notifications.Object, Clock);
 
     private static RecordMdtOutcomeCommand Command(MdtItem item, params Guid[] present) =>
         new(item.Id, $" {Outcome} ", present.Length == 0 ? [OtherUserId] : present, 1, Nurse with { Permissions = Clinician.Permissions });

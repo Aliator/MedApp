@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Results.Common;
 using MedApp.Application.Results.Queries.SearchResults;
 using MedApp.Application.Results.Repositories;
@@ -57,7 +58,7 @@ public sealed class ResultRepository(MedAppDbContext context) : IResultRepositor
         SearchResultsQuery query, IReadOnlyCollection<Guid> signOffHolders, CancellationToken ct)
     {
         var holders = signOffHolders.ToList();
-        var filtered = context.Results.AsNoTracking().Filter(query, holders);
+        var filtered = context.Results.AsNoTracking().Filter(query, holders, context.PathwayAccess);
         var totalCount = await filtered.CountAsync(ct);
 
         var page = await filtered
@@ -72,8 +73,8 @@ public sealed class ResultRepository(MedAppDbContext context) : IResultRepositor
         return new PagedResult<Result>(page, totalCount);
     }
 
-    public async Task<int> CountAwaitingForAsync(Guid userId, CancellationToken ct) =>
-        await context.Results.CountAsync(r =>
+    public async Task<int> CountAwaitingForAsync(Guid userId, TeamScope scope, CancellationToken ct) =>
+        await context.Results.Visible(scope, context.PathwayAccess).CountAsync(r =>
             r.ResponsibleUserId == userId
             && (r.Status == ResultStatus.AwaitingSignOff || r.Status == ResultStatus.Seen), ct);
 
