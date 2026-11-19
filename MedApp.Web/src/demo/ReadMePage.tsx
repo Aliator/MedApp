@@ -200,8 +200,8 @@ export function ReadMePage() {
               <Text type="body">
                 Switch between them with the buttons below, or let the tour’s buttons switch for you. The admin runs the centre: accounts, setup,
                 Insights, and every team’s records to read, but no clinical changes. Only staff do clinical work: {STAFF.fullName} as a
-                Dermatology clinician, and {LAB.fullName} in the lab. A clinic admin is staff who also looks after their clinic; its extra rights
-                come later, so for now she works as any clinician does.
+                Dermatology clinician, and {LAB.fullName}, the lab’s histopathologist, who also does the bench steps in this demo. A clinic
+                admin is staff who also looks after their clinic; in this demo she works as any clinician does.
               </Text>
             </VStack>
           </CardSection>

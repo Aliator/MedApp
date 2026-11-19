@@ -42,7 +42,7 @@ export const ARCHITECTURE: ArchitecturePart[] = [
     items: [
       {label: 'Clinical safety case', description: 'A hazard log and safety case (DCB0129 and DCB0160); MedApp records clinicians’ decisions and never makes them.'},
       {label: 'NHS numbers, FHIR and SNOMED CT', description: 'Checked NHS numbers, a FHIR UK Core patient endpoint, a demographics (PDS) lookup, and SNOMED CT codes on stages and tests.'},
-      {label: 'Lab requests in NHS shapes', description: 'Hospital requests follow FHIR UK Core’s lab request, specimen and report, ready for a real hospital link.'},
+      {label: 'Lab requests in NHS formats', description: 'Hospital requests follow FHIR UK Core’s lab request, specimen and report, ready for a real hospital link.'},
     ],
   },
   {
@@ -52,7 +52,7 @@ export const ARCHITECTURE: ArchitecturePart[] = [
       {label: 'Docker, Helm and Kubernetes', description: 'One container image, a locked-down Helm chart, and a local Kubernetes cluster to try it on.'},
       {label: 'GitOps with Argo CD', description: 'Deploys come from environment branches that Argo CD keeps the cluster in step with; Azure is the cloud target.'},
       {label: 'Tests at every level', description: 'NUnit, Vitest and Testing Library, integration tests against real SQL Server in containers, Playwright journeys, and accessibility audits.'},
-      {label: 'Accessible by aim', description: 'Built to WCAG 2.2 AA: keyboard use, screen reader announcements, high-contrast colours and larger text.'},
+      {label: 'Built to be accessible', description: 'Built to WCAG 2.2 AA: keyboard use, screen reader announcements, high-contrast colours and larger text.'},
     ],
   },
 ];

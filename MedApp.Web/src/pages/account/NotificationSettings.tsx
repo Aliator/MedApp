@@ -30,7 +30,7 @@ export function NotificationSettings() {
           )}
           <Switch
             label="When I'm assigned to a pathway"
-            description="Tells you in the bell when someone assigns you to a pathway. Notifications are a convenience: work from My Worklist, with its filter on all open work, so you see work handed to you that's already under way."
+            description="Shows a bell notification when you're assigned. My Worklist shows everything assigned to you, so work from there."
             value={pathwayAssigned}
             isDisabled={preferences.isPending || save.isPending}
             onChange={(isOn) =>

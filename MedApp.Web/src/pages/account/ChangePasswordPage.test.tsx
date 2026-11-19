@@ -20,7 +20,7 @@ describe('ChangePasswordPage', () => {
 
     await fill(user, 'Old-Synthetic1', 'New-Synthetic1', 'New-Synthetic1');
 
-    expect(await screen.findByText('Password updated successfully!')).toBeInTheDocument();
+    expect(await screen.findByText('Use your new password next time you sign in.')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`PUT /api/auth/users/${adminUser.username}/update-password`]);
     expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({oldPassword: 'Old-Synthetic1', newPassword: 'New-Synthetic1'});
     expect(screen.getByLabelText(/^current password/i)).toHaveValue('');

@@ -7,7 +7,7 @@ import type {DemoStageDefinition} from './state';
  * The owner's reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, copied in `dermatologyReviewed.ts`)
  * mapped onto the model, for the light demo's seed:
  * - `kind`: assessment and labResult are choice nodes (`Assessment`, `LabResult`), their `outcomes` the outcomes.
- * - `owner: lab` makes a lab stage; `visit`, `needsLetter` (the letter kind: a discharge summary, an onward referral to hospital, else a clinic letter)
+ * - `owner: lab` makes a lab stage; `visit`, `needsLetter` (the letter kind: a final letter to the GP is `DischargeSummary`, an onward referral to hospital, else a clinic letter)
  *   and `needsConsent` go to the stage definition; `snomed` to its code and term; `retentionClass` to the template.
  * - `repeat`, `endOutcome` and the letter's own name have no field: they're written into the stage's description.
  * - **Routes only go forward** (no cycles). A route back is left out: an outcome looping to its own stage (another
@@ -41,10 +41,10 @@ const SHARED_DESCRIPTIONS: Record<string, string> = {
   Triage: 'Record the referral, the history and what has been tried, and decide when to see the patient.',
   'Dermoscopy assessment': 'Skin check and dermoscopy of the lesion, with photographs; record its size and site.',
   'Take biopsy': 'Take a skin biopsy for the lab, with the patient’s consent; record the site.',
-  Histology: 'The lab processes the specimen and enters the histology report.',
+  Histology: 'The lab processes the sample and enters the histology report.',
   'Histology result': 'The clinician records the histology diagnosis.',
   'Skin cancer MDT': 'Local skin cancer MDT (dermatology and pathology). Record the team’s decision.',
-  'Letter to GP and discharge': 'Write to the GP with the diagnosis and care plan, and discharge.',
+  'Final letter to GP': 'Write to the GP with the diagnosis and care plan, as the centre’s care ends.',
   'Refer to GP': 'Refer to the GP for prescribing or ongoing care (the centre doesn’t prescribe).',
   'Refer to hospital': 'Refer to the hospital for specialist care or treatment.',
   'Urgent hospital referral': 'Urgent referral to the hospital; phone the team first when it’s needed the same day.',
@@ -60,32 +60,34 @@ const SHARED_DESCRIPTIONS: Record<string, string> = {
 const VISITS = {none: 'None', suggested: 'Suggested', required: 'Required'} as const;
 
 const END_OUTCOMES: Record<string, string> = {
-  discharge: 'discharge',
+  discharge: 'care completed',
   gpReferral: 'a referral to the GP',
   hospitalReferral: 'a referral to the hospital',
   otherClinic: 'a referral to another service',
   monitoring: 'monitoring',
 };
 
-/** The letter kind a stage's letter is (`LetterKind` by name): a discharge summary, an onward referral to the hospital (MC28), or a clinic letter. */
+/** The letter kind a stage's letter is (`LetterKind` by name): a final letter to the GP (`DischargeSummary`), an onward referral to the hospital (MC28), or a clinic letter. */
 const letterKind = (letter: string | undefined) =>
-  !letter ? null : /^discharge/i.test(letter) ? 'DischargeSummary' : /to hospital$/i.test(letter) ? 'OnwardReferral' : 'ClinicLetter';
+  !letter ? null : /^final letter/i.test(letter) ? 'DischargeSummary' : /to hospital$/i.test(letter) ? 'OnwardReferral' : 'ClinicLetter';
 
 const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
 
 /**
  * Not one of the owner's reviewed ten: the tour's relay, kept as short as the owner asked (19 November 2026). Triage
- * (the seeded pathway's needs the patient's consent), the lab's Testing, then a Results appointment back in the clinic.
+ * (the seeded pathway's needs a visit, where the sample was taken, and the patient's consent recorded), the lab's Testing, a
+ * Results appointment back in the clinic, then a referral back to the GP for medication (the owner, 19 November 2026).
  */
 const TOUR_RELAY: ReviewedTemplate = {
   template: 'Skin sample to the lab',
   retentionClass: 'Standard',
-  summary: 'A short route for the tour: triage, the lab’s test, then the results at an appointment.',
+  summary: 'A short route for the tour: triage, where a sample is taken, the lab’s test, the results at an appointment, then a referral back to the GP.',
   start: 'triage',
   stages: [
-    {id: 'triage', name: 'Triage', kind: 'step', visit: 'none', next: ['testing'], snomed: '225390008 | Triage', notes: 'Triage the referral and take the sample.'},
+    {id: 'triage', name: 'Triage', kind: 'step', visit: 'none', next: ['testing'], snomed: '225390008 | Triage', notes: 'Triage the referral. Where a skin scraping is needed, see the patient and take it for the lab, with their consent.'},
     {id: 'testing', name: 'Testing', owner: 'lab', kind: 'step', visit: 'none', next: ['results'], notes: 'The lab tests the sample and enters the results.'},
-    {id: 'results', name: 'Results appointment', kind: 'step', visit: 'required', next: [], endOutcome: 'discharge', notes: 'Go through the results with the patient.'},
+    {id: 'results', name: 'Results appointment', kind: 'step', visit: 'required', next: ['refer-gp'], notes: 'Go through the results with the patient.'},
+    {id: 'refer-gp', name: 'Refer to GP for medication', kind: 'step', visit: 'none', next: [], endOutcome: 'gpReferral', needsLetter: 'Referral letter to GP', snomed: '306206005 | Referral to service', notes: 'Refer back to the GP for the medication the results call for (the centre doesn’t prescribe).'},
   ],
   addableRoutes: [],
 };
@@ -204,7 +206,7 @@ function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageD
     const said = [sentence(stage.notes)];
     if (stage.repeat) said.push(`Repeats: ${sentence(stage.repeat)}`);
     if (stage.needsLetter) said.push(`Needs a letter: ${sentence(stage.needsLetter)}`);
-    if (stage.endOutcome) said.push(`Ends in ${END_OUTCOMES[stage.endOutcome] ?? stage.endOutcome}.`);
+    if (stage.endOutcome) said.push(`Ends with ${END_OUTCOMES[stage.endOutcome] ?? stage.endOutcome}.`);
     let outcomes: Schemas['PathwayTemplateOutcomeResponse'][] | null = null;
     if (stage.outcomes) {
       outcomes = [];
@@ -220,13 +222,13 @@ function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageD
         else if (isSampling(target)) said.push(`${name}: add the ${repeatRoute(target)} route, and record the outcome when its result is back.`);
         else {
           outcomes.push({name, nextStageOrders: []});
-          said.push(`${name}: back to ${target.name} in the reviewed pathway; here the route ends.`);
+          said.push(`${name}: in practice this goes back to ${target.name}; here the route ends: start a new pathway if needed.`);
         }
       }
     } else
       for (const next of stage.next ?? []) {
         if (!isBack(stage.id, next)) link(stage.id, next);
-        else said.push(`Then back to ${byId.get(next)!.name} in the reviewed pathway; here the route ends.`);
+        else said.push(`In practice this goes back to ${byId.get(next)!.name}; here the route ends: start a new pathway if needed.`);
       }
     return {
       stageOrder: i + 1,

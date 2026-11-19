@@ -218,8 +218,8 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
         status={fieldStatus(problem.validation, 'letterhead')}
       />
       <TextArea
-        label="Body skeleton"
-        description="In Markdown (## for a heading, ** round bold words, - for a list). Give the headings the author fills in, such as ## Diagnosis and ## Plan. Never put a real patient's details here: merge fields fill them in."
+        label="Body outline"
+        description="In Markdown (## for a heading, ** around bold words, - for a list). Give the headings the author fills in, such as ## Diagnosis and ## Plan. Never put a real patient's details here: merge fields fill them in."
         value={input.bodySkeleton}
         onChange={set('bodySkeleton')}
         rows={14}

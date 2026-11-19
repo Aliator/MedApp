@@ -254,7 +254,7 @@ describe('AppLayout half views', {timeout: 15_000}, () => {
     await user.click(await railCategoryPage(user, 'Account Management', 'Users'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
-    expect(await heading('User Management')).toBeInTheDocument();
+    expect(await heading('Users')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Audit Log', level: 1})).toBeInTheDocument();
   });
 

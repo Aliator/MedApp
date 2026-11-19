@@ -29,7 +29,7 @@ describe('ConfirmEmailPage', () => {
   it("waits for a click, so a mail scanner opening the link doesn't confirm it", async () => {
     const {fetch} = renderPage();
 
-    expect(await screen.findByRole('button', {name: 'Confirm email address'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Confirm Email Address'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Confirm your email address', level: 1})).toBeInTheDocument();
     expect(screen.getByText(/You're\s+signed in as test-user\./)).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
@@ -41,7 +41,7 @@ describe('ConfirmEmailPage', () => {
     const {user, fetch, queryClient} = renderPage();
     queryClient.setQueryData(myEmailQuery.queryKey, {email: null, pendingEmail: 'test.user@example.org'});
 
-    await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+    await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
     expect(await screen.findByText(EMAIL_CONFIRMED)).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Continue to MedApp'})).toHaveAttribute('href', '/');
@@ -53,18 +53,18 @@ describe('ConfirmEmailPage', () => {
   it("says why a link can't be used, in the API's words, with what to do", async () => {
     const {user} = renderPage(() => json([{code: 'InvalidToken', description: 'This link has expired or has already been used.'}], 400));
 
-    await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+    await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
     expect(await findAlert('This link has expired or has already been used.')).toBeInTheDocument();
     expect(screen.getByText(/To get a new link, change your email address again/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Confirm email address'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Confirm Email Address'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Continue to MedApp'})).toBeInTheDocument();
   });
 
   it('shows the title of a 400 with nothing else to say', async () => {
     const {user} = renderPage(() => json({title: 'Bad request.'}, 400));
 
-    await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+    await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
     expect(await findAlert('Bad request.')).toBeInTheDocument();
   });
@@ -72,17 +72,17 @@ describe('ConfirmEmailPage', () => {
   it('says when it could not be confirmed for another reason, and lets them try again', async () => {
     const {user} = renderPage(() => json({title: 'Server error'}, 500));
 
-    await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+    await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
     expect(await findAlert('The email address could not be confirmed. Please try again.')).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Confirm email address'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Confirm Email Address'})).toBeInTheDocument();
   });
 
   it("says a link that isn't whole can't be used", async () => {
     const {fetch} = renderPage(undefined, {link: '/confirm-email'});
 
     expect(await findAlert(BROKEN_EMAIL_LINK)).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Confirm email address'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Confirm Email Address'})).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -92,7 +92,7 @@ describe('ConfirmEmailPage', () => {
 
       expect(await screen.findByText(SIGN_IN_TO_CONFIRM)).toBeInTheDocument();
       expect(screen.getByText(/Sign in with the account this address was given for/)).toBeInTheDocument();
-      expect(screen.queryByRole('button', {name: 'Confirm email address'})).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Confirm Email Address'})).not.toBeInTheDocument();
       expect(confirmCalls(fetch)).toHaveLength(0);
       expect(window.location.hash).toBe('');
     });
@@ -100,7 +100,7 @@ describe('ConfirmEmailPage', () => {
     it('keeps the link in this tab and sends them to sign in, to come back here', async () => {
       const {user, router} = renderPage(undefined, {user: signedOutUser});
 
-      await user.click(await screen.findByRole('button', {name: 'Sign in'}));
+      await user.click(await screen.findByRole('button', {name: 'Sign In'}));
 
       await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
       expect(router.state.location.search).toEqual({redirect: '/confirm-email'});
@@ -127,7 +127,7 @@ describe('ConfirmEmailPage', () => {
     it('asks someone signed out to sign in, keeping the link it read', async () => {
       const {user} = renderStrict(signedOutUser);
 
-      await user.click(await screen.findByRole('button', {name: 'Sign in'}));
+      await user.click(await screen.findByRole('button', {name: 'Sign In'}));
 
       expect(screen.queryByText(BROKEN_EMAIL_LINK)).not.toBeInTheDocument();
       expect(pendingEmailConfirmation.read()).toEqual({userId: USER, token: 'synthetic+token'});
@@ -137,7 +137,7 @@ describe('ConfirmEmailPage', () => {
     it("confirms with the link's token for someone signed in", async () => {
       const {user, fetch} = renderStrict(staffUser);
 
-      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+      await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
       expect(await screen.findByText(EMAIL_CONFIRMED)).toBeInTheDocument();
       expect(await (confirmCalls(fetch)[0][0] as Request).json()).toEqual({userId: USER, token: 'synthetic+token'});
@@ -149,7 +149,7 @@ describe('ConfirmEmailPage', () => {
       pendingEmailConfirmation.save({userId: USER, token: 'kept-token'});
       const {user, fetch} = renderPage(undefined, {link: '/confirm-email'});
 
-      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+      await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
       expect(await screen.findByText(EMAIL_CONFIRMED)).toBeInTheDocument();
       expect(await (confirmCalls(fetch)[0][0] as Request).json()).toEqual({userId: USER, token: 'kept-token'});
@@ -162,7 +162,7 @@ describe('ConfirmEmailPage', () => {
         link: '/confirm-email',
       });
 
-      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+      await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
       expect(await findAlert('This link has expired or has already been used.')).toBeInTheDocument();
       expect(sessionStorage.getItem(PENDING_CONFIRMATION_KEY)).toBeNull();
@@ -175,11 +175,11 @@ describe('ConfirmEmailPage', () => {
     it('says so, with a way to sign out, and no way to confirm', async () => {
       const {user} = renderPage(() => json([{code: 'WrongAccount', description: wrongAccount}], 400));
 
-      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+      await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
       expect(await findAlert(wrongAccount)).toBeInTheDocument();
       expect(screen.getByText(/Sign out, then open the link from the email again/)).toBeInTheDocument();
-      expect(screen.queryByRole('button', {name: 'Confirm email address'})).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Confirm Email Address'})).not.toBeInTheDocument();
       expect(screen.getByRole('link', {name: 'Continue to MedApp'})).toBeInTheDocument();
     });
 
@@ -188,8 +188,8 @@ describe('ConfirmEmailPage', () => {
         extra: {'POST /api/auth/logout': () => new Response(null, {status: 204})},
       });
 
-      await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
-      await user.click(await screen.findByRole('button', {name: 'Sign out'}));
+      await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
+      await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
 
       await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
       expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname === '/api/auth/logout')).toBe(true);
@@ -206,9 +206,9 @@ describe('ConfirmEmailPage', () => {
       {extra: {'GET /api/auth/whoami': () => json(signedIn ? {isAuthenticated: true, name: 'test-user', roles: ['User']} : {isAuthenticated: false})}},
     );
 
-    await user.click(await screen.findByRole('button', {name: 'Confirm email address'}));
+    await user.click(await screen.findByRole('button', {name: 'Confirm Email Address'}));
 
     expect(await screen.findByText(SIGN_IN_TO_CONFIRM)).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Sign in'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Sign In'})).toBeInTheDocument();
   });
 });

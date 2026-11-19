@@ -24,7 +24,7 @@ export function adminsWithoutTwoFactorText({
   if (count === 0) return 'Every admin account uses an authenticator app.';
   const accounts = count === 1 ? '1 admin account hasn\'t' : `${count} admin accounts haven't`;
   return requireTwoFactorForAdmins
-    ? `${accounts} set up an authenticator app; they'll be asked to at their next request.`
+    ? `${accounts} set up an authenticator app. They'll be asked to the next time they use MedApp.`
     : `${accounts} set up an authenticator app.`;
 }
 

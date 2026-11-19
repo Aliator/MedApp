@@ -70,7 +70,7 @@ export function seedConsults(base: BaseState): ConsultSlice {
         askingTeamId: TEAMS.dermatology,
         askedTeamId: TEAMS.lab,
         question:
-          'If we biopsy this 9 mm lesion on the shin, would the lab rather have a punch biopsy or a full excision for a reliable report? (Synthetic question.)',
+          'Would a 4 mm punch biopsy give a reliable report on this 9 mm lesion, or should we refer for excision at the hospital?',
         status: 'Open',
         requestedByUserId: STAFF.id,
         requestedAtUtc: ukTime(daysFrom(-1), 11, 15),

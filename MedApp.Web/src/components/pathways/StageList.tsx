@@ -13,6 +13,7 @@ import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
+import {ClampedRichText} from '../shared/ClampedRichText';
 import {RichText} from '../shared/RichText';
 import {SnomedConcept} from './SnomedConcept';
 
@@ -77,7 +78,7 @@ function StageActivity({stage}: {stage: PathwayStage}) {
   );
 }
 
-/** The stage's notes, formatted (`RichText`), or a note that there are none. */
+/** The stage's notes, formatted and cut to three lines until expanded (`ClampedRichText`), or a note that there are none. */
 export function StageNotes({notes}: {notes: string}) {
   return (
     <VStack gap={1}>
@@ -85,7 +86,7 @@ export function StageNotes({notes}: {notes: string}) {
         Notes
       </Text>
       {notes.trim() ? (
-        <RichText>{notes}</RichText>
+        <ClampedRichText>{notes}</ClampedRichText>
       ) : (
         <Text type="body" color="secondary">
           No notes yet.

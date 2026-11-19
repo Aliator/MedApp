@@ -42,7 +42,7 @@ describe('the light demo’s hospitals and hospital requests (MC18)', () => {
     startLightDemo(LAB);
     const request = (await call('GET', `/api/hospital-requests/${HOSPITAL_REQUESTS.wilfredExcision}`)).body;
     expect(request).toMatchObject({
-      hospitalName: 'Riverside General (demo)',
+      hospitalName: 'Riverside General Hospital (synthetic)',
       hospitalPatientNumber: 'RG-204817',
       nhsNumber: '9991031375',
       nhsNumbersDiffer: false,

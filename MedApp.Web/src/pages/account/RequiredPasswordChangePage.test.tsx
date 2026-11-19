@@ -8,7 +8,7 @@ async function fill(user: ReturnType<typeof renderWithApp>['user'], current: str
   await user.type(await screen.findByLabelText(/^password you were given/i), current);
   await user.type(screen.getByLabelText(/^new password/i), next);
   await user.type(screen.getByLabelText(/^confirm new password/i), confirm);
-  await user.click(screen.getByRole('button', {name: 'Change password'}));
+  await user.click(screen.getByRole('button', {name: 'Change Password'}));
 }
 
 const render = () => renderWithApp(<RequiredPasswordChangePage />, {path: '/change-password', user: mustChangePasswordUser});
@@ -125,7 +125,7 @@ describe('RequiredPasswordChangePage', () => {
     const fetch = mockApi({'POST /api/auth/logout': () => new Response(null, {status: 204})});
     const {user, router} = render();
 
-    await user.click(await screen.findByRole('button', {name: 'Sign out'}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(calls(fetch)[0]).toBe('POST /api/auth/logout');

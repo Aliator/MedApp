@@ -109,7 +109,7 @@ export function RecoveryCodes({codes, username, announcement, method = 'authenti
           onClick={() => void copy(text)}
         />
         <Button
-          label="Download codes"
+          label="Download Codes"
           icon={<Icon icon={AppIcon.Download} />}
           onClick={() => download(recoveryCodesText(codes, username, method), RECOVERY_CODES_FILE)}
         />

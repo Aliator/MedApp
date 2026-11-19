@@ -307,10 +307,10 @@ describe('EmailPage, while the account signs in with codes by email', () => {
     });
 
     expect(await screen.findByText(CODE_FOR_CHANGE)).toBeInTheDocument();
-    expect(isDisabled(screen.getByRole('button', {name: 'Email me a code'}))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', {name: 'Email Me a Code'}))).toBe(true);
     await user.type(screen.getByLabelText(/new email address/i), 'test.user.new@example.org');
     await user.type(screen.getByLabelText(/your password/i), PASSWORD);
-    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
     expect(await screen.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
     await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), '654321');
     await user.click(screen.getByRole('button', {name: 'Send confirmation link'}));
@@ -349,7 +349,7 @@ describe('EmailPage, while the account signs in with codes by email', () => {
     });
 
     await user.type(await screen.findByLabelText(/your password/i), 'not-it');
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
 
     await waitFor(() => expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true'));
   });

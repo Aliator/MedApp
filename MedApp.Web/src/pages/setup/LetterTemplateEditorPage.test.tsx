@@ -111,7 +111,7 @@ describe('LetterTemplateEditorPage', () => {
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Dermatology', 'Urology']);
     await user.click(screen.getByRole('option', {name: 'Urology'}));
     await fill(user, /Letterhead/, 'Example Clinic');
-    await fill(user, /Body skeleton/, 'Dear {{patient.name}},\n\n## Summary');
+    await fill(user, /Body outline/, 'Dear {{patient.name}},\n\n## Summary');
     await fill(user, /Closing/, '{{author.name}}');
     await user.click(screen.getByRole('button', {name: 'Create Letter Template'}));
 
@@ -144,7 +144,7 @@ describe('LetterTemplateEditorPage', () => {
     const {user, fetch, router} = renderEditor('l1', {[`PUT ${BASE}/l1`]: () => json({...template, name: 'Skin letter', version: 4})});
 
     expect(await screen.findByRole('textbox', {name: /Name/})).toHaveValue('Skin clinic letter');
-    expect(screen.getByRole('textbox', {name: /Body skeleton/})).toHaveValue('## Diagnosis\n\n## Plan');
+    expect(screen.getByRole('textbox', {name: /Body outline/})).toHaveValue('## Diagnosis\n\n## Plan');
     expect(screen.getByRole('combobox', {name: /Team/})).toHaveTextContent('Dermatology');
     await fill(user, /Name/, 'Skin letter');
     await choose(user, /Team/, 'All teams');
@@ -180,10 +180,10 @@ describe('LetterTemplateEditorPage', () => {
     });
 
     await user.type(await screen.findByRole('textbox', {name: /Name/}), 'Letter');
-    await fill(user, /Body skeleton/, 'Dear {{patient.nme}}');
+    await fill(user, /Body outline/, 'Dear {{patient.nme}}');
     await user.click(screen.getByRole('button', {name: 'Create Letter Template'}));
 
-    await waitFor(() => expect(screen.getByRole('textbox', {name: /Body skeleton/})).toHaveAccessibleDescription(/\{\{patient\.nme\}\} isn't a merge field/));
+    await waitFor(() => expect(screen.getByRole('textbox', {name: /Body outline/})).toHaveAccessibleDescription(/\{\{patient\.nme\}\} isn't a merge field/));
     expect(await findAlert('Something else went wrong.')).not.toHaveTextContent('patient.nme');
   });
 
