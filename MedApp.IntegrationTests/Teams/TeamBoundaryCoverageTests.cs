@@ -83,6 +83,7 @@ public sealed class TeamBoundaryCoverageTests : TeamLeakTest
         ("api/auth", Kind.CentreWide, "the caller's own account, sign-in, and staff accounts"),
         ("api/permissions", Kind.CentreWide, "the permission catalogue"),
         ("api/roles", Kind.CentreWide, "roles: configuration"),
+        ("api/jobs", Kind.NotData, "the scheduled jobs' state: names, times and counts"),
 
         // Not data.
         ("api/notifications/hub", Kind.NotData, "the live notifications connection"),
@@ -190,13 +191,15 @@ public sealed class TeamBoundaryCoverageTests : TeamLeakTest
                 var text = await response.Content.ReadAsStringAsync();
                 probed++;
 
-                var sent = GuidsIn(url);
-                GuidsIn(text).Where(id => !sent.Contains(id)).Intersect(w.PrivateIds)
+                var body = Body(endpoint.Key, w);
+                w.LeakedIn(text, url, System.Text.Json.JsonSerializer.Serialize(body))
                     .Should().BeEmpty($"{endpoint.Key} as team B named team A's records");
                 text.Should().NotContainAny([Private, LabShared, ConsultText, HospitalText], endpoint.Key);
 
-                var readsOne = endpoint.Method == "GET" && url != "/" + endpoint.Pattern && !endpoint.Pattern.StartsWith("api/patients/")
-                               && GuidsIn(url).Overlaps(w.PrivateIds);
+                // A read of one of team A's records is a 404 (a patient's timeline and a clinic session are centre-wide
+                // pages that show B only its own, and another team's visits as busy time).
+                var readsOne = endpoint.Method == "GET" && GuidsIn(url.Split('?')[0]).Overlaps(w.PrivateIds)
+                               && !endpoint.Pattern.StartsWith("api/patients/") && !endpoint.Pattern.StartsWith("api/clinics/");
                 if (readsOne)
                     response.StatusCode.Should().Be(HttpStatusCode.NotFound, $"{endpoint.Key} read team A's record as team B");
             }
@@ -231,11 +234,11 @@ public sealed class TeamBoundaryCoverageTests : TeamLeakTest
             return Kind.AdminOnly;
 
         var pattern = endpoint.Pattern;
-        var match = Areas
-            .Where(a => pattern == a.Prefix || pattern.StartsWith(a.Prefix + "/", StringComparison.Ordinal)
-                        || pattern.StartsWith(a.Prefix + "?", StringComparison.Ordinal))
-            .MaxBy(a => a.Prefix.Length);
-        return match.Prefix is null ? null : match.Kind;
+        var matches = Areas
+            .Where(a => pattern == a.Prefix || pattern.StartsWith(a.Prefix + "/", StringComparison.Ordinal))
+            .OrderByDescending(a => a.Prefix.Length)
+            .ToList();
+        return matches.Count == 0 ? null : matches[0].Kind;
     }
 
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string url, object? body)

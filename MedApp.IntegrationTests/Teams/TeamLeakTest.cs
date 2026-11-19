@@ -91,15 +91,30 @@ public abstract class TeamLeakTest : IntegrationTest
         Guid LabCaseId,
         Guid LabCaseStepId,
         Guid HospitalRequestId,
-        Guid HospitalPatientId)
+        Guid HospitalPatientId,
+        Guid ClinicSessionId,
+        Guid SessionAppointmentId)
     {
-        /// <summary>Team A's record IDs that B must never be given (the patient is centre-wide, so isn't one).</summary>
-        public IReadOnlyList<Guid> PrivateIds =>
-        [
-            PrivatePathway.Id, NoteId, NoteDeletionRequestId, SharedPathway.Id, ReferralId, AppointmentId, AttachmentId,
-            ResultId, LetterId, ConsentRecordId, MdtItemId, ConsultId, SpecimenId, LabCaseId, HospitalRequestId,
-            .. PrivatePathway.Stages.Select(s => s.Id), .. SharedPathway.Stages.Select(s => s.Id),
-        ];
+        /// <summary>Team A's record IDs that B must never be given (the patient is centre-wide, so isn't one), by what each is.</summary>
+        public IReadOnlyDictionary<Guid, string> Named => new Dictionary<Guid, string>
+        {
+            [PrivatePathway.Id] = "private pathway", [NoteId] = "note", [NoteDeletionRequestId] = "note deletion request",
+            [SharedPathway.Id] = "shared pathway", [ReferralId] = "referral", [AppointmentId] = "appointment",
+            [AttachmentId] = "file", [ResultId] = "result", [LetterId] = "letter", [ConsentRecordId] = "consent record",
+            [MdtItemId] = "MDT item", [ConsultId] = "consult", [SpecimenId] = "sample", [LabCaseId] = "lab case",
+            [HospitalRequestId] = "hospital request", [SessionAppointmentId] = "appointment in a clinic session",
+            [PrivatePathway.Stages[0].Id] = "private stage 1", [PrivatePathway.Stages[1].Id] = "private stage 2",
+            [SharedPathway.Stages[0].Id] = "shared stage 1", [SharedPathway.Stages[1].Id] = "shared stage 2",
+        };
+
+        public IReadOnlyCollection<Guid> PrivateIds => Named.Keys.ToList();
+
+        /// <summary>Team A's records named in a response (as what each is), less those the request named itself.</summary>
+        public IReadOnlyList<string> LeakedIn(string response, params string[] sent)
+        {
+            var asked = sent.SelectMany(GuidsIn).ToHashSet();
+            return GuidsIn(response).Where(id => !asked.Contains(id) && Named.ContainsKey(id)).Select(id => Named[id]).ToList();
+        }
     }
 
     /// <summary>Makes the teams, their members and team A's records, through the API.</summary>
@@ -141,6 +156,21 @@ public abstract class TeamLeakTest : IntegrationTest
         var appointment = await (await PostBookingAsync(a.Client, patient.Id, a.UserId, NextBookableStart(),
             pathwayId: privatePathway.Id, stageId: privatePathway.Stages[0].Id, notes: $"{Private} visit notes"))
             .ReadAsAsync<MedApp.Contracts.Appointments.Responses.AppointmentResponse>(HttpStatusCode.Created);
+
+        // Team A's clinic session, with a visit booked into its first slot.
+        var site = await CreateSiteAsync(admin);
+        var room = await CreateRoomAsync(admin, site.Id);
+        var sessionDay = NextWorkingDay(4);
+        var session = await (await a.Client.PostAsJsonAsync("/api/clinics/sessions", new MedApp.Contracts.Clinics.Requests.ClinicSessionRequest
+        {
+            StaffUserId = a.UserId, RoomId = room.Id, TeamId = teamA, StartUtc = UkAt(sessionDay, 9), EndUtc = UkAt(sessionDay, 12), SlotMinutes = 20,
+        })).ReadAsAsync<MedApp.Contracts.Clinics.Responses.ClinicSessionResponse>(HttpStatusCode.Created);
+        var requested = await RequestAppointmentAsync(a.Client, patient.Id, privatePathway.Id, privatePathway.Stages[1].Id);
+        await (await a.Client.PostAsJsonAsync($"{AppointmentUrl(requested.Id)}/book", new MedApp.Contracts.Appointments.Requests.BookAppointmentRequest
+        {
+            StaffUserId = a.UserId, StartUtc = UkAt(sessionDay, 9), EndUtc = UkAt(sessionDay, 9, 20), ExpectedStatus = "Requested",
+            ClinicSessionId = session.Id,
+        })).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         // A file, a result from it, a letter, and consent.
         var file = await UploadAttachmentOkAsync(a.Client, $"pathwayId={privatePathway.Id}", SyntheticPdf, $"{Private}.pdf");
@@ -224,7 +254,7 @@ public abstract class TeamLeakTest : IntegrationTest
             teamA, teamB, teamC, a, b, c, lab, patient.Id, template.Id, privatePathway, note.Id, asked.DeletionRequestId!.Value,
             await GetPathwayAsync(a.Client, shared.Id), referral.Id, appointment.Id, file.Id, result.Id, letter.Id,
             letter.Recipients[0].Id, consent.Id, meeting.Id, item.Id, consult.Id, sample.Id, sample.Number, labCase.Id,
-            labCase.Steps[0].Id, request.Id, request.PatientId);
+            labCase.Steps[0].Id, request.Id, request.PatientId, session.Id, requested.Id);
     }
 
     private static async Task<Guid> CreateTeamAsync(HttpClient admin, string name) =>
@@ -304,6 +334,7 @@ public abstract class TeamLeakTest : IntegrationTest
                 _ when url.StartsWith("/api/pathways/{id") && url.EndsWith("/specimens") => w.SharedPathway.Id,
                 _ when url.StartsWith("/api/pathways/{id") => w.PrivatePathway.Id,
                 _ when url.StartsWith("/api/appointments/") => w.AppointmentId,
+                _ when url.StartsWith("/api/clinics/sessions/") => w.ClinicSessionId,
                 _ when url.StartsWith("/api/attachments/") => w.AttachmentId,
                 _ when url.StartsWith("/api/consent-records/") => w.ConsentRecordId,
                 _ when url.StartsWith("/api/consults/") => w.ConsultId,

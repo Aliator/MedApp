@@ -70,8 +70,11 @@ public sealed class GetPatientTimelineOverviewHandler(
                 .Select(TimelineMapper.ToDeletedPathwayResponse));
         }
 
-        // Referrals awaiting triage, beside the open pathways: what's coming, oldest first.
-        var awaiting = await referralRepository.GetAwaitingTriageForPatientAsync(request.PatientId, cancellationToken);
+        // Referrals awaiting triage, beside the open pathways: what's coming, oldest first. Only the viewer's teams'
+        // (the team walls: another team's referral isn't named, as the light demo has it).
+        var awaiting = (await referralRepository.GetAwaitingTriageForPatientAsync(request.PatientId, cancellationToken))
+            .Where(r => request.Teams.SeesAllTeams || request.Teams.IsMember(r.TeamId))
+            .ToList();
 
         return new PatientTimelineOverviewResponse
         {

@@ -125,6 +125,35 @@ public sealed class GetPatientTimelineOverviewHandlerTests
     }
 
     [Test]
+    public async Task Handle_AwaitingReferrals_OnlyTheViewersTeams()
+    {
+        GivenPathways();
+        var mine = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var referrals = new Mock<MedApp.Application.Referrals.Repositories.IReferralRepository>();
+        referrals
+            .Setup(r => r.GetAwaitingTriageForPatientAsync(PatientId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new MedApp.Domain.Referrals.Referral { Id = Guid.NewGuid(), PatientId = PatientId, TeamId = mine },
+                new MedApp.Domain.Referrals.Referral { Id = Guid.NewGuid(), PatientId = PatientId, TeamId = other },
+            ]);
+        var fixture = AutoFixtureFactory.Create();
+        fixture.Inject(_patients.Object);
+        fixture.Inject(_pathways.Object);
+        fixture.Inject(_audit.Object);
+        fixture.Inject(referrals.Object);
+        fixture.Inject<TimeProvider>(new FixedTimeProvider(Now));
+        var handler = fixture.Create<GetPatientTimelineOverviewHandler>();
+        var scope = new MedApp.Application.Common.Teams.TeamScope(Guid.NewGuid(), [mine], seesAllTeams: false);
+
+        var result = await handler.Handle(new GetPatientTimelineOverviewQuery(PatientId, false, scope), CancellationToken.None);
+
+        result.AwaitingReferrals.Should().ContainSingle("another team's referral isn't named (the team walls)");
+        (await handler.Handle(new GetPatientTimelineOverviewQuery(PatientId, false), CancellationToken.None))
+            .AwaitingReferrals.Should().HaveCount(2, "a scope that sees every team sees both");
+    }
+
+    [Test]
     public async Task Handle_PassesCancellationToken_ToRepositories()
     {
         GivenPathways();

@@ -51,8 +51,7 @@ public sealed class TeamLeakCanaryTests : TeamLeakTest
             {
                 var b = await ReadAsync(w.B.Client, url, body);
                 b.Should().NotContainAny([Private, LabShared, ConsultText, HospitalText], $"team B read {key}");
-                var sent = GuidsIn(url);
-                GuidsIn(b).Where(id => !sent.Contains(id)).Intersect(w.PrivateIds)
+                w.LeakedIn(b, url, System.Text.Json.JsonSerializer.Serialize(body))
                     .Should().BeEmpty($"team B read {key}: it named team A's records");
 
                 (await ReadAsync(w.Lab.Client, url, body)).Should().NotContainAny([Private, ConsultText], $"the lab read {key}");
