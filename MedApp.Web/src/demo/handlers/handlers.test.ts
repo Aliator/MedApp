@@ -28,15 +28,14 @@ describe('the light demo handlers', () => {
   });
 
   it('finishes the current stage, and moves on to the next', async () => {
-    // Histology is the lab's stage (the relay), so the lab finishes it.
+    // Histology is the lab's stage (the relay), finished by authorising its lab case (MC16).
     startLightDemo(LAB);
     const before = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`)).body;
     const current = before.stages.find(isCurrent);
     expect(current.name).toBe('Histology');
-    const after = await call('POST', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}/stages/${current.id}/finish`, {
-      result: 'Compound naevus (synthetic).',
-    });
-    expect(after.status).toBe(200);
+    const labCase = (await call('GET', `/api/lab-cases/${current.labCaseId}`)).body;
+    expect((await call('POST', `/api/lab-cases/${labCase.id}/report`, {results: 'Compound naevus (synthetic).', expectedVersion: labCase.version})).status).toBe(200);
+    const after = await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`);
     expect(after.body.stages.find(isCurrent).name).toBe('Histology result');
     expect(after.body.completedStageCount).toBe(4);
   });
@@ -202,12 +201,15 @@ describe('the light demo handlers', () => {
     expect(second.branchAdditionId).toBe(pathway.branchAdditions[0].id);
     const review = pathway.stages.find((s: {name: string}) => s.name === 'Histology result');
     expect(review.predecessorIds).toEqual([histology.id]);
-    // Both are the lab's (the relay): the lab finishes them, each on its own.
+    // Both are the lab's (the relay): the lab finishes them, each on its own (their cases, waiting for samples that
+    // never came here, set aside: an open case's stage is finished only by authorising it, MC16).
     expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
     db().user = LAB.username;
-    pathway = (await call('POST', `${url}/stages/${second.id}/finish`, {result: 'Benign (synthetic).'})).body;
+    expect((await call('POST', `${url}/stages/${second.id}/finish`, {})).status).toBe(409);
+    for (const c of db().labCases.filter((x) => x.pathwayId === PATHWAYS.forkedTests)) c.status = 'EnteredInError';
+    pathway = (await call('POST', `${url}/stages/${second.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([histology.id]);
-    pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {result: 'Benign (synthetic).'})).body;
+    pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
     expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});
   });

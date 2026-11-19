@@ -202,31 +202,3 @@ export function OutcomeChoice({stage, outcome, onOutcomeChange, isDisabled}: Out
     </>
   );
 }
-
-/** The longest result the lab can enter as it finishes its stage (the API's limit). */
-export const MAX_RESULT_LENGTH = 4000;
-
-export interface LabResultFieldProps {
-  result: string;
-  onResultChange: (result: string) => void;
-  isDisabled?: boolean;
-}
-
-/**
- * The lab's result, entered as it finishes its own stage (`needsResult`): it goes back to the clinic with the pathway,
- * and the clinic's review shows it. Written by the lab; MedApp never reads it to suggest anything.
- */
-export function LabResultField({result, onResultChange, isDisabled}: LabResultFieldProps) {
-  const isTooLong = result.length > MAX_RESULT_LENGTH;
-  return (
-    <TextArea
-      label="Result"
-      description="What the lab found. It goes back to the clinic with the pathway."
-      value={result}
-      onChange={onResultChange}
-      isRequired
-      isDisabled={isDisabled}
-      status={isTooLong ? {type: 'error', message: `At most ${MAX_RESULT_LENGTH} characters.`} : undefined}
-    />
-  );
-}

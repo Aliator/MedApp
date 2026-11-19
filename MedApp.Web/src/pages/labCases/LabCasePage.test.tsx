@@ -35,6 +35,12 @@ describe('LabCasePage', () => {
     expect(await screen.findByRole('button', {name: 'Record Cut-up'})).toBeInTheDocument();
   });
 
+  it('says a lab stage’s case waits for its sample, with nothing to record yet (MC16)', async () => {
+    renderPage(() => json(testCase({next: {kind: 'Receive', name: 'Receive the sample'}, canRecord: false, labTestName: null})));
+    expect(await screen.findByText('Waiting for the sample. Receiving it at the lab starts the case, and the lab chooses the test.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /Record/})).not.toBeInTheDocument();
+  });
+
   it('shows the report once authorised, and reads only for anyone outside the lab', async () => {
     renderPage(
       () =>
