@@ -1,6 +1,6 @@
 import type {Schemas} from '../api/client';
 import {chainLinks, grownLinks, grownStageOrders} from '../api/pathwayRoutes';
-import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
+import {addDays, dayOfWeek, nextWeekday} from '../utils/calendarSlots';
 import {ADMIN, LAB, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
@@ -48,7 +48,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 24;
+export const SEED_VERSION = 25;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -204,6 +204,7 @@ const PATIENT_SPECS: [string, string, string, string, string, number][] = [
   [PATIENTS.harrietQuill, 'Harriet', 'Quill', '1949-01-22', '9991022007', 22],
   [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09', '9991023372', 23],
   [PATIENTS.noraFennick, 'Nora', 'Fennick', '1990-06-14', '9991041818', 24],
+  [PATIENTS.leahCorrin, 'Leah', 'Corrin', '1986-08-30', '9991051376', 25],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
@@ -573,6 +574,14 @@ export function seed(): DemoState {
         title: 'Atypical mole, left shoulder', dueIn: 45, priority: 'Medium', done: 2, outcomes: {'Dermoscopy assessment': 'Uncertain: monitor'},
         status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 12,
       },
+      // The tour's relay (the owner, 19 November 2026), three stages: Triage, started, waiting for her consent (her
+      // sample is already with the lab, its case worked up to the results: `seedLabCases`); the lab's Testing; then a
+      // Results appointment to book.
+      {
+        n: 16, id: PATHWAYS.relay, patientId: PATIENTS.leahCorrin, templateId: TEMPLATES.skinSample,
+        title: 'Scaly patch, left forearm', dueIn: 21, priority: 'Medium', done: 0, started: true, status: 'InProgress',
+        assignee: STAFF.id, createdDaysAgo: 3,
+      },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
@@ -588,6 +597,8 @@ export function seed(): DemoState {
   ];
 
   const pathway = (id: string) => pathways.find((p) => p.id === id)!;
+  // The relay's Triage needs her consent on this pathway (the tour's first step records it).
+  pathway(PATHWAYS.relay).stages[0].needsConsent = true;
   const patientName = (id: string) => {
     const spec = PATIENT_SPECS.find(([key]) => key === id)!;
     return `${spec[1]} ${spec[2]}`;
@@ -682,6 +693,15 @@ export function seed(): DemoState {
       if (day === 0 || day === 4) block(STAFF.id, date, ACTIVITY_TYPES.clinic, [13, 30], [17, 0], 'Skin clinic');
     }
   }
+
+  // Bea Sandiford is out at a clinic all day today and the next weekday, so the tour's team meeting (arranged with
+  // Nadia Thornbury first, at the first time they're both free) can't have her then: adding the rest of the team shows
+  // who's busy, and the suggestions move on to a time they're all free.
+  // The first two days the centre is open from today: weekdays, past the bank holidays it closes on (the setup slice's).
+  const isOpenDay = (date: string) => dayOfWeek(date) <= 5 && !['12-25', '12-26', '01-01'].includes(date.slice(5));
+  const busyDays: string[] = [];
+  for (let date = on; busyDays.length < 2; date = addDays(date, 1)) if (isOpenDay(date)) busyDays.push(date);
+  for (const date of busyDays) block(USERS.sandiford, date, ACTIVITY_TYPES.clinic, [8, 0], [18, 0], 'Outreach clinic');
 
   const mdtDate = weekdayAhead(2);
   const meetings: Schemas['MeetingResponse'][] = [

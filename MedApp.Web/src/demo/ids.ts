@@ -38,6 +38,8 @@ export const TEMPLATES = {
   skinInfection: id(0xd2, 13),
   hairLoss: id(0xd2, 14),
   pigmentation: id(0xd2, 15),
+  /** Not one of the ten: the tour's three-stage relay (`TOUR_RELAY` in `dermatology.ts`). */
+  skinSample: id(0xd2, 16),
 } as const;
 
 /** Addable routes (MC10): routes a clinician may add on new information, never suggested. */
@@ -71,6 +73,8 @@ export const PATIENTS = {
   harrietQuill: id(0xd4, 13),
   /** Has the suspected skin cancer pathway at Dermoscopy assessment, a choice node. */
   felixMoreton: id(0xd4, 14),
+  /** The tour's relay (the owner, 19 November 2026): at Triage, her consent to record, the lab's test next. */
+  leahCorrin: id(0xd4, 16),
   /** Has the changing mole pathway at Take photographs, which needs her consent to clinical photography (MC27, MC29). */
   noraFennick: id(0xd4, 15),
 } as const;
@@ -96,6 +100,8 @@ export const PATHWAYS = {
   backFromLab: id(0xd5, 14),
   /** Changing mole or lesion check, Nora Fennick, Nadia Thornbury's: at Take photographs, no photo consent yet (MC29). */
   photosToTake: id(0xd5, 15),
+  /** The tour's relay: Triage (consent needed), the lab's Testing, then a Results appointment (Leah Corrin). */
+  relay: id(0xd5, 16),
 } as const;
 
 export const REFERRALS = {
