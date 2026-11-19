@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, CARROW, HALLWORTH, LAB, STAFF} from '../accounts';
+import {ADMIN, HALLWORTH, LAB, STAFF} from '../accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATES} from '../ids';
 import {LAB_IDS, LAB_TESTS, SPECIMEN_TYPES, RESULTS} from '../slices/lab';
 import {db} from '../store';
@@ -111,19 +111,19 @@ describe('the light demo’s lab, results and referrals', () => {
     const last = ilona.stages.at(-1)!;
     expect(labGate(ilona, last, true)).toMatch(/^The pathway's last stage can't be finished while 2 samples are still with the lab: MA\d{2}-\d{6} \(Blood sample, received\)/);
     expect(labGate(ilona, ilona.stages[2], false)).toBeNull();
-    const daniyal = state.pathways.find((p) => p.id === PATHWAYS.notStarted)!;
-    expect(labGate(daniyal, daniyal.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
+    const tobias = state.pathways.find((p) => p.id === PATHWAYS.unassigned)!;
+    expect(labGate(tobias, tobias.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
     const harriet = state.pathways.find((p) => p.id === PATHWAYS.referredToHospital)!;
     expect(labGate(harriet, harriet.stages.at(-1)!, true)).toBeNull();
   });
 
   it('lists results by view, and tells the responsible clinician when someone else signs one off', async () => {
-    startLightDemo(CARROW);
-    expect((await call('GET', '/api/results/search?View=AwaitingMine')).body.items.map((r: {id: string}) => r.id)).toEqual([RESULTS.daniyalExternal]);
+    startLightDemo(HALLWORTH);
+    expect((await call('GET', '/api/results/search?View=AwaitingMine')).body.items.map((r: {id: string}) => r.id)).toEqual([RESULTS.gpReport]);
     startLightDemo(ADMIN);
     expect((await call('GET', '/api/results/search?View=AwaitingMine')).body.totalCount).toBe(0);
     expect((await call('GET', '/api/results/search?View=Awaiting')).body.totalCount).toBe(2);
-    expect((await call('GET', '/api/results/search?View=SignedOff')).body.totalCount).toBe(2);
+    expect((await call('GET', '/api/results/search?View=SignedOff')).body.totalCount).toBe(1);
     startLightDemo(HALLWORTH);
     const callum = (await call('GET', `/api/results/${RESULTS.callumBiopsy}`)).body;
     await call('POST', `/api/results/${callum.id}/sign-off`, {action: 'ForMdtDiscussion', expectedVersion: callum.version});

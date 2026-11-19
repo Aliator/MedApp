@@ -141,7 +141,7 @@ const OTHERS: DemoPerson[] = [
   },
 ];
 
-/** A Dermatology clinician who also visits Gynaecology (not an account a visitor can be). */
+/** A Dermatology clinician (not an account a visitor can be). */
 export const HALLWORTH: DemoPerson = {
   id: USERS.hallworth,
   username: 't.hallworth',
@@ -149,26 +149,11 @@ export const HALLWORTH: DemoPerson = {
   jobTitle: 'GP with a special interest in skin',
   roles: ['Clinician'],
   permissions: CLINICIAN,
-  // Also a visiting clinician in Gynaecology (staff may be in several teams), so his calendar shows the team walls.
-  teams: [member(TEAMS.dermatology), member(TEAMS.gynaecology)],
-};
-
-/**
- * Diabetes's clinician, who took over the clinical work the admin did before admins became read only (MC12). The
- * full demo makes her a Nurse; the light demo a Clinician, so she can hold the diabetes results and letters.
- */
-export const CARROW: DemoPerson = {
-  id: USERS.carrow,
-  username: 'm.carrow',
-  fullName: 'Mina Carrow',
-  jobTitle: 'Clinical nurse specialist: diabetes',
-  roles: ['Clinician'],
-  permissions: CLINICIAN,
-  teams: [member(TEAMS.diabetes)],
+  teams: [member(TEAMS.dermatology)],
 };
 
 /** Everyone in the demo clinic. */
-export const PEOPLE: DemoPerson[] = [ADMIN, STAFF, LAB, ...OTHERS, HALLWORTH, CARROW];
+export const PEOPLE: DemoPerson[] = [ADMIN, STAFF, LAB, ...OTHERS, HALLWORTH];
 
 export const personById = (id: string | null | undefined) => PEOPLE.find((person) => person.id === id);
 export const personByUsername = (username: string | null | undefined) =>

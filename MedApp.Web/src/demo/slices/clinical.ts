@@ -1,6 +1,6 @@
 import type {Schemas} from '../../api/client';
 import {dayOfWeek, nextWeekday} from '../../utils/calendarSlots';
-import {CARROW, HALLWORTH, LAB, STAFF} from '../accounts';
+import {HALLWORTH, LAB, STAFF} from '../accounts';
 import {id, MEETINGS, PATHWAYS, TEAMS, USERS} from '../ids';
 import type {BaseState, DemoPathway} from '../state';
 import {daysFrom, nowUtc, today, ukTime} from '../time';
@@ -157,9 +157,9 @@ export const LETTERS = {
   draft: id(0xe7, 1),
   /** Priya Holloway's clinic letter, by Tom Hallworth: awaiting Nadia Thornbury's approval. */
   awaitingApproval: id(0xe7, 2),
-  /** Margaret Fenwick's clinic letter, approved by the admin: still to send to both recipients. */
+  /** Samuel Okafor's clinic letter, approved by Tom Hallworth: still to send to both recipients. */
   toSend: id(0xe7, 3),
-  /** Grace Abernethy's discharge summary: approved and sent to everyone (her pathway is discharged). */
+  /** Ilona Petrova's clinic letter about her care plan: approved and sent to everyone. */
   sent: id(0xe7, 4),
 } as const;
 
@@ -378,9 +378,9 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     ),
     letter(
       3,
-      PATHWAYS.overdue,
+      PATHWAYS.onHold,
       LETTER_TEMPLATES.clinicLetter,
-      clinicBody('Post-menopausal bleeding, under investigation.', 'Referred for a first clinic visit.', 'Her first visit is booked.'),
+      clinicBody('Scaly rash on both hands, under investigation.', 'A skin scraping was sent to the lab.', 'We will review him with the result when he is back.'),
       {
         status: 'Approved',
         authorUserId: HALLWORTH.id,
@@ -393,13 +393,13 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     ),
     letter(
       4,
-      PATHWAYS.completed,
-      LETTER_TEMPLATES.dischargeSummary,
-      `Dear colleague,\n\n${RE_LINE}\n\nWe have discharged {{patient.name}} from our care.\n\n## Summary of care\n\nDiabetes reviewed after a change of medicine.\n\n## For the GP\n\nPlease continue the current medicines and review annually.`,
+      PATHWAYS.followUpBooked,
+      LETTER_TEMPLATES.clinicLetter,
+      clinicBody('Plaque psoriasis.', 'Mild plaques on both elbows.', 'Self-care as agreed; we will review her at the booked follow-up.'),
       {
         status: 'Approved',
-        authorUserId: CARROW.id,
-        approverUserId: CARROW.id,
+        authorUserId: STAFF.id,
+        approverUserId: USERS.hallworth,
         createdAt: ago(4, 10, 0),
         lastUpdated: ago(3, 16, 0),
         approvedAtUtc: ago(3, 12, 0),

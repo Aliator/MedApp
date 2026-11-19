@@ -32,22 +32,22 @@ describe('the light demo’s setup and admin handlers', () => {
     expect(added.status).toBe(201);
     expect(added.body).toMatchObject({canBeDeleted: true, targetDaysUrgent: 14});
     expect((await call('DELETE', `/api/teams/${added.body.id}`)).status).toBe(204);
-    expect((await call('DELETE', `/api/teams/${TEAMS.urology}`)).status).toBe(204);
     expect((await call('DELETE', `/api/teams/${TEAMS.dermatology}`)).status).toBe(409);
   });
 
   it('changes someone’s teams, and records it in the activity log', async () => {
     startLightDemo(ADMIN);
-    const set = await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.urology, role: 'ClinicAdmin'}]});
-    expect(set.body).toMatchObject([{name: 'Urology', kind: 'Clinic', role: 'ClinicAdmin'}]);
+    const rheumatology = (await call('POST', '/api/teams', {name: 'Rheumatology'})).body.id;
+    const set = await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: rheumatology, role: 'ClinicAdmin'}]});
+    expect(set.body).toMatchObject([{name: 'Rheumatology', kind: 'Clinic', role: 'ClinicAdmin'}]);
     const log = (await call('GET', '/api/activity/search?Actions=TeamMembershipChanged')).body;
-    expect(log.items[0]).toMatchObject({targetUsername: 'h.marsh', details: JSON.stringify({from: [], to: ['Urology (clinic admin)']})});
+    expect(log.items[0]).toMatchObject({targetUsername: 'h.marsh', details: JSON.stringify({from: [], to: ['Rheumatology (clinic admin)']})});
     expect((await call('GET', '/api/auth/users/h.marsh')).body.accountType).toBe('ClinicAdmin');
   });
 
   it('keeps an admin out of every team, and the lab without a clinic admin', async () => {
     startLightDemo(ADMIN);
-    expect((await call('PUT', '/api/auth/users/admin/teams', {teams: [{teamId: TEAMS.urology, role: 'Member'}]})).status).toBe(409);
+    expect((await call('PUT', '/api/auth/users/admin/teams', {teams: [{teamId: TEAMS.dermatology, role: 'Member'}]})).status).toBe(409);
     expect((await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.lab, role: 'ClinicAdmin'}]})).status).toBe(409);
     expect((await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.lab, role: 'Member'}]})).status).toBe(200);
   });

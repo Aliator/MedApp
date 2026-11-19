@@ -20,11 +20,11 @@ describe('the relay in the light demo', () => {
     expect(await viewIds('AwaitingLab')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.forkedTests]));
     expect(await viewIds('BackFromLab')).toEqual([PATHWAYS.backFromLab]);
 
-    // The lab has Gynaecology's new for it, and authorises Priya's Histology case: a handover back to Dermatology.
+    // The lab authorises Priya's Histology case: a handover back to Dermatology.
     db().user = LAB.username;
     // Aisha's fork has two of the lab's stages current at once, both handed over (MC8 with the relay).
-    expect(await viewIds('NewForUs')).toEqual(expect.arrayContaining([PATHWAYS.priyaGynaecology, PATHWAYS.forkedTests]));
-    expect(await viewIds('OurTurn')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.priyaGynaecology]));
+    expect(await viewIds('NewForUs')).toEqual(expect.arrayContaining([PATHWAYS.forkedTests]));
+    expect(await viewIds('OurTurn')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.forkedTests]));
     // Its case is open, so the stage isn't finished by hand (MC16): authorising the case's report finishes it.
     const histology = `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`;
     const refused = await call('POST', histology, {});
@@ -110,7 +110,8 @@ describe('the relay in the light demo', () => {
     const options = (owner: string | null) =>
       ids.map((_, i) => ({isOptional: false, choiceKind: template.stages![i].choiceKind, outcomes: template.stages![i].outcomes, ownerTeamId: i === 1 ? owner : null}));
     const save = (owner: string | null) => call('PATCH', `/api/pathways/patient-pathway-stage/templates/${template.id}`, {stageOptions: options(owner)});
-    expect((await save(TEAMS.gynaecology)).status).toBe(400);
+    const otherClinic = (await call('POST', '/api/teams', {name: 'Rheumatology'})).body.id;
+    expect((await save(otherClinic)).status).toBe(400);
     const saved = await save(TEAMS.lab);
     expect(saved.status).toBe(200);
     expect(saved.body.stages[1]).toMatchObject({ownerTeamId: TEAMS.lab, ownerTeamName: 'Lab'});
