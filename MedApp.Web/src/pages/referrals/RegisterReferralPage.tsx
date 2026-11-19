@@ -6,9 +6,11 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
+import {useCurrentUser} from '../../auth/auth';
 import {ApiError, ApiValidationError, type ValidationErrors} from '../../api/errors';
 import {patientQuery} from '../../api/patients';
 import {
+  isOutsideMyTeams,
   patientOpenReferralsQuery,
   POSSIBLE_DUPLICATE_FIELD,
   useRegisterReferral,
@@ -52,6 +54,7 @@ const isOnlyDuplicate = (errors: ValidationErrors) =>
 export function RegisterReferralPage({patientId, onPatientChange}: RegisterReferralPageProps) {
   const navigate = useNavigate();
   const announce = useAnnounce();
+  const me = useCurrentUser();
   const register = useRegisterReferral();
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
   const open = useQuery({...patientOpenReferralsQuery(patientId ?? ''), enabled: patientId !== undefined});
@@ -72,6 +75,13 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
       {
         onSuccess: (referral) => {
           setDuplicate(null);
+          // Registered for another team (sending it outward): it's that team's to triage, and the registrar doesn't
+          // keep it, so back to the list.
+          if (isOutsideMyTeams(me.teams, referral.teamId)) {
+            announce(`Referral registered and sent to ${referral.teamName ?? 'the team'}`);
+            backToList();
+            return;
+          }
           announce('Referral registered');
           void navigate({to: '/referrals/$id', params: {id: referral.id ?? ''}});
         },

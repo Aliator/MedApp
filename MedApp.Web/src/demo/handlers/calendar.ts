@@ -3,13 +3,14 @@ import {addDays} from '../../utils/calendarSlots';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId, ROOMS} from '../ids';
+import {teamName} from '../seed';
 import type {DemoAppointment} from '../state';
 import {db} from '../store';
 import {nowUtc, today, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
 import {can, contains, int, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {pathwayToChange} from './pathways';
-import {canSeeRecord, myScope, seeRecord} from './teamWalls';
+import {busyTimeOf, canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
 import {activityType, calendarDay, findSession, sessionsFor, sharedWorkingTime, templateBlocksOn, workingDayOf} from './setupCalendar';
 
 /**
@@ -36,7 +37,8 @@ const isPatientAnonymised = (patientId: string | undefined) => db().patients.fin
 
 /** An appointment as the API answers it, with what the signed-in person can do with it. */
 export function appointmentResponse(appointment: Appointment): Appointment {
-  const canBook = can('BookAppointments');
+  // Only the appointment's own team changes it (an admin, or the lab reading a pathway passed to it, only reads).
+  const canBook = can('BookAppointments') && canChangeRecord(appointment);
   const status = appointment.status;
   const started = appointment.startUtc ? appointment.startUtc <= nowUtc() : false;
   const recordedAfter = appointment.isRecordedAfterEvent === true && (status === 'Attended' || status === 'DidNotAttend');
@@ -98,6 +100,12 @@ function calendar(staffUserId: string, from: string, to: string, withAppointment
   const canEdit = staffUserId === viewer.id || can('ManageAnyCalendar');
   const state = db();
   const week = state.defaultWeeks[staffUserId];
+  // Their appointments in the range: the viewer's teams' in full, other teams' as busy time with no patient.
+  const theirs = withAppointments
+    ? state.appointments.filter(
+        (a) => a.staffUserId === staffUserId && inRange(a.startUtc, from, to) && a.status !== 'Cancelled' && a.status !== 'EnteredInError',
+      )
+    : [];
   return {
     staffUserId,
     staffUsername: usernameOf(staffUserId),
@@ -111,18 +119,8 @@ function calendar(staffUserId: string, from: string, to: string, withAppointment
     defaultWeekTemplateName: state.weekTemplates.find((w) => w.id === week?.weekTemplateId)?.name ?? null,
     days: datesBetween(from, to).map((date) => calendarDay(staffUserId, date)),
     blocks: blocksOf(staffUserId, from, to, canEdit),
-    appointments: withAppointments
-      ? state.appointments
-          .filter(
-            (a) =>
-              a.staffUserId === staffUserId &&
-              inRange(a.startUtc, from, to) &&
-              a.status !== 'Cancelled' &&
-              a.status !== 'EnteredInError' &&
-              canSeeRecord(a, scope),
-          )
-          .map(appointmentResponse)
-      : [],
+    appointments: theirs.filter((a) => canSeeRecord(a, scope)).map(appointmentResponse),
+    otherTeamsBusy: theirs.filter((a) => !canSeeRecord(a, scope)).map(busyTimeOf),
     meetings: state.meetings
       .filter((m) => involves(m, staffUserId) && inRange(m.startUtc, from, to))
       .sort((a, b) => (a.startUtc ?? '').localeCompare(b.startUtc ?? ''))
@@ -177,6 +175,19 @@ function findAppointment(id: string): Appointment {
   return seeRecord(db().appointments.find((a) => a.id === id), 'Appointment', 'The appointment');
 }
 
+/** An appointment to change: visible, and its own team's (else a 409: admins and the lab only read it). */
+function appointmentToChange(id: string): Appointment {
+  const appointment = findAppointment(id);
+  ensureCanChangeRecord(appointment, 'This appointment');
+  return appointment;
+}
+
+/** Refuses a clinician who isn't in the appointment's team: a 400 on who (MC5's booking rule). */
+function ensureStaffInTeam(teamId: string | null, staffUserId: string) {
+  if (teamId && !teamsOfStaff(staffUserId).includes(teamId))
+    refuse(invalid({staffUserId: [`${usernameOf(staffUserId) ?? 'They'} isn’t in ${teamName(teamId) ?? 'the appointment’s team'}, so can’t see its patients. Choose someone in the team.`]}));
+}
+
 /**
  * A new appointment's team: its pathway's, or without one the booker's team (the full version asks when there are
  * several), else the clinician's.
@@ -210,6 +221,7 @@ function notify(userId: string, notification: Omit<Schemas['NotificationResponse
 /** Books an appointment at a time (into a clinic session's slot, when one is named: its room comes with it). */
 function book(appointment: Appointment, staffUserId: string, startUtc: string, endUtc: string, clinicSessionId?: string | null, roomId?: string | null) {
   const viewer = me();
+  ensureStaffInTeam(appointment.teamId, staffUserId);
   const now = nowUtc();
   if (clinicSessionId) {
     const session = findSession(clinicSessionId);
@@ -268,10 +280,12 @@ function recordPast(body: Partial<Schemas['RecordPastAppointmentRequest']>): App
   const pathway = body.pathwayId ? pathwayToChange(body.pathwayId) : undefined;
   const stage = pathway?.stages.find((s) => s.id === body.stageId);
   if (pathway && ukDateOf(body.startUtc!) < ukDateOf(pathway.createdAt)) refuse(problem(409, 'That’s before the pathway was started.'));
+  const teamId = teamForBooking(pathway?.teamId, body.staffUserId);
+  ensureStaffInTeam(teamId, body.staffUserId!);
   const now = nowUtc();
   return {
     id: newId(),
-    teamId: teamForBooking(pathway?.teamId, body.staffUserId),
+    teamId,
     patientId: patient!.id,
     patientName: patientName(patient!.id),
     pathwayId: pathway?.id ?? null,
@@ -523,7 +537,11 @@ export function registerCalendar() {
     logActivity('PatientViewed', {patientId: appointment.patientId});
     return appointmentResponse(appointment);
   });
-  on('get', '/api/appointments/{id}/messages', () => []);
+  // A patient's texts and emails about an appointment follow it behind the team walls (none are sent in the light demo).
+  on('get', '/api/appointments/{id}/messages', ({params}) => {
+    findAppointment(params.id);
+    return [];
+  });
 
   on('post', '/api/appointments', ({body}) => {
     const viewer = me();
@@ -581,7 +599,7 @@ export function registerCalendar() {
 
   on('post', '/api/appointments/{id}/book', ({params, body}) => {
     requirePermission('BookAppointments');
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     ensurePatientCanChange(appointment);
     if (!body.staffUserId || !body.startUtc || !body.endUtc) return invalid({startUtc: ['Choose who and when.']});
     if (appointment.status !== 'Requested' && appointment.status !== 'Booked') return problem(409, 'This appointment can’t be booked now.');
@@ -593,7 +611,7 @@ export function registerCalendar() {
   on('post', '/api/appointments/{id}/outcome', ({params, body}) => {
     const viewer = me();
     requirePermission('BookAppointments');
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     ensurePatientCanChange(appointment);
     const correcting = appointment.status === 'Attended' || appointment.status === 'DidNotAttend';
     if (appointment.status !== 'Booked' && !correcting) return problem(409, 'Only a booked appointment has an outcome.');
@@ -609,7 +627,7 @@ export function registerCalendar() {
   on('post', '/api/appointments/{id}/dna-follow-up', ({params, body}) => {
     const viewer = me();
     requirePermission('BookAppointments');
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     if (appointment.status !== 'DidNotAttend') return problem(409, 'Only a missed appointment has a follow-up.');
     ensurePatientCanChange(appointment);
     const decision = body.decision ?? '';
@@ -625,7 +643,7 @@ export function registerCalendar() {
   on('post', '/api/appointments/{id}/entered-in-error', ({params, body}) => {
     const viewer = me();
     requirePermission('BookAppointments');
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     const response = appointmentResponse(appointment);
     if (!response.canMarkEnteredInError) return problem(409, 'Only a visit recorded after the event can be marked entered in error.');
     const isRecorder = appointment.bookedByUsername === viewer.username && response.canRecorderMarkEnteredInError;
@@ -640,7 +658,7 @@ export function registerCalendar() {
 
   on('post', '/api/appointments/{id}/cancel', ({params, body}) => {
     requirePermission('BookAppointments');
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     if (appointment.status !== 'Requested' && appointment.status !== 'Booked') return problem(409, 'This appointment can’t be cancelled.');
     appointment.status = 'Cancelled';
     appointment.cancelReason = body.reason ?? null;
@@ -650,7 +668,7 @@ export function registerCalendar() {
 
   on('put', '/api/appointments/{id}/notes', ({params, body}) => {
     me();
-    const appointment = findAppointment(params.id);
+    const appointment = appointmentToChange(params.id);
     ensurePatientCanChange(appointment);
     appointment.notes = body.notes ?? null;
     appointment.lastUpdated = nowUtc();
