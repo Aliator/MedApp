@@ -6,7 +6,7 @@ import {StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useContext, useEffect, useRef, useState, type ReactNode, type RefObject} from 'react';
 import {usePageTitle} from '../../app/announcements';
 import {useNarrowBesideNotepad} from '../notepad/NotepadContext';
-import {InHalfPaneContext, OverWholeWindowContext, useHalfView} from './halfView';
+import {InHalfPaneContext, OverWholeWindowContext, useDialogRegion, useHalfView} from './halfView';
 import {PageHeader, type PageHeaderProps} from './PageHeader';
 
 export interface PageProps extends PageHeaderProps {
@@ -56,16 +56,24 @@ export function useIsNarrow(): boolean {
   const isNarrowWindow = useIsNarrowWindow();
   const isNarrowBesideNotepad = useNarrowBesideNotepad();
   const isHalf = useHalfView().isHalf;
-  // In a dialog, over the whole window, only the window counts.
+  // In a dialog over the whole window, only the window counts (one over its own region lays out by it, as here).
   if (useContext(OverWholeWindowContext)) return isNarrowWindow;
   return isHalf || isNarrowWindow || isNarrowBesideNotepad;
 }
 
-/**
- * Whether the window itself is narrow, whatever's beside the page: for a dialog choosing its own size, as it sits over
- * the whole window (a dialog opened from a half view is as big as one opened from a page on its own).
- */
+/** Whether the window itself is narrow, whatever's beside the page. */
 export const useIsNarrowWindow = () => useMediaQuery(NARROW_WINDOW_QUERY, false);
+
+/**
+ * Whether a dialog opened from here should take its narrow size and layout, for a dialog choosing its own (the booking
+ * and meeting dialogs; asked where it's rendered, outside its frame): over its own region (a half of a half view, or
+ * beside the docked notepad), by that region, as the page does; over the whole window, by the window.
+ */
+export function useIsNarrowDialog(): boolean {
+  const isNarrow = useIsNarrow();
+  const isNarrowWindow = useIsNarrowWindow();
+  return useDialogRegion() !== null ? isNarrow : isNarrowWindow;
+}
 
 /**
  * A long page's header (the title, Back and its buttons) stays at the top while the page scrolls under it (the owner,
