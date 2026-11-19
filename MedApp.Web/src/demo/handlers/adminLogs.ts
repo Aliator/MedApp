@@ -143,7 +143,9 @@ const ordered = <T extends {atUtc?: string; id?: string}>(items: T[], query: URL
 };
 
 /** The time-based events (`MonitoringEvents.ServiceAlerts`): a job finds them in the full version; nothing runs here. */
-const SERVICE_ALERTS = ['ReferralNotTriaged', 'ResultNotSignedOff', 'VisitNotBooked', 'SpecimenOverdue', 'WaitBreached', 'PauseReviewPassed'];
+const SERVICE_ALERTS = ['ReferralNotTriaged', 'ResultNotSignedOff', 'VisitNotBooked', 'SpecimenOverdue', 'WaitBreached', 'PauseReviewPassed', 'LabCaseAtRisk', 'LabCaseOverdue'];
+/** MC19's lab clocks: no pathway priority or template (a hospital case has no pathway); the team is the clinic it came from. */
+const LAB_CLOCK_ALERTS = ['LabCaseAtRisk', 'LabCaseOverdue'];
 
 const EVENTS = [
   'PathwayCreated',
@@ -189,6 +191,8 @@ function ruleInput(body: Partial<Schemas['SaveMonitoringRuleRequest']>) {
   if (isAlert && body.event !== 'ResultNotSignedOff' && body.subjectUserId)
     errors.subjectUserId = ['A service alert is about the service, not one person (except results, for the responsible clinician).'];
   if (body.event === 'ReferralNotTriaged' && body.templateId) errors.templateId = ['A referral awaiting triage has no template yet.'];
+  if (LAB_CLOCK_ALERTS.includes(body.event ?? '') && body.templateId) errors.templateId = ['A lab case has no template.'];
+  if (LAB_CLOCK_ALERTS.includes(body.event ?? '') && body.minimumPriority) errors.minimumPriority = ['A lab case has no pathway priority.'];
   if (body.teamId && !db().teams.some((s) => s.id === body.teamId)) errors.teamId = ['Choose a team.'];
   if (body.event === 'StageUnlocked' && body.subjectUserId && !personById(body.subjectUserId)?.permissions.includes('UnlockStages'))
     errors.subjectUserId = ['Only someone who can unlock stages can unlock one.'];

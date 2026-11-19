@@ -8,10 +8,11 @@ import {Text} from '@astryxdesign/core/Text';
 import {useQuery, type UseQueryResult} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
 import {hospitalRequestSearchQuery, type HospitalRequestSummary} from '../../api/hospitals';
-import {labCaseSearchQuery, type LabCaseSummary} from '../../api/labCases';
+import {labCaseSearchQuery, type LabCaseSummary, type LabCaseView} from '../../api/labCases';
 import type {PathwaySummary} from '../../api/pathways';
 import {pathwaySearchQuery, type PathwaySearch} from '../../api/search';
 import {specimenWorklistQuery, type SpecimenSummary, type SpecimenView} from '../../api/specimens';
+import {labClockLine} from '../../components/labCases/LabClock';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -29,16 +30,21 @@ export const labPathwaysQuery = (view: TaskView) =>
 /** A samples view for the home, in its own order (oldest first; the API's default). */
 export const labSamplesQuery = (view: SpecimenView) => specimenWorklistQuery({view, page: 1, pageSize: LAB_HOME_ROWS});
 
-/** Lab cases with every step done and "No more work" recorded (MC15), oldest opened first. */
-export const toReportQuery = labCaseSearchQuery({view: 'ToReport', page: 1, pageSize: LAB_HOME_ROWS});
+/** A lab cases view for the home, soonest due first (the API's order for these views). */
+export const labCasesQuery = (view: LabCaseView) => labCaseSearchQuery({view, page: 1, pageSize: LAB_HOME_ROWS});
+
+/** Lab cases with every step done and "No more work" recorded (MC15). */
+export const toReportQuery = labCasesQuery('ToReport');
 
 /** What the route's loader preloads: every list on the page. */
 export const labHomeQueries = () => [
   hospitalCasesQuery,
   toReportQuery,
+  labCasesQuery('AtRisk'),
+  labCasesQuery('Overdue'),
   labPathwaysQuery('newForUs'),
   labPathwaysQuery('ourTurn'),
-  ...(['Expected', 'InLab', 'Overdue', 'Reported'] as const).map(labSamplesQuery),
+  ...(['Expected', 'InLab', 'Reported'] as const).map(labSamplesQuery),
 ];
 
 /** One list on the home: its title, what it holds, its rows, and where all of it is. */
@@ -104,6 +110,12 @@ const caseRow = (c: LabCaseSummary) => ({
   detail: [c.labTestName, c.patientName, c.sourceName].filter(Boolean).join(' · '),
 });
 
+/** A case with its clock (MC19): "Due tomorrow (at risk), 21 Nov 2026", "2 days overdue, due 17 Nov 2026". */
+const clockRow = (c: LabCaseSummary) => {
+  const row = caseRow(c);
+  return {...row, detail: [row.detail, labClockLine(c.clock)].filter(Boolean).join(' · ')};
+};
+
 const pathwayRow = (p: PathwaySummary) => ({
   key: p.id ?? '',
   label: <Link href={`/pathways/${p.id}`}>{p.title}</Link>,
@@ -120,10 +132,12 @@ const sampleRow = (at: (s: SpecimenSummary) => string | null | undefined, words:
  * The lab team's home (`/lab`; MC17, built with MC13 in the demo first): what's waiting for the lab, each list's
  * first few and its count, linking to the full list. **New for the lab** (clinic pathways handed to the lab, not
  * picked up) and **Our turn** (lab stages it's working), from the relay's team views (My Worklist's); **To receive**
- * (samples sent, not received), **In progress** (received, not reported), **Overdue** (past the type's expected days)
- * and **Back to the clinic** (reported in the last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests. Lists order by target dates
- * and times only (decision 191). Every patient shown is recorded as listed, by the endpoints. **To report** (MC15):
- * lab cases with every step done and "No more work" recorded.
+ * (samples sent, not received), **In progress** (received, not reported) and **Back to the clinic** (reported in the
+ * last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests. **To report**
+ * (MC15): lab cases with every step done and "No more work" recorded. **At risk** and **Overdue** (MC19): lab cases by
+ * their strict clock (the sooner of the lab's target and the hospital's date), soonest due first, each with its
+ * countdown. Lists order by target dates and times only (decision 191). Every patient shown is recorded as listed, by
+ * the endpoints.
  */
 export function LabHomePage() {
   const isNarrow = useIsNarrow();
@@ -132,7 +146,8 @@ export function LabHomePage() {
   const toReceive = useQuery(labSamplesQuery('Expected'));
   const inProgress = useQuery(labSamplesQuery('InLab'));
   const toReport = useQuery(toReportQuery);
-  const overdue = useQuery(labSamplesQuery('Overdue'));
+  const atRisk = useQuery(labCasesQuery('AtRisk'));
+  const overdue = useQuery(labCasesQuery('Overdue'));
   const backToClinic = useQuery(labSamplesQuery('Reported'));
   const fromHospital = useQuery(hospitalCasesQuery);
 
@@ -177,15 +192,23 @@ export function LabHomePage() {
           empty="Nothing to report"
           query={toReport}
           href="/lab/cases?view=ToReport"
-          row={caseRow}
+          row={clockRow}
+        />
+        <WorkCard
+          title="At risk"
+          description="Lab cases near their due date: the sooner of the lab's target and the hospital's date."
+          empty="Nothing at risk"
+          query={atRisk}
+          href="/lab/cases?view=AtRisk"
+          row={clockRow}
         />
         <WorkCard
           title="Overdue"
-          description="Not reported by the type's expected days."
+          description="Lab cases past their due date, not yet reported."
           empty="Nothing overdue"
           query={overdue}
-          href="/lab/samples?view=Overdue"
-          row={sampleRow((s) => s.expectedByUtc, 'Expected by')}
+          href="/lab/cases?view=Overdue"
+          row={clockRow}
         />
         <WorkCard
           title="Back to the clinic"

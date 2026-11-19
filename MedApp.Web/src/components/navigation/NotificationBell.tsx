@@ -33,6 +33,8 @@ const SERVICE_ALERT_LISTS: Record<string, {path: string; team: boolean}> = {
   MonitoredSpecimenOverdue: {path: '/lab/samples?view=Overdue&', team: false},
   MonitoredWaitBreached: {path: '/referrals?view=waiting&', team: true},
   MonitoredPauseReviewPassed: {path: '/referrals?view=paused&', team: true},
+  MonitoredLabCaseAtRisk: {path: '/lab/cases?view=AtRisk&', team: false},
+  MonitoredLabCaseOverdue: {path: '/lab/cases?view=Overdue&', team: false},
 };
 
 /** A service alert's link: its list, with the team when it has one and the list takes it. */
@@ -121,6 +123,8 @@ const KIND_ICONS: Record<string, IconType> = {
   MonitoredSpecimenOverdue: AppIcon.Warning,
   MonitoredWaitBreached: AppIcon.Warning,
   MonitoredPauseReviewPassed: AppIcon.Warning,
+  MonitoredLabCaseAtRisk: AppIcon.Warning,
+  MonitoredLabCaseOverdue: AppIcon.Overdue,
 };
 
 /** The bell, which the unread count is placed over. */

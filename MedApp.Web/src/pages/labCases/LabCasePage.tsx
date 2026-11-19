@@ -14,6 +14,7 @@ import {labCaseStatusLabel} from '../../api/hospitals';
 import {labCaseQuery, labOutcomeLabel, type LabCase, type LabCaseStep} from '../../api/labCases';
 import {useCan} from '../../auth/auth';
 import {LabCaseDialog, type LabCaseDialogKind} from '../../components/labCases/LabCaseDialog';
+import {LabClockDetails} from '../../components/labCases/LabClock';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -38,14 +39,16 @@ const stepLabel = (step: LabCaseStep) => (step.kind === 'Outcome' ? `${step.name
  * (each with who and when, the outcome recorded at each choice, and any marked entered in error), its samples and its
  * report. **What's next** is the next step (Record), a choice with each outcome a button of its own, in a fixed order
  * and none chosen or suggested (decision 191), or the results (Enter Results and Authorise, for holders of
- * AuthoriseLabReports). Only the lab team works a case; anyone else reads it. Opening it is recorded as viewing it.
+ * AuthoriseLabReports). **Clock** (MC19): when it's due, which deadline set it (the lab's target or the hospital's date,
+ * the sooner), both dates, and when it's at risk. Only the lab team works a case; anyone else reads it. Opening it is
+ * recorded as viewing it.
  */
 export function LabCasePage({id}: {id: string}) {
   const isNarrow = useIsNarrow();
   const {data: labCase, error, isPending} = useQuery(labCaseQuery(id));
   const canProcess = useCan('ProcessSpecimens');
   const [dialog, setDialog] = useState<LabCaseDialogKind | null>(null);
-  const [open, setOpen] = useState({next: true, details: true, steps: true, samples: true, report: true});
+  const [open, setOpen] = useState({next: true, clock: true, details: true, steps: true, samples: true, report: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const close = () => setDialog(null);
@@ -93,10 +96,10 @@ export function LabCasePage({id}: {id: string}) {
       dialogs={labCase && dialog && <LabCaseDialog dialog={dialog} labCase={labCase} onClose={close} />}>
       {labCase &&
         (isNarrow ? (
-          <FoldingCard sections={[next(labCase), details(labCase), steps(labCase), samples(labCase), report(labCase)]} />
+          <FoldingCard sections={[next(labCase), clock(labCase), details(labCase), steps(labCase), samples(labCase), report(labCase)]} />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[next(labCase), details(labCase), report(labCase)]} />}
+            start={<FoldingCard sections={[next(labCase), clock(labCase), details(labCase), report(labCase)]} />}
             end={<FoldingCard sections={[steps(labCase), samples(labCase)]} />}
           />
         ))}
@@ -119,6 +122,9 @@ export function LabCasePage({id}: {id: string}) {
 
   function next(c: LabCase) {
     return section('next', "What's Next", <NextWork labCase={c} canWork={canWork} onOpen={setDialog} />);
+  }
+  function clock(c: LabCase) {
+    return section('clock', 'Clock', <LabClockDetails clock={c.clock} />);
   }
   function details(c: LabCase) {
     return section('details', 'Details', <CaseDetails labCase={c} />);

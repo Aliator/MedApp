@@ -237,7 +237,7 @@ export const TOUR: TourStep[] = [
     key: 'lab',
     title: 'The lab’s home',
     steps: [
-      `${LAB.fullName}’s home in the lab: pathways new for the lab and its turn, samples to receive, in progress, overdue and back to the clinic, each opening its full list.`,
+      `${LAB.fullName}’s home in the lab: pathways new for the lab and its turn, samples to receive and in progress, lab cases to report, at risk and overdue (each with its countdown), and back to the clinic, each opening its full list.`,
       'Samples in the side nav is the samples database: every sample, from the clinics and the hospital, each marked with where it came from, in tabs and searchable by clinic, test, status and due date. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
     ],
     account: LAB.username,
@@ -274,7 +274,8 @@ export const TOUR: TourStep[] = [
       'Opens Wilfred Ashdown’s case from the hospital: received, accessioned, “Sample adequate?” recorded as adequate, and the test’s steps done. Each step says who and when.',
       'What’s Next asks “Needs more work?”. Choose an outcome yourself (nothing is chosen for you): No more work, extra tests (special stains) or a second opinion, which adds their steps first.',
       'Once there’s no more work, Enter Results and Authorise: the results go back to the hospital (for a clinic’s case, to the clinician as a result to sign off, finishing the pathway’s lab stage). “Insufficient” at “Sample adequate?” asks the clinic for a repeat instead, reopening the stage that took the sample.',
-      'Lab Cases in the side nav lists every case: open, to report (Ilona Petrova’s is ready), reported and repeats asked for.',
+      'Its Clock is strict: the lab’s own target (the test’s 7 days, its limit 10) and the hospital’s “report needed by” date, whichever is sooner. Wilfred’s hospital date is sooner, so it applies; it turns at risk 2 days before, and overdue after the end of that day until the report is authorised. A second opinion doesn’t stop it.',
+      'Lab Cases in the side nav lists every case with its countdown: open, at risk (Ilona Petrova’s is due today), overdue (Ellis Varden’s, away for a second opinion), to report, reported and repeats asked for. Clocks are dates only, never anything from a result.',
     ],
     account: LAB.username,
     path: `/lab/cases/${LAB_CASE_IDS.atChoice}`,
@@ -516,7 +517,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
   {
     title: 'Background jobs',
-    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens overdue in time), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
+    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens and lab cases overdue in time), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
   },
   {
     title: 'Sending letters',

@@ -69,11 +69,14 @@ export const HOSPITALS = {
 } as const;
 
 export const HOSPITAL_REQUESTS = {
-  /** Wilfred Ashdown: a cancer pathway excision, urgent, the report needed in 5 days. Only the hospital links him here. */
+  /**
+   * Wilfred Ashdown: a cancer pathway excision, urgent, the report needed in 3 days, sooner than the lab's own 7 (its
+   * clock is the hospital's, MC19). Only the hospital links him here.
+   */
   wilfredExcision: id(0xc2, 1),
-  /** Maya Thistlewood: routine, no date given. Only the hospital links her here. */
+  /** Maya Thistlewood: routine, no date given (the lab's 7 days are sooner than the hospital's default 10). Only the hospital links her here. */
   mayaBiopsy: id(0xc2, 2),
-  /** Ellis Varden, a centre patient too (matched by the lab to his record): routine. */
+  /** Ellis Varden, a centre patient too (matched by the lab to his record): routine, received 9 days ago, so past the lab's 7 (breached, MC19) while away for a second opinion. */
   ellisExcision: id(0xc2, 3),
 } as const;
 
@@ -180,7 +183,7 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         surgeonName: 'Ms A. Example (synthetic)',
         priority: 'Urgent',
         isCancerPathway: true,
-        reportNeededBy: daysFrom(5),
+        reportNeededBy: daysFrom(3),
       }),
       request(HOSPITAL_REQUESTS.mayaBiopsy, HOSPITAL_LAB_CASES.maya, 1, {
         patientId: HOSPITAL_PATIENTS.mayaThistlewood,
@@ -191,7 +194,7 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         isCancerPathway: false,
         reportNeededBy: null,
       }),
-      request(HOSPITAL_REQUESTS.ellisExcision, HOSPITAL_LAB_CASES.ellis, 4, {
+      request(HOSPITAL_REQUESTS.ellisExcision, HOSPITAL_LAB_CASES.ellis, 9, {
         patientId: PATIENTS.ellisVarden,
         hospitalPatientNumber: 'RG-118953',
         nhsNumber: ellis?.nhsNumber ?? null,

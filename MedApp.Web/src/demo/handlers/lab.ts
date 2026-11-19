@@ -18,7 +18,7 @@ import {
   stepTime,
   ukShortDate,
 } from './labCommon';
-import {canOpenCaseFor, caseOfSample, openCaseOnReceipt, registerLabCases} from './labCases';
+import {canOpenCaseFor, caseOfSample, clockOf, openCaseOnReceipt, registerLabCases} from './labCases';
 import {isAwaitingResult, registerResults} from './labResults';
 import {registerLabTests} from './labTests';
 import {findPathway, isCurrentStage} from './pathways';
@@ -57,7 +57,14 @@ const EIE_NOT_ALLOWED =
 const MAX_NAME = 100;
 
 const typeOf = (specimen: DemoSpecimen) => db().specimenTypes.find((t) => t.id === specimen.specimenTypeId);
-const expectedBy = (specimen: DemoSpecimen) => addDaysUtc(specimen.takenAtUtc, typeOf(specimen)?.expectedTurnaroundDays ?? 0);
+/** The clock of the lab case a sample is in (MC19), which its due date follows once the lab has it. */
+const caseClock = (specimen: DemoSpecimen) => {
+  const labCase = caseOfSample(specimen);
+  return labCase ? clockOf(labCase) : undefined;
+};
+/** When it's due: its case's due date (MC19), else the type's expected days from when it was taken. */
+const expectedBy = (specimen: DemoSpecimen) =>
+  caseClock(specimen)?.dueAtUtc ?? addDaysUtc(specimen.takenAtUtc, typeOf(specimen)?.expectedTurnaroundDays ?? 0);
 const isOverdueAtLab = (specimen: DemoSpecimen) => isOpenSpecimen(specimen) && Date.parse(nowUtc()) > Date.parse(expectedBy(specimen));
 const stageOf = (specimen: DemoSpecimen) =>
   db().pathways.find((p) => p.id === specimen.pathwayId)?.stages.find((s) => s.id === specimen.stageId);
@@ -67,13 +74,20 @@ const hospitalName = (hospitalId: string | null) => (hospitalId ? (db().hospital
 const sourceName = (specimen: DemoSpecimen) =>
   specimen.source === 'Hospital' ? hospitalName(specimen.hospitalId) : teamName(specimen.requestingTeamId);
 
-/** How many days before it's expected a sample counts as due soon (MC19 brings each test's own at-risk days). */
+/** How many days before it's expected a sample with no case yet counts as due soon (a case's test sets its own). */
 const DUE_SOON_DAYS = 2;
 
-/** Whether a sample's due date matches the samples page's Due filter: open ones only, by `expectedBy`. */
+const DUE_STATES: Record<string, string> = {Overdue: 'Breached', DueSoon: 'AtRisk', NotDue: 'OnTime'};
+
+/**
+ * Whether a sample's due date matches the samples page's Due filter: open ones only, by its case's clock (MC19: due
+ * soon is at risk), else by `expectedBy`.
+ */
 function matchesDue(specimen: DemoSpecimen, due: string | null | undefined): boolean {
   if (!due) return true;
   if (!isOpenSpecimen(specimen)) return false;
+  const clock = caseClock(specimen);
+  if (clock && DUE_STATES[due]) return clock.state === DUE_STATES[due];
   const left = Date.parse(expectedBy(specimen)) - Date.parse(nowUtc());
   if (due === 'Overdue') return left < 0;
   if (due === 'DueSoon') return left >= 0 && left <= DUE_SOON_DAYS * 86400_000;
@@ -172,6 +186,7 @@ export function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummar
     closedAtUtc: specimen.closedAtUtc,
     expectedByUtc: expectedBy(specimen),
     isOverdueAtLab: isOverdueAtLab(specimen),
+    clock: caseClock(specimen),
   };
 }
 
@@ -225,6 +240,7 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
     closedByUsername: usernameOf(specimen.closedByUserId),
     expectedByUtc: expectedBy(specimen),
     isOverdueAtLab: isOverdueAtLab(specimen),
+    clock: caseClock(specimen),
     version: specimen.version,
     canEdit: specimen.status === 'Taken' && records && !flags.isRestricted && !flags.isAnonymised,
     canMarkSent: specimen.status === 'Taken' && records && !flags.isAnonymised,

@@ -18,12 +18,14 @@ export type LabCaseStep = Schemas['LabCaseStepResponse'];
 export type LabCaseSummary = Schemas['LabCaseSummaryResponse'];
 export type LabCaseSearch = Schemas['LabCaseSearchRequest'];
 
-/** The lab cases page's tabs, by the names the API's `view` takes. */
-export const LAB_CASE_VIEWS = ['Open', 'ToReport', 'Reported', 'RepeatRequested', 'All'] as const;
+/** The lab cases page's tabs, by the names the API's `view` takes (At risk and Overdue: MC19's clocks). */
+export const LAB_CASE_VIEWS = ['Open', 'AtRisk', 'Overdue', 'ToReport', 'Reported', 'RepeatRequested', 'All'] as const;
 export type LabCaseView = (typeof LAB_CASE_VIEWS)[number];
 
 const VIEW_LABELS: Record<LabCaseView, string> = {
   Open: 'Open',
+  AtRisk: 'At risk',
+  Overdue: 'Overdue',
   ToReport: 'To report',
   Reported: 'Reported',
   RepeatRequested: 'Repeat requested',
