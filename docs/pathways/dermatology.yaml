@@ -1,0 +1,2293 @@
+clinic: Dermatology
+templates:
+
+  - template: Suspected skin cancer
+    retentionClass: Oncology
+    summary: "Urgent suspected skin cancer referral: dermoscopy, biopsy where the centre can take one, histology and the skin cancer MDT, ending in discharge or hospital treatment."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [dermoscopy]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: "Urgent suspected cancer referral: record the referral date, lesion site, history and risk factors. Book within the urgent target."
+
+      - id: dermoscopy
+        name: Dermoscopy assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Looks benign
+            next: [care-plan]
+          - name: Actinic keratosis
+            next: [refer-gp]
+          - name: Suspected BCC
+            next: [refer-hospital]
+          - name: Suspected SCC
+            next: [refer-hospital-urgent]
+          - name: Suspected melanoma
+            next: [refer-hospital-urgent]
+          - name: "Uncertain: biopsy"
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Full skin check, dermoscopy and clinical photographs; record lesion size and site.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: "Punch, shave or incisional biopsy. Never a partial biopsy of a possible melanoma: that is excised whole at the hospital."
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Benign
+            next: [care-plan]
+          - name: Actinic keratosis
+            next: [refer-gp]
+          - name: Bowen's disease
+            next: [refer-hospital]
+          - name: Low-risk BCC
+            next: [refer-hospital]
+          - name: High-risk BCC
+            next: [mdt]
+          - name: Squamous cell carcinoma
+            next: [mdt]
+          - name: Melanoma
+            next: [mdt]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis. BCC risk is the clinician's judgement from the report, recorded as given.
+
+      - id: mdt
+        name: Skin cancer MDT
+        owner: clinic
+        kind: assessment
+        visit: none
+        next: null
+        outcomes:
+          - name: Hospital treatment
+            next: [refer-hospital-urgent]
+          - name: More tissue needed
+            next: [take-biopsy]
+          - name: Benign on review
+            next: [care-plan]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: true
+        consult: null
+        snomed: null
+        notes: Local skin cancer MDT (dermatology and pathology). Record the team's decision.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Self-examination and sun protection advice, with written information.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Histology, the care plan and self-examination advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Actinic keratosis: topical treatment needs prescribing. Sun protection advice given; cryotherapy is not offered here."
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Routine referral for treatment: low-risk BCC or Bowen's disease (surgery, cryotherapy or photodynamic therapy)."
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Urgent suspected cancer referral: excision biopsy of a suspected melanoma or SCC, or treatment as the MDT agreed."
+
+    addableRoutes:
+      - name: Biopsy another lesion
+        attachesAfter: dermoscopy
+        reason: A second lesion found at the skin check also needs a biopsy.
+        stages:
+          - id: biopsy-another
+            name: Take biopsy
+            owner: clinic
+            kind: step
+            visit: required
+            next: [histology]
+            outcomes: null
+            endOutcome: null
+            optional: false
+            needsLetter: null
+            needsConsent: true
+            repeat: null
+            mdt: false
+            consult: null
+            snomed: 240977001 | Biopsy of skin
+            notes: Record the second lesion's site; it goes to the lab as its own specimen.
+
+  - template: Changing mole or lesion check
+    retentionClass: Standard
+    summary: "Routine check of a changing or uncertain mole: dermoscopy, then reassurance, photo monitoring with recall, or urgent referral for excision."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [dermoscopy]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: "Routine referral: record the reported change, its duration and history."
+
+      - id: dermoscopy
+        name: Dermoscopy assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Looks benign
+            next: [care-plan]
+          - name: "Uncertain: monitor"
+            next: [take-photos]
+          - name: Suspected skin cancer
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Dermoscopy of the mole and a skin check; record size and site.
+
+      - id: take-photos
+        name: Take photographs
+        owner: clinic
+        kind: step
+        visit: required
+        next: [mole-review]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Baseline clinical and dermoscopy photographs, for comparison at review.
+
+      - id: mole-review
+        name: Mole review
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: No change
+            next: [care-plan]
+          - name: Keep monitoring
+            next: [mole-review]
+          - name: Mole has changed
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: Every 3 months (short-term) or 6 to 12 months (several atypical moles); stops at discharge or referral.
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Compare with the earlier photographs; record what changed, if anything.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Self-check advice (what change to look for) and sun protection.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Urgent suspected cancer referral for excision biopsy at the hospital: a possible melanoma is removed whole, not biopsied here."
+
+    addableRoutes: []
+
+  - template: Skin cancer surveillance
+    retentionClass: Oncology
+    summary: Regular skin checks after hospital treatment for skin cancer, or for people at high risk, following the hospital's follow-up plan.
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [skin-check]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record the hospital's diagnosis, treatment and follow-up plan, including its review interval and end date.
+
+      - id: skin-check
+        name: Skin check
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: No new concerns
+            next: [skin-check]
+          - name: Plan complete
+            next: [care-plan]
+          - name: Sun damage found
+            next: [gp-letter]
+          - name: "New lesion: biopsy"
+            next: [take-biopsy]
+          - name: Suspected melanoma
+            next: [refer-hospital-urgent]
+          - name: Suspected recurrence
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: Every 3 to 12 months, as the hospital's plan sets; stops when the plan ends.
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Scar, lymph nodes and a full skin check. Intervals follow the hospital's plan (for example NICE NG14 for melanoma), recorded as given.
+
+      - id: gp-letter
+        name: Letter to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: [skin-check]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: Letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Actinic keratoses for the GP to treat; surveillance carries on.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Punch or shave biopsy of a new non-pigmented lesion. A possible melanoma goes to the hospital for excision instead.
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Benign
+            next: [skin-check]
+          - name: Actinic keratosis
+            next: [gp-letter]
+          - name: Low-risk BCC
+            next: [refer-hospital]
+          - name: High-risk BCC
+            next: [mdt]
+          - name: Squamous cell carcinoma
+            next: [mdt]
+          - name: Melanoma
+            next: [mdt]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis.
+
+      - id: mdt
+        name: Skin cancer MDT
+        owner: clinic
+        kind: assessment
+        visit: none
+        next: null
+        outcomes:
+          - name: Hospital treatment
+            next: [refer-hospital-urgent]
+          - name: More tissue needed
+            next: [take-biopsy]
+          - name: Benign on review
+            next: [skin-check]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: true
+        consult: null
+        snomed: null
+        notes: Local skin cancer MDT (dermatology and pathology). Record the team's decision.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Self-examination and sun protection advice; how to get back in quickly.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Surveillance history and self-examination advice in the letter.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Routine referral for treatment of a new low-risk BCC.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Urgent referral back to the treating team: suspected melanoma or recurrence, or treatment as the MDT agreed."
+
+    addableRoutes: []
+
+  - template: Inflammatory skin assessment
+    retentionClass: Standard
+    summary: "A rash or itch whose cause is unclear (not eczema, psoriasis or acne): assessment, blood tests or a biopsy where they help, then a care plan or referral."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [skin-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record symptoms, duration, sites, medicines and allergies as given, and what has been tried.
+
+      - id: skin-assessment
+        name: Skin assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Blood tests needed
+            next: [take-bloods]
+          - name: Biopsy needed
+            next: [take-biopsy]
+          - name: Needs specialist care
+            next: [refer-hospital]
+          - name: Needs same-day care
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Examine the skin, record distribution and appearance; photographs if useful.
+
+      - id: take-bloods
+        name: Take bloods
+        owner: clinic
+        kind: step
+        visit: required
+        next: [blood-tests]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 82078001 | Collection of blood specimen for laboratory
+        notes: "Only tests that help the assessment, listed by the clinician (for itch: full blood count, ferritin, kidney, liver and thyroid tests)."
+
+      - id: blood-tests
+        name: Blood tests
+        owner: lab
+        kind: step
+        visit: none
+        next: [blood-results]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The lab runs the requested tests and enters the results.
+
+      - id: blood-results
+        name: Blood results
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: No cause found
+            next: [care-plan]
+          - name: Cause for GP to treat
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+          - name: Biopsy needed
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician reads the results and records the outcome.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Punch biopsy for diagnosis; record the site and the question for the pathologist.
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+          - name: Unexpected cancer
+            next: [refer-hospital-urgent]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis and the outcome.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: "Advice only, no prescribing: emollient use, skin care, triggers, sun protection."
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed, or a cause found in the bloods for the GP to manage.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: For example patch testing, a suspected blistering or connective tissue disease, phototherapy or systemic treatment.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Phone the on-call hospital team the same day; the letter follows. For example widespread blistering or red skin all over; or an unexpected cancer on histology.
+
+    addableRoutes: []
+
+  - template: Eczema assessment
+    retentionClass: Standard
+    summary: "Assessment of eczema and dermatitis: self-care education with a review, or referral for prescribed treatment, patch testing or specialist care."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [eczema-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record history, sites, triggers, what has been tried, and allergies as given.
+
+      - id: eczema-assessment
+        name: Eczema assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Possible contact allergy
+            next: [refer-hospital]
+          - name: Severe or not controlled
+            next: [refer-hospital]
+          - name: Needs same-day care
+            next: [refer-hospital-urgent]
+          - name: Diagnosis unclear
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Record sites and appearance; severity measures (EASI, POEM, DLQI) as given, never calculated by MedApp.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [eczema-review]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: "Advice only, no prescribing: emollient use, skin care, triggers, sun protection. Show how to apply emollients."
+
+      - id: eczema-review
+        name: Eczema review
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Improved
+            next: [discharge]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Severe or not controlled
+            next: [refer-hospital]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: One review about 6 to 8 weeks after the care plan.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Punch biopsy where the diagnosis is uncertain (for example to rule out another condition in an adult).
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Eczema confirmed
+            next: [care-plan]
+          - name: Other condition
+            next: [refer-hospital]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed (for example topical steroids, or antibiotics for infected eczema).
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Patch testing for a possible contact allergy, or specialist care for severe or uncontrolled eczema (phototherapy, systemic or biologic treatment).
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Phone the on-call hospital team the same day; the letter follows. For example suspected eczema herpeticum.
+
+    addableRoutes: []
+
+  - template: Psoriasis assessment
+    retentionClass: Standard
+    summary: "Assessment of psoriasis and its impact: self-care with a review, or referral for prescribed, specialist or joint care."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [psoriasis-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record history, sites, nails, joints and what has been tried.
+
+      - id: psoriasis-assessment
+        name: Psoriasis assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Severe or not controlled
+            next: [refer-hospital]
+          - name: Joint symptoms
+            next: [refer-hospital]
+          - name: Needs same-day care
+            next: [refer-hospital-urgent]
+          - name: Diagnosis unclear
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Record sites, nails and joint symptoms; PASI, BSA, DLQI and PEST as given, never calculated by MedApp.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [psoriasis-review]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: "Advice only, no prescribing: emollient use, skin care, triggers, sun protection. Lifestyle advice (smoking, alcohol, weight)."
+
+      - id: psoriasis-review
+        name: Psoriasis review
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Improved
+            next: [discharge]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Severe or not controlled
+            next: [refer-hospital]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: One review about 8 to 12 weeks after the care plan.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Punch biopsy where the diagnosis is uncertain.
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Psoriasis confirmed
+            next: [care-plan]
+          - name: Other condition
+            next: [refer-hospital]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed (topical treatment); the GP offers the annual review.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Specialist dermatology for phototherapy or systemic or biologic treatment, or rheumatology for possible psoriatic arthritis.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Phone the on-call hospital team the same day; the letter follows. For example red skin all over or widespread pustules.
+
+    addableRoutes: []
+
+  - template: Acne assessment
+    retentionClass: Standard
+    summary: "Assessment of acne, scarring and its impact: skin care advice with a review, or referral for prescribed treatment, specialist care or psychological support."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [acne-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record onset, sites, what has been tried and the effect on daily life.
+
+      - id: acne-assessment
+        name: Acne assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Severe or scarring
+            next: [refer-hospital]
+          - name: Needs psychological support
+            next: [refer-psychology]
+          - name: Needs same-day care
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Record lesion types, sites and scarring; photographs with consent. Hormonal features go to the GP to investigate.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [acne-review]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: "Skin care advice: gentle cleansing, non-greasy products, no picking. Advice only, no prescribing."
+
+      - id: acne-review
+        name: Acne review
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Improved
+            next: [discharge]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Severe or scarring
+            next: [refer-hospital]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: One review about 12 weeks after the care plan.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed, or hormonal features for the GP to investigate.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Consultant-led dermatology: severe acne, scarring, or treatment only they can start."
+
+      - id: refer-psychology
+        name: Refer to psychology
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: otherClinic
+        optional: false
+        needsLetter: Referral letter to psychology
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Persistent distress, low mood or body image concerns.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Phone the on-call hospital team the same day; the letter follows. For example suspected acne fulminans.
+
+    addableRoutes: []
+
+  - template: Suspected skin infection
+    retentionClass: Standard
+    summary: Assessment of a suspected fungal, bacterial or viral skin or nail infection, with a sample for the lab where it changes management.
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [infection-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record symptoms, duration, sites and what has been tried. Spreading redness with fever is for same-day care, not triage.
+
+      - id: infection-assessment
+        name: Infection assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Sample needed
+            next: [take-sample]
+          - name: Treat without tests
+            next: [refer-gp]
+          - name: Not an infection
+            next: [care-plan]
+          - name: Needs same-day care
+            next: [refer-hospital-urgent]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Record appearance, sites and the suspected infection.
+
+      - id: take-sample
+        name: Take skin sample
+        owner: clinic
+        kind: step
+        visit: required
+        next: [microbiology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Skin scrapings or nail clippings for fungus, a swab for bacteria, or a viral swab. Record the sample type and site.
+
+      - id: microbiology
+        name: Microbiology
+        owner: lab
+        kind: step
+        visit: none
+        next: [microbiology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Microscopy first, then culture; fungal culture can take 2 to 4 weeks.
+
+      - id: microbiology-result
+        name: Microbiology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Fungal infection
+            next: [refer-gp]
+          - name: Bacterial infection
+            next: [refer-gp]
+          - name: Viral infection
+            next: [refer-gp]
+          - name: No infection found
+            next: [care-plan]
+          - name: Sample not adequate
+            next: [take-sample]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician reads the report and records the outcome.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Skin care and hygiene advice. Advice only, no prescribing.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Treatment needs prescribing; include the organism as reported.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Phone the on-call hospital team the same day; the letter follows. For example spreading cellulitis with fever, or infection near the eye.
+
+    addableRoutes: []
+
+  - template: Hair loss assessment
+    retentionClass: Standard
+    summary: Assessment of hair loss and scalp conditions, with blood tests, a scalp sample or a scalp biopsy where they help, then a care plan or referral.
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [hair-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record onset, pattern, recent illness or stress, medicines as given and family history.
+
+      - id: hair-assessment
+        name: Hair assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Watch and review
+            next: [care-plan]
+          - name: Blood tests needed
+            next: [take-bloods]
+          - name: Scalp sample needed
+            next: [take-sample]
+          - name: Possible scarring loss
+            next: [take-biopsy]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Needs psychological support
+            next: [refer-psychology]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Examine the scalp and hair (dermoscopy, pull test); scalp photographs with consent.
+
+      - id: take-bloods
+        name: Take bloods
+        owner: clinic
+        kind: step
+        visit: required
+        next: [blood-tests]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 82078001 | Collection of blood specimen for laboratory
+        notes: Only tests that help, listed by the clinician (for example full blood count, ferritin and thyroid function for diffuse shedding).
+
+      - id: blood-tests
+        name: Blood tests
+        owner: lab
+        kind: step
+        visit: none
+        next: [blood-results]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The lab runs the requested tests and enters the results.
+
+      - id: blood-results
+        name: Blood results
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: No cause found
+            next: [care-plan]
+          - name: Cause for GP to treat
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician reads the results and records the outcome.
+
+      - id: take-sample
+        name: Take skin sample
+        owner: clinic
+        kind: step
+        visit: required
+        next: [microbiology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Scalp scrapings and plucked hairs for suspected scalp ringworm.
+
+      - id: microbiology
+        name: Microbiology
+        owner: lab
+        kind: step
+        visit: none
+        next: [microbiology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Microscopy first, then culture; fungal culture can take 2 to 4 weeks.
+
+      - id: microbiology-result
+        name: Microbiology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Fungal infection
+            next: [refer-gp]
+          - name: No infection found
+            next: [care-plan]
+          - name: Sample not adequate
+            next: [take-sample]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician reads the report and records the outcome.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Scalp punch biopsy from an active edge; record the sites.
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Scarring alopecia
+            next: [refer-hospital]
+          - name: Non-scarring alopecia
+            next: [care-plan]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [hair-review]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Advice on what to expect, hair care, wigs and camouflage. Advice only, no prescribing.
+
+      - id: hair-review
+        name: Hair review
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Regrowing or stable
+            next: [discharge]
+          - name: "No change: keep watching"
+            next: [hair-review]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: Every 3 to 6 months; stops at discharge or referral.
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Compare with earlier scalp photographs.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed, or a cause found in the bloods for the GP to manage.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: "Specialist hair clinic: scarring alopecia, or extensive or fast hair loss."
+
+      - id: refer-psychology
+        name: Refer to psychology
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: otherClinic
+        optional: false
+        needsLetter: Referral letter to psychology
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Distress about hair loss affecting daily life.
+
+    addableRoutes: []
+
+  - template: Skin pigmentation assessment
+    retentionClass: Standard
+    summary: "Assessment of patchy loss or gain of skin colour (such as vitiligo or melasma), not moles: advice, tests where they help, or referral."
+    start: triage
+    stages:
+      - id: triage
+        name: Triage
+        owner: clinic
+        kind: step
+        visit: none
+        next: [pigmentation-assessment]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 225390008 | Triage
+        notes: Record onset, spread, triggers and family history. A changing mole goes on its own pathway.
+
+      - id: pigmentation-assessment
+        name: Pigmentation assessment
+        owner: clinic
+        kind: assessment
+        visit: required
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Blood tests needed
+            next: [take-bloods]
+          - name: Diagnosis unclear
+            next: [take-biopsy]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+          - name: Needs psychological support
+            next: [refer-psychology]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Examine the skin (Wood's lamp if available); photographs with consent.
+
+      - id: take-bloods
+        name: Take bloods
+        owner: clinic
+        kind: step
+        visit: required
+        next: [blood-tests]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 82078001 | Collection of blood specimen for laboratory
+        notes: For example thyroid function in vitiligo, as the clinician lists.
+
+      - id: blood-tests
+        name: Blood tests
+        owner: lab
+        kind: step
+        visit: none
+        next: [blood-results]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The lab runs the requested tests and enters the results.
+
+      - id: blood-results
+        name: Blood results
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: No cause found
+            next: [care-plan]
+          - name: Cause for GP to treat
+            next: [refer-gp]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician reads the results and records the outcome.
+
+      - id: take-biopsy
+        name: Take biopsy
+        owner: clinic
+        kind: step
+        visit: required
+        next: [histology]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: true
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 240977001 | Biopsy of skin
+        notes: Punch biopsy where the diagnosis is uncertain.
+
+      - id: histology
+        name: Histology
+        owner: lab
+        kind: step
+        visit: none
+        next: [histology-result]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 252416005 | Histopathology test
+        notes: The lab processes the specimen and enters the histology report.
+
+      - id: histology-result
+        name: Histology result
+        owner: clinic
+        kind: labResult
+        visit: suggested
+        next: null
+        outcomes:
+          - name: Self-care is enough
+            next: [care-plan]
+          - name: Needs prescribed treatment
+            next: [refer-gp]
+          - name: Needs specialist care
+            next: [refer-hospital]
+          - name: Unexpected cancer
+            next: [refer-hospital-urgent]
+          - name: Not diagnostic
+            next: [take-biopsy]
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: The clinician records the histology diagnosis and the outcome.
+
+      - id: care-plan
+        name: Agree care plan
+        owner: clinic
+        kind: step
+        visit: suggested
+        next: [discharge]
+        outcomes: null
+        endOutcome: null
+        optional: false
+        needsLetter: null
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: null
+        notes: Sun protection, skin camouflage advice and support groups. Advice only, no prescribing.
+
+      - id: discharge
+        name: Letter to GP and discharge
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: discharge
+        optional: false
+        needsLetter: Discharge letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 58000006 | Patient discharge
+        notes: Diagnosis, care plan and self-care advice in the letter.
+
+      - id: refer-gp
+        name: Refer to GP
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: gpReferral
+        optional: false
+        needsLetter: Referral letter to GP
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Prescribing needed, or a cause found in the bloods for the GP to manage.
+
+      - id: refer-hospital
+        name: Refer to hospital
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Specialist dermatology, for example phototherapy for vitiligo.
+
+      - id: refer-psychology
+        name: Refer to psychology
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: otherClinic
+        optional: false
+        needsLetter: Referral letter to psychology
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Distress about appearance affecting daily life.
+
+      - id: refer-hospital-urgent
+        name: Urgent hospital referral
+        owner: clinic
+        kind: step
+        visit: none
+        next: []
+        outcomes: null
+        endOutcome: hospitalReferral
+        optional: false
+        needsLetter: Urgent referral letter to hospital
+        needsConsent: false
+        repeat: null
+        mdt: false
+        consult: null
+        snomed: 306206005 | Referral to service
+        notes: Urgent suspected cancer referral after an unexpected cancer on histology.
+
+    addableRoutes: []
+
+gaps:
+  - group: Lesions and photographs
+    items:
+      - "Lesion register: several lesions per patient, each with a body-map site and its own photos, specimens and results (skin cancer, mole check, surveillance)."
+      - Clinical and dermoscopy photographs stored with consent and compared side by side over time (mole check, hair loss, acne, pigmentation).
+  - group: Specimens and results
+    items:
+      - Several specimens on one pathway, each tracked through the lab on its own (two biopsies, or bloods and a biopsy taken at one visit).
+      - Structured histology fields recorded as the pathologist gives them (tumour type, Breslow thickness, margins), never calculated.
+      - Microbiology reports in two parts (microscopy now, culture weeks later), with organism and sensitivities as reported.
+  - group: Cancer pathways
+    items:
+      - Urgent suspected cancer clocks (28-day Faster Diagnosis Standard, 62-day treatment target), time-based only.
+      - "MDT list: cases queued for the next meeting, with attendees and the decision recorded."
+      - Oncology retention set by diagnosis, so a cancer found on a Standard template (inflammatory, pigmentation) is kept as long as a cancer record.
+      - Start a linked pathway in the same clinic (for example mole check to suspected skin cancer), keeping the history.
+  - group: Recording without deciding
+    items:
+      - Severity measures recorded as given and shown over time (PASI, BSA, DLQI, EASI, POEM, PEST), never calculated or scored by MedApp.
+      - Current medicines and allergies recorded as given by the GP, without prescribing.
+      - A condition code for the template itself (for example 9014002 | Psoriasis, 43116000 | Eczema, 88616000 | Acne vulgaris, 56727007 | Vitiligo), as stage codes describe the activity.
+  - group: Recall and referrals
+    items:
+      - Recall driven by a stage's repeat rule (interval and stop date, often from the hospital's plan), with follow-up when a patient does not attend.
+      - Same-day hospital referral by phone, recorded with its time, before the letter.

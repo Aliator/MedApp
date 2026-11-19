@@ -207,7 +207,7 @@ export const CLINICAL_IDS = {
   mdtItemToDiscuss: MDT_ITEMS.toDiscuss,
   /** Harriet Quill's item on today's MDT, which r.aldous (the lab) presents. */
   mdtItemPresented: MDT_ITEMS.harrietPresented,
-  /** The consent form to choose for Harriet Quill's Clinical photographs stage. */
+  /** The consent form to choose for Ellis Varden's Take biopsy stage. */
   consentFormToChoose: CONSENT.adultForm,
   /** n.thornbury's letter to approve. */
   letterToApprove: LETTERS.awaitingApproval,
@@ -485,7 +485,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     }),
     item(MDT_ITEMS.priyaListed, PATHWAYS.histologyToFinish, aheadMeeting, 'Histology due this week: agree the treatment plan.', 2),
     item(MDT_ITEMS.felixListed, PATHWAYS.branchToChoose, aheadMeeting, 'Suspicious lesion on the shin: does it need a biopsy?', 1),
-    item(MDT_ITEMS.harrietPresented, PATHWAYS.consentToRecord, todayMeeting, 'Biopsy reported: agree the referral.', 4, undefined, LAB.id),
+    item(MDT_ITEMS.harrietPresented, PATHWAYS.referredToHospital, todayMeeting, 'Biopsy reported: agree the referral.', 4, undefined, LAB.id),
   ];
 
   const consentForms: DemoConsentForm[] = [
@@ -508,7 +508,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       patientId: priya.patientId,
       pathwayId: priya.id,
       teamId: priya.teamId,
-      stageId: stage(priya, 'Biopsy or sample').id,
+      stageId: stage(priya, 'Take biopsy').id,
       consentFormId: CONSENT.adultForm,
       formName: consentForms[0].name,
       formVersion: consentForms[0].formVersion,
@@ -528,7 +528,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       patientId: ellis.patientId,
       pathwayId: ellis.id,
       teamId: ellis.teamId,
-      stageId: stage(ellis, 'Biopsy or sample').id,
+      stageId: stage(ellis, 'Take biopsy').id,
       consentFormId: CONSENT.adultFormOld,
       formName: consentForms[1].name,
       formVersion: consentForms[1].formVersion,

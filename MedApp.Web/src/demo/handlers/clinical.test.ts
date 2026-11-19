@@ -77,8 +77,8 @@ describe('the light demo’s letters, MDT and consent', () => {
 
   it('keeps the referral stage unfinished until its letter is approved and sent to everyone', async () => {
     startLightDemo(STAFF);
-    const pathway = pathwayOf(PATHWAYS.consentToRecord);
-    const stage = stageNamed(PATHWAYS.consentToRecord, 'Referral to hospital');
+    const pathway = pathwayOf(PATHWAYS.referredToHospital);
+    const stage = stageNamed(PATHWAYS.referredToHospital, 'Refer to hospital');
     expect(clinicalGate(pathway, stage)).toMatch(/needs a clinic letter.*None has been written yet/);
     const created = await call('POST', '/api/letters', {templateId: LETTER_TEMPLATES.clinicLetter, pathwayId: pathway.id});
     expect(created.status).toBe(201);
@@ -92,13 +92,14 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect(clinicalGate(pathway, stage)).toBeNull();
   });
 
-  it('keeps a photographs stage unfinished until a valid consent record is there', async () => {
+  it('keeps a biopsy stage unfinished until a valid consent record is there', async () => {
     startLightDemo(STAFF);
-    const pathway = pathwayOf(PATHWAYS.consentToRecord);
-    const treatment = stageNamed(PATHWAYS.consentToRecord, 'Clinical photographs');
+    const pathway = pathwayOf(PATHWAYS.biopsyToBook);
+    const treatment = stageNamed(PATHWAYS.biopsyToBook, 'Take biopsy');
     expect(canRecordConsent(pathway, treatment)).toBe(true);
     expect(canRecordConsent(pathway, pathway.stages[0])).toBe(false);
-    expect(clinicalGate(pathway, treatment)).toMatch(/needs the patient's consent recorded/);
+    // Ellis Varden withdrew his first consent.
+    expect(clinicalGate(pathway, treatment)).toMatch(/needs the patient's consent recorded.*has been withdrawn/);
     const records = `/api/pathways/${pathway.id}/consent-records`;
     const base = {stageId: treatment.id, signedOn: today(), signedBy: 'Patient'};
     expect((await call('POST', records, {...base, consentFormId: CONSENT.adultFormOld})).status).toBe(400);
@@ -140,12 +141,12 @@ describe('the light demo’s letters, MDT and consent', () => {
 
   it('lists a pathway for an MDT once, defers it and withdraws it', async () => {
     startLightDemo(STAFF);
-    const body = {pathwayId: PATHWAYS.consentToRecord, meetingId: CLINICAL_IDS.mdtToday, question: 'Margins?'};
+    const body = {pathwayId: PATHWAYS.referredToHospital, meetingId: CLINICAL_IDS.mdtToday, question: 'Margins?'};
     expect((await call('POST', '/api/mdt/items', body)).status).toBe(409);
     const listed = await call('POST', '/api/mdt/items', {...body, meetingId: MEETINGS.skinMdt});
     expect(listed.status).toBe(201);
     expect((await call('POST', '/api/mdt/items', {...body, meetingId: MEETINGS.skinMdt})).status).toBe(409);
-    const items = (await call('GET', `/api/mdt/pathways/${PATHWAYS.consentToRecord}/items`)).body;
+    const items = (await call('GET', `/api/mdt/pathways/${PATHWAYS.referredToHospital}/items`)).body;
     expect(items.map((i: {id: string}) => i.id)).toEqual([listed.body.id, MDT_ITEMS.harrietPresented]);
     expect((await call('POST', `/api/mdt/items/${MDT_ITEMS.priyaListed}/defer`, {meetingId: CLINICAL_IDS.mdtToday, expectedVersion: 1})).status).toBe(409);
     expect((await call('POST', `/api/mdt/items/${listed.body.id}/withdraw`, {expectedVersion: 1})).body.status).toBe('Withdrawn');

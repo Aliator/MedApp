@@ -218,4 +218,15 @@ describe('ReadMePage', () => {
     expect(await screen.findByText('notepad open')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/read-me');
   });
+
+  it('shows the notepad step’s sample notes as text, and copies them', async () => {
+    startLightDemo(STAFF);
+    const {user} = renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
+
+    expect(await screen.findByText('Seen in clinic today.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Copy the Notes'}));
+
+    expect(await screen.findByRole('button', {name: 'Copied'})).toBeInTheDocument();
+    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Plaques on both elbows, unchanged since the last visit.', 'Patient happy with the care plan; review in 8 weeks.'].join('\n'));
+  });
 });
