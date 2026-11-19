@@ -108,6 +108,9 @@ public sealed class ListForMdtHandlerTests : MdtCommandTestBase
         Audit.Should().ContainSingle().Which.Action.Should().Be(PatientPathwayAuditAction.MdtListed);
         Audit[0].Details.Should().NotContain(Question).And.Contain("Dermatology");
         Repository.Verify(r => r.AddAsync(It.IsAny<MdtItem>(), It.IsAny<PatientPathwayAuditEntry>(), Token));
+        // Its MDT's attendees get their grants in the same save (MC26).
+        Repository.Verify(r => r.SyncGrantsAsync(
+            It.Is<IReadOnlyCollection<MdtItem>>(items => items.Single().Meeting == _meeting), Now, Token), Times.Once);
     }
 
     [Test]
