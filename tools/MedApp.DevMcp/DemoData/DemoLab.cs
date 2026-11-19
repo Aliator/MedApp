@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using System.Security.Cryptography;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Pathways.Common;
@@ -45,6 +46,7 @@ public static class DemoLab
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
+            TeamId = Team.GeneralId,
             FileName = "Ultrasound report (other service).pdf",
             ContentType = "application/pdf",
             SizeBytes = bytes.Length,
@@ -58,6 +60,7 @@ public static class DemoLab
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
+            TeamId = Team.GeneralId,
             Source = ResultSource.ExternalReport,
             Title = "Ultrasound report from another service",
             ReportAttachmentId = report.Id,

@@ -67,6 +67,11 @@ public sealed class UploadAttachmentHandler(
     {
         Id = stored.Id,
         PatientId = target.PatientId,
+        // Its pathway's or referral's team; a patient's own file, the uploader's (the team walls).
+        TeamId = target.Pathway?.TeamId
+                 ?? target.Referral?.TeamId
+                 ?? request.Actor.Teams.DefaultTeamId
+                 ?? MedApp.Domain.Teams.Team.GeneralId,
         PathwayId = target.Pathway?.Id,
         StageId = target.Stage?.Id,
         ReferralId = target.Referral?.Id,

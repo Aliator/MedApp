@@ -20,7 +20,7 @@ public sealed class SearchPatientPathwaysHandlerTests : PathwayHandlerTestBase
         var query = CreateSearchQuery() with { PageSize = 2 };
         var pathway = CreatePathway(Status.Assigned);
         Repository
-            .Setup(r => r.SearchAsync(query, Now, It.IsAny<CancellationToken>()))
+            .Setup(r => r.SearchAsync(query, query.Teams, Now, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<PatientPathway>([pathway], 3));
         var handler = Fixture.Create<SearchPatientPathwaysHandler>();
 
@@ -37,12 +37,12 @@ public sealed class SearchPatientPathwaysHandlerTests : PathwayHandlerTestBase
     {
         var query = CreateSearchQuery();
         Repository
-            .Setup(r => r.SearchAsync(query, Now, It.IsAny<CancellationToken>()))
+            .Setup(r => r.SearchAsync(query, query.Teams, Now, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<PatientPathway>([], 0));
         using var cts = new CancellationTokenSource();
 
         await Fixture.Create<SearchPatientPathwaysHandler>().Handle(query, cts.Token);
 
-        Repository.Verify(r => r.SearchAsync(query, Now, cts.Token), Times.Once);
+        Repository.Verify(r => r.SearchAsync(query, query.Teams, Now, cts.Token), Times.Once);
     }
 }

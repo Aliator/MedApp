@@ -42,6 +42,7 @@ public sealed class WriteLetterCorrectionHandler(LetterRecords records, TimeProv
         {
             Id = Guid.NewGuid(),
             PatientId = old.Letter.PatientId,
+            TeamId = old.Letter.TeamId,
             PathwayId = old.Letter.PathwayId,
             ReferralId = old.Letter.ReferralId,
             TemplateId = old.Letter.TemplateId,

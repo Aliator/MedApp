@@ -27,11 +27,28 @@ public abstract class SpecimenTestBase
     protected Mock<IQrCodeRenderer> QrCodes { get; private set; } = null!;
     protected Mock<IPermissionHolders> Holders { get; private set; } = null!;
     protected Mock<INotificationSender> Notifications { get; private set; } = null!;
+
+    /// <summary>Teams: the lab is <see cref="Lab"/>.</summary>
+    protected Mock<MedApp.Application.Teams.Repositories.ITeamRepository> Teams { get; private set; } = null!;
+
+    /// <summary>Access grants: none yet, unless a test says so.</summary>
+    protected Mock<MedApp.Application.Teams.Repositories.IPathwayAccessRepository> Access { get; private set; } = null!;
+
+    /// <summary>The lab team.</summary>
+    protected static readonly MedApp.Domain.Teams.Team Lab = new()
+    {
+        Id = MedApp.Domain.Teams.Team.LabId,
+        Name = "Synthetic lab",
+        Kind = MedApp.Domain.Teams.TeamKind.Lab,
+    };
     protected FixedTimeProvider Clock { get; } = new(PathwaysTestConstants.Now);
     protected IOptions<SpecimenOptions> Options { get; } = Microsoft.Extensions.Options.Options.Create(new SpecimenOptions());
 
     protected List<Specimen> Added { get; } = [];
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
+
+    /// <summary>Access grants passed to AddAsync (the lab's, once passed the pathway).</summary>
+    protected List<MedApp.Domain.Teams.PathwayAccess> SavedGrants { get; } = [];
     protected List<Attachment> SavedReports { get; } = [];
     protected List<MedApp.Domain.Results.Result> SavedResults { get; } = [];
     protected List<Notification> Sent { get; } = [];
@@ -47,6 +64,10 @@ public abstract class SpecimenTestBase
         Cts = new CancellationTokenSource();
         Added.Clear();
         SavedAudit.Clear();
+        SavedGrants.Clear();
+        Teams = new Mock<MedApp.Application.Teams.Repositories.ITeamRepository>();
+        Teams.Setup(t => t.GetLabAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Lab);
+        Access = new Mock<MedApp.Application.Teams.Repositories.IPathwayAccessRepository>();
         SavedReports.Clear();
         SavedResults.Clear();
         Sent.Clear();
@@ -65,6 +86,19 @@ public abstract class SpecimenTestBase
             {
                 Added.Add(specimen);
                 SavedAudit.AddRange(audit);
+                Tokens.Add(ct);
+            })
+            .Returns(Task.CompletedTask);
+        Repository
+            .Setup(r => r.AddAsync(
+                It.IsAny<Specimen>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(),
+                It.IsAny<IEnumerable<MedApp.Domain.Teams.PathwayAccess>>(), It.IsAny<CancellationToken>()))
+            .Callback((Specimen specimen, IEnumerable<PatientPathwayAuditEntry> audit,
+                IEnumerable<MedApp.Domain.Teams.PathwayAccess> grants, CancellationToken ct) =>
+            {
+                Added.Add(specimen);
+                SavedAudit.AddRange(audit);
+                SavedGrants.AddRange(grants);
                 Tokens.Add(ct);
             })
             .Returns(Task.CompletedTask);

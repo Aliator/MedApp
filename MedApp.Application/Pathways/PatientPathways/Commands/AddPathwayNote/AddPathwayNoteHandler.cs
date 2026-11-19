@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Common;
@@ -9,6 +10,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayNote;
 
 public sealed class AddPathwayNoteHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
@@ -17,7 +19,7 @@ public sealed class AddPathwayNoteHandler(
     public async Task<PatientPathwayNoteResponse> Handle(AddPathwayNoteCommand request, CancellationToken cancellationToken)
     {
         // A 409 for a restricted or anonymised record, as for every change to a pathway.
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
 
         if (PathwayWorkflow.WhyNotesCantChange(pathway) is { } reason)
             throw new ConflictException(reason);

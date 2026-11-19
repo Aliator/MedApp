@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Pathways.Common;
@@ -180,6 +181,7 @@ public static class DemoPathways
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
+            TeamId = Team.GeneralId,
             Status = AppointmentStatus.Requested,
             Notes = "Walked in worried about a biopsy dressing; dressing changed.",
             IsAutomatic = false,
@@ -208,6 +210,7 @@ public static class DemoPathways
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
+            TeamId = Team.GeneralId,
             Status = AppointmentStatus.Requested,
             Notes = note,
             IsAutomatic = false,
@@ -362,6 +365,7 @@ public static class DemoPathways
         await Batch(world.Appointments, (db, items) => db.Appointments.AddRange(items), 2000);
         await Batch(world.AppointmentEvents, (db, items) => db.AppointmentEvents.AddRange(items), 4000);
         await Batch(world.Audit, (db, items) => db.PatientPathwayAuditEntries.AddRange(items), 4000);
+        await Batch(world.PathwayAccess, (db, items) => db.PathwayAccess.AddRange(items), 4000);
         await Batch(world.NoteVersions, (db, items) => db.PatientPathwayNoteVersions.AddRange(items), 4000);
         await Batch(world.Notifications, (db, items) => db.Notifications.AddRange(items), 4000);
 

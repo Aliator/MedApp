@@ -25,7 +25,7 @@ namespace MedApp.UnitTests.Application.Specimens.Commands;
 public sealed class RecordSpecimenHandlerTests : SpecimenTestBase
 {
     private RecordSpecimenHandler Handler =>
-        new(Pathways.Object, Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Options, Clock);
+        new(Pathways.Object, Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Options, Teams.Object, Access.Object, Clock);
 
     private RecordSpecimenCommand Command(PatientPathway pathway, DateTime? takenAt = null, Guid? requesting = null, int stage = 1) => new(
         pathway.Id, pathway.StageAt(stage).Id, Biopsy.Id, InHouse.Id, takenAt, "  left forearm ", " ", requesting ?? Nurse.UserId, Nurse);

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Activity.Common;
@@ -23,7 +24,7 @@ public sealed class GetPatientPathwayLabelsHandlerTests : PathwayHandlerTestBase
         var activity = new RecordingActivityLog();
         Fixture.Inject<IActivityLog>(activity);
         Repository
-            .Setup(r => r.GetLabelsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetLabelsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<TeamScope>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new PathwayLabel(Knee, "Total knee replacement", "Freya", "Ahmed"), new PathwayLabel(Scope, "Bronchoscopy", "Priya", "Ali")]);
         using var cts = new CancellationTokenSource();
 
@@ -33,7 +34,7 @@ public sealed class GetPatientPathwayLabelsHandlerTests : PathwayHandlerTestBase
             new PatientPathwayLabelResponse(Scope, "Bronchoscopy", "Priya Ali"),
             new PatientPathwayLabelResponse(Knee, "Total knee replacement", "Freya Ahmed"));
         Repository.Verify(r => r.GetLabelsAsync(
-            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { Scope, Gone, Knee })), cts.Token), Times.Once);
+            It.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { Scope, Gone, Knee })), TeamScope.System, cts.Token), Times.Once);
         activity.Recorded.Should().BeEmpty();
         activity.Views.Should().BeEmpty();
     }
@@ -44,7 +45,7 @@ public sealed class GetPatientPathwayLabelsHandlerTests : PathwayHandlerTestBase
         var labels = await Fixture.Create<GetPatientPathwayLabelsHandler>().Handle(new GetPatientPathwayLabelsQuery([]), CancellationToken.None);
 
         labels.Should().BeEmpty();
-        Repository.Verify(r => r.GetLabelsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
+        Repository.Verify(r => r.GetLabelsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<TeamScope>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

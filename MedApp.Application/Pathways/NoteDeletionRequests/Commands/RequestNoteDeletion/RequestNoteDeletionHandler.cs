@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Notifications.Common;
@@ -11,6 +12,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.NoteDeletionRequests.Commands.RequestNoteDeletion;
 
 public sealed class RequestNoteDeletionHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository pathways,
     INoteDeletionRequestRepository requests,
     IIdentityReadService identity,
@@ -22,7 +24,7 @@ public sealed class RequestNoteDeletionHandler(
     public async Task<PatientPathwayNoteResponse> Handle(RequestNoteDeletionCommand request, CancellationToken cancellationToken)
     {
         // A 409 for a restricted or anonymised record: a request is the first step of a change to it.
-        var pathway = await pathways.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await pathways.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var note = pathway.Notes.FirstOrDefault(n => n.Id == request.NoteId)
                    ?? throw new NotFoundException($"Note '{request.NoteId}' was not found on this pathway.");
 

@@ -1,4 +1,5 @@
-﻿using MedApp.Application.Common.Exceptions;
+﻿using MedApp.Application.Common.Teams;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
@@ -12,6 +13,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.AssignPatientPathway;
 
 public sealed class AssignPatientPathwayHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IIdentityReadService identityReadService,
     IPermissionHolders permissionHolders,
@@ -29,7 +31,7 @@ public sealed class AssignPatientPathwayHandler(
 
     public async Task<PatientPathwayResponse> Handle(AssignPatientPathwayCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
 
         if (!PathwayWorkflow.CanChangeAssignments(pathway))
             throw new ConflictException($"Staff can't be assigned to a pathway that's {PathwayWorkflow.Describe(pathway.Status)}.");

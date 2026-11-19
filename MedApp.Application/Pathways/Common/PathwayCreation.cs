@@ -70,11 +70,12 @@ public static class PathwayCreation
     /// Records a new pathway's creation on its change: the Created audit entry (the template's name, the target date,
     /// the priority and how many stages, and the referral it was accepted from, if <paramref name="referralId"/> is
     /// given), then its first note, if <paramref name="notes"/> has any text, then the first stage's visit, if it
-    /// involves one.
+    /// involves one. Its own team's access grant (<c>Owner</c>, the team walls) is written with it.
     /// </summary>
     public static void Record(PathwayChange change, string templateName, DateOnly dueDate, string? notes = null, Guid? referralId = null)
     {
         var pathway = change.Pathway;
+        change.GrantOwner();
         change.Audit(PatientPathwayAuditAction.Created, referralId is { } fromReferral
             ? new
             {

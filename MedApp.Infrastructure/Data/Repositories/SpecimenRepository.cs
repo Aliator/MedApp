@@ -43,6 +43,18 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
         await SaveAsync(ct);
     }
 
+    public async Task AddAsync(
+        Specimen specimen,
+        IEnumerable<PatientPathwayAuditEntry> audit,
+        IEnumerable<MedApp.Domain.Teams.PathwayAccess> grants,
+        CancellationToken ct)
+    {
+        context.Specimens.Add(specimen);
+        context.PatientPathwayAuditEntries.AddRange(audit);
+        context.PathwayAccess.AddRange(grants);
+        await SaveAsync(ct);
+    }
+
     public async Task SaveAsync(IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
     {
         context.PatientPathwayAuditEntries.AddRange(audit);

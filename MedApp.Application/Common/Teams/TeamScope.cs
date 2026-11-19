@@ -43,6 +43,12 @@ public sealed record TeamScope
     public static TeamScope For(Guid userId, IEnumerable<Guid> teamIds, IReadOnlySet<Permission>? permissions) =>
         new(userId, teamIds, permissions?.Contains(Permission.ViewAllTeams) == true);
 
+    /// <summary>
+    /// The team a record they make takes when nothing else decides it (a patient's own file, an appointment without a
+    /// pathway): one of theirs, the same each time, or null when they're in none.
+    /// </summary>
+    public Guid? DefaultTeamId => TeamIds.Count == 0 ? null : TeamIds.Min();
+
     /// <summary>Whether the viewer belongs to this team.</summary>
     public bool IsMember(Guid teamId) => TeamIds.Contains(teamId);
 

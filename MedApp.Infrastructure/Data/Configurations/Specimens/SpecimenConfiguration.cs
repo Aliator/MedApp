@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using MedApp.Domain.Specimens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -12,6 +13,14 @@ public sealed class SpecimenConfiguration : IEntityTypeConfiguration<Specimen>
     public void Configure(EntityTypeBuilder<Specimen> builder)
     {
         builder.ToTable("Specimens");
+
+        // Its team (the team walls, decision 200): set when it's made, never edited by hand. A team anything has is
+        // archived, never deleted.
+        builder.HasOne<Team>()
+            .WithMany()
+            .HasForeignKey(x => x.TeamId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(x => x.TeamId);
 
         builder.HasKey(x => x.Id);
 

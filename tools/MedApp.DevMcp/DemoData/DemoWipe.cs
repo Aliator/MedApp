@@ -93,6 +93,8 @@ public static class DemoWipe
                 // unreferenced, so the pre-reset snapshot still finds them if it's restored.
                 await db.Attachments.ExecuteDeleteAsync(cancellationToken);
                 await db.PatientPathwayAuditEntries.ExecuteDeleteAsync(cancellationToken);
+                // Grants to see pathways have no foreign key to them either.
+                await db.PathwayAccess.ExecuteDeleteAsync(cancellationToken);
                 // Note versions have no foreign keys; the notes themselves go with their pathways (cascade).
                 await db.PatientPathwayNoteVersions.ExecuteDeleteAsync(cancellationToken);
                 // So do requests to delete notes.
@@ -108,9 +110,13 @@ public static class DemoWipe
                 await db.LetterTemplates.ExecuteDeleteAsync(cancellationToken);
                 // Every team but General (which the migrations seeded), back as it was; memberships go first.
                 await db.TeamMemberships.ExecuteDeleteAsync(cancellationToken);
-                await db.Teams.Where(s => s.Id != Team.GeneralId).ExecuteDeleteAsync(cancellationToken);
+                // Every team but General and the lab (which the migrations seeded), back as they were.
+                await db.Teams.Where(s => s.Id != Team.GeneralId && s.Id != Team.LabId).ExecuteDeleteAsync(cancellationToken);
                 await db.Teams.Where(s => s.Id == Team.GeneralId).ExecuteUpdateAsync(u => u
                     .SetProperty(s => s.Name, Team.GeneralName)
+                    .SetProperty(s => s.IsArchived, false), cancellationToken);
+                await db.Teams.Where(s => s.Id == Team.LabId).ExecuteUpdateAsync(u => u
+                    .SetProperty(s => s.Name, Team.LabName)
                     .SetProperty(s => s.IsArchived, false), cancellationToken);
                 await db.PatientPathwayStageDefinitions.Where(d => d.Id != MissingDefinitionId).ExecuteDeleteAsync(cancellationToken);
                 await db.Patients.ExecuteDeleteAsync(cancellationToken);

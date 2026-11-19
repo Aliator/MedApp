@@ -18,7 +18,8 @@ public static class PathwayNoteMapper
     /// can do. Editing a note and asking for its deletion also need <see cref="Permission.WorkPathways"/>, as their
     /// endpoints do. <paramref name="viewerPermissions"/> are the viewer's, from their session; null means no viewer is
     /// known: the flags then say only what the note and record allow, with nothing that needs
-    /// <see cref="Permission.CorrectRecords"/>.
+    /// <see cref="Permission.CorrectRecords"/>. Editing a note and asking for its deletion also need the viewer's team to
+    /// own the pathway (<paramref name="viewerTeamOwns"/>, the team walls): admins and the lab read others' notes.
     /// </summary>
     public static PatientPathwayNoteResponse ToResponse(
         PatientPathwayNote note,
@@ -26,10 +27,11 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        IReadOnlySet<Permission>? viewerPermissions = null)
+        IReadOnlySet<Permission>? viewerPermissions = null,
+        bool viewerTeamOwns = true)
     {
         var canCorrectRecords = viewerPermissions?.Contains(Permission.CorrectRecords) == true;
-        var canWork = PathwayMapper.Allows(viewerPermissions, Permission.WorkPathways);
+        var canWork = PathwayMapper.Allows(viewerPermissions, Permission.WorkPathways) && viewerTeamOwns;
         return new PatientPathwayNoteResponse
         {
             Id = note.Id,
@@ -54,12 +56,13 @@ public static class PathwayNoteMapper
         Guid? viewerId,
         bool canChange,
         bool? recordCanChange = null,
-        IReadOnlySet<Permission>? viewerPermissions = null) =>
+        IReadOnlySet<Permission>? viewerPermissions = null,
+        bool viewerTeamOwns = true) =>
         notes
             .Where(n => !n.IsDeleted)
             .OrderByDescending(n => n.CreatedAtUtc)
             .ThenByDescending(n => n.Id)
-            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerPermissions))
+            .Select(n => ToResponse(n, usernames, viewerId, canChange, recordCanChange, viewerPermissions, viewerTeamOwns))
             .ToList();
 
     /// <summary>

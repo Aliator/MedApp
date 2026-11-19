@@ -26,6 +26,12 @@ public sealed class PatientMessage
 
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its appointment's. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     public Guid AppointmentId { get; init; }
 
     public PatientMessageKind Kind { get; init; }

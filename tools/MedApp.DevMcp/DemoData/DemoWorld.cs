@@ -62,6 +62,9 @@ public sealed class DemoWorld
     public List<Referral> Referrals { get; } = [];
     public List<ReferralEvent> ReferralEvents { get; } = [];
 
+    /// <summary>Who may see each pathway (the team walls): its team's grant, and the lab's once passed a sample.</summary>
+    public List<PathwayAccess> PathwayAccess { get; } = [];
+
     /// <summary>Where on the body each record with a site is about (its notes name it), by the record's ID.</summary>
     public Dictionary<Guid, string> Sites { get; } = [];
 

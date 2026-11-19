@@ -119,6 +119,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = pathway.PatientId,
+            TeamId = pathway.TeamId,
             PathwayId = pathway.Id,
             StageId = stage.Id,
             Status = AppointmentStatus.Requested,

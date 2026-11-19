@@ -75,7 +75,7 @@ public sealed class PatientsController(IMediator mediator) : ControllerBase
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientById(Guid id)
     {
-        var query = new GetPatientByIdQuery(id);
+        var query = new GetPatientByIdQuery(id, User.ToTeamScope());
 
         var patient = await mediator.Send(query);
 

@@ -24,6 +24,7 @@ public static class PathwayAudit
         PatientPathwayId = pathway.Id,
         PathwayTitle = pathway.Title,
         PatientId = pathway.PatientId,
+        TeamId = pathway.TeamId,
         StageId = stage?.Id,
         StageName = stage?.Name,
         Action = action,

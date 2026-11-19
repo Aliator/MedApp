@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -34,6 +35,11 @@ public sealed class CreatePatientPathwayHandler(
             throw new ConflictException($"The '{template.Name}' template is archived, so it can't be used for new pathways.");
         if (template.Maps.Count == 0)
             throw new ConflictException($"The '{template.Name}' template has no stages.");
+
+        // A pathway takes its template's team (the team walls): staff start pathways in their own teams only.
+        if (!TeamAccess.CanChangeTeam(template.TeamId, request.Actor.Teams))
+            throw new FluentValidation.ValidationException(
+                [new FluentValidation.Results.ValidationFailure("TemplateId", TeamWalls.TemplateNotYours(template.Name))]);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var pathway = PathwayCreation.FromTemplate(

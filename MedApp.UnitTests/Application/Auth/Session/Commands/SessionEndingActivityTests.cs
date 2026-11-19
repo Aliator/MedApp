@@ -133,10 +133,14 @@ public sealed class SessionEndingActivityTests
             return _inner.RecordAsync(entry, ct);
         }
 
-        public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null) =>
-            _inner.RecordViewsAsync(action, patientIds, ct, pathwayId);
+        public Task RecordViewsAsync(
+            ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null, object? details = null) =>
+            _inner.RecordViewsAsync(action, patientIds, ct, pathwayId, details);
 
         public Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct) =>
             _inner.RecordViewAsync(action, patientId, details, ct);
+
+        public Task RecordOnceAsync(ActivityAction action, object details, CancellationToken ct) =>
+            _inner.RecordOnceAsync(action, details, ct);
     }
 }

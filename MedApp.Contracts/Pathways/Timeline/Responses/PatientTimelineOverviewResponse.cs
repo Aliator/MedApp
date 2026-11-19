@@ -1,4 +1,4 @@
-namespace MedApp.Contracts.Pathways.Timeline.Responses;
+﻿namespace MedApp.Contracts.Pathways.Timeline.Responses;
 
 /// <summary>What sits above a patient's timeline: what's due next, and the pathways to filter it by.</summary>
 public sealed class PatientTimelineOverviewResponse
@@ -16,4 +16,10 @@ public sealed class PatientTimelineOverviewResponse
 
     /// <summary>The patient's referrals awaiting triage, oldest first.</summary>
     public List<PatientTimelineReferralResponse> AwaitingReferrals { get; set; } = [];
+
+    /// <summary>
+    /// The patient's pathways in teams the viewer can't see into, as summary lines only (the team walls); empty for an
+    /// admin.
+    /// </summary>
+    public List<MedApp.Contracts.Patients.Responses.OtherTeamPathwaySummaryResponse> OtherTeamPathways { get; set; } = [];
 }

@@ -15,7 +15,7 @@ public sealed class GetPatientPathwayLabelsHandler(IPatientPathwayRepository rep
         if (ids.Count == 0)
             return [];
 
-        var labels = (await repository.GetLabelsAsync(ids, cancellationToken)).ToDictionary(l => l.Id);
+        var labels = (await repository.GetLabelsAsync(ids, request.Teams, cancellationToken)).ToDictionary(l => l.Id);
         return ids.Where(labels.ContainsKey).Select(id => PathwayMapper.ToLabel(labels[id])).ToList();
     }
 }

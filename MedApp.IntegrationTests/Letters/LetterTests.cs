@@ -322,7 +322,7 @@ public sealed class LetterTests : IntegrationTest
     public async Task Referral_AskForMoreInformation_WaitsInItsOwnView_ThenInformationReceivedPutsItBack()
     {
         var booking = await CreateStaffAsync("Booking");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([Team.GeneralId])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([new(Team.GeneralId, null)])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         var patient = await CreatePatientAsync(_admin);
         var referral = await (await booking.Client.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
@@ -13,6 +14,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.NoteDeletionRequests.Commands.DecideNoteDeletionRequest;
 
 public sealed class DecideNoteDeletionRequestHandler(
+    ITeamBoundary boundary,
     INoteDeletionRequestRepository requests,
     IPatientPathwayRepository pathways,
     IPathwayMonitor pathwayMonitor,
@@ -31,7 +33,7 @@ public sealed class DecideNoteDeletionRequestHandler(
             throw new ConflictException(PathwayNotes.AlreadyDecidedMessage(deletionRequest));
 
         // A 409 for a restricted or anonymised record: either decision changes the note (deleted, or no longer waiting).
-        var pathway = await pathways.GetForUpdateOrThrowAsync(deletionRequest.PatientPathwayId, cancellationToken);
+        var pathway = await pathways.GetForCorrectionOrThrowAsync(deletionRequest.PatientPathwayId, boundary, request.Actor.Teams, cancellationToken);
         var note = pathway.Notes.FirstOrDefault(n => n.Id == deletionRequest.NoteId)
                    ?? throw new NotFoundException($"Note '{deletionRequest.NoteId}' was not found on this pathway.");
 
