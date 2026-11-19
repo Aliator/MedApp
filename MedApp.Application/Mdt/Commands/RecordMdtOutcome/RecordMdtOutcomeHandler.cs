@@ -55,12 +55,14 @@ public sealed class RecordMdtOutcomeHandler(
             .ToList();
         item.Version++;
 
+        // Its attendees keep reading it until the meeting ends (MC26); after that, their grants end now.
+        await repository.SyncGrantsAsync([item], now, cancellationToken);
         await repository.SaveAsync(
             MdtAudit.OutcomeRecorded(item, item.Team?.Name ?? string.Empty, request.Actor, now), cancellationToken);
 
         foreach (var notification in MdtNotifications.OutcomeRecorded(item, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        return MdtMapper.ToResponse(item, request.Actor, now);
+        return await repository.ToResponseAsync(item, request.Actor, now, cancellationToken);
     }
 }

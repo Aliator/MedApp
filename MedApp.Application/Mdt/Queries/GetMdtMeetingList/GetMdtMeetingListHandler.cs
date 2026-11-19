@@ -34,7 +34,8 @@ public sealed class GetMdtMeetingListHandler(
         return new MdtMeetingListResponse
         {
             Meeting = MdtMapper.ToResponse(row, usernames),
-            Items = items.Select(i => MdtMapper.ToResponse(i, request.Viewer, now)).ToList()
+            ReadOnlyReason = MdtRules.ListReadOnlyReason(row.Meeting, row.TeamName, scope),
+            Items = await repository.ToResponsesAsync(items, request.Viewer, now, cancellationToken)
         };
     }
 }

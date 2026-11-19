@@ -56,14 +56,17 @@ public sealed class ListForMdtHandler(
             ListedByUserId = request.Actor.UserId,
             ListedByUsername = request.Actor.Username,
             ListedAtUtc = now,
-            Version = 1
+            Version = 1,
+            // The meeting is tracked in the same context: its attendees get their grants (MC26).
+            Meeting = meeting
         };
 
+        await repository.SyncGrantsAsync([item], now, cancellationToken);
         await repository.AddAsync(
             item, MdtAudit.Listed(item, pathway, team?.Name ?? string.Empty, meeting, request.Actor, now), cancellationToken);
 
         var saved = await repository.GetAsync(item.Id, cancellationToken)
                     ?? throw new NotFoundException($"MDT item '{item.Id}' was not found.");
-        return MdtMapper.ToResponse(saved, request.Actor, now);
+        return await repository.ToResponseAsync(saved, request.Actor, now, cancellationToken);
     }
 }

@@ -106,6 +106,8 @@ public sealed class UpdateMeetingHandler(
             tracked.Attendees.AddRange(MeetingStaff.Attendees(
                 tracked.Id, wanted.Where(id => tracked.Attendees.All(a => a.StaffUserId != id))));
 
+            // An MDT's attendees read the cases listed on it (MC26): their grants follow the attendees, in the same save.
+            await mdtItems.SyncMeetingGrantsAsync(tracked, now, ct);
             await repository.SaveAsync(ct);
             return (tracked, was);
         }, cancellationToken);
