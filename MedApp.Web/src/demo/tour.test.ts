@@ -27,6 +27,7 @@ const COLLECTIONS = {
   results: 'results',
   specimens: 'specimens',
   letters: 'letters',
+  'hospital-requests': 'hospitalRequests',
 } as const;
 
 describe('the Read Me tour', () => {

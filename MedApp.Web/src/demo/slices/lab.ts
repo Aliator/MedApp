@@ -1,6 +1,7 @@
 import {CARROW, LAB, STAFF} from '../accounts';
 import {APPOINTMENTS, MORE_APPOINTMENTS, PATHWAYS, USERS, id} from '../ids';
 import type {BaseState, DemoNotification} from '../state';
+import type {DemoHospitalRequest} from './hospitals';
 import {daysFrom, today, ukTime} from '../time';
 
 /**
@@ -38,15 +39,32 @@ export interface DemoLabTest {
   isArchived: boolean;
 }
 
-/** A specimen, as stored: the step fields filled in as it moves Taken → Sent → Received → Reported, or closes early. */
+/** Where a sample came from (`SpecimenSource`, MC14): a clinic's pathway, or the hospital (MC18 registers those). */
+export type SpecimenSource = 'Clinic' | 'Hospital';
+
+/**
+ * A sample ("specimen" in code), as stored: the step fields filled in as it moves Taken → Sent → Received → Reported,
+ * or closes early. MC14: every sample, a clinic's or the hospital's, in one database with one number sequence.
+ */
 export interface DemoSpecimen {
   id: string;
   number: string;
   patientId: string;
-  pathwayId: string;
-  /** Its pathway's team (the team walls, `handlers/teamWalls.ts`). */
+  source: SpecimenSource;
+  /** The clinic that asked for it (a clinic sample's pathway team); null for the hospital's. */
+  requestingTeamId: string | null;
+  /** The hospital that sent it, and the request it came with (MC18); null for a clinic's. */
+  hospitalId: string | null;
+  hospitalRequestId: string | null;
+  /** The test asked for, from the lab's catalogue (MC13), if one was chosen. */
+  labTestId: string | null;
+  /** Its lab case (MC15); none yet. */
+  labCaseId: string | null;
+  /** Its pathway and stage: a clinic sample's; the hospital's have none. */
+  pathwayId: string | null;
+  /** Its pathway's team, or the lab's for a hospital sample (the team walls, `handlers/teamWalls.ts`). */
   teamId: string;
-  stageId: string;
+  stageId: string | null;
   specimenTypeId: string;
   site: string | null;
   requestNotes: string | null;
@@ -207,6 +225,13 @@ export const LAB_IDS = {
 export const specimenNumber = (sequence: number, onDate: string = today()) =>
   `MA${onDate.slice(2, 4)}-${String(sequence).padStart(6, '0')}`;
 
+/** The test each seeded type was sent for (the lab's catalogue, MC13). */
+const TEST_OF_TYPE: Record<string, string> = {
+  [SPECIMEN_TYPES.skinBiopsy]: LAB_TESTS.skinHistology,
+  [SPECIMEN_TYPES.bloodSample]: LAB_TESTS.fullBloodCount,
+  [SPECIMEN_TYPES.skinScraping]: LAB_TESTS.fungalScraping,
+};
+
 const ago = (days: number, hours = 10, minutes = 0) => ukTime(daysFrom(-days), hours, minutes);
 const plusMinutes = (isoUtc: string, minutes: number) => new Date(new Date(isoUtc).getTime() + minutes * 60000).toISOString();
 const earlierOf = (a: string, b: string) => (Date.parse(a) <= Date.parse(b) ? a : b);
@@ -261,6 +286,12 @@ export function seedLab(state: BaseState): LabSlice {
       id: specimenId,
       number: specimenNumber(sequence, takenAtUtc.slice(0, 10)),
       patientId: pathway(pathwayId).patientId,
+      source: 'Clinic',
+      requestingTeamId: pathway(pathwayId).teamId,
+      hospitalId: null,
+      hospitalRequestId: null,
+      labTestId: TEST_OF_TYPE[typeId] ?? null,
+      labCaseId: null,
       pathwayId,
       teamId: pathway(pathwayId).teamId,
       stageId: stage(pathwayId, stageOrder).id,
@@ -445,7 +476,7 @@ export function seedLab(state: BaseState): LabSlice {
       userId: STAFF.id,
       kind: 'SpecimenRejectedByLab',
       title: 'Specimen rejected',
-      message: 'The lab rejected a Blood sample specimen.',
+      message: 'The lab rejected a sample (Blood sample).',
       pathwayId: PATHWAYS.followUpBooked,
       subjectId: SPECIMENS.ilonaBloodRejected,
       createdAtUtc: ago(3, 9, 0),
@@ -520,5 +551,54 @@ export function seedLab(state: BaseState): LabSlice {
     specimenSequence: sequence,
     clockPauses: [],
     referralExtras: {},
+  };
+}
+
+/**
+ * The sample a hospital request brings (MC14 with MC18): the lab's (its team), with no pathway or stage, numbered as
+ * its case (one sequence), received by the lab when the request was registered, and taken when the hospital collected
+ * it. The hospital's report goes back to the hospital (MC20), so it makes no result here.
+ */
+export function hospitalSample(
+  request: Pick<DemoHospitalRequest, 'id' | 'hospitalId' | 'patientId' | 'teamId' | 'specimenTypeId' | 'labTestId' | 'labCaseNumber' | 'collectedAtUtc' | 'registeredAtUtc' | 'registeredByUserId'>,
+  sampleId: string,
+): DemoSpecimen {
+  return {
+    id: sampleId,
+    number: request.labCaseNumber,
+    patientId: request.patientId,
+    source: 'Hospital',
+    requestingTeamId: null,
+    hospitalId: request.hospitalId,
+    hospitalRequestId: request.id,
+    labTestId: request.labTestId,
+    // MC15 opens its case; until then a sample has none.
+    labCaseId: null,
+    pathwayId: null,
+    teamId: request.teamId,
+    stageId: null,
+    specimenTypeId: request.specimenTypeId,
+    site: null,
+    requestNotes: null,
+    requestingUserId: request.registeredByUserId,
+    status: 'Received',
+    recordedAtUtc: request.registeredAtUtc,
+    recordedByUserId: request.registeredByUserId,
+    takenAtUtc: request.collectedAtUtc ?? request.registeredAtUtc,
+    takenByUserId: request.registeredByUserId,
+    sentAtUtc: null,
+    sentByUserId: null,
+    courierReference: null,
+    receivedAtUtc: request.registeredAtUtc,
+    receivedByUserId: request.registeredByUserId,
+    labReference: null,
+    reportedAtUtc: null,
+    reportedByUserId: null,
+    reportAttachmentId: null,
+    rejectionReason: null,
+    closedDetail: null,
+    closedAtUtc: null,
+    closedByUserId: null,
+    version: 1,
   };
 }

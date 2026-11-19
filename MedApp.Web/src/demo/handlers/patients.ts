@@ -7,6 +7,7 @@ import {db} from '../store';
 import {logActivity} from './adminLogs';
 import {contains, int, list, me, paged, requirePermission, sorted} from './common';
 import {isOverdue} from './pathways';
+import {isHiddenFromSearch} from './hospitals';
 import {ensureCanChange, patientResponse} from './setupPrivacy';
 import {canSeePathway, canSeeRecord, isPickedTeam, myScope, otherTeamPathways, pickedTeam} from './teamWalls';
 
@@ -114,8 +115,11 @@ export function registerPatients() {
       db().pathways.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked)) ||
       db().referrals.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked)) ||
       db().appointments.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked));
+    // A patient whose only link is a hospital case is the lab's to find (MC18).
+    const scope = myScope();
     const items = db().patients.filter(
       (p) =>
+        !isHiddenFromSearch(p.id, scope) &&
         inPicked(p.id) &&
         contains(p.firstName, query.get('FirstName')) &&
         contains(p.lastName, query.get('LastName')) &&

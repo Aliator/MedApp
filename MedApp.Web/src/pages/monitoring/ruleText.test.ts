@@ -58,7 +58,7 @@ describe('describeRule', () => {
     ['ReferralNotTriaged', 2, 'Notify me when a referral in Dermatology has awaited triage more than 2 days'],
     ['ResultNotSignedOff', 1, 'Notify me when a result on a pathway in Dermatology has awaited sign-off more than 1 day'],
     ['VisitNotBooked', 3, 'Notify me when a visit for a stage on a pathway in Dermatology has awaited booking more than 3 days'],
-    ['SpecimenOverdue', 0, 'Notify me when a specimen from a stage on a pathway in Dermatology is past its expected turnaround'],
+    ['SpecimenOverdue', 0, 'Notify me when a sample from a stage on a pathway in Dermatology is past its expected turnaround'],
     ['WaitBreached', 7, 'Notify me when the waiting-time target of a referral in Dermatology is less than 7 days away, or passed'],
     ['WaitBreached', 0, 'Notify me when the waiting-time target of a referral in Dermatology has passed'],
     ['PauseReviewPassed', 0, 'Notify me when the review date of a paused clock on a referral in Dermatology has passed'],

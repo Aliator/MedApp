@@ -83,7 +83,7 @@ describe('timeline filters', () => {
       'Appointments',
       'Referrals',
       'Waiting time',
-      'Specimens',
+      'Samples',
       'Results',
       'Consent',
       'Letters',
@@ -514,7 +514,7 @@ describe('referral entries', () => {
   });
 });
 
-describe('specimen entries', () => {
+describe('sample entries', () => {
   const specimen = (fields: Partial<TimelineEntry>) =>
     entry({kind: 'Specimens', specimenId: '00000051-0000-0000-0000-000000000001', specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', laboratoryName: 'Northgate pathology', ...fields});
 
@@ -522,28 +522,28 @@ describe('specimen entries', () => {
     expect(isSpecimenEntry(specimen({action: 'SpecimenTaken'}))).toBe(true);
     expect(isSpecimenEntry(entry({}))).toBe(false);
     expect(describeTimelineEntry(specimen({action: 'SpecimenTaken', toStatus: 'Taken'}))).toEqual({
-      title: 'Skin biopsy (punch) specimen taken',
+      title: 'Skin biopsy (punch) sample taken',
       detail: 'For Northgate pathology',
     });
-    expect(describeTimelineEntry(specimen({action: 'SpecimenSent'}))).toEqual({title: 'Skin biopsy (punch) specimen sent to Northgate pathology', detail: ''});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent'}))).toEqual({title: 'Skin biopsy (punch) sample sent to Northgate pathology', detail: ''});
     expect(describeTimelineEntry(specimen({action: 'SpecimenReceived'}))).toEqual({
-      title: 'Skin biopsy (punch) specimen received by Northgate pathology',
+      title: 'Skin biopsy (punch) sample received by Northgate pathology',
       detail: '',
     });
     expect(describeTimelineEntry(specimen({action: 'SpecimenReported'})).detail).toBe('The report from Northgate pathology is attached');
     expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Received'}))).toEqual({
-      title: 'Skin biopsy (punch) specimen rejected by Northgate pathology',
+      title: 'Skin biopsy (punch) sample rejected by Northgate pathology',
       detail: 'Was received',
     });
-    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', fromStatus: 'Sent'}))).toEqual({title: 'Skin biopsy (punch) specimen marked lost', detail: 'Was sent'});
+    expect(describeTimelineEntry(specimen({action: 'SpecimenLost', fromStatus: 'Sent'}))).toEqual({title: 'Skin biopsy (punch) sample marked lost', detail: 'Was sent'});
     expect(describeTimelineEntry(specimen({action: 'SpecimenEnteredInError', fromStatus: 'Taken'})).title).toBe(
-      'Skin biopsy (punch) specimen marked entered in error',
+      'Skin biopsy (punch) sample marked entered in error',
     );
     expect(describeTimelineEntry(specimen({action: 'SpecimenSomethingNew', toStatus: 'RejectedByLab'}))).toEqual({
-      title: 'Skin biopsy (punch) specimen changed',
+      title: 'Skin biopsy (punch) sample changed',
       detail: 'Now rejected by the lab',
     });
-    expect(describeTimelineEntry(specimen({action: 'SpecimenSent', specimenTypeName: null, laboratoryName: null})).title).toBe('Specimen specimen sent');
+    expect(describeTimelineEntry(specimen({action: 'SpecimenSent', specimenTypeName: null, laboratoryName: null})).title).toBe('A sample sent');
   });
 
   it("gives admins what the API sends them: the site and notes, a rejection's reason, what a loss said", () => {
@@ -553,7 +553,7 @@ describe('specimen entries', () => {
       ).detail,
     ).toBe('For Northgate pathology. Site: Left forearm. Notes for the lab: Urgent');
     expect(describeTimelineEntry(specimen({action: 'SpecimenRejected', fromStatus: 'Sent', reason: 'Leaked: lid off', laboratoryName: null}))).toEqual({
-      title: 'Skin biopsy (punch) specimen rejected by the lab',
+      title: 'Skin biopsy (punch) sample rejected by the lab',
       detail: 'Was sent. Reason: Leaked: lid off',
     });
     expect(describeTimelineEntry(specimen({action: 'SpecimenLost', reason: 'Not in the batch'})).detail).toBe('Not in the batch');
@@ -575,7 +575,7 @@ describe('specimen entries', () => {
         }),
       ),
     ).toEqual({
-      title: 'Skin biopsy (punch) specimen: details edited',
+      title: 'Skin biopsy (punch) sample: details edited',
       detail:
         'Type Wound swab → Skin biopsy (punch); Time taken 2 Nov 2026, 09:00 → 2 Nov 2026, 08:30; Requesting clinician none → dr.synthetic; Site changed; Notes for the lab changed; SomethingNew changed',
     });
@@ -716,13 +716,13 @@ describe('consent entries', () => {
   });
 });
 
-describe('specimen detail edits', () => {
+describe('sample detail edits', () => {
   const edited = (changes: TimelineEntry['changes']) =>
     describeTimelineEntry(entry({kind: 'Specimens', action: 'SpecimenDetailsEdited', specimenTypeName: '  ', changes})).detail;
 
   it('names each field changed, with its values where sent', () => {
     expect(describeTimelineEntry(entry({kind: 'Specimens', action: 'SpecimenDetailsEdited', specimenTypeName: null, changes: []})).title).toBe(
-      'Specimen specimen: details edited',
+      'A sample: details edited',
     );
     expect(edited([{field: 'laboratory'}, {field: 'somethingNew'}, {}])).toBe('Lab changed; SomethingNew changed;  changed');
     expect(edited([{field: 'laboratory', from: 'Old lab', to: 'New lab'}, {field: 'specimenType', from: null, to: 'Biopsy'}])).toBe(

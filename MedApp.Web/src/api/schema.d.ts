@@ -7001,6 +7001,547 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hospital-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateHospitalRequestRequest"];
+                    "text/json": components["schemas"]["CreateHospitalRequestRequest"];
+                    "application/*+json": components["schemas"]["CreateHospitalRequestRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalRequestResponse"];
+                        "application/json": components["schemas"]["HospitalRequestResponse"];
+                        "text/json": components["schemas"]["HospitalRequestResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospital-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalRequestResponse"];
+                        "application/json": components["schemas"]["HospitalRequestResponse"];
+                        "text/json": components["schemas"]["HospitalRequestResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospital-requests/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HospitalRequestSearchRequest"];
+                    "text/json": components["schemas"]["HospitalRequestSearchRequest"];
+                    "application/*+json": components["schemas"]["HospitalRequestSearchRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalRequestSummaryResponsePagedResponse"];
+                        "application/json": components["schemas"]["HospitalRequestSummaryResponsePagedResponse"];
+                        "text/json": components["schemas"]["HospitalRequestSummaryResponsePagedResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospital-requests/patient-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HospitalPatientMatchRequest"];
+                    "text/json": components["schemas"]["HospitalPatientMatchRequest"];
+                    "application/*+json": components["schemas"]["HospitalPatientMatchRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalPatientMatchResponse"][];
+                        "application/json": components["schemas"]["HospitalPatientMatchResponse"][];
+                        "text/json": components["schemas"]["HospitalPatientMatchResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalResponse"][];
+                        "application/json": components["schemas"]["HospitalResponse"][];
+                        "text/json": components["schemas"]["HospitalResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HospitalDetailsRequest"];
+                    "text/json": components["schemas"]["HospitalDetailsRequest"];
+                    "application/*+json": components["schemas"]["HospitalDetailsRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalResponse"];
+                        "application/json": components["schemas"]["HospitalResponse"];
+                        "text/json": components["schemas"]["HospitalResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospitals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HospitalDetailsRequest"];
+                    "text/json": components["schemas"]["HospitalDetailsRequest"];
+                    "application/*+json": components["schemas"]["HospitalDetailsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalResponse"];
+                        "application/json": components["schemas"]["HospitalResponse"];
+                        "text/json": components["schemas"]["HospitalResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospitals/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalResponse"];
+                        "application/json": components["schemas"]["HospitalResponse"];
+                        "text/json": components["schemas"]["HospitalResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hospitals/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HospitalResponse"];
+                        "application/json": components["schemas"]["HospitalResponse"];
+                        "text/json": components["schemas"]["HospitalResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/jobs": {
         parameters: {
             query?: never;
@@ -20314,6 +20855,28 @@ export interface components {
             requesterName?: string | null;
             requesterRelationship?: string | null;
         };
+        CreateHospitalRequestRequest: {
+            /** Format: uuid */
+            hospitalId?: string;
+            /** Format: uuid */
+            patientId?: string | null;
+            newPatient?: components["schemas"]["HospitalPatientRequest"];
+            hospitalPatientNumber?: string | null;
+            nhsNumber?: string | null;
+            surgeonName?: string | null;
+            priority?: string | null;
+            isCancerPathway?: boolean;
+            /** Format: date-time */
+            authoredOn?: string;
+            /** Format: date */
+            reportNeededBy?: string | null;
+            /** Format: date-time */
+            collectedAtUtc?: string | null;
+            /** Format: uuid */
+            specimenTypeId?: string;
+            /** Format: uuid */
+            labTestId?: string;
+        };
         CreateLetterRequest: {
             /** Format: uuid */
             templateId?: string;
@@ -20645,6 +21208,8 @@ export interface components {
             requestNotes?: string | null;
             /** Format: uuid */
             requestingUserId?: string;
+            /** Format: uuid */
+            labTestId?: string | null;
             /** Format: int32 */
             expectedVersion?: number;
         };
@@ -21282,6 +21847,130 @@ export interface components {
         };
         ForgotPasswordRequest: {
             usernameOrEmail?: string | null;
+        };
+        HospitalDetailsRequest: {
+            name?: string | null;
+            odsCode?: string | null;
+            contact?: string | null;
+            reportDeliveryMethod?: string | null;
+            /** Format: int32 */
+            defaultDeadlineDays?: number;
+        };
+        HospitalPatientMatchRequest: {
+            nhsNumber?: string | null;
+            lastName?: string | null;
+            /** Format: date */
+            dateOfBirth?: string | null;
+        };
+        HospitalPatientMatchResponse: {
+            /** Format: uuid */
+            patientId?: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            /** Format: date */
+            dateOfBirth?: string;
+            nhsNumber?: string | null;
+            isRestricted?: boolean;
+        };
+        HospitalPatientRequest: {
+            firstName?: string | null;
+            lastName?: string | null;
+            /** Format: date */
+            dateOfBirth?: string;
+            nhsNumber?: string | null;
+        };
+        HospitalRequestResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            hospitalId?: string;
+            hospitalName?: string | null;
+            hospitalOdsCode?: string | null;
+            /** Format: uuid */
+            patientId?: string;
+            patient?: components["schemas"]["PathwayPatientResponse"];
+            hospitalPatientNumber?: string | null;
+            nhsNumber?: string | null;
+            nhsNumbersDiffer?: boolean;
+            surgeonName?: string | null;
+            priority?: string | null;
+            isCancerPathway?: boolean;
+            /** Format: date-time */
+            authoredOn?: string;
+            /** Format: date */
+            reportNeededBy?: string | null;
+            /** Format: date-time */
+            collectedAtUtc?: string | null;
+            /** Format: uuid */
+            specimenTypeId?: string;
+            specimenTypeName?: string | null;
+            specimenTypeSnomedCode?: string | null;
+            /** Format: uuid */
+            labTestId?: string;
+            labTestName?: string | null;
+            source?: string | null;
+            /** Format: uuid */
+            labCaseId?: string;
+            labCaseNumber?: string | null;
+            labCaseStatus?: string | null;
+            /** Format: date-time */
+            registeredAtUtc?: string;
+            registeredByUsername?: string | null;
+        };
+        HospitalRequestSearchRequest: {
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: uuid */
+            hospitalId?: string | null;
+            priority?: string | null;
+            search?: string | null;
+            sort?: string | null;
+            ascending?: boolean;
+        };
+        HospitalRequestSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            labCaseNumber?: string | null;
+            labCaseStatus?: string | null;
+            hospitalName?: string | null;
+            /** Format: uuid */
+            patientId?: string;
+            patientName?: string | null;
+            patientNhsNumber?: string | null;
+            hospitalPatientNumber?: string | null;
+            priority?: string | null;
+            labTestName?: string | null;
+            source?: string | null;
+            isCancerPathway?: boolean;
+            /** Format: date */
+            reportNeededBy?: string | null;
+            /** Format: date-time */
+            registeredAtUtc?: string;
+        };
+        HospitalRequestSummaryResponsePagedResponse: {
+            items?: components["schemas"]["HospitalRequestSummaryResponse"][] | null;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        HospitalResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            odsCode?: string | null;
+            contact?: string | null;
+            reportDeliveryMethod?: string | null;
+            /** Format: int32 */
+            defaultDeadlineDays?: number;
+            isArchived?: boolean;
+            canBeDeleted?: boolean;
         };
         IdentityError: {
             code?: string | null;
@@ -22552,6 +23241,8 @@ export interface components {
             requestNotes?: string | null;
             /** Format: uuid */
             requestingUserId?: string;
+            /** Format: uuid */
+            labTestId?: string | null;
         };
         RecoveryCodesResponse: {
             recoveryCodes?: string[] | null;
@@ -23115,11 +23806,25 @@ export interface components {
             patientId?: string;
             patient?: components["schemas"]["PathwayPatientResponse"];
             patientFlags?: components["schemas"]["PatientFlagsResponse"];
+            source?: string | null;
             /** Format: uuid */
-            pathwayId?: string;
+            requestingTeamId?: string | null;
+            requestingTeamName?: string | null;
+            /** Format: uuid */
+            hospitalId?: string | null;
+            hospitalName?: string | null;
+            /** Format: uuid */
+            hospitalRequestId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            labTestName?: string | null;
+            /** Format: uuid */
+            labCaseId?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
             pathwayTitle?: string | null;
             /** Format: uuid */
-            stageId?: string;
+            stageId?: string | null;
             stageName?: string | null;
             /** Format: uuid */
             specimenTypeId?: string;
@@ -23187,10 +23892,24 @@ export interface components {
             patientNhsNumber?: string | null;
             /** Format: date */
             patientDateOfBirth?: string;
+            source?: string | null;
             /** Format: uuid */
-            pathwayId?: string;
+            requestingTeamId?: string | null;
+            requestingTeamName?: string | null;
             /** Format: uuid */
-            stageId?: string;
+            hospitalId?: string | null;
+            hospitalName?: string | null;
+            /** Format: uuid */
+            hospitalRequestId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            labTestName?: string | null;
+            /** Format: uuid */
+            labCaseId?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            /** Format: uuid */
+            stageId?: string | null;
             specimenTypeName?: string | null;
             status?: string | null;
             isOpen?: boolean;
@@ -23244,6 +23963,13 @@ export interface components {
             search?: string | null;
             sort?: string | null;
             ascending?: boolean;
+            source?: string | null;
+            /** Format: uuid */
+            teamId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            status?: string | null;
+            due?: string | null;
         };
         StaffDetailsRequest: {
             fullName?: string | null;

@@ -3,6 +3,7 @@ import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
+import {HOSPITAL_IDS} from './slices/hospitals';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
 
@@ -217,7 +218,7 @@ export const TOUR: TourStep[] = [
     title: 'The lab’s home',
     steps: [
       `${LAB.fullName}’s home in the lab: pathways new for the lab and its turn, samples to receive, in progress, overdue and back to the clinic, each opening its full list.`,
-      'Samples in the side nav is the whole worklist. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
+      'Samples in the side nav is the samples database: every sample, from the clinics and the hospital, each marked with where it came from, in tabs and searchable by clinic, test, status and due date. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
     ],
     account: LAB.username,
     path: '/lab',
@@ -233,6 +234,18 @@ export const TOUR: TourStep[] = [
     account: ADMIN.username,
     path: '/admin/specimen-setup',
     buttonLabel: 'Open the test catalogue',
+  },
+  {
+    key: 'hospital-request',
+    title: 'A sample from the hospital',
+    steps: [
+      'Opens an urgent request from Riverside General (demo), typed in by the lab: the hospital’s patient number, the NHS number, the surgeon, the priority and the dates, as the request gave them. It opened a lab case of the lab’s own, with no pathway.',
+      'The patient banner sits over the request’s own numbers, so both can be checked. Wilfred Ashdown came only from the hospital: clinic staff don’t find him in Patients; the lab does.',
+      'Back in Hospital Requests, Register Request types in a new one: find the patient by NHS number, or last name and date of birth, and choose them yourself (never matched for you), or add a new patient.',
+    ],
+    account: LAB.username,
+    path: `/hospital-requests/${HOSPITAL_IDS.urgentRequest}`,
+    buttonLabel: 'Open the hospital request as the lab',
   },
   {
     key: 'fork',

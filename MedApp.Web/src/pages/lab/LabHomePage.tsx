@@ -7,6 +7,7 @@ import {Section} from '@astryxdesign/core/Section';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery, type UseQueryResult} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
+import {hospitalRequestSearchQuery, type HospitalRequestSummary} from '../../api/hospitals';
 import type {PathwaySummary} from '../../api/pathways';
 import {pathwaySearchQuery, type PathwaySearch} from '../../api/search';
 import {specimenWorklistQuery, type SpecimenSummary, type SpecimenView} from '../../api/specimens';
@@ -29,6 +30,7 @@ export const labSamplesQuery = (view: SpecimenView) => specimenWorklistQuery({vi
 
 /** What the route's loader preloads: every list on the page. */
 export const labHomeQueries = () => [
+  hospitalCasesQuery,
   labPathwaysQuery('newForUs'),
   labPathwaysQuery('ourTurn'),
   ...(['Expected', 'InLab', 'Overdue', 'Reported'] as const).map(labSamplesQuery),
@@ -82,6 +84,15 @@ function WorkCard<T>({
   );
 }
 
+/** The hospital's newest requests (MC18), each with its lab case. */
+const hospitalCasesQuery = hospitalRequestSearchQuery({page: 1, pageSize: 5});
+
+const hospitalRow = (r: HospitalRequestSummary) => ({
+  key: r.id ?? '',
+  label: <Link href={`/hospital-requests/${r.id}`}>{r.labCaseNumber}</Link>,
+  detail: [r.hospitalName, r.patientName, r.reportNeededBy ? `Needed by ${formatDate(r.reportNeededBy)}` : null].filter(Boolean).join(' · '),
+});
+
 const pathwayRow = (p: PathwaySummary) => ({
   key: p.id ?? '',
   label: <Link href={`/pathways/${p.id}`}>{p.title}</Link>,
@@ -99,7 +110,7 @@ const sampleRow = (at: (s: SpecimenSummary) => string | null | undefined, words:
  * first few and its count, linking to the full list. **New for the lab** (clinic pathways handed to the lab, not
  * picked up) and **Our turn** (lab stages it's working), from the relay's team views (My Worklist's); **To receive**
  * (samples sent, not received), **In progress** (received, not reported), **Overdue** (past the type's expected days)
- * and **Back to the clinic** (reported in the last 7 days), from the samples worklist. Lists order by target dates
+ * and **Back to the clinic** (reported in the last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests. Lists order by target dates
  * and times only (decision 191). Every patient shown is recorded as listed, by the endpoints. To report (a case
  * whose steps are done) joins with lab cases (MC15), hospitals' cases with MC18.
  */
@@ -111,6 +122,7 @@ export function LabHomePage() {
   const inProgress = useQuery(labSamplesQuery('InLab'));
   const overdue = useQuery(labSamplesQuery('Overdue'));
   const backToClinic = useQuery(labSamplesQuery('Reported'));
+  const fromHospital = useQuery(hospitalCasesQuery);
 
   return (
     <Page title="Lab" subtitle="What's waiting for the lab, soonest first">
@@ -162,6 +174,14 @@ export function LabHomePage() {
           query={backToClinic}
           href="/lab/samples?view=Reported"
           row={sampleRow((s) => s.reportedAtUtc, 'Reported')}
+        />
+        <WorkCard
+          title="From the hospital"
+          description="Hospital requests and their lab cases, newest first."
+          empty="No hospital requests"
+          query={fromHospital}
+          href="/hospital-requests"
+          row={hospitalRow}
         />
       </Grid>
     </Page>

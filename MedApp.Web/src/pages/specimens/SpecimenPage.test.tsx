@@ -66,7 +66,7 @@ describe('SpecimenPage', () => {
   it('shows the patient, the details, the steps so far and its stage, with the actions a taken one offers', async () => {
     renderPage(testSpecimen({otherSpecimensFromStage: [testSummary({id: 'other', number: 'MA26-000100', status: 'Lost'})]}));
 
-    expect(await screen.findByRole('heading', {name: 'Specimen MA26-000123', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Sample MA26-000123', level: 1})).toBeInTheDocument();
     expect(screen.getAllByText('Skin biopsy (punch)')[0]).toBeInTheDocument();
     expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getAllByText('Taken').length).toBeGreaterThan(0);
@@ -101,7 +101,7 @@ describe('SpecimenPage', () => {
     const dialog = within(await waitFor(() => openDialog()!));
     await user.click(dialog.getByRole('button', {name: 'Mark Sent'}));
 
-    await expectAnnounced('Specimen marked sent');
+    await expectAnnounced('Sample marked sent');
     const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
     expect(await post.json()).toEqual({atUtc: null, reference: null, expectedVersion: 3});
     expect(await screen.findByText('4 Nov 2026, 09:00 by test-nurse')).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('SpecimenPage', () => {
     expect(screen.queryByRole('menuitem', {name: /Entered in Error/})).not.toBeInTheDocument();
   });
 
-  it('offers nothing that changes it to someone who neither records nor processes specimens', async () => {
+  it('offers nothing that changes it to someone who neither records nor processes samples', async () => {
     renderPage(received, {}, staffUser);
     expect(await screen.findByRole('link', {name: 'Print Label'})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Attach Report'})).not.toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('SpecimenPage', () => {
         canReject: false,
         canReport: false,
         canMarkLost: false,
-        readOnlyReason: 'This specimen was rejected by the lab, so it can no longer change.',
+        readOnlyReason: 'This sample was rejected by the lab, so it can no longer change.',
       }),
     );
 
@@ -184,8 +184,8 @@ describe('SpecimenPage', () => {
     expect(steps.getByText('Reason: Insufficient sample')).toBeInTheDocument();
     expect(steps.getByText('Too little tissue.')).toBeInTheDocument();
     expect(steps.queryByText('Reported')).not.toBeInTheDocument();
-    expect(screen.getByText('No report: the specimen was closed without one.')).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: alertLabelName('Read-only specimen')})).toBeInTheDocument();
+    expect(screen.getByText('No report: the sample was closed without one.')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: alertLabelName('Read-only sample')})).toBeInTheDocument();
   });
 
   // Seven dialogs in turn: slow under coverage on a loaded machine (CI), so it gets room.
@@ -213,11 +213,11 @@ describe('SpecimenPage', () => {
       await user.click(await screen.findByRole('menuitem', {name}));
     };
 
-    await opens(button('Edit'), 'Edit Specimen MA26-000123');
+    await opens(button('Edit'), 'Edit Sample MA26-000123');
     await opens(button('Mark Sent'), 'Mark Sent');
     await opens(button('Mark Received'), 'Mark Received');
     await opens(button('Attach Report'), 'Attach Report');
-    await opens(menu(/^Reject/), 'Reject Specimen');
+    await opens(menu(/^Reject/), 'Reject Sample');
     await opens(menu(/^Mark Lost/), 'Mark Lost');
     await opens(menu(/^Entered in Error/), 'Mark Entered in Error?');
 
@@ -232,12 +232,12 @@ describe('SpecimenPage', () => {
 
   it('says when it is not found, or could not be loaded', async () => {
     renderPage(() => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Specimen not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await screen.findByText('Sample not found. It may have been deleted.')).toBeInTheDocument();
   });
 
   it('says when it could not be loaded', async () => {
     renderPage(() => json({}, 500));
-    expect(await screen.findByText('The specimen could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The sample could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('lists the steps in order, a closed one ending with how it closed', () => {

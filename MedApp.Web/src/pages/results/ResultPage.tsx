@@ -68,7 +68,7 @@ export function ResultPage({id}: {id: string}) {
   return (
     <Page
       title={result ? (result.title ?? 'Result') : 'Result'}
-      subtitle={result ? (result.specimenNumber ? `Specimen ${result.specimenNumber}` : resultSourceLabel(result.source)) : undefined}
+      subtitle={result ? (result.specimenNumber ? `Sample ${result.specimenNumber}` : resultSourceLabel(result.source)) : undefined}
       backHref={result?.pathwayId ? `/pathways/${result.pathwayId}` : '/results'}
       backLabel={result?.pathwayId ? 'Back to pathway' : 'Back to results'}
       isLoading={isPending}
@@ -183,7 +183,7 @@ function Actions({result, onOpen, onProblem}: ActionsProps) {
         {
           id: 'enteredInError',
           label: 'Entered in Error',
-          description: 'On the wrong patient or specimen',
+          description: 'On the wrong patient or sample',
           icon: AppIcon.EnteredInError,
           variant: 'destructive' as const,
           onClick: () => onOpen('enteredInError'),
@@ -224,7 +224,7 @@ function ResultDetails({result}: {result: Result}) {
       <MetadataListItem label="Source">
         {result.specimenId ? (
           <VStack gap={0} hAlign="start">
-            <Link href={`/specimens/${result.specimenId}`}>{`Specimen ${result.specimenNumber ?? ''}`.trim()}</Link>
+            <Link href={`/specimens/${result.specimenId}`}>{`Sample ${result.specimenNumber ?? ''}`.trim()}</Link>
             {result.specimenTypeName && (
               <Text type="supporting" color="secondary">
                 {result.specimenTypeName}

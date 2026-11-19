@@ -52,11 +52,18 @@ const REASON_LABELS: Record<RejectionReason, string> = {
 /** A rejection reason in words: "InsufficientSample" → "Insufficient sample". */
 export const rejectionReasonLabel = (reason: string | null | undefined) => REASON_LABELS[reason as RejectionReason] ?? reason ?? '';
 
-/** The lab's worklist views (`GET api/specimens/search?view=`), oldest first; All is newest taken first. */
-export const SPECIMEN_VIEWS = ['ToSend', 'Expected', 'InLab', 'Overdue', 'RejectedAndLost', 'Reported'] as const;
+/**
+ * The samples worklist's views (`GET api/specimens/search?view=`), oldest first; All is newest taken first. To receive
+ * (MC14): not yet at the lab, taken or on its way.
+ */
+export const SPECIMEN_VIEWS = ['ToReceive', 'ToSend', 'Expected', 'InLab', 'Overdue', 'RejectedAndLost', 'Reported'] as const;
 export type SpecimenView = (typeof SPECIMEN_VIEWS)[number];
 
+/** The samples page's tabs (MC14), before All. */
+export const SAMPLE_TABS = ['ToReceive', 'InLab', 'Reported', 'RejectedAndLost'] as const satisfies readonly SpecimenView[];
+
 const VIEW_LABELS: Record<SpecimenView, string> = {
+  ToReceive: 'To receive',
   ToSend: 'To send',
   Expected: 'Expected',
   InLab: 'In the lab',
@@ -67,6 +74,26 @@ const VIEW_LABELS: Record<SpecimenView, string> = {
 
 /** A view in words, for its tab: "InLab" → "In the lab". */
 export const specimenViewLabel = (view: SpecimenView) => VIEW_LABELS[view];
+
+/** Where a sample came from (`SpecimenSource`, MC14): a clinic's pathway, or the hospital (MC18's requests). */
+export const SPECIMEN_SOURCES = ['Clinic', 'Hospital'] as const;
+export type SpecimenSource = (typeof SPECIMEN_SOURCES)[number];
+
+/** Where a sample came from, by name: its clinic's, or its hospital's ("Dermatology", "Riverside General"). */
+export const sampleSourceName = (sample: Pick<SpecimenSummary, 'source' | 'requestingTeamName' | 'hospitalName'>) =>
+  (sample.source === 'Hospital' ? sample.hospitalName : sample.requestingTeamName) ?? '';
+
+/**
+ * The samples page's Due filter (MC14): open samples past their expected date, due within two days, or not yet due.
+ * Date arithmetic only (decision 88); MC19 brings each test's own clock.
+ */
+export const SAMPLE_DUE = ['Overdue', 'DueSoon', 'NotDue'] as const;
+export type SampleDue = (typeof SAMPLE_DUE)[number];
+
+const DUE_LABELS: Record<SampleDue, string> = {Overdue: 'Overdue', DueSoon: 'Due within 2 days', NotDue: 'Not yet due'};
+
+/** A Due filter in words. */
+export const sampleDueLabel = (due: SampleDue) => DUE_LABELS[due];
 
 /** The longest a site can be (the API's 200), request notes (1,000), a reference (50) and a closing detail (500). */
 export const MAX_SITE = 200;
@@ -171,6 +198,8 @@ export interface SpecimenDetailsInput {
   site: string;
   requestNotes: string;
   requestingUserId: string;
+  /** The test asked for, from the lab's catalogue (MC14), or '' for none. Never chosen for the clinician. */
+  labTestId?: string;
 }
 
 /** The request's details: an empty site or request notes sent as none. */
@@ -181,6 +210,7 @@ function toDetailsRequest(input: SpecimenDetailsInput) {
     site: optional(input.site),
     requestNotes: optional(input.requestNotes),
     requestingUserId: input.requestingUserId,
+    labTestId: input.labTestId || null,
   };
 }
 

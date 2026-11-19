@@ -48,6 +48,7 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
       {label: 'Letter Templates', icon: AppIcon.LetterTemplates, href: '/admin/letter-templates', permission: 'ManageSetup'},
       {label: 'Consent Forms', icon: AppIcon.Consent, href: '/admin/consent-forms', permission: 'ManageSetup'},
       {label: 'Specimen Types and Lab Tests', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
+      {label: 'Hospitals', icon: AppIcon.Hospitals, href: '/admin/hospitals', permission: 'ManageSetup'},
     ],
   },
   {

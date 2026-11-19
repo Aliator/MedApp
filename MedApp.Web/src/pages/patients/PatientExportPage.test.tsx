@@ -298,13 +298,13 @@ describe('PatientExportPage', () => {
     expect(screen.getByText('No requests to delete notes.')).toBeInTheDocument();
     expect(screen.getByText('No referrals.')).toBeInTheDocument();
     expect(screen.getByText('No referral changes recorded.')).toBeInTheDocument();
-    expect(screen.getByText('No specimens.')).toBeInTheDocument();
+    expect(screen.getByText('No samples.')).toBeInTheDocument();
     expect(screen.getByText('No results.')).toBeInTheDocument();
     expect(screen.getByText('No data requests.')).toBeInTheDocument();
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 
-  it('lists every specimen: where it came from, where it went, and how it closed', async () => {
+  it('lists every sample: where it came from, where it went, and how it closed', async () => {
     renderExport({
       ...data,
       specimens: [
@@ -343,8 +343,8 @@ describe('PatientExportPage', () => {
       ],
     });
 
-    expect(await screen.findByRole('heading', {name: 'Specimens (2)'})).toBeInTheDocument();
-    expect(screen.getByRole('heading', {name: 'Specimen MA26-000123: Skin biopsy (punch)'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Samples (2)'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Sample MA26-000123: Skin biopsy (punch)'})).toBeInTheDocument();
     expect(screen.getByText('2 Nov 2026, 09:00 by test-nurse')).toBeInTheDocument();
     expect(screen.getByText('2 Nov 2026, 15:00, reference CR-42')).toBeInTheDocument();
     expect(screen.getByText("3 Nov 2026, 10:00, lab's reference NP-77")).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe('PatientExportPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Results (2)'})).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Result: Skin biopsy (punch) report'})).toBeInTheDocument();
-    expect(screen.getByText('Specimen MA26-000123')).toBeInTheDocument();
+    expect(screen.getByText('Sample MA26-000123')).toBeInTheDocument();
     expect(screen.getByText('5 Nov 2026, 12:00 by test-lab, its report is under Files')).toBeInTheDocument();
     expect(screen.getByText('6 Nov 2026, 10:00 by test-senior')).toBeInTheDocument();
     expect(screen.getByText('Synthetic: phoned the GP.')).toBeInTheDocument();

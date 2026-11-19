@@ -45,7 +45,7 @@ export function PathwayResults({pathwayId}: {pathwayId: string}) {
           description={
             <VStack gap={1}>
               <Text type="supporting" color="secondary">
-                {`${result.specimenNumber ? `Specimen ${result.specimenNumber}` : 'External report'} · reported ${formatDateTime(result.reportedAtUtc ?? '')}`}
+                {`${result.specimenNumber ? `Sample ${result.specimenNumber}` : 'External report'} · reported ${formatDateTime(result.reportedAtUtc ?? '')}`}
               </Text>
               <Text type="supporting" color="secondary">
                 {`Responsible clinician: ${result.responsibleUsername ?? ''}`}

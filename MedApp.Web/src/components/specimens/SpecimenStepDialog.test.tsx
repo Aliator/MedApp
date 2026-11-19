@@ -19,7 +19,7 @@ describe('SpecimenStepDialog', () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-18T14:05:00Z')});
   });
 
-  it('marks it sent now, with the patient and specimen shown and the courier reference, from the version shown', async () => {
+  it('marks it sent now, with the patient and sample shown and the courier reference, from the version shown', async () => {
     withAnnouncements();
     const {user, fetch, onClose} = renderDialog('sent', {[`POST /api/specimens/${SPECIMEN_ID}/sent`]: () => json(testSpecimen({status: 'Sent'}))});
 
@@ -31,7 +31,7 @@ describe('SpecimenStepDialog', () => {
     await user.type(dialog().getByRole('textbox', {name: /Courier or batch reference/}), 'CR-42');
     await user.click(dialog().getByRole('button', {name: 'Mark Sent'}));
 
-    await expectAnnounced('Specimen marked sent');
+    await expectAnnounced('Sample marked sent');
     expect(await bodyOf(fetch)).toEqual({atUtc: null, reference: 'CR-42', expectedVersion: 3});
     expect(onClose).toHaveBeenCalled();
   });
@@ -54,16 +54,16 @@ describe('SpecimenStepDialog', () => {
   it('rejects it with a reason, none chosen to start with, and asks for a detail for Other', async () => {
     const {user, fetch} = renderDialog('rejected', {[`POST /api/specimens/${SPECIMEN_ID}/rejected`]: () => json(testSpecimen({status: 'RejectedByLab'}))});
 
-    await screen.findByRole('heading', {name: 'Reject Specimen'});
+    await screen.findByRole('heading', {name: 'Reject Sample'});
     const reasons = dialog().getAllByRole('radio');
     expect(reasons.map((r) => (r as HTMLInputElement).checked)).toEqual([false, false, false, false, false, false]);
-    expect(isDisabled(dialog().getByRole('button', {name: 'Reject Specimen'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Reject Sample'}))).toBe(true);
 
     await user.click(dialog().getByRole('radio', {name: 'Other'}));
-    expect(isDisabled(dialog().getByRole('button', {name: 'Reject Specimen'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Reject Sample'}))).toBe(true);
     await user.click(dialog().getByRole('radio', {name: 'Insufficient sample'}));
     expect(dialog().getByRole('textbox', {name: /Detail \(optional\)/})).toBeInTheDocument();
-    await user.click(dialog().getByRole('button', {name: 'Reject Specimen'}));
+    await user.click(dialog().getByRole('button', {name: 'Reject Sample'}));
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(await bodyOf(fetch)).toEqual({reason: 'InsufficientSample', detail: null, expectedVersion: 3});
@@ -71,7 +71,7 @@ describe('SpecimenStepDialog', () => {
 
   it("marks it lost with what happened, showing the API's 409 in its words", async () => {
     const {user} = renderDialog('lost', {
-      [`POST /api/specimens/${SPECIMEN_ID}/lost`]: () => json({title: 'Someone else changed this specimen while you had it open.'}, 409),
+      [`POST /api/specimens/${SPECIMEN_ID}/lost`]: () => json({title: 'Someone else changed this sample while you had it open.'}, 409),
     });
 
     await screen.findByRole('heading', {name: 'Mark Lost'});
@@ -79,7 +79,7 @@ describe('SpecimenStepDialog', () => {
     await user.type(dialog().getByRole('textbox', {name: /What happened/}), 'Not in the batch');
     await user.click(dialog().getByRole('button', {name: 'Mark Lost'}));
 
-    expect(await dialog().findByText('Someone else changed this specimen while you had it open.')).toBeInTheDocument();
+    expect(await dialog().findByText('Someone else changed this sample while you had it open.')).toBeInTheDocument();
   });
 
   it("marks it entered in error, showing a 400 on the detail", async () => {
