@@ -6,8 +6,6 @@ import {calls, json, mockApi} from '../test/render';
 import {
   BIOPSY_TYPE_ID,
   DOCTOR_USER_ID,
-  LABORATORIES,
-  NORTHGATE_LAB_ID,
   SPECIMEN_ID,
   SPECIMEN_PATHWAY_ID,
   SPECIMEN_STAGE_ID,
@@ -18,7 +16,6 @@ import {
 import {stubXhr} from '../test/xhr';
 import {pathwayKeys} from './pathways';
 import {
-  laboratoriesQuery,
   pathwaySpecimensQuery,
   rejectionReasonLabel,
   specimenKeys,
@@ -31,9 +28,7 @@ import {
   specimenViewLabel,
   SPECIMEN_VIEWS,
   useFindSpecimen,
-  useLaboratoryActions,
   useRecordSpecimen,
-  useSaveLaboratory,
   useSaveSpecimenType,
   useSpecimenActions,
   useSpecimenTypeActions,
@@ -77,7 +72,7 @@ describe('specimen queries', () => {
     });
 
     expect((await new QueryClient().fetchQuery(specimenQuery(SPECIMEN_ID))).number).toBe('MA26-000123');
-    await new QueryClient().fetchQuery(specimenSearchQuery({View: 'InLab', LaboratoryId: undefined, Page: 2}));
+    await new QueryClient().fetchQuery(specimenSearchQuery({View: 'InLab', PathwayId: undefined, Page: 2}));
     await new QueryClient().fetchQuery(pathwaySpecimensQuery(SPECIMEN_PATHWAY_ID));
 
     expect(calls(fetch)).toEqual([
@@ -88,12 +83,12 @@ describe('specimen queries', () => {
   });
 
   it('fetches the setup lists, open ones only unless asked for archived ones too', async () => {
-    const fetch = mockApi({'GET /api/specimen-types': () => json(SPECIMEN_TYPES), 'GET /api/laboratories': () => json(LABORATORIES)});
+    const fetch = mockApi({'GET /api/specimen-types': () => json(SPECIMEN_TYPES)});
 
     expect(await new QueryClient().fetchQuery(specimenTypesQuery())).toEqual(SPECIMEN_TYPES);
-    expect(await new QueryClient().fetchQuery(laboratoriesQuery(true))).toEqual(LABORATORIES);
+    expect(await new QueryClient().fetchQuery(specimenTypesQuery(true))).toEqual(SPECIMEN_TYPES);
 
-    expect(calls(fetch)).toEqual(['GET /api/specimen-types?includeArchived=false', 'GET /api/laboratories?includeArchived=true']);
+    expect(calls(fetch)).toEqual(['GET /api/specimen-types?includeArchived=false', 'GET /api/specimen-types?includeArchived=true']);
   });
 });
 
@@ -108,7 +103,6 @@ describe('specimen changes', () => {
       result.current.mutateAsync({
         stageId: SPECIMEN_STAGE_ID,
         specimenTypeId: BIOPSY_TYPE_ID,
-        laboratoryId: NORTHGATE_LAB_ID,
         site: '  ',
         requestNotes: ' Urgent please ',
         requestingUserId: DOCTOR_USER_ID,
@@ -118,7 +112,6 @@ describe('specimen changes', () => {
     expect(await bodyOf(fetch)).toEqual({
       stageId: SPECIMEN_STAGE_ID,
       specimenTypeId: BIOPSY_TYPE_ID,
-      laboratoryId: NORTHGATE_LAB_ID,
       site: null,
       requestNotes: 'Urgent please',
       requestingUserId: DOCTOR_USER_ID,
@@ -141,7 +134,6 @@ describe('specimen changes', () => {
     await act(() =>
       result.current.edit.mutateAsync({
         specimenTypeId: BIOPSY_TYPE_ID,
-        laboratoryId: NORTHGATE_LAB_ID,
         takenAtUtc: '2026-11-02T09:00:00Z',
         site: 'Left forearm',
         requestNotes: '',
@@ -165,7 +157,6 @@ describe('specimen changes', () => {
     ]);
     expect(await bodyOf(fetch, 0)).toEqual({
       specimenTypeId: BIOPSY_TYPE_ID,
-      laboratoryId: NORTHGATE_LAB_ID,
       site: 'Left forearm',
       requestNotes: null,
       requestingUserId: DOCTOR_USER_ID,
@@ -229,57 +220,39 @@ describe('specimen changes', () => {
 });
 
 describe('specimen setup changes', () => {
-  it('adds and changes types and labs, then refreshes the lists and the specimens', async () => {
+  it('adds and changes types, then refreshes the lists and the specimens', async () => {
     const fetch = mockApi({
       'POST /api/specimen-types': () => json(SPECIMEN_TYPES[0], 201),
       [`PUT /api/specimen-types/${BIOPSY_TYPE_ID}`]: () => json(SPECIMEN_TYPES[0]),
-      'POST /api/laboratories': () => json(LABORATORIES[0], 201),
-      [`PUT /api/laboratories/${NORTHGATE_LAB_ID}`]: () => json(LABORATORIES[0]),
     });
     const {queryClient, wrapper} = cachedClient();
-    const {result} = renderHook(() => ({type: useSaveSpecimenType(), lab: useSaveLaboratory()}), {wrapper});
+    const {result} = renderHook(() => ({type: useSaveSpecimenType()}), {wrapper});
 
-    await act(() => result.current.type.mutateAsync({name: 'Skin biopsy (punch)', expectedTurnaroundDays: 5}));
-    await act(() => result.current.type.mutateAsync({id: BIOPSY_TYPE_ID, name: 'Skin biopsy', expectedTurnaroundDays: 6}));
-    await act(() => result.current.lab.mutateAsync({name: 'Northgate pathology', usesMedApp: true}));
-    await act(() => result.current.lab.mutateAsync({id: NORTHGATE_LAB_ID, name: 'Northgate', usesMedApp: false}));
+    await act(() => result.current.type.mutateAsync({name: 'Skin biopsy (punch)', expectedTurnaroundDays: 5, snomedCode: null}));
+    await act(() => result.current.type.mutateAsync({id: BIOPSY_TYPE_ID, name: 'Skin biopsy', expectedTurnaroundDays: 6, snomedCode: '309066003'}));
 
-    expect(calls(fetch)).toEqual([
-      'POST /api/specimen-types',
-      `PUT /api/specimen-types/${BIOPSY_TYPE_ID}`,
-      'POST /api/laboratories',
-      `PUT /api/laboratories/${NORTHGATE_LAB_ID}`,
-    ]);
-    expect(await bodyOf(fetch, 1)).toEqual({name: 'Skin biopsy', expectedTurnaroundDays: 6});
-    expect(await bodyOf(fetch, 3)).toEqual({name: 'Northgate', usesMedApp: false});
+    expect(calls(fetch)).toEqual(['POST /api/specimen-types', `PUT /api/specimen-types/${BIOPSY_TYPE_ID}`]);
+    expect(await bodyOf(fetch, 1)).toEqual({name: 'Skin biopsy', expectedTurnaroundDays: 6, snomedCode: '309066003'});
     await waitFor(() => expect(isInvalidated(queryClient, specimenSetupKeys.types(false))).toBe(true));
     expect(isInvalidated(queryClient, specimenKeys.one(SPECIMEN_ID))).toBe(true);
   });
 
-  it('archives, restores and deletes types and labs', async () => {
+  it('archives, restores and deletes types', async () => {
     const fetch = mockApi({
       'POST /api/specimen-types/*': () => json(SPECIMEN_TYPES[0]),
       'DELETE /api/specimen-types/*': () => new Response(null, {status: 204}),
-      'POST /api/laboratories/*': () => json(LABORATORIES[0]),
-      'DELETE /api/laboratories/*': () => new Response(null, {status: 204}),
     });
     const {wrapper} = cachedClient();
-    const {result} = renderHook(() => ({type: useSpecimenTypeActions(), lab: useLaboratoryActions()}), {wrapper});
+    const {result} = renderHook(() => ({type: useSpecimenTypeActions()}), {wrapper});
 
     await act(() => result.current.type.archive.mutateAsync('t1'));
     await act(() => result.current.type.restore.mutateAsync('t1'));
     await act(() => result.current.type.remove.mutateAsync('t1'));
-    await act(() => result.current.lab.archive.mutateAsync('l1'));
-    await act(() => result.current.lab.restore.mutateAsync('l1'));
-    await act(() => result.current.lab.remove.mutateAsync('l1'));
 
     expect(calls(fetch)).toEqual([
       'POST /api/specimen-types/t1/archive',
       'POST /api/specimen-types/t1/restore',
       'DELETE /api/specimen-types/t1',
-      'POST /api/laboratories/l1/archive',
-      'POST /api/laboratories/l1/restore',
-      'DELETE /api/laboratories/l1',
     ]);
   });
 });

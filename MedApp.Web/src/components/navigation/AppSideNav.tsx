@@ -597,6 +597,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const user = useCurrentUser();
   // As whoami says it (an API from before account types says none, and everything shows as before).
   const isAdminAccount = user.accountType === 'Admin';
+  // Staff in the lab team, whose nav leads with the lab's home (MC17).
+  const isLabStaff = !isAdminAccount && (user.teams ?? []).some((t) => t.kind === 'Lab') && can(user, 'ViewPatients');
   const logout = useLogout();
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const {mode} = useColorMode();
@@ -627,6 +629,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const main: NavRailEntry[] = [
     // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
     ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />})] : []),
+    // The lab's home leads the nav for lab staff (MC17): what's waiting for the lab.
+    ...(isLabStaff
+      ? [
+          {
+            key: 'lab',
+            label: 'Lab',
+            icon: AppIcon.Lab,
+            href: '/lab',
+            isSelected: pathname === '/lab' || pathname === '/lab/',
+            isHalfView: halfPath === '/lab' && pathname !== '/lab',
+            row: (
+              <SideNavItem
+                label="Lab"
+                icon={AppIcon.Lab}
+                href="/lab"
+                isSelected={pathname === '/lab' || pathname === '/lab/'}
+                ref={halfViewRow(halfPath === '/lab' && pathname !== '/lab')}
+                actions={<RowMenu label="Lab" href="/lab" />}
+              />
+            ),
+          },
+        ]
+      : []),
     // Admins make no clinical changes (decision 182), so the clinical worklists (My Worklist, Results, Letters) aren't
     // theirs; they read everything from Patients, Pathways and Referrals.
     ...(isAdminAccount
@@ -669,24 +694,24 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         />
       ),
     },
-    // The lab's worklist, for whoever records or processes specimens; a specimen's page counts as under it.
+    // The samples worklist, for whoever records or processes specimens; a specimen's page counts as under it.
     ...(can(user, 'RecordSpecimens') || can(user, 'ProcessSpecimens')
       ? [
           {
-            key: 'lab',
-            label: 'Lab',
-            icon: AppIcon.Lab,
-            href: '/lab',
-            isSelected: isAt('/lab') || isAt('/specimens'),
-            isHalfView: isHalfAt('/lab') || isHalfAt('/specimens'),
+            key: 'samples',
+            label: 'Samples',
+            icon: AppIcon.Specimens,
+            href: '/lab/samples',
+            isSelected: isAt('/lab/samples') || isAt('/specimens'),
+            isHalfView: isHalfAt('/lab/samples') || isHalfAt('/specimens'),
             row: (
               <SideNavItem
-                label="Lab"
-                icon={AppIcon.Lab}
-                href="/lab"
-                isSelected={isAt('/lab') || isAt('/specimens')}
-                ref={halfViewRow(isHalfAt('/lab') || isHalfAt('/specimens'))}
-                actions={<RowMenu label="Lab" href="/lab" />}
+                label="Samples"
+                icon={AppIcon.Specimens}
+                href="/lab/samples"
+                isSelected={isAt('/lab/samples') || isAt('/specimens')}
+                ref={halfViewRow(isHalfAt('/lab/samples') || isHalfAt('/specimens'))}
+                actions={<RowMenu label="Samples" href="/lab/samples" />}
               />
             ),
           },

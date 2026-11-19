@@ -4,7 +4,7 @@ import type {BaseState, DemoNotification} from '../state';
 import {daysFrom, today, ukTime} from '../time';
 
 /**
- * The light demo's state for specimens, specimen types, labs and results, and the rest of referrals (the waiting-time
+ * The light demo's state for specimens, specimen types, the lab's test catalogue (MC13) and results, and the rest of referrals (the waiting-time
  * clock's pauses, and what a referral keeps beyond the base record). Handlers: `handlers/lab.ts`,
  * `handlers/labResults.ts` and `handlers/referrals.ts`. MedApp tracks specimens and results; it never reads,
  * interprets or flags a report.
@@ -17,13 +17,24 @@ export interface DemoSpecimenType {
   id: string;
   name: string;
   expectedTurnaroundDays: number;
+  /** Its SNOMED CT specimen code (FHIR `Specimen.type`; MC13), optional. */
+  snomedCode: string | null;
   isArchived: boolean;
 }
 
-export interface DemoLaboratory {
+export type LabTestKind = 'Histology' | 'Cytology' | 'Haematology' | 'ClinicalChemistry' | 'Microbiology' | 'Other';
+export type LabStepKind = 'Standard' | 'ExtraTests' | 'SentForSecondOpinion' | 'SecondOpinionReturned';
+
+/** A test in the lab's catalogue (MC13): its time limits in calendar days and its ordered steps. */
+export interface DemoLabTest {
   id: string;
   name: string;
-  usesMedApp: boolean;
+  kind: LabTestKind;
+  snomedCode: string | null;
+  targetDays: number;
+  limitDays: number;
+  atRiskDays: number;
+  steps: {id: string; name: string; kind: LabStepKind; isOptional: boolean}[];
   isArchived: boolean;
 }
 
@@ -37,7 +48,6 @@ export interface DemoSpecimen {
   teamId: string;
   stageId: string;
   specimenTypeId: string;
-  laboratoryId: string;
   site: string | null;
   requestNotes: string | null;
   requestingUserId: string;
@@ -115,7 +125,7 @@ export interface DemoReferralExtra {
 
 export interface LabSlice {
   specimenTypes: DemoSpecimenType[];
-  laboratories: DemoLaboratory[];
+  labTests: DemoLabTest[];
   specimens: DemoSpecimen[];
   results: DemoResult[];
   /** The last specimen number given (the API's SQL sequence). */
@@ -133,11 +143,12 @@ export const SPECIMEN_TYPES = {
   skinSwab: id(0xe1, 4),
 } as const;
 
-export const LABORATORIES = {
-  /** Outside the centre, not on MedApp: histology goes there. */
-  valley: id(0xe2, 1),
-  /** The centre's own lab, on MedApp. */
-  centre: id(0xe2, 2),
+export const LAB_TESTS = {
+  skinHistology: id(0xed, 1),
+  fullBloodCount: id(0xed, 2),
+  fungalScraping: id(0xed, 3),
+  /** Archived and never used: the setup page can delete it. */
+  liverFunction: id(0xed, 4),
 } as const;
 
 export const SPECIMENS = {
@@ -241,7 +252,6 @@ export function seedLab(state: BaseState): LabSlice {
     pathwayId: string,
     stageOrder: number,
     typeId: string,
-    labId: string,
     takenAtUtc: string,
     takenBy: string,
     steps: Partial<DemoSpecimen>,
@@ -255,7 +265,6 @@ export function seedLab(state: BaseState): LabSlice {
       teamId: pathway(pathwayId).teamId,
       stageId: stage(pathwayId, stageOrder).id,
       specimenTypeId: typeId,
-      laboratoryId: labId,
       site: null,
       requestNotes: null,
       requestingUserId: STAFF.id,
@@ -285,7 +294,7 @@ export function seedLab(state: BaseState): LabSlice {
   const priyaTaken = plusMinutes(visit(APPOINTMENTS.priyaBiopsy), 20);
   const harrietTaken = plusMinutes(visit(MORE_APPOINTMENTS.harrietBiopsy), 20);
   const specimens: DemoSpecimen[] = [
-    specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, SPECIMEN_TYPES.skinBiopsy, LABORATORIES.valley, priyaTaken, STAFF.id, {
+    specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
       requestNotes: 'Pigmented lesion, 7 mm. Please report the margins.',
       status: 'Reported',
@@ -300,7 +309,7 @@ export function seedLab(state: BaseState): LabSlice {
       reportAttachmentId: REPORT_FILES.priya,
       version: 4,
     }),
-    specimen(SPECIMENS.harrietBiopsy, PATHWAYS.consentToRecord, 2, SPECIMEN_TYPES.skinBiopsy, LABORATORIES.valley, harrietTaken, STAFF.id, {
+    specimen(SPECIMENS.harrietBiopsy, PATHWAYS.consentToRecord, 2, SPECIMEN_TYPES.skinBiopsy, harrietTaken, STAFF.id, {
       site: 'Left temple',
       status: 'Reported',
       sentAtUtc: plusMinutes(harrietTaken, 240),
@@ -313,7 +322,7 @@ export function seedLab(state: BaseState): LabSlice {
       reportAttachmentId: REPORT_FILES.harriet,
       version: 4,
     }),
-    specimen(SPECIMENS.samuelScraping, PATHWAYS.onHold, 1, SPECIMEN_TYPES.skinScraping, LABORATORIES.valley, ago(13, 10, 30), USERS.hallworth, {
+    specimen(SPECIMENS.samuelScraping, PATHWAYS.onHold, 1, SPECIMEN_TYPES.skinScraping, ago(13, 10, 30), USERS.hallworth, {
       site: 'Both hands',
       requestingUserId: USERS.hallworth,
       status: 'Sent',
@@ -322,7 +331,7 @@ export function seedLab(state: BaseState): LabSlice {
       courierReference: 'BATCH-0398',
       version: 2,
     }),
-    specimen(SPECIMENS.ilonaBloodRejected, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(4, 10, 0), STAFF.id, {
+    specimen(SPECIMENS.ilonaBloodRejected, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, ago(4, 10, 0), STAFF.id, {
       status: 'RejectedByLab',
       sentAtUtc: ago(4, 12, 0),
       sentByUserId: STAFF.id,
@@ -331,7 +340,7 @@ export function seedLab(state: BaseState): LabSlice {
       closedByUserId: LAB.id,
       version: 3,
     }),
-    specimen(SPECIMENS.ilonaBlood, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(3, 11, 0), STAFF.id, {
+    specimen(SPECIMENS.ilonaBlood, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, ago(3, 11, 0), STAFF.id, {
       requestNotes: 'Repeat sample: the first was insufficient.',
       status: 'Received',
       sentAtUtc: ago(3, 13, 0),
@@ -342,10 +351,10 @@ export function seedLab(state: BaseState): LabSlice {
       version: 3,
     }),
     // Taken this morning (or half an hour ago, early in the day), never in the future.
-    specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.skinScraping, LABORATORIES.valley, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
+    specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.skinScraping, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
       site: 'Right elbow',
     }),
-    specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(59, 9, 30), CARROW.id, {
+    specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, ago(59, 9, 30), CARROW.id, {
       requestingUserId: CARROW.id,
       status: 'Reported',
       sentAtUtc: ago(59, 12, 0),
@@ -447,14 +456,64 @@ export function seedLab(state: BaseState): LabSlice {
 
   return {
     specimenTypes: [
-      {id: SPECIMEN_TYPES.skinBiopsy, name: 'Skin biopsy (punch)', expectedTurnaroundDays: 14, isArchived: false},
-      {id: SPECIMEN_TYPES.bloodSample, name: 'Blood sample', expectedTurnaroundDays: 5, isArchived: false},
-      {id: SPECIMEN_TYPES.skinScraping, name: 'Skin scraping', expectedTurnaroundDays: 10, isArchived: false},
-      {id: SPECIMEN_TYPES.skinSwab, name: 'Skin swab', expectedTurnaroundDays: 4, isArchived: true},
+      {id: SPECIMEN_TYPES.skinBiopsy, name: 'Skin biopsy (punch)', expectedTurnaroundDays: 14, snomedCode: '309066003', isArchived: false},
+      {id: SPECIMEN_TYPES.bloodSample, name: 'Blood sample', expectedTurnaroundDays: 5, snomedCode: '119297000', isArchived: false},
+      {id: SPECIMEN_TYPES.skinScraping, name: 'Skin scraping', expectedTurnaroundDays: 10, snomedCode: null, isArchived: false},
+      {id: SPECIMEN_TYPES.skinSwab, name: 'Skin swab', expectedTurnaroundDays: 4, snomedCode: null, isArchived: true},
     ],
-    laboratories: [
-      {id: LABORATORIES.valley, name: 'Example Valley Pathology (synthetic)', usesMedApp: false, isArchived: false},
-      {id: LABORATORIES.centre, name: 'Centre laboratory (synthetic)', usesMedApp: true, isArchived: false},
+    labTests: [
+      {
+        id: LAB_TESTS.skinHistology,
+        name: 'Skin histology',
+        kind: 'Histology',
+        snomedCode: '252416005',
+        targetDays: 7,
+        limitDays: 10,
+        atRiskDays: 2,
+        steps: [
+          {id: id(0xed, 101), name: 'Cut-up', kind: 'Standard', isOptional: false},
+          {id: id(0xed, 102), name: 'Processing and embedding', kind: 'Standard', isOptional: false},
+          {id: id(0xed, 103), name: 'Sectioning and staining', kind: 'Standard', isOptional: false},
+          {id: id(0xed, 104), name: 'Extra stains', kind: 'ExtraTests', isOptional: true},
+          {id: id(0xed, 105), name: 'Sent for a second opinion', kind: 'SentForSecondOpinion', isOptional: true},
+          {id: id(0xed, 106), name: 'Second opinion back', kind: 'SecondOpinionReturned', isOptional: true},
+          {id: id(0xed, 107), name: 'Microscopy and report', kind: 'Standard', isOptional: false},
+        ],
+        isArchived: false,
+      },
+      {
+        id: LAB_TESTS.fullBloodCount,
+        name: 'Full blood count',
+        kind: 'Haematology',
+        snomedCode: '26604007',
+        targetDays: 2,
+        limitDays: 3,
+        atRiskDays: 1,
+        steps: [{id: id(0xed, 111), name: 'Analyser run', kind: 'Standard', isOptional: false}, {id: id(0xed, 112), name: 'Blood film review', kind: 'ExtraTests', isOptional: true}],
+        isArchived: false,
+      },
+      {
+        id: LAB_TESTS.fungalScraping,
+        name: 'Skin scraping for fungi',
+        kind: 'Microbiology',
+        snomedCode: null,
+        targetDays: 14,
+        limitDays: 21,
+        atRiskDays: 3,
+        steps: [{id: id(0xed, 121), name: 'Microscopy', kind: 'Standard', isOptional: false}, {id: id(0xed, 122), name: 'Culture', kind: 'Standard', isOptional: false}, {id: id(0xed, 123), name: 'Report', kind: 'Standard', isOptional: false}],
+        isArchived: false,
+      },
+      {
+        id: LAB_TESTS.liverFunction,
+        name: 'Liver function tests',
+        kind: 'ClinicalChemistry',
+        snomedCode: null,
+        targetDays: 2,
+        limitDays: 3,
+        atRiskDays: 1,
+        steps: [{id: id(0xed, 131), name: 'Analyser run', kind: 'Standard', isOptional: false}],
+        isArchived: true,
+      },
     ],
     specimens,
     results,

@@ -4,23 +4,14 @@ import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {NumberInput} from '@astryxdesign/core/NumberInput';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
-import {Switch} from '@astryxdesign/core/Switch';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {fieldStatus} from '../../api/errors';
-import {
-  laboratoriesQuery,
-  specimenTypesQuery,
-  useLaboratoryActions,
-  useSaveLaboratory,
-  useSaveSpecimenType,
-  useSpecimenTypeActions,
-  type Laboratory,
-  type SpecimenType,
-} from '../../api/specimens';
+import {labTestKindLabel, labTestsQuery, labTestTimesWords, useLabTestActions, useSaveLabTest, type LabTest, type LabTestInput} from '../../api/labTests';
+import {specimenTypesQuery, useSaveSpecimenType, useSpecimenTypeActions, type SpecimenType} from '../../api/specimens';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
@@ -31,9 +22,10 @@ import {TableActions} from '../../components/tables/TableActions';
 import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
+import {LabTestDialog} from './LabTestDialog';
 
-/** The page's queries: every type and lab, archived ones too. Its route's loader preloads the same. */
-export const specimenSetupPageQueries = [specimenTypesQuery(true), laboratoriesQuery(true)] as const;
+/** The page's queries: every type and lab test, archived ones too. Its route's loader preloads the same. */
+export const specimenSetupPageQueries = [specimenTypesQuery(true), labTestsQuery(true)] as const;
 
 /** The days a type's turnaround can be (the API's limits). */
 export const MIN_TURNAROUND_DAYS = 1;
@@ -41,9 +33,9 @@ export const MAX_TURNAROUND_DAYS = 90;
 
 type Dialog =
   | {kind: 'type'; type: SpecimenType | null}
-  | {kind: 'lab'; lab: Laboratory | null}
+  | {kind: 'test'; test: LabTest | null}
   | {kind: 'delete-type'; type: SpecimenType}
-  | {kind: 'delete-lab'; lab: Laboratory}
+  | {kind: 'delete-test'; test: LabTest}
   | null;
 
 /** A type's expected turnaround in words: "Expected in 5 days". */
@@ -56,58 +48,60 @@ const activeFirst = <T extends {isArchived?: boolean}>(items: readonly T[]) => [
 ];
 
 /**
- * Specimen Types and Labs (`/admin/specimen-setup`, holders of ManageSetup; decision 82): the types of specimen staff
- * record (a name, and the days the lab is expected to take, 1 to 90, from which a specimen is Overdue at lab) and the
- * labs they're sent to (a name, and whether the lab's own staff use MedApp). Add, edit, archive one no longer offered
- * (specimens that have it keep it), restore, and delete one no specimen has (`canBeDeleted`). The API's refusals show
- * in its words.
+ * Specimen Types and Lab Tests (`/admin/specimen-setup`, holders of ManageSetup; decision 82, MC13): the types of
+ * specimen staff record (a name, the days the lab is expected to take, 1 to 90, from which a specimen is Overdue at
+ * lab, and an optional SNOMED CT specimen code) and the lab's test catalogue (`LabTestDialog`). The external labs list
+ * was dropped in MC13: the centre's own lab does every test. Add, edit, archive one no longer offered (what has it keeps
+ * it), restore, and delete one nothing used (`canBeDeleted`). The API's refusals show in its words.
  */
 export function SpecimenSetupPage() {
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
   const types = useQuery(specimenSetupPageQueries[0]);
-  const labs = useQuery(specimenSetupPageQueries[1]);
+  const tests = useQuery(specimenSetupPageQueries[1]);
   const saveType = useSaveSpecimenType();
-  const saveLab = useSaveLaboratory();
+  const saveTest = useSaveLabTest();
   const typeActions = useSpecimenTypeActions();
-  const labActions = useLaboratoryActions();
+  const testActions = useLabTestActions();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [name, setName] = useState('');
   const [days, setDays] = useState<number | null>(7);
-  const [usesMedApp, setUsesMedApp] = useState(false);
+  const [snomedCode, setSnomedCode] = useState('');
+  // A new key each time the test dialog opens, so its fields start from the test opened.
+  const [testDialogKey, setTestDialogKey] = useState(0);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState({types: true, labs: true});
+  const [open, setOpen] = useState({types: true, tests: true});
   const close = () => setDialog(null);
 
   const editType = (type: SpecimenType | null) => {
     setName(type?.name ?? '');
     setDays(type?.expectedTurnaroundDays ?? 7);
+    setSnomedCode(type?.snomedCode ?? '');
     setProblem(NO_PROBLEM);
     setError(null);
     setDialog({kind: 'type', type});
   };
-  const editLab = (lab: Laboratory | null) => {
-    setName(lab?.name ?? '');
-    setUsesMedApp(lab?.usesMedApp ?? false);
+  const editTest = (test: LabTest | null) => {
+    setTestDialogKey((k) => k + 1);
     setProblem(NO_PROBLEM);
     setError(null);
-    setDialog({kind: 'lab', lab});
+    setDialog({kind: 'test', test});
   };
 
   const editingType = dialog?.kind === 'type' ? dialog.type : null;
-  const editingLab = dialog?.kind === 'lab' ? dialog.lab : null;
+  const editingTest = dialog?.kind === 'test' ? dialog.test : null;
   const deletingType = dialog?.kind === 'delete-type' ? dialog.type : null;
-  const deletingLab = dialog?.kind === 'delete-lab' ? dialog.lab : null;
+  const deletingTest = dialog?.kind === 'delete-test' ? dialog.test : null;
 
-  const failed = (action: 'archive' | 'restore' | 'delete', subject: 'specimen type' | 'lab') => (e: unknown) => {
+  const failed = (action: 'archive' | 'restore' | 'delete', subject: 'specimen type' | 'lab test') => (e: unknown) => {
     setError(saveProblem(e, action, subject).message);
     close();
   };
 
   const submitType = () =>
     saveType.mutate(
-      {id: editingType?.id, name: name.trim(), expectedTurnaroundDays: days ?? 0},
+      {id: editingType?.id, name: name.trim(), expectedTurnaroundDays: days ?? 0, snomedCode: snomedCode.trim() || null},
       {
         onSuccess: () => {
           announce(editingType ? 'Specimen type saved' : 'Specimen type added');
@@ -117,23 +111,20 @@ export function SpecimenSetupPage() {
       },
     );
 
-  const submitLab = () =>
-    saveLab.mutate(
-      {id: editingLab?.id, name: name.trim(), usesMedApp},
-      {
-        onSuccess: () => {
-          announce(editingLab ? 'Lab saved' : 'Lab added');
-          close();
-        },
-        onError: (e) => setProblem(saveProblem(e, editingLab ? 'save' : 'add', 'lab')),
+  const submitTest = (input: LabTestInput) =>
+    saveTest.mutate(input, {
+      onSuccess: () => {
+        announce(editingTest ? 'Lab test saved' : 'Lab test added');
+        close();
       },
-    );
+      onError: (e) => setProblem(saveProblem(e, editingTest ? 'save' : 'add', 'lab test')),
+    });
 
   const setArchived = <T extends {id?: string; name?: string | null}>(
-    actions: typeof typeActions | typeof labActions,
+    actions: typeof typeActions | typeof testActions,
     item: T,
     archive: boolean,
-    subject: 'specimen type' | 'lab',
+    subject: 'specimen type' | 'lab test',
   ) => {
     setError(null);
     (archive ? actions.archive : actions.restore).mutate(item.id ?? '', {
@@ -151,7 +142,7 @@ export function SpecimenSetupPage() {
       items={activeFirst(types.data ?? []).map((type) => ({
         id: type.id ?? '',
         name: type.name ?? '',
-        secondary: turnaroundWords(type.expectedTurnaroundDays),
+        secondary: [turnaroundWords(type.expectedTurnaroundDays), type.snomedCode ? `SNOMED CT ${type.snomedCode}` : null].filter(Boolean).join(' · '),
         isArchived: type.isArchived ?? false,
         canBeDeleted: type.canBeDeleted ?? false,
         onEdit: () => editType(type),
@@ -164,37 +155,37 @@ export function SpecimenSetupPage() {
     />
   );
 
-  const labList = (
+  const testList = (
     <SetupList
-      label="Labs"
-      isLoading={labs.isPending}
-      isError={labs.isError}
-      emptyText="No labs yet. Add the labs specimens are sent to."
-      items={activeFirst(labs.data ?? []).map((lab) => ({
-        id: lab.id ?? '',
-        name: lab.name ?? '',
-        secondary: lab.usesMedApp ? 'Uses MedApp' : "Doesn't use MedApp",
-        isArchived: lab.isArchived ?? false,
-        canBeDeleted: lab.canBeDeleted ?? false,
-        onEdit: () => editLab(lab),
-        onArchive: (archive: boolean) => setArchived(labActions, lab, archive, 'lab'),
+      label="Lab tests"
+      isLoading={tests.isPending}
+      isError={tests.isError}
+      emptyText="No lab tests yet. Add the tests the lab does, such as skin histology."
+      items={activeFirst(tests.data ?? []).map((test) => ({
+        id: test.id ?? '',
+        name: test.name ?? '',
+        secondary: `${labTestKindLabel(test.kind)} · ${labTestTimesWords(test)} · ${test.steps?.length ?? 0} ${test.steps?.length === 1 ? 'step' : 'steps'}`,
+        isArchived: test.isArchived ?? false,
+        canBeDeleted: test.canBeDeleted ?? false,
+        onEdit: () => editTest(test),
+        onArchive: (archive: boolean) => setArchived(testActions, test, archive, 'lab test'),
         onDelete: () => {
           setError(null);
-          setDialog({kind: 'delete-lab', lab});
+          setDialog({kind: 'delete-test', test});
         },
       }))}
     />
   );
 
   const addType = <Button label="Add Specimen Type" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editType(null)} />;
-  const addLab = <Button label="Add Lab" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editLab(null)} />;
+  const addTest = <Button label="Add Lab Test" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => editTest(null)} />;
 
   return (
     <Page
-      title="Specimen Types and Labs"
+      title="Specimen Types and Lab Tests"
       subtitle={
-        types.data && labs.data
-          ? `${types.data.filter((t) => !t.isArchived).length} active types, ${labs.data.filter((l) => !l.isArchived).length} active labs`
+        types.data && tests.data
+          ? `${types.data.filter((t) => !t.isArchived).length} active types, ${tests.data.filter((t) => !t.isArchived).length} active lab tests`
           : 'Loading...'
       }
       fill
@@ -217,7 +208,7 @@ export function SpecimenSetupPage() {
             onConfirm={submitType}
             onCancel={close}>
             <VStack gap={2}>
-              {problem.validation && <ValidationAlert errors={problem.validation} fields={['name', 'expectedTurnaroundDays']} />}
+              {problem.validation && <ValidationAlert errors={problem.validation} fields={['name', 'expectedTurnaroundDays', 'snomedCode']} />}
               {problem.message && <AlertMessage message={problem.message} />}
               <TextInput
                 label="Name"
@@ -239,41 +230,26 @@ export function SpecimenSetupPage() {
                 isRequired
                 status={fieldStatus(problem.validation, 'expectedTurnaroundDays')}
               />
+              <TextInput
+                label="SNOMED CT code"
+                description="The specimen's concept ID (FHIR's Specimen.type), optional."
+                value={snomedCode}
+                onChange={setSnomedCode}
+                autoComplete="off"
+                status={fieldStatus(problem.validation, 'snomedCode')}
+              />
             </VStack>
           </ConfirmDialog>
 
-          <ConfirmDialog
-            isOpen={dialog?.kind === 'lab'}
-            title={editingLab ? 'Edit Lab' : 'Add Lab'}
-            message={editingLab ? 'Specimens sent to it show the change.' : 'A lab specimens are sent to.'}
-            icon={editingLab ? AppIcon.Edit : AppIcon.Add}
-            confirmText={editingLab ? 'Save' : 'Add Lab'}
-            confirmDisabled={!name.trim()}
-            isProcessing={saveLab.isPending}
-            hasSaveShortcut
-            onConfirm={submitLab}
-            onCancel={close}>
-            <VStack gap={2}>
-              {problem.validation && <ValidationAlert errors={problem.validation} fields={['name']} />}
-              {problem.message && <AlertMessage message={problem.message} />}
-              <TextInput
-                label="Name"
-                value={name}
-                onChange={setName}
-                placeholder="e.g. Northgate pathology"
-                autoComplete="off"
-                isRequired
-                hasAutoFocus
-                status={fieldStatus(problem.validation, 'name')}
-              />
-              <Switch
-                label="Uses MedApp"
-                description="The lab's own staff receive and report its specimens in MedApp."
-                value={usesMedApp}
-                onChange={setUsesMedApp}
-              />
-            </VStack>
-          </ConfirmDialog>
+          <LabTestDialog
+            key={testDialogKey}
+            isOpen={dialog?.kind === 'test'}
+            test={editingTest}
+            isProcessing={saveTest.isPending}
+            problem={problem}
+            onSave={submitTest}
+            onCancel={close}
+          />
 
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete-type'}
@@ -301,26 +277,26 @@ export function SpecimenSetupPage() {
           </ConfirmDialog>
 
           <ConfirmDialog
-            isOpen={dialog?.kind === 'delete-lab'}
+            isOpen={dialog?.kind === 'delete-test'}
             title="Confirm Delete"
-            message="No specimen was sent to this lab. This action cannot be undone."
+            message="No lab case has used this test. This action cannot be undone."
             isDanger
-            confirmText="Delete Lab"
-            isProcessing={labActions.remove.isPending}
+            confirmText="Delete Lab Test"
+            isProcessing={testActions.remove.isPending}
             onConfirm={() =>
-              deletingLab &&
-              labActions.remove.mutate(deletingLab.id ?? '', {
+              deletingTest &&
+              testActions.remove.mutate(deletingTest.id ?? '', {
                 onSuccess: () => {
-                  announce('Lab deleted');
+                  announce('Lab test deleted');
                   close();
                 },
-                onError: failed('delete', 'lab'),
+                onError: failed('delete', 'lab test'),
               })
             }
             onCancel={close}>
-            {deletingLab && (
+            {deletingTest && (
               <MetadataList>
-                <MetadataListItem label="Lab">{deletingLab.name}</MetadataListItem>
+                <MetadataListItem label="Lab test">{deletingTest.name}</MetadataListItem>
               </MetadataList>
             )}
           </ConfirmDialog>
@@ -330,12 +306,12 @@ export function SpecimenSetupPage() {
         <FoldingCard
           sections={[
             {key: 'types', title: 'Specimen Types', isOpen: open.types, onToggle: () => setOpen((o) => ({...o, types: !o.types})), children: typeList},
-            {key: 'labs', title: 'Labs', isOpen: open.labs, onToggle: () => setOpen((o) => ({...o, labs: !o.labs})), children: labList},
+            {key: 'tests', title: 'Lab Tests', isOpen: open.tests, onToggle: () => setOpen((o) => ({...o, tests: !o.tests})), children: testList},
           ]}
           footerActions={
             <>
               {addType}
-              {addLab}
+              {addTest}
             </>
           }
         />
@@ -347,8 +323,8 @@ export function SpecimenSetupPage() {
             </PanelCard>
           }
           end={
-            <PanelCard title="Labs" isBodyPadded={false} footerActions={addLab}>
-              {labList}
+            <PanelCard title="Lab Tests" isBodyPadded={false} footerActions={addTest}>
+              {testList}
             </PanelCard>
           }
         />

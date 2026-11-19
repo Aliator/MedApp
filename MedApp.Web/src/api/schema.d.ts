@@ -7110,7 +7110,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/laboratories": {
+    "/api/lab-tests": {
         parameters: {
             query?: never;
             header?: never;
@@ -7134,9 +7134,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["LaboratoryResponse"][];
-                        "application/json": components["schemas"]["LaboratoryResponse"][];
-                        "text/json": components["schemas"]["LaboratoryResponse"][];
+                        "text/plain": components["schemas"]["LabTestResponse"][];
+                        "application/json": components["schemas"]["LabTestResponse"][];
+                        "text/json": components["schemas"]["LabTestResponse"][];
                     };
                 };
             };
@@ -7151,9 +7151,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["LaboratoryRequest"];
-                    "text/json": components["schemas"]["LaboratoryRequest"];
-                    "application/*+json": components["schemas"]["LaboratoryRequest"];
+                    "application/json": components["schemas"]["LabTestRequest"];
+                    "text/json": components["schemas"]["LabTestRequest"];
+                    "application/*+json": components["schemas"]["LabTestRequest"];
                 };
             };
             responses: {
@@ -7163,9 +7163,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["LaboratoryResponse"];
-                        "application/json": components["schemas"]["LaboratoryResponse"];
-                        "text/json": components["schemas"]["LaboratoryResponse"];
+                        "text/plain": components["schemas"]["LabTestResponse"];
+                        "application/json": components["schemas"]["LabTestResponse"];
+                        "text/json": components["schemas"]["LabTestResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -7198,7 +7198,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/laboratories/{id}": {
+    "/api/lab-tests/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -7217,9 +7217,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["LaboratoryRequest"];
-                    "text/json": components["schemas"]["LaboratoryRequest"];
-                    "application/*+json": components["schemas"]["LaboratoryRequest"];
+                    "application/json": components["schemas"]["LabTestRequest"];
+                    "text/json": components["schemas"]["LabTestRequest"];
+                    "application/*+json": components["schemas"]["LabTestRequest"];
                 };
             };
             responses: {
@@ -7229,9 +7229,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["LaboratoryResponse"];
-                        "application/json": components["schemas"]["LaboratoryResponse"];
-                        "text/json": components["schemas"]["LaboratoryResponse"];
+                        "text/plain": components["schemas"]["LabTestResponse"];
+                        "application/json": components["schemas"]["LabTestResponse"];
+                        "text/json": components["schemas"]["LabTestResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -7317,7 +7317,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/laboratories/{id}/archive": {
+    "/api/lab-tests/{id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -7343,9 +7343,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["LaboratoryResponse"];
-                        "application/json": components["schemas"]["LaboratoryResponse"];
-                        "text/json": components["schemas"]["LaboratoryResponse"];
+                        "text/plain": components["schemas"]["LabTestResponse"];
+                        "application/json": components["schemas"]["LabTestResponse"];
+                        "text/json": components["schemas"]["LabTestResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -7367,7 +7367,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/laboratories/{id}/restore": {
+    "/api/lab-tests/{id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -7393,9 +7393,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["LaboratoryResponse"];
-                        "application/json": components["schemas"]["LaboratoryResponse"];
-                        "text/json": components["schemas"]["LaboratoryResponse"];
+                        "text/plain": components["schemas"]["LabTestResponse"];
+                        "application/json": components["schemas"]["LabTestResponse"];
+                        "text/json": components["schemas"]["LabTestResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -18352,7 +18352,6 @@ export interface paths {
                     Page?: number;
                     PageSize?: number;
                     View?: string;
-                    LaboratoryId?: string;
                     PathwayId?: string;
                     PatientId?: string;
                 };
@@ -20640,8 +20639,6 @@ export interface components {
         EditSpecimenRequest: {
             /** Format: uuid */
             specimenTypeId?: string;
-            /** Format: uuid */
-            laboratoryId?: string;
             /** Format: date-time */
             takenAtUtc?: string;
             site?: string | null;
@@ -21097,7 +21094,6 @@ export interface components {
             /** Format: uuid */
             stageId?: string;
             specimenTypeName?: string | null;
-            laboratoryName?: string | null;
             site?: string | null;
             requestNotes?: string | null;
             requestedBy?: string | null;
@@ -21301,17 +21297,45 @@ export interface components {
             keepUntil?: string;
             reason?: string | null;
         };
-        LaboratoryRequest: {
+        LabTestRequest: {
             name?: string | null;
-            usesMedApp?: boolean;
+            kind?: string | null;
+            snomedCode?: string | null;
+            /** Format: int32 */
+            targetDays?: number;
+            /** Format: int32 */
+            limitDays?: number;
+            /** Format: int32 */
+            atRiskDays?: number;
+            steps?: components["schemas"]["LabTestStepRequest"][] | null;
         };
-        LaboratoryResponse: {
+        LabTestResponse: {
             /** Format: uuid */
             id?: string;
             name?: string | null;
-            usesMedApp?: boolean;
+            kind?: string | null;
+            snomedCode?: string | null;
+            /** Format: int32 */
+            targetDays?: number;
+            /** Format: int32 */
+            limitDays?: number;
+            /** Format: int32 */
+            atRiskDays?: number;
+            steps?: components["schemas"]["LabTestStepResponse"][] | null;
             isArchived?: boolean;
             canBeDeleted?: boolean;
+        };
+        LabTestStepRequest: {
+            name?: string | null;
+            kind?: string | null;
+            isOptional?: boolean;
+        };
+        LabTestStepResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            kind?: string | null;
+            isOptional?: boolean;
         };
         LetterCountResponse: {
             /** Format: int32 */
@@ -22506,8 +22530,6 @@ export interface components {
             stageId?: string;
             /** Format: uuid */
             specimenTypeId?: string;
-            /** Format: uuid */
-            laboratoryId?: string;
             /** Format: date-time */
             takenAtUtc?: string | null;
             site?: string | null;
@@ -23088,9 +23110,6 @@ export interface components {
             specimenTypeName?: string | null;
             /** Format: int32 */
             expectedTurnaroundDays?: number;
-            /** Format: uuid */
-            laboratoryId?: string;
-            laboratoryName?: string | null;
             site?: string | null;
             requestNotes?: string | null;
             /** Format: uuid */
@@ -23157,7 +23176,6 @@ export interface components {
             /** Format: uuid */
             stageId?: string;
             specimenTypeName?: string | null;
-            laboratoryName?: string | null;
             status?: string | null;
             isOpen?: boolean;
             /** Format: date-time */
@@ -23189,6 +23207,7 @@ export interface components {
             name?: string | null;
             /** Format: int32 */
             expectedTurnaroundDays?: number;
+            snomedCode?: string | null;
         };
         SpecimenTypeResponse: {
             /** Format: uuid */
@@ -23196,6 +23215,7 @@ export interface components {
             name?: string | null;
             /** Format: int32 */
             expectedTurnaroundDays?: number;
+            snomedCode?: string | null;
             isArchived?: boolean;
             canBeDeleted?: boolean;
         };
@@ -23205,8 +23225,6 @@ export interface components {
             /** Format: int32 */
             pageSize?: number;
             view?: string | null;
-            /** Format: uuid */
-            laboratoryId?: string | null;
             search?: string | null;
             sort?: string | null;
             ascending?: boolean;

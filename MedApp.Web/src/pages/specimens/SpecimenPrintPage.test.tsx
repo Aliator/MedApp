@@ -37,12 +37,11 @@ describe('SpecimenPrintPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Request Sheet', level: 1})).toBeInTheDocument();
     const sheet = within(await screen.findByLabelText('Request sheet for specimen MA26-000123'));
-    expect(sheet.getByRole('heading', {name: 'Request for Northgate pathology'})).toBeInTheDocument();
+    expect(sheet.getByRole('heading', {name: 'Request for the lab'})).toBeInTheDocument();
     expect(sheet.getByText('MA26-000123')).toBeInTheDocument();
     expect(sheet.getByText('Left forearm')).toBeInTheDocument();
     expect(sheet.getByText('Synthetic notes for the lab.')).toBeInTheDocument();
     expect(sheet.getByText('dr.synthetic')).toBeInTheDocument();
-    expect(sheet.getByText('Northgate pathology')).toBeInTheDocument();
   });
 
   it('says when the specimen is not found', async () => {
