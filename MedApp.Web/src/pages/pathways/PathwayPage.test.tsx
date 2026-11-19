@@ -407,6 +407,25 @@ describe('PathwayPage: working on it', () => {
     expect(openDialog()).toBeNull();
   });
 
+  it('never asks the team that owns the stage it works (the lab finishing its Testing) whether the pathway is theirs', async () => {
+    const labsStage = (p: ReturnType<typeof working>) => ({
+      ...p,
+      teamId: 'team-derm',
+      stages: [p.stages[0], {...p.stages[1], ownerTeamId: 'team-lab', ownerTeamName: 'Lab'}],
+    });
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(labsStage(working({assignments: []}))),
+      [`PUT ${PATH}/stages/s2/notes`]: () => json(labsStage(working({assignments: []}))),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' Results checked.');
+    await user.click(screen.getByRole('button', {name: 'Save Notes'}));
+
+    await waitFor(() => expect(calls(fetch).filter((c) => c.startsWith('PUT'))).toHaveLength(1));
+    expect(openDialog()).toBeNull();
+  });
+
   it("never asks someone who assigns work whether it's assigned to them", async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working({assignments: []})),

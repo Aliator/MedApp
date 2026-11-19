@@ -270,11 +270,14 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
 
   /**
    * Runs a change to the pathway, first asking (once per visit) if it isn't assigned to you. Holders of AssignPathways
-   * aren't asked: handing out and looking after any pathway is their job.
+   * aren't asked: handing out and looking after any pathway is their job. Nor is a change to a stage another team owns
+   * (the lab's, say): the pathway's assignees are its own team's, and the other team works its stage without them
+   * (the owner, 19 November 2026), as picking one up already does.
    */
-  const checked = (action: () => void) => {
+  const checked = (action: () => void, stage?: PathwayStage) => {
     setActionError(null);
-    if (isMine || canAssignStaff || isCheckAnswered) action();
+    const isOtherTeamsStage = stage?.ownerTeamId != null && stage.ownerTeamId !== pathway?.teamId;
+    if (isMine || canAssignStaff || isCheckAnswered || isOtherTeamsStage) action();
     else setWaitingOnCheck(() => action);
   };
 
@@ -285,7 +288,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const close = () => setDialog(null);
 
   const startStage = (stage: PathwayStage) =>
-    checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('Stage not started', 'The stage could not be started.')}));
+    checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('Stage not started', 'The stage could not be started.')}), stage);
   // Picking up a stage handed to your team is the team's, not the assignee's: it isn't asked about.
   const pickUpStage = (stage: PathwayStage) => {
     setActionError(null);
@@ -295,11 +298,13 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     });
   };
   const saveNotes = (stage: PathwayStage, notes: string) =>
-    checked(() =>
-      actions.saveNotes.mutate(
-        {stageId: stage.id ?? '', notes},
-        {onSuccess: () => announce('Notes saved'), onError: failed('Notes not saved', 'The notes could not be saved.')},
-      ),
+    checked(
+      () =>
+        actions.saveNotes.mutate(
+          {stageId: stage.id ?? '', notes},
+          {onSuccess: () => announce('Notes saved'), onError: failed('Notes not saved', 'The notes could not be saved.')},
+        ),
+      stage,
     );
   /**
    * Finishing asks first: as it always has, or, for a stage that involves a visit with none marked Attended, whether
@@ -311,7 +316,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       setWithoutVisitReason('');
       setChosenOutcome('');
       setDialog({kind: finishesWithoutVisit(stage, stageVisit(stage.id, appointments)) ? 'finishWithoutVisit' : 'finish', stage, notes});
-    });
+    }, stage);
 
   /**
    * Saves notes typed but not saved, then finishes the stage (without its visit, when that's what was confirmed; with
@@ -365,7 +370,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         setActionError(null);
         setDialog({kind: 'unlock', stage});
       }}
-      onSkip={() => checked(() => setDialog({kind: 'skip', stage}))}
+      onSkip={() => checked(() => setDialog({kind: 'skip', stage}), stage)}
       onReinstate={() => {
         setActionError(null);
         setDialog({kind: 'reinstate', stage});
