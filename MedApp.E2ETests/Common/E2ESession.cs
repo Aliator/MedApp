@@ -48,7 +48,15 @@ public sealed class E2ESession
         }
         catch
         {
-            await DeleteStaffAsync(new E2EApi(adminRequest));
+            try
+            {
+                await DeleteStaffAsync(new E2EApi(adminRequest));
+            }
+            catch (InvalidOperationException)
+            {
+                // The set-up's own failure is the one to report; the README says what a broken run can leave.
+            }
+
             throw;
         }
     }
