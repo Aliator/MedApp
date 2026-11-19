@@ -29,7 +29,7 @@ import {useAttachmentsState} from '../../components/attachments/useAttachmentsSt
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {PriorityToken} from '../../components/pathways/PathwayCells';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AcceptReferralDialog} from '../../components/referrals/AcceptReferralDialog';
 import {CloseReferralDialog, type ReferralClosing} from '../../components/referrals/CloseReferralDialog';
@@ -106,7 +106,7 @@ export function ReferralPage({id}: {id: string}) {
   const [dialogKey, setDialogKey] = useState(0);
   const [closeErrors, setCloseErrors] = useState<ValidationErrors | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [open, setOpen] = useState({details: true, wait: true, letter: true, letters: true, triage: true, others: true, history: true});
+  const [open, setOpen] = useState({wait: true, letter: true, letters: true, triage: true, others: true, history: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const closeMutation = closing === 'enteredInError' ? actions.enteredInError : actions.withdraw;
@@ -162,7 +162,7 @@ export function ReferralPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading referral..."
       fill={referral !== undefined}
-      banner={referral?.patient && <PatientBanner patient={referral.patient} />}
+      // No banner: the patient is at the top of Details, which never folds (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Referral not found. It may have been deleted." />
@@ -259,17 +259,7 @@ export function ReferralPage({id}: {id: string}) {
   );
 
   function details(referral: Referral): FoldingSection {
-    return {
-      key: 'details',
-      title: 'Details',
-      isOpen: open.details,
-      onToggle: () => toggle('details'),
-      children: (
-        <Section variant="transparent" padding={6}>
-          <ReferralDetails referral={referral} />
-        </Section>
-      ),
-    };
+    return patientDetailsSection({patientId: referral.patientId, patient: referral.patient}, <ReferralDetails referral={referral} />);
   }
 
   /**

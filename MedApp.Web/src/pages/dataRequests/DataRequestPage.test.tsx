@@ -1,6 +1,7 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {adminUser, expectAnnounced, findAlert, json, mockApi, openDialog, renderWithApp, withAnnouncements} from '../../test/render';
 import {DATA_REQUEST_ID, DATA_REQUEST_PATIENT, DATA_REQUEST_PATIENT_ID, FILE_ID, NOTE_ID, readyDataRequest, testDataRequest, testReviewItems} from '../../test/dataRequests';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import type {DataRequest} from '../../api/dataRequests';
 import type {CurrentUser} from '../../auth/auth';
 import {askedByWords, DataRequestPage, outcomeWords} from './DataRequestPage';
@@ -50,7 +51,8 @@ describe('DataRequestPage', () => {
     expect(await screen.findByRole('heading', {name: 'Data Request', level: 1})).toBeInTheDocument();
     // The heading shows while the request loads; the subtitle only once it has.
     expect(await screen.findByText('Freya Ahmed · Open')).toBeInTheDocument();
-    expect(await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expect(await screen.findByRole('link', {name: /Ahmed, Freya/})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     expect(screen.getByText('The patient')).toBeInTheDocument();
     expect(screen.getAllByText('2 December 2026').length).toBeGreaterThan(0);
     expect(screen.getByText('Overdue')).toBeInTheDocument();
