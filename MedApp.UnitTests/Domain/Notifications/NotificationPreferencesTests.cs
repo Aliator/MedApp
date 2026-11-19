@@ -38,6 +38,7 @@ public sealed class NotificationPreferencesTests
                             || k == NotificationKind.AuthorsNoteDeleted
                             || k == NotificationKind.DayClosed
                             || k == NotificationKind.StageVisitWithdrawn
+                            || k == NotificationKind.RepeatSampleRequested
                             || k.ToString().StartsWith("Letter")
                             || k == NotificationKind.ReferralTriaged
                             || k == NotificationKind.ClinicSessionCancelled

@@ -381,8 +381,8 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
         Sent.Should().AllSatisfy(n =>
         {
             n.Kind.Should().Be(NotificationKind.SpecimenRejectedByLab);
-            n.Title.Should().Be("Specimen rejected");
-            n.Message.Should().Be($"The lab rejected a {BiopsyName} specimen.");
+            n.Title.Should().Be("Sample rejected");
+            n.Message.Should().Be($"The lab rejected a sample ({BiopsyName}).");
             n.SubjectId.Should().Be(specimen.Id);
             n.PathwayId.Should().Be(specimen.PathwayId);
         });
@@ -431,7 +431,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
 
         var notification = Sent.Should().ContainSingle().Subject;
         notification.Kind.Should().Be(NotificationKind.SpecimenLost);
-        notification.Message.Should().Be($"{LabStaff.Username} marked a {BiopsyName} specimen lost.");
+        notification.Message.Should().Be($"{LabStaff.Username} marked a sample lost ({BiopsyName}).");
     }
 
     [Test]

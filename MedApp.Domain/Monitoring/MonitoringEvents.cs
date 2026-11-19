@@ -22,5 +22,6 @@ public static class MonitoringEvents
 
     /// <summary>Whether the event is a service alert (time-based, with days) rather than a change to a pathway.</summary>
     public static bool IsServiceAlert(MonitoringEvent monitoringEvent) =>
-        monitoringEvent is >= MonitoringEvent.ReferralNotTriaged and <= MonitoringEvent.PauseReviewPassed;
+        monitoringEvent is >= MonitoringEvent.ReferralNotTriaged and <= MonitoringEvent.PauseReviewPassed
+            or MonitoringEvent.LabCaseAtRisk or MonitoringEvent.LabCaseOverdue;
 }

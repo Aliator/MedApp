@@ -33,8 +33,8 @@ public sealed class ServiceAlertNotificationsTests
     [TestCase(MonitoringEvent.ReferralNotTriaged, 1, 0, "1 referral received before today is awaiting triage.")]
     [TestCase(MonitoringEvent.ResultNotSignedOff, 2, 1, "2 results for sam have awaited sign-off for more than 1 day.")]
     [TestCase(MonitoringEvent.VisitNotBooked, 4, 3, "4 visits have waited more than 3 days to be booked.")]
-    [TestCase(MonitoringEvent.SpecimenOverdue, 1, 0, "1 specimen is past its expected turnaround.")]
-    [TestCase(MonitoringEvent.SpecimenOverdue, 2, 2, "2 specimens are more than 2 days past their expected turnaround.")]
+    [TestCase(MonitoringEvent.SpecimenOverdue, 1, 0, "1 sample is past its expected turnaround.")]
+    [TestCase(MonitoringEvent.SpecimenOverdue, 2, 2, "2 samples are more than 2 days past their expected turnaround.")]
     [TestCase(MonitoringEvent.WaitBreached, 5, 0, "5 referrals have passed their waiting-time target.")]
     [TestCase(MonitoringEvent.WaitBreached, 1, 7, "1 referral is within 7 days of its waiting-time target, or past it.")]
     [TestCase(MonitoringEvent.PauseReviewPassed, 2, 0, "2 paused referrals are past their review date.")]
@@ -58,10 +58,12 @@ public sealed class ServiceAlertNotificationsTests
     }
 
     [Test]
-    public void ServiceAlerts_AreEightToThirteen_AndTheirKindsThirtyTwoToThirtySeven()
+    public void ServiceAlerts_AreEightToThirteen_AndTheLabClocks_WithTheirKinds()
     {
-        MonitoringEvents.ServiceAlerts.Select(e => (int)e).Should().Equal(8, 9, 10, 11, 12, 13);
-        MonitoringEvents.ServiceAlerts.Select(e => (int)ServiceAlertNotifications.KindOf(e)).Should().Equal(32, 33, 34, 35, 36, 37);
+        MonitoringEvents.ServiceAlerts.Select(e => (int)e).Should().Equal(8, 9, 10, 11, 12, 13, 16, 17);
+        MonitoringEvents.ServiceAlerts.Select(e => (int)ServiceAlertNotifications.KindOf(e)).Should().Equal(32, 33, 34, 35, 36, 37, 47, 48);
+        MonitoringEvents.IsServiceAlert(MonitoringEvent.LabCaseOverdue).Should().BeTrue();
+        MonitoringEvents.IsLabClock(MonitoringEvent.SpecimenOverdue).Should().BeFalse();
         MonitoringEvents.IsServiceAlert(MonitoringEvent.StageFinishedWithoutVisit).Should().BeFalse();
     }
 }

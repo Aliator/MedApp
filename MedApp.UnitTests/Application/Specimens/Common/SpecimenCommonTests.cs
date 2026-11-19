@@ -260,7 +260,7 @@ public sealed class SpecimenNotificationsTests
         specimen.SpecimenType.Name = "Endometrial biopsy";
 
         SpecimenNotifications.Lost(specimen, LabStaff, Now).Single().Message
-            .Should().Be($"{OtherUsername} marked an Endometrial biopsy specimen lost.");
+            .Should().Be($"{OtherUsername} marked a sample lost (Endometrial biopsy).");
     }
 }
 
