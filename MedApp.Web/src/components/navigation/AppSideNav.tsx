@@ -24,7 +24,7 @@ import {patientLabelsQuery} from '../../api/patients';
 import {pathwayLabelsQuery} from '../../api/pathways';
 import {useColorMode} from '../../app/colorMode';
 import {defaultThemeSlug, themes} from '../../astryx-themes';
-import {can, useCurrentUser, useLogout} from '../../auth/auth';
+import {can, isClinicStaff, useCurrentUser, useLogout} from '../../auth/auth';
 import {rolesSummary} from '../../auth/roles';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {useHalfViews} from '../pages/halfView';
@@ -599,6 +599,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const isAdminAccount = user.accountType === 'Admin';
   // Staff in the lab team, whose nav leads with the lab's home (MC17).
   const isLabStaff = !isAdminAccount && (user.teams ?? []).some((t) => t.kind === 'Lab') && can(user, 'ViewPatients');
+  // Staff in a clinic team, whose nav leads with the team's home (MC24).
+  const hasTeamHome = isClinicStaff(user);
   const logout = useLogout();
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const {mode} = useColorMode();
@@ -629,6 +631,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const main: NavRailEntry[] = [
     // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
     ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />})] : []),
+    // A clinic team's home leads the nav for clinic staff (MC24): the team's work and theirs.
+    ...(hasTeamHome
+      ? [
+          {
+            key: 'team',
+            label: 'Team',
+            icon: AppIcon.Teams,
+            href: '/team',
+            isSelected: pathname === '/team' || pathname === '/team/',
+            isHalfView: halfPath === '/team' && pathname !== '/team',
+            row: (
+              <SideNavItem
+                label="Team"
+                icon={AppIcon.Teams}
+                href="/team"
+                isSelected={pathname === '/team' || pathname === '/team/'}
+                ref={halfViewRow(halfPath === '/team' && pathname !== '/team')}
+                actions={<RowMenu label="Team" href="/team" />}
+              />
+            ),
+          },
+        ]
+      : []),
     // The lab's home leads the nav for lab staff (MC17): what's waiting for the lab.
     ...(isLabStaff
       ? [

@@ -157,6 +157,10 @@ export function useCan(permission: Permission): boolean {
   return can(useCurrentUser(), permission);
 }
 
+/** Whether a person has a clinic team's home (MC24): staff (not an admin) in a clinic, who can see patients. */
+export const isClinicStaff = (user: Pick<CurrentUser, 'accountType' | 'teams' | 'permissions'>) =>
+  user.accountType !== 'Admin' && (user.teams ?? []).some((t) => t.kind === 'Clinic') && can(user, 'ViewPatients');
+
 export interface LoginInput {
   username: string;
   password: string;

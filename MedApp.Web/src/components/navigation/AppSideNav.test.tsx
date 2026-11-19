@@ -239,6 +239,22 @@ describe('AppSideNav', () => {
     expect(screen.getByRole('link', {name: 'Samples'})).toHaveAttribute('aria-current', 'page');
   });
 
+  it("leads with the team's home for clinic staff only, current on it", async () => {
+    const clinicStaff = {...nurseUser, username: 'test-derm', teams: [{id: 'derm', name: 'Dermatology', kind: 'Clinic' as const, role: 'Member' as const}]};
+    const {unmount} = renderWithApp(<AppSideNav />, {user: clinicStaff, path: '/team'});
+
+    const home = await screen.findByRole('link', {name: 'Team'});
+    expect(home).toHaveAttribute('href', '/team');
+    expect(home).toHaveAttribute('aria-current', 'page');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/team')).toBeLessThan(names.indexOf('/tasks'));
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: {...clinicStaff, teams: [{id: 'lab', name: 'Lab', kind: 'Lab' as const, role: 'Member' as const}]}});
+    expect(await screen.findByRole('link', {name: 'Lab'})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Team'})).not.toBeInTheDocument();
+  });
+
   it("has Results before Letters for someone who can view patients, current on a result's page, with no count badges", async () => {
     const fetch = mockApi({'GET /api/results/count': () => json({awaitingMine: 4}), 'GET /api/letters/count': () => json({toApprove: 2, toSend: 3})});
     const {unmount} = renderWithApp(<AppSideNav />, {user: seniorClinicianUser, path: '/results/00000061-0000-0000-0000-000000000001'});
