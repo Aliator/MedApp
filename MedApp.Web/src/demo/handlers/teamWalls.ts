@@ -84,7 +84,7 @@ export const readsThroughMdt = (pathway: Pick<DemoPathway, 'id'>, scope: TeamSco
 
 /** Why an MDT's attendee from another team reads a pathway but can't change it. */
 export const mdtReadOnly = (pathway: Pick<DemoPathway, 'teamId'>) =>
-  `This pathway is listed on ${teamName(pathway.teamId) ?? 'another team'}’s MDT, which you attend: you can read it, read only, until it’s discussed or withdrawn, and at least until the meeting ends.`;
+  `You attend ${teamName(pathway.teamId) ?? 'another team'}’s MDT, so you can read this pathway (not change it) until it’s discussed or withdrawn and the meeting has ended.`;
 
 /** Whether the viewer's teams read a pathway only through an open consult asked of them (MC25), not as its owner or a stage's. */
 export function readsThroughConsult(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope = myScope()): boolean {

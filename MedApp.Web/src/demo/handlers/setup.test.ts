@@ -70,7 +70,7 @@ describe('the light demo’s setup and admin handlers', () => {
     const tuesday = nextTuesday();
     const calendar = (await call('GET', `/api/calendar?From=${tuesday}&To=${tuesday}`)).body;
     const triage = calendar.blocks.find((b: {isFromTemplate: boolean}) => b.isFromTemplate);
-    expect(triage).toMatchObject({activityName: 'Triage', note: 'Referral triage'});
+    expect(triage).toMatchObject({activityName: 'Admin time', note: 'Referral admin'});
     expect(calendar.days[0]).toMatchObject({dayTemplateId: DAY_TEMPLATES.adminEarlyTriage});
     const removed = await call('DELETE', `/api/calendar/staff/${ADMIN.id}/days/${tuesday}/template-blocks/${triage.templateBlockId}`);
     expect(removed.status).toBe(204);

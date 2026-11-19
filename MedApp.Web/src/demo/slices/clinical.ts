@@ -146,13 +146,13 @@ export interface ClinicalSlice {
 export const LETTER_TEMPLATES = {
   /** A clinic letter, for every team. */
   clinicLetter: id(0xe6, 1),
-  /** A discharge summary to the GP, for every team: what the "Discharge letter to GP" stage needs. */
+  /** An end of care summary to the GP (kind `DischargeSummary`), for every team: what the "Final letter to GP" stage needs. */
   dischargeSummary: id(0xe6, 2),
   /** A reply to a Dermatology referral. */
   referralResponse: id(0xe6, 3),
   /** Dermatology's letter to the GP after the results review (MC28). */
   dermatologyResultsToGp: id(0xe6, 4),
-  /** Dermatology's discharge letter (MC28). */
+  /** Dermatology's end of care letter (MC28, kind `DischargeSummary`). */
   dermatologyDischarge: id(0xe6, 5),
   /** Dermatology's onward referral to the hospital (MC28, `OnwardReferral`). */
   dermatologyOnwardReferral: id(0xe6, 6),
@@ -164,9 +164,9 @@ export const LETTERS = {
   draft: id(0xe7, 1),
   /** Priya Holloway's clinic letter, by Tom Hallworth: awaiting Nadia Thornbury's approval. */
   awaitingApproval: id(0xe7, 2),
-  /** Samuel Okafor's clinic letter, approved by Tom Hallworth: still to send to both recipients. */
+  /** Samuel Okafor's clinic letter, by Tom Hallworth, approved by Nadia Thornbury: still to send to both recipients. */
   toSend: id(0xe7, 3),
-  /** Ilona Petrova's clinic letter about her care plan: approved and sent to everyone. */
+  /** Ilona Petrova's clinic letter about her blood tests: approved and sent to everyone. */
   sent: id(0xe7, 4),
   /** Harriet Quill's onward referral to the hospital (MC28): Nadia Thornbury's draft, for Refer to hospital. */
   onwardReferral: id(0xe7, 5),
@@ -182,7 +182,7 @@ export const MDT_MEETINGS = {
 export const MDT_ITEMS = {
   /** Ellis Varden's pathway on today's MDT, still to discuss: the tour records its outcome. */
   toDiscuss: id(0xea, 1),
-  /** Ilona Petrova's pathway on today's MDT, discussed: the outcome as written and who was present. */
+  /** Aisha Khoury's pathway on today's MDT, discussed (her second biopsy was too small): the outcome as written and who was present. */
   discussed: id(0xea, 2),
   /** Priya Holloway's pathway on the skin MDT ahead. */
   priyaListed: id(0xea, 3),
@@ -249,10 +249,10 @@ const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
   [LETTER_TEMPLATES.clinicLetter, 'Clinic letter', 'ClinicLetter', null, `Dear colleague,\n\n${RE_LINE}\n\n## Diagnosis\n\n## What we found\n\n## Plan`],
   [
     LETTER_TEMPLATES.dischargeSummary,
-    'Discharge summary to GP',
+    'End of care summary to GP',
     'DischargeSummary',
     null,
-    `Dear colleague,\n\n${RE_LINE}\n\nWe have discharged {{patient.name}} from our care.\n\n## Summary of care\n\n## For the GP`,
+    `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}}'s care with us is complete.\n\n## Summary of care\n\n## For the GP`,
   ],
   [
     LETTER_TEMPLATES.referralResponse,
@@ -271,10 +271,10 @@ const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
   ],
   [
     LETTER_TEMPLATES.dermatologyDischarge,
-    'Dermatology discharge letter',
+    'Dermatology end of care letter',
     'DischargeSummary',
     TEAMS.dermatology,
-    `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}} was last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}, and we have discharged them to your care.\n\n## Summary of care\n\n## Advice given\n\n## For the GP`,
+    `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}} was last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}. Their care with us is complete, and we hand it back to you.\n\n## Summary of care\n\n## Advice given\n\n## For the GP`,
   ],
   [
     LETTER_TEMPLATES.dermatologyOnwardReferral,
@@ -289,7 +289,7 @@ const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
 const GP = {name: 'Example Lane Surgery (synthetic)', addressLines: '1 Example Lane\nExampleton', postcode: 'ZZ1 1ZZ'};
 
 /** The hospital an onward referral goes to (the hospitals slice's invented Riverside General), its address typed in. */
-const HOSPITAL = {name: 'Riverside General (demo), Dermatology surgery', addressLines: '1 Riverside Way\nExampleton', postcode: 'ZZ3 3ZZ'};
+const HOSPITAL = {name: 'Riverside General Hospital (synthetic), Dermatology department', addressLines: '1 Riverside Way\nExampleton', postcode: 'ZZ3 3ZZ'};
 
 /**
  * The day today's MDT is on (08:00 to 08:45 UK time): today if that has already started (a weekday after 09:00), else
@@ -393,7 +393,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       1,
       PATHWAYS.biopsyToBook,
       LETTER_TEMPLATES.clinicLetter,
-      clinicBody('Changing pigmented lesion, left forearm.', 'An irregular lesion of about 8 mm.', ''),
+      clinicBody('Non-healing scaly lesion, left forearm.', 'A raised, scaly, non-pigmented lesion of about 10 mm, present for 4 months.', ''),
       {
         status: 'Draft',
         authorUserId: STAFF.id,
@@ -408,7 +408,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       2,
       PATHWAYS.histologyToFinish,
       LETTER_TEMPLATES.clinicLetter,
-      clinicBody('Pigmented lesion, upper back.', 'A biopsy was taken; histology is awaited.', 'We will write again with the result and the plan.'),
+      clinicBody('Non-pigmented lesion, upper back.', 'A biopsy was taken; histology is awaited.', 'We will write again with the result and the plan.'),
       {
         status: 'AwaitingApproval',
         authorUserId: USERS.hallworth,
@@ -427,7 +427,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       {
         status: 'Approved',
         authorUserId: HALLWORTH.id,
-        approverUserId: HALLWORTH.id,
+        approverUserId: STAFF.id,
         createdAt: ago(3, 10, 0),
         lastUpdated: ago(1, 10, 30),
         approvedAtUtc: ago(1, 10, 30),
@@ -438,7 +438,11 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       4,
       PATHWAYS.followUpBooked,
       LETTER_TEMPLATES.clinicLetter,
-      clinicBody('Plaque psoriasis.', 'Mild plaques on both elbows.', 'Self-care as agreed; we will review her at the booked follow-up.'),
+      clinicBody(
+        'Itchy rash on the arms and legs; cause not yet known.',
+        'Scattered itchy bumps on the arms and legs, with scratch marks. Nothing typical of eczema or psoriasis.',
+        'Blood tests taken. We will go through the results with her at the booked appointment.',
+      ),
       {
         status: 'Approved',
         authorUserId: STAFF.id,
@@ -455,7 +459,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       5,
       PATHWAYS.referredToHospital,
       LETTER_TEMPLATES.dermatologyOnwardReferral,
-      `${ONWARD_REFERRAL_OPENING}\n\n## Reason for referral\n\nExcision of a basal cell carcinoma, left temple.\n\n## Findings and results\n\nA nodular lesion of about 6 mm. The biopsy was reported as a nodular basal cell carcinoma (synthetic report).\n\n## What we are asking for\n\nSurgical excision. Please send us the surgery details once it's done.`,
+      `${ONWARD_REFERRAL_OPENING}\n\n## Reason for referral\n\nExcision of a basal cell carcinoma, left temple.\n\n## Findings and results\n\nA nodular lesion of about 6 mm. The biopsy was reported as a nodular basal cell carcinoma (synthetic report).\n\n## What we are asking for\n\nSurgical excision. Please send us the operation note and histology once it has been done.`,
       {
         status: 'Draft',
         authorUserId: STAFF.id,
@@ -535,15 +539,15 @@ export function seedClinical(state: BaseState): ClinicalSlice {
   const todayMeeting = {id: MDT_MEETINGS.today, startUtc: todayStart};
   const aheadMeeting = {id: MEETINGS.skinMdt, startUtc: ahead?.startUtc ?? todayStart};
   const mdtItems: DemoMdtItem[] = [
-    item(MDT_ITEMS.toDiscuss, PATHWAYS.biopsyToBook, todayMeeting, 'Changing mole on the forearm: biopsy as planned, or excise straight away?', 5),
-    item(MDT_ITEMS.discussed, PATHWAYS.followUpBooked, todayMeeting, 'Psoriasis on the new treatment: carry on, or change it?', 6, {
-      outcome: 'Continue the current treatment. Review at the booked follow-up.',
+    item(MDT_ITEMS.toDiscuss, PATHWAYS.biopsyToBook, todayMeeting, 'Non-healing scaly lesion, left forearm: punch biopsy here first, or refer straight to the hospital?', 5),
+    item(MDT_ITEMS.discussed, PATHWAYS.forkedTests, todayMeeting, 'Two lesions, left shin: the second biopsy was too small to report. Repeat it, or refer to the hospital?', 5, {
+      outcome: 'Repeat the punch biopsy of the lower lesion. List again with both reports.',
       present: [STAFF.id, USERS.sandiford],
       atUtc: ukTime(todayDate, 8, 20),
     }),
-    item(MDT_ITEMS.priyaListed, PATHWAYS.histologyToFinish, aheadMeeting, 'Histology due this week: agree the treatment plan.', 2),
-    item(MDT_ITEMS.felixListed, PATHWAYS.branchToChoose, aheadMeeting, 'Suspicious lesion on the shin: does it need a biopsy?', 1),
-    item(MDT_ITEMS.harrietPresented, PATHWAYS.referredToHospital, todayMeeting, 'Biopsy reported, referred to the hospital: confirm the diagnosis with pathology.', 4, undefined, LAB.id),
+    item(MDT_ITEMS.priyaListed, PATHWAYS.histologyToFinish, aheadMeeting, 'Histology due this week: agree the next step.', 2),
+    item(MDT_ITEMS.felixListed, PATHWAYS.branchToChoose, aheadMeeting, 'Suspicious 9 mm lesion on the shin, dermoscopy uncertain: agree the next step.', 1),
+    item(MDT_ITEMS.harrietPresented, PATHWAYS.referredToHospital, todayMeeting, 'Nodular BCC on biopsy: confirm with pathology before the referral is sent.', 4, undefined, LAB.id),
   ];
 
   const consentForms: DemoConsentForm[] = [

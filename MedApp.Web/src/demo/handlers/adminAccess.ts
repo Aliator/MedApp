@@ -102,7 +102,7 @@ function securitySettingsResponse(): Schemas['SecuritySettingsResponse'] {
   return {...settings, adminsWithoutTwoFactor: admins.length, adminsWithoutTwoFactorUsernames: admins};
 }
 
-const FIXED_PEOPLE = 'The light demo’s clinic and its people are fixed: their roles, names and passwords can’t be changed here.';
+const FIXED_PEOPLE = 'The light demo’s centre and its people are fixed: their roles, names and passwords can’t be changed here.';
 
 export function registerAdminAccess() {
   // Everyone on staff (pickers use it too, so any signed-in person may search).
@@ -163,7 +163,7 @@ export function registerAdminAccess() {
     const wanted: DemoMembership[] = [];
     for (const t of body.teams ?? []) {
       if (!t.teamId) return invalid({teams: ['Choose a team for each membership.']});
-      if (t.role != null && t.role !== 'Member' && t.role !== 'ClinicAdmin') return invalid({teams: ['A role is Member or ClinicAdmin.']});
+      if (t.role != null && t.role !== 'Member' && t.role !== 'ClinicAdmin') return invalid({teams: ['Choose Member or Clinic admin.']});
       if (!wanted.some((w) => w.teamId === t.teamId)) wanted.push({teamId: t.teamId, role: t.role === 'ClinicAdmin' ? 'ClinicAdmin' : 'Member'});
     }
     const before = membershipsOf(person);

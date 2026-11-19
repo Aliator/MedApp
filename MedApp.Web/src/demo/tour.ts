@@ -51,7 +51,7 @@ export const TOUR_PARTS = [
     key: 'story',
     title: 'The relay',
     intro:
-      'Leah Corrin’s pathway goes from Dermatology to the lab and back, in three stages: Triage (Dermatology’s), Testing (the lab’s) and a Results appointment (Dermatology’s).',
+      'From the clinic to the lab and back. Leah Corrin’s pathway has Triage (Dermatology’s), Testing (the lab’s) and a Results appointment (Dermatology’s), then a referral back to her GP for medication.',
   },
   {key: 'around', title: 'Around the app'},
 ] as const;
@@ -75,7 +75,7 @@ export const TOUR: TourStep[] = [
       'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
       'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
       'With two pages open, the side nav folds to its icons: open it from the side with the expand button (Expand sidebar) at the bottom of the icon rail.',
-      'Fold the side nav in half view is on unless you turn it off, in Account Settings: the button below opens it on the left, beside this Read Me.',
+      'This folding is a setting in Account Settings, on by default: the button below opens it on the left, beside this Read Me.',
     ],
     isNumbered: true,
     path: '/account',
@@ -111,7 +111,7 @@ export const TOUR: TourStep[] = [
     buttonLabel: 'Open the patient as the lab',
   },
 
-  // The relay (the owner, 19 November 2026): three stages, one step each.
+  // The relay (the owner, 19 November 2026): one step for each of its first three stages.
   {
     key: 'relay-triage',
     part: 'story',
@@ -119,7 +119,8 @@ export const TOUR: TourStep[] = [
     steps: [
       `As ${STAFF.fullName}, this opens Leah Corrin’s pathway, at Triage.`,
       'Pin it: it shows in the side nav under Pathways while it’s open. Open its row’s menu (the … at the end of the row) and choose Pin. You’ll come back to it from there with the notepad later.',
-      'Triage needs her consent: record it in the Consent card (the form, who signed, the date).',
+      'She was seen yesterday, and a skin scraping was taken with her verbal agreement, but her consent was never recorded, so Triage can’t be finished yet.',
+      'Record the consent she gave at yesterday’s visit in the Consent card (the form, who signed, the date it was given).',
       'Choose Finish Stage on Triage. The next stage, Testing, is the lab’s, so the pathway goes to the lab.',
     ],
     isNumbered: true,
@@ -181,8 +182,8 @@ export const TOUR: TourStep[] = [
       'As the admin, this opens Dermatology’s team calendar: everyone in the team side by side. Anyone can look at any team’s, picked in Team.',
       `Choose New, then New meeting. Give it a title, and in Who add one person: ${STAFF.username} (${STAFF.fullName}).`,
       'Pick the first suggested time.',
-      'Now add the rest of the team to Who: b.sandiford and t.hallworth. The dialog says not everyone is free then: Bea Sandiford is at a clinic.',
-      `The suggested times now fit everyone. Pick another one, and save. The next step shows it on ${STAFF.fullName}’s calendar.`,
+      'Now add the rest of the team to Who: b.sandiford and t.hallworth. The dialog says not everyone is free then: Bea Sandiford is at an outreach clinic.',
+      `The suggested times now fit everyone (Tom Hallworth works Tuesday to Thursday). Pick another one, and save. The next step shows it on ${STAFF.fullName}’s calendar.`,
     ],
     isNumbered: true,
     account: ADMIN.username,
@@ -201,10 +202,10 @@ export const TOUR: TourStep[] = [
   {
     key: 'on-hold-overdue',
     part: 'around',
-    title: 'Every clinic’s pathways, and the clinic picker',
+    title: 'Every team’s pathways, and the team picker',
     steps: [
-      'As the admin, Pathways lists every team’s open pathways. The clinic picker narrows it to one clinic; staff in several clinics pick among their own.',
-      'Samuel Okafor’s is on hold; Harriet Quill’s is overdue until her referral finishes it. Sort and filter with the bar above the list.',
+      'As the admin, Pathways lists every team’s open pathways. The picker narrows it to Dermatology or the lab.',
+      'Samuel Okafor’s is on hold. Harriet Quill’s is past its target date: its last stage waits for her referral letter to be approved and sent. Sort and filter with the bar above the list.',
     ],
     account: ADMIN.username,
     path: '/pathways',
@@ -223,9 +224,9 @@ export const TOUR: TourStep[] = [
     ],
     isNumbered: true,
     sampleText: [
-      'Seen in clinic today.',
-      'Scaly patch on the left forearm, about 3 cm, itchy for two months.',
-      'Results talked through; patient happy with the plan.',
+      'Seen yesterday: scaly patch on the left forearm, about 3 cm, itchy for two months.',
+      'Skin scraping taken and sent to the lab.',
+      'To go through the results at the results appointment.',
     ],
     opensNotepad: true,
     buttonLabel: 'Open the notepad',
@@ -269,8 +270,8 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'Real sign-in and two-factor', full: 'Passwords, sessions that time out, account lockout, and codes from an authenticator app or email.'},
   {title: 'Email', full: 'Password reset, confirming an address, and sign-in codes by email.'},
   {
-    title: 'Lab reports as files',
-    full: 'A lab case’s report is a file the lab attaches and authorises, and a hospital’s goes back as a letter (a PDF) with it attached. Here the results are typed in as text, and the hospital’s report is recorded as sent.',
+    title: 'Reports as files',
+    full: 'A lab case’s report is a file the lab attaches and authorises, an external result arrives as a file, a sample’s label has a QR code, and a hospital’s report goes back as a letter (a PDF) with the report attached. Here results are typed in as text, and the hospital’s report is recorded as sent.',
   },
   {
     title: 'File uploads',
@@ -292,7 +293,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
   {
     title: 'Background jobs',
-    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked and specimens and lab cases overdue in time), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
+    full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked, and samples and lab cases overdue), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
   },
   {
     title: 'Sending letters',
@@ -301,9 +302,5 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {
     title: 'Changing roles and accounts',
     full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the three accounts are fixed, though their teams can be changed.',
-  },
-  {
-    title: 'Files from the lab',
-    full: 'A specimen’s report and an external result arrive as files, and a specimen’s label has a QR code. Here only the seeded reports are there.',
   },
 ];

@@ -660,7 +660,7 @@ export function registerLabCases() {
         notify([first.requestingUserId, first.takenByUserId], viewer.id, {
           kind: 'RepeatSampleRequested',
           title: 'Repeat sample requested',
-          message: `The lab asked for a repeat sample (${testOf(c)?.name ?? 'a lab test'}).${reopened ? ` ${reopened} is reopened to take it.` : ''}`,
+          message: `The lab asked for a repeat sample (${testOf(c)?.name ?? 'a lab test'}).${reopened ? ` The ${reopened} stage is open again for the repeat.` : ''}`,
           pathwayId: c.pathwayId,
           subjectId: first.id,
         });
