@@ -1,6 +1,8 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
+import {VStack} from '@astryxdesign/core/Stack';
+import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
 import type {PathwaySummary} from '../../api/pathways';
@@ -119,12 +121,24 @@ const actionsColumn: DataTableColumn<TaskRow> = {
   renderCell: (p) => <PathwayActions id={p.id ?? ''} patientId={p.patientId ?? ''} />,
 };
 
-/** Who works the current stage (the relay): the lab, or the pathway's own team. */
+/**
+ * Who works the current stage (the relay): the lab, or the pathway's own team; "Not picked up" on a line of its own
+ * under the team, so a narrow column cuts off neither.
+ */
 const withColumn: DataTableColumn<TaskRow> = {
   key: 'with',
   header: 'With',
   width: PATHWAY_COLUMN_WIDTH.template,
-  renderCell: (p) => <TextCell text={p.awaitingPickUp ? `${p.currentStageTeamName ?? ''} (not picked up)` : p.currentStageTeamName} />,
+  renderCell: (p) => (
+    <VStack gap={0}>
+      <TextCell text={p.currentStageTeamName} />
+      {p.awaitingPickUp && (
+        <Text type="supporting" color="secondary" maxLines={1}>
+          Not picked up
+        </Text>
+      )}
+    </VStack>
+  ),
 };
 
 /**

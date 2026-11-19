@@ -290,10 +290,12 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 **MC23. Dermatology pathways as trees** (M). After Phase 2.
 - **Scope:** templates through the commands (`DemoData`, and the light demo's seed): **Suspected skin cancer** (triage, consultation and dermoscopy, biopsy, lab histology, results review → benign: GP letter and discharge | low-risk BCC: excision, lab margins, follow-up | melanoma or high-risk SCC: MDT with pathology, refer to hospital surgery, surveillance), **Lump and bump removal** (… unexpected malignancy: an addable branch joining the skin cancer route), **Inflammatory skin** (bloods before treatment; monitoring bloods as a repeatable addable branch; responding or not → MDT).
 - **Light demo:** the same three templates.
+- **Done by #232:** the owner's 10 reviewed Dermatology templates replace the three above (no excision: the centre does no surgery).
 
 **MC24. The team home and clinic worklist** (M). ∥ MC23.
 - **Scope:** a home for a clinic team (`/team`): **Triage**, **My pathways**, **Back from the lab**, **Results to sign off**, **Appointments to book**; built for every clinic team, Dermatology first.
 - **Light demo:** for `n.thornbury`.
+- **Built in the demo first (19 Nov 2026), decisions:** `/team` shows five short lists (5 rows, a count, a link to the full list) from existing searches, no new endpoint; Triage, Results to sign off and Appointments to book only for those with `TriageReferrals`, `SignOffResults` and `BookAppointments`; titled with the clinic's name ("Team" for someone in several); first in the nav for clinic staff. My Worklist's With column puts "Not picked up" on its own line.
 
 **MC25. Consults between clinics, and with the lab** (L). ∥ MC23.
 - **Scope:** `Consult` (pathway, asking team, asked team (a clinic or the lab), question (2,000), reply (4,000), `Status` (`ConsultStatus`: `Open = 0`, `Replied = 1`, `Closed = 2`, `Withdrawn = 3`), `Version`); the asked team gets a read-only `Consult` grant **until the consult closes**; their reply is recorded on the pathway; a consult meeting may include the asked team (MC11). Audit `ConsultRequested = 59`, `ConsultReplied = 60`, `ConsultClosed = 61`, `ConsultWithdrawn = 62` (no text). Notifications `ConsultRequested = 49`, `ConsultReplied = 50`. Restricted: closing and withdrawing allowed.

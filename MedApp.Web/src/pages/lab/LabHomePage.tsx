@@ -48,8 +48,8 @@ export const labHomeQueries = () => [
   ...(['Expected', 'InLab', 'Reported'] as const).map(labSamplesQuery),
 ];
 
-/** One list on the home: its title, what it holds, its rows, and where all of it is. */
-function WorkCard<T>({
+/** One list on a home (the lab's, a clinic team's): its title, what it holds, its rows, and where all of it is. */
+export function WorkCard<T>({
   title,
   description,
   empty,
@@ -123,7 +123,8 @@ const sentRow = (c: LabCaseSummary) => {
   return {...row, detail: [row.detail, c.reportSentAtUtc ? `Sent ${formatDateTime(c.reportSentAtUtc)}` : null].filter(Boolean).join(' · ')};
 };
 
-const pathwayRow = (p: PathwaySummary) => ({
+/** A pathway's row on a home: its title, opening it, then the patient, its stage and its target date. */
+export const pathwayRow = (p: PathwaySummary) => ({
   key: p.id ?? '',
   label: <Link href={`/pathways/${p.id}`}>{p.title}</Link>,
   detail: [p.patientName, p.currentStageName, p.dueDate ? `Target ${formatDate(p.dueDate)}` : null].filter(Boolean).join(' · '),
