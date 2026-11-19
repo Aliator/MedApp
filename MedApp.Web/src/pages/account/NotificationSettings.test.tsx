@@ -31,7 +31,7 @@ describe('NotificationSettings', () => {
   it('points to My Worklist with its filter on all open work', async () => {
     renderSettings({[`GET ${PREFERENCES}`]: () => json({pathwayAssigned: true})});
 
-    expect(await screen.findByText(/work from My Worklist, with its filter on all open work/)).toBeInTheDocument();
+    expect(await screen.findByText(/My Worklist shows everything assigned to you, so work from there/)).toBeInTheDocument();
   });
 
   it('shows a choice made before as off', async () => {

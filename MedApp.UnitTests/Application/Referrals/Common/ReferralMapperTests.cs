@@ -360,7 +360,7 @@ public sealed class ReferralSearchTests
 
     [TestCase("receivedOn", true)]
     [TestCase("PATIENT", true)]
-    [TestCase("specialty", true)]
+    [TestCase("team", true)]
     [TestCase("priority", true)]
     [TestCase("registered", true)]
     [TestCase("daysWaited", true)]
