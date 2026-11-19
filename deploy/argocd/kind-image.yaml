@@ -1,5 +1,5 @@
 # The image the kind environment runs: written by the Publish workflow, only on the env/kind branch.
 image:
   repository: ghcr.io/aliator/medapp-api
-  tag: ad37740ce0371875329561d27fc9e7788f13f6c8
+  tag: edc93f18c784524e9ddfaf13f680edcb65dd520e
   pullPolicy: IfNotPresent

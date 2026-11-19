@@ -405,6 +405,7 @@ Never renumber; add new values with new numbers. Reserved by the earlier plan an
 - Phase 2: **MC13 ∥ MC18 ∥ MC21**; MC14 after MC13; MC15 after MC14; **MC16 ∥ MC19** after MC15 (MC19 also after MC18); MC17 after MC16; MC20 after MC19; **MC22** last.
 - Phase 3: **MC23 ∥ MC24 ∥ MC25 ∥ MC27 ∥ MC28**; MC26 after MC25; **MC29** last.
 - Testing once per phase (the build agents' rules): the full suite, the leak tests and the owner's look at the screens at each phase's end; MC4 and MC5 get `ci:full` regardless.
+- **Demo first** (the owner, 18 November 2026): each Stage 1 PR is **web and light demo only** (`MedApp.Web`, its hand-edited `schema.d.ts`, `src/demo`). A final backend stage implements the same API shape, with one combined migration, the leak tests and the dev tooling's switch to a staff account (`ensure_test_staff`, E2E, UI parity); the local dev app is updated once, at the end. Tests that compare the web with the API (such as `permissionCatalogue.test.ts`) are expected to fail until then. MC3's web side: `src/auth/accountTypes.ts`, `ViewAllTeams` and `NOT_FOR_ADMIN` in `permissions.ts`, whoami's `accountType` and `teams`, `PUT …/teams` taking `{teams: [{teamId, role}]}`, and the demo's three accounts.
 
 ## 11. Stage 2 (one entry per clinic; each its own plan later)
 

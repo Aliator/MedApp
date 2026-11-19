@@ -1,6 +1,7 @@
 import {queryOptions, useMutation, useQueryClient} from '@tanstack/react-query';
 import {api, unwrap, type Schemas} from './client';
 import {ApiError} from './errors';
+import type {TeamMemberRole} from '../auth/accountTypes';
 import {setupKeys} from './pathwaySetup';
 
 /**
@@ -9,8 +10,10 @@ import {setupKeys} from './pathwaySetup';
  * be archived, which keeps it where it is but stops it being newly chosen.
  */
 export type Team = Schemas['TeamResponse'];
-/** One of a member of staff's teams: its ID, name and whether it's archived. */
+/** One of a member of staff's teams: its ID, name, whether it's archived, its kind and their role in it. */
 export type TeamMembership = Schemas['TeamMembershipResponse'];
+/** A team to give someone, and their role in it (`Member` or `ClinicAdmin`). */
+export type TeamMembershipInput = {teamId: string; role: TeamMemberRole};
 
 const TEAMS = '/api/teams';
 const TEAM = '/api/teams/{id}';
@@ -162,15 +165,16 @@ export function useTeamActions() {
 }
 
 /**
- * Sets a member of staff's teams to exactly these (admins), returning them. An archived one they already have
- * can be kept, but not newly given (409); an unknown user or team is a 404.
+ * Sets a member of staff's teams, and their role in each, to exactly these (admins), returning them. An archived one
+ * they already have can be kept, but not newly given (409); an admin is in no team (409); an unknown user or team is
+ * a 404.
  */
 export function useSetUserTeams() {
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({queryKey: teamKeys.all});
   return useMutation({
-    mutationFn: ({username, teamIds}: {username: string; teamIds: string[]}) =>
-      unwrap(api.PUT('/api/auth/users/{username}/teams', {params: {path: {username}}, body: {teamIds}})),
+    mutationFn: ({username, teams}: {username: string; teams: TeamMembershipInput[]}) =>
+      unwrap(api.PUT('/api/auth/users/{username}/teams', {params: {path: {username}}, body: {teams}})),
     // Their teams, the members counts, and the admin's own if they were the one changed; after a 409 (a
     // team archived meanwhile) too, so the dialog shows it archived.
     onSuccess: refresh,

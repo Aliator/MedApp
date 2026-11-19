@@ -155,7 +155,7 @@ type Team = Schemas['TeamResponse'];
 /** A team with its counts as they are now (`TeamUsage`): what has it, and who can triage its referrals. */
 export function teamResponse(team: Team): Team {
   const state = db();
-  const members = PEOPLE.filter((p) => (state.memberships[p.id] ?? []).includes(team.id ?? ''));
+  const members = PEOPLE.filter((p) => (state.memberships[p.id] ?? []).some((m) => m.teamId === team.id));
   const counts = {
     templateCount: state.templates.filter((t) => t.teamId === team.id).length,
     pathwayCount: state.pathways.filter((p) => p.teamId === team.id).length,
@@ -373,7 +373,7 @@ export function registerSetup() {
   on('post', '/api/teams', ({body}) => {
     requirePermission('ManageSetup');
     const now = nowUtc();
-    const team: Team = {id: newId(), ...teamInput(body), isArchived: false, version: 1, letterTemplateCount: 0, createdAt: now, lastUpdated: now};
+    const team: Team = {id: newId(), ...teamInput(body), isArchived: false, kind: 'Clinic', version: 1, letterTemplateCount: 0, createdAt: now, lastUpdated: now};
     db().teams.push(team);
     return new DemoReply(201, teamResponse(team));
   });

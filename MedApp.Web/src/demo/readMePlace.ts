@@ -2,7 +2,7 @@
  * The reader's place on the Read Me, kept while a tour button moves it: opening a page beside it from the Read Me on
  * its own (it moves to the right half, a new page there), switching account (a full reload), and going back to it on
  * its own (`openFull`, or closing the half beside it). Each would otherwise start it again at the top. The button's
- * part of the page (a tour step, or the Two accounts card's footer, marked `data-read-me-place`) is kept with how far
+ * part of the page (a tour step, or the Three accounts card's footer, marked `data-read-me-place`) is kept with how far
  * down the scrolling area it was, and once the Read Me shows again where it was going, that part is put back there.
  *
  * UI state only, in this tab's `sessionStorage` under a `medapp.` key (so sign-out clears it), never anything about

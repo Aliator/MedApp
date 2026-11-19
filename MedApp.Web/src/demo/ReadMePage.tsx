@@ -14,7 +14,7 @@ import {AlertMessage} from '../components/shared/AlertMessage';
 import {AppIcon} from '../components/shared/icons';
 import {CardSection} from '../components/views/CardSection';
 import {ViewCard} from '../components/views/ViewCard';
-import {ADMIN, DEMO_ACCOUNTS, STAFF} from './accounts';
+import {accountDescription, accountLabel, ADMIN, DEMO_ACCOUNTS, LAB, personByUsername, STAFF} from './accounts';
 import {DemoBanner} from './DemoBanner';
 import {PLACE_ATTRIBUTE, rememberReadMePlace, restoreReadMePlace} from './readMePlace';
 import {markReadMeSeen, READ_ME_PATH} from './readMeSeen';
@@ -38,7 +38,7 @@ export function whyStepCantOpen(step: TourStep): string | null {
 }
 
 /**
- * The light demo's Read Me (the demo build only): what this is, the two accounts, a guided tour whose buttons open the
+ * The light demo's Read Me (the demo build only): what this is, the three accounts, a guided tour whose buttons open the
  * exact page or record (switching account first when the step needs it), and what the full version does that this one
  * doesn't, with the demo's banner at the top. Shown on the first visit (`DemoFirstVisit`), and in the side nav.
  */
@@ -118,7 +118,7 @@ export function ReadMePage() {
     if (step.opensNotepad) notepad?.open();
   };
 
-  const other = me.username === ADMIN.username ? STAFF : ADMIN;
+  const others = DEMO_ACCOUNTS.filter((account) => account.username !== me.username);
 
   return (
     <Page title="Read Me" subtitle="The light version of MedApp, for trying it out">
@@ -140,33 +140,38 @@ export function ReadMePage() {
 
         <ViewCard
           footerActions={
-            <HStack {...{[PLACE_ATTRIBUTE]: 'switch-account'}}>
-              <Button
-                label={`Switch to ${other.fullName}`}
-                variant="secondary"
-                icon={<Icon icon={AppIcon.Account} />}
-                onClick={() => {
-                  // A full reload, back to the Read Me on its own: kept where the reader was.
-                  rememberReadMePlace(root.current, 'switch-account', 'whole');
-                  void switchAccount(other.username, READ_ME_PATH);
-                }}
-              />
+            <HStack gap={2} wrap="wrap" {...{[PLACE_ATTRIBUTE]: 'switch-account'}}>
+              {others.map((other) => (
+                <Button
+                  key={other.id}
+                  label={`Switch to ${other.fullName}`}
+                  variant="secondary"
+                  icon={<Icon icon={AppIcon.Account} />}
+                  onClick={() => {
+                    // A full reload, back to the Read Me on its own: kept where the reader was.
+                    rememberReadMePlace(root.current, 'switch-account', 'whole');
+                    void switchAccount(other.username, READ_ME_PATH);
+                  }}
+                />
+              ))}
             </HStack>
           }>
-          <CardSection title="Two accounts">
+          <CardSection title="Three accounts">
             <VStack gap={3}>
               <List listStyle="disc" edge="flush" density="compact">
                 {DEMO_ACCOUNTS.map((account) => (
                   <ListItem
                     key={account.id}
                     label={`${account.fullName} (${account.username})${account.username === me.username ? ': you, now' : ''}`}
-                    description={`${account.roles.join(' and ')}. ${account.jobTitle}.`}
+                    description={accountDescription(account)}
                   />
                 ))}
               </List>
               <Text type="body">
-                Switch between them with the button below, or let the tour’s buttons switch for you. The admin can do everything, including the
-                setup pages and Insights; {STAFF.fullName} can’t, so each sees MedApp as that role does.
+                Switch between them with the buttons below, or let the tour’s buttons switch for you. The admin runs the centre: accounts, setup,
+                Insights, and every team’s records to read, but no clinical changes. Only staff do clinical work: {STAFF.fullName} as a
+                Dermatology clinician, and {LAB.fullName} in the lab. A clinic admin is staff who also looks after their clinic; its extra rights
+                come later, so for now she works as any clinician does.
               </Text>
             </VStack>
           </CardSection>
@@ -184,7 +189,7 @@ export function ReadMePage() {
                 <VStack key={step.key} gap={2} {...{[PLACE_ATTRIBUTE]: step.key}}>
                   <Text type="body" weight="semibold" as="h3">
                     {`${i + 1}. ${step.title}`}
-                    {step.account ? ` (as ${step.account === ADMIN.username ? 'the admin' : STAFF.fullName})` : ''}
+                    {step.account ? ` (as ${accountLabel(personByUsername(step.account) ?? ADMIN)})` : ''}
                   </Text>
                   <List listStyle={step.isNumbered ? 'decimal' : 'disc'} edge="flush" density="compact">
                     {/* Each as text, so a long one wraps (a plain string label is cut to one line). */}

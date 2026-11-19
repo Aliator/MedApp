@@ -24,6 +24,7 @@ import {
   type CreatedUser,
 } from '../../api/users';
 import {roleChoices, roleNames, rolesQuery} from '../../api/roles';
+import {ACCOUNT_TYPE_LABELS, accountTypeOf, isAccountType} from '../../auth/accountTypes';
 import {ADMIN_ROLE, sortRoles} from '../../auth/roles';
 import {useCan, useCurrentUser} from '../../auth/auth';
 import {ConfirmDialog} from '../../components/modals/ConfirmDialog';
@@ -216,6 +217,15 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       renderCell: (u) => <AvatarCell primaryText={u.username ?? ''} secondaryText={staffDetailsLine(u)} />,
     },
     {
+      // Admin, clinic admin or staff: worked out by the API from their roles and teams (decision 182).
+      key: 'type',
+      header: 'Account type',
+      renderCell: (u) => {
+        const type = isAccountType(u.accountType) ? u.accountType : accountTypeOf(u.roles ?? [], []);
+        return <Token label={ACCOUNT_TYPE_LABELS[type]} size="sm" color={type === 'Admin' ? 'blue' : type === 'ClinicAdmin' ? 'green' : 'default'} />;
+      },
+    },
+    {
       key: 'roles',
       header: 'Roles',
       renderCell: (u) =>
@@ -256,7 +266,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <TableActions
             actions={[
               {label: 'Edit roles', icon: AppIcon.Assign, isDisabled: isMe, onClick: () => open({kind: 'roles', ...target})},
-              // Unlike roles, admins may set their own: teams don't change what anyone can do.
+              // Unlike roles, admins may set their own (an admin is in no team, so the API refuses giving one).
               {label: 'Edit teams', icon: AppIcon.Teams, onClick: () => open({kind: 'teams', ...target})},
               // Their own too: a name and job title don't change what anyone can do.
               ...(canManageUsers ? [{label: 'Edit details', icon: AppIcon.StaffDetails, onClick: () => open({kind: 'details', ...target})}] : []),
