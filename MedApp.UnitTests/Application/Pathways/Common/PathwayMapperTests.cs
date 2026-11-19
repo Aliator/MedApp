@@ -11,6 +11,20 @@ namespace MedApp.UnitTests.Application.Pathways.Common;
 [TestFixture]
 public sealed class PathwayMapperTests
 {
+    [TestCase(Status.Blocked)]
+    [TestCase(Status.Cancelled)]
+    [TestCase(Status.Completed)]
+    public void ToResponse_OnHoldOrClosed_ShowsNoCurrentStage(Status status)
+    {
+        var pathway = CreatePathway(status, finishedStages: 1);
+
+        var response = PathwayMapper.ToResponse(pathway, Usernames, Now);
+
+        response.CurrentStageId.Should().BeNull();
+        response.CurrentStageIds.Should().BeEmpty();
+        response.Stages.Should().OnlyContain(s => !s.IsCurrent);
+    }
+
     [Test]
     public void ToResponse_PathwayInProgress_MapsStagesInOrderWithTheirStateAndWhatCanBeDone()
     {
