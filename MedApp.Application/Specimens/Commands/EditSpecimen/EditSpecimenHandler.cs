@@ -1,5 +1,8 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Lab.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Application.Specimens.Common;
 using MedApp.Application.Specimens.Repositories;
 using MedApp.Contracts.Specimens.Responses;
@@ -18,12 +21,17 @@ public sealed class EditSpecimenHandler(
     IPermissionHolders permissionHolders,
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<EditSpecimenCommand, SpecimenResponse>
 {
     public async Task<SpecimenResponse> Handle(EditSpecimenCommand request, CancellationToken cancellationToken)
     {
         var specimen = await repository.GetForUpdateOrThrowAsync(request.SpecimenId, cancellationToken);
+        await boundary.EnsureSpecimenVisibleAsync(
+            specimen, request.Actor.Teams, (await teams.GetLabAsync(cancellationToken))?.Id,
+            SpecimenRepositoryExtensions.NotFound(specimen.Id).Message, cancellationToken);
         if (SpecimenWorkflow.WhyCantEdit(specimen) is { } why)
             throw new ConflictException(why);
         SpecimenWorkflow.EnsureVersion(specimen, request.ExpectedVersion);
@@ -34,8 +42,8 @@ public sealed class EditSpecimenHandler(
             ? specimen.TakenAtUtc
             : SpecimenRules.StepTime(request.TakenAtUtc, null, now, "taken", nameof(request.TakenAtUtc));
 
-        var (type, laboratory) = await SpecimenChoices.CheckAsync(
-            repository, permissionHolders, request.SpecimenTypeId, request.LaboratoryId, request.RequestingUserId, specimen,
+        var (type, labTest) = await SpecimenChoices.CheckAsync(
+            repository, permissionHolders, request.SpecimenTypeId, request.LabTestId, request.RequestingUserId, specimen,
             cancellationToken);
 
         var usernames = specimen.RequestingUserId == request.RequestingUserId
@@ -45,7 +53,7 @@ public sealed class EditSpecimenHandler(
         var change = new SpecimenChange(specimen, specimen.Pathway, request.Actor, now);
         if (change.EditDetails(
                 type,
-                laboratory,
+                labTest,
                 takenAt,
                 SpecimenRules.Optional(request.Site),
                 SpecimenRules.Optional(request.RequestNotes),

@@ -17,21 +17,9 @@ public sealed class SpecimenTypeConfiguration : IEntityTypeConfiguration<Specime
             .HasMaxLength(SpecimenType.MaxNameLength);
 
         builder.HasIndex(x => x.Name).IsUnique();
-    }
-}
 
-public sealed class LaboratoryConfiguration : IEntityTypeConfiguration<Laboratory>
-{
-    public void Configure(EntityTypeBuilder<Laboratory> builder)
-    {
-        builder.ToTable("Laboratories");
-
-        builder.HasKey(x => x.Id);
-
-        builder.Property(x => x.Name)
-            .IsRequired()
-            .HasMaxLength(Laboratory.MaxNameLength);
-
-        builder.HasIndex(x => x.Name).IsUnique();
+        builder.Property(x => x.SnomedCode)
+            .HasMaxLength(SpecimenType.MaxSnomedCodeLength)
+            .IsUnicode(false);
     }
 }

@@ -58,5 +58,13 @@ public enum MonitoringEvent
     /// Someone finished a stage whose visit is Required without an attended one (a holder of FinishWithoutVisit, with a
     /// reason). The same finish is a <see cref="StageFinished"/> too.
     /// </summary>
-    StageFinishedWithoutVisit = 14
+    StageFinishedWithoutVisit = 14,
+
+    // 15 (HandoverNotPickedUp) is reserved for MC7's monitoring.
+
+    /// <summary>An open lab case has been at risk of missing its due date (MC19's strict clock) more than the rule's days.</summary>
+    LabCaseAtRisk = 16,
+
+    /// <summary>An open lab case is more than the rule's days past its due date (0: past it).</summary>
+    LabCaseOverdue = 17
 }

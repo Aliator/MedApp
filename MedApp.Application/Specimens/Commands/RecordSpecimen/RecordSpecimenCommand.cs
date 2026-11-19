@@ -12,7 +12,7 @@ public sealed record RecordSpecimenCommand(
     Guid PathwayId,
     Guid StageId,
     Guid SpecimenTypeId,
-    Guid LaboratoryId,
+    Guid? LabTestId,
     DateTime? TakenAtUtc,
     string? Site,
     string? RequestNotes,

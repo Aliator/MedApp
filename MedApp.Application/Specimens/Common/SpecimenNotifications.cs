@@ -12,18 +12,18 @@ namespace MedApp.Application.Specimens.Common;
 /// </summary>
 public static class SpecimenNotifications
 {
-    public const string RejectedTitle = "Specimen rejected";
-    public const string LostTitle = "Specimen lost";
+    public const string RejectedTitle = "Sample rejected";
+    public const string LostTitle = "Sample lost";
 
     /// <summary>"The lab rejected a Skin biopsy (punch) specimen."</summary>
     public static IReadOnlyList<Notification> Rejected(Specimen specimen, PathwayActor actor, DateTime nowUtc) =>
         For(specimen, actor, nowUtc, NotificationKind.SpecimenRejectedByLab, RejectedTitle,
-            $"The lab rejected {Article(specimen)} specimen.");
+            $"The lab rejected a sample ({TypeName(specimen)}).");
 
     /// <summary>"k.ashford marked a Skin biopsy (punch) specimen lost."</summary>
     public static IReadOnlyList<Notification> Lost(Specimen specimen, PathwayActor actor, DateTime nowUtc) =>
         For(specimen, actor, nowUtc, NotificationKind.SpecimenLost, LostTitle,
-            $"{actor.Username} marked {Article(specimen)} specimen lost.");
+            $"{actor.Username} marked a sample lost ({TypeName(specimen)}).");
 
     private static IReadOnlyList<Notification> For(
         Specimen specimen, PathwayActor actor, DateTime nowUtc, NotificationKind kind, string title, string message) =>
@@ -44,9 +44,6 @@ public static class SpecimenNotifications
             .ToList();
 
     /// <summary>"a Skin biopsy (punch)", or "an Endometrial biopsy".</summary>
-    private static string Article(Specimen specimen)
-    {
-        var name = specimen.SpecimenType?.Name is { Length: > 0 } typeName ? typeName : "lab";
-        return ("AEIOU".Contains(char.ToUpperInvariant(name[0])) ? "an " : "a ") + name;
-    }
+    private static string TypeName(Specimen specimen) =>
+        specimen.SpecimenType?.Name is { Length: > 0 } typeName ? typeName : "no type";
 }

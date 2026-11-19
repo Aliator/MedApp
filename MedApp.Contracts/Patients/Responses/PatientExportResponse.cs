@@ -91,6 +91,13 @@ public sealed class PatientExportResponse
     public List<ExportedResultResponse> Results { get; set; } = [];
 
     /// <summary>
+    /// The patient's lab cases (MC15), oldest opened first: the test, every step recorded (with the details typed), the
+    /// results entered when the report was authorised, any repeat asked for and any correction. Their history is in
+    /// <c>PathwayHistory</c>.
+    /// </summary>
+    public List<ExportedLabCaseResponse> LabCases { get; set; } = [];
+
+    /// <summary>
     /// The patient's consent records, oldest recorded first: the stage, the form, when and by whom it was signed, and
     /// any withdrawal or correction. Their history is in <c>PathwayHistory</c>; their scans are among <c>Attachments</c>.
     /// </summary>
@@ -181,6 +188,9 @@ public sealed class ExportedResultResponse
     public string? EnteredInErrorBy { get; set; }
 
     public string? ErrorDetail { get; set; }
+
+    /// <summary>A lab case's results (MC15), as entered when its report was authorised; null for a report that's a file.</summary>
+    public string? ReportText { get; set; }
 }
 
 /// <summary>A consent record in a patient's export: everything it holds, with staff by username only.</summary>
@@ -287,7 +297,11 @@ public sealed class ExportedSpecimenResponse
 
     public string SpecimenTypeName { get; set; } = string.Empty;
 
-    public string LaboratoryName { get; set; } = string.Empty;
+    /// <summary>The test asked for (MC13), if one was.</summary>
+    public string? LabTestName { get; set; }
+
+    /// <summary>The lab case it went into (MC15), if any.</summary>
+    public string? LabCaseNumber { get; set; }
 
     public string? Site { get; set; }
 
@@ -513,6 +527,11 @@ public sealed class ExportedStageResponse
 
     /// <summary>A choice node's recorded outcome, if any (MC10b: a name the template's author wrote; before choice nodes, its branch).</summary>
     public string? Branch { get; set; }
+
+    /// <summary>The results the lab entered on its own stage (MC16), as written, with who and when.</summary>
+    public string? ResultText { get; set; }
+    public string? ResultEnteredBy { get; set; }
+    public DateTime? ResultEnteredAtUtc { get; set; }
 }
 
 /// <summary>One change to one of the patient's pathways, as the export gives it.</summary>
@@ -752,4 +771,39 @@ public sealed class ExportedReferralHistoryEntryResponse
 
     /// <summary>What changed, as stored (JSON, structured values only), without staff account IDs.</summary>
     public string Details { get; set; } = "{}";
+}
+
+/// <summary>One of the patient's lab cases (MC15), as the export gives it, with its free text.</summary>
+public sealed class ExportedLabCaseResponse
+{
+    public Guid Id { get; set; }
+    public string Number { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+    public string? LabTestName { get; set; }
+    public Guid? PathwayId { get; set; }
+    public DateTime OpenedAtUtc { get; set; }
+    public string? OpenedBy { get; set; }
+    public DateTime? ReceivedAtUtc { get; set; }
+    public List<ExportedLabCaseStepResponse> Steps { get; set; } = [];
+    public string? ReportText { get; set; }
+    public DateTime? ReportedAtUtc { get; set; }
+    public string? ReportedBy { get; set; }
+    public string? RepeatDetail { get; set; }
+    public DateTime? RepeatRequestedAtUtc { get; set; }
+    public string? ErrorDetail { get; set; }
+    public DateTime? EnteredInErrorAtUtc { get; set; }
+    public string? EnteredInErrorBy { get; set; }
+}
+
+/// <summary>One recorded step of a lab case, as the export gives it.</summary>
+public sealed class ExportedLabCaseStepResponse
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Outcome { get; set; }
+    public string? Detail { get; set; }
+    public DateTime AtUtc { get; set; }
+    public string? By { get; set; }
+    public DateTime? EnteredInErrorAtUtc { get; set; }
+    public string? ErrorDetail { get; set; }
 }

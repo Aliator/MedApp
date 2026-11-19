@@ -64,6 +64,8 @@ public static class ServiceExtensions
         // schedule's settings, which the host binds to its configuration.
         services.AddScoped<IActivityLog, ActivityLog>();
         services.AddScoped<MedApp.Application.Common.Teams.ITeamBoundary, MedApp.Application.Common.Teams.TeamBoundary>();
+        // How a sample the lab receives finds its lab case (MC15, MC16).
+        services.AddScoped<MedApp.Application.Lab.Common.LabReceipt>();
         services.AddOptions<ActivityOptions>();
         services.AddOptions<RetentionOptions>();
         // Which email domains a practice's secure address may be in (the host binds it, the Letters section).

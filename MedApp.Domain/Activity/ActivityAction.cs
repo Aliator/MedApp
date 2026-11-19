@@ -167,5 +167,8 @@ public enum ActivityAction
     /// answered 404, as if it weren't there: <c>{targetKind, targetId}</c> in its details, the viewer as the actor; once
     /// per target in the view window, so the privacy officer can see probing.
     /// </summary>
-    TeamBoundaryRefused = 54
+    TeamBoundaryRefused = 54,
+
+    /// <summary>A lab case was opened (MC15): <c>{labCaseId, access}</c>.</summary>
+    LabCaseViewed = 55
 }

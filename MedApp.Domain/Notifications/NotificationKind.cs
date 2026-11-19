@@ -182,5 +182,20 @@ public enum NotificationKind
     /// A pathway was handed to your team (MC7, the relay): a stage your team works became current. A fixed title
     /// ("Pathway handed over"); the message names only who passed it, never the patient or the stage.
     /// </summary>
-    PathwayHandedOver = 44
+    PathwayHandedOver = 44,
+
+    // 45 (MonitoredHandoverNotPickedUp) is reserved for MC7's monitoring.
+
+    /// <summary>
+    /// The lab found a sample insufficient and asked for a repeat (MC15): to whoever asked for it and took it. A fixed
+    /// title ("Repeat sample requested"); the message names the test (admin-written) and the stage reopened, never the
+    /// patient or why.
+    /// </summary>
+    RepeatSampleRequested = 46,
+
+    /// <summary>A service alert (MC19): lab cases at risk of missing their due date ("Lab cases at risk").</summary>
+    MonitoredLabCaseAtRisk = 47,
+
+    /// <summary>A service alert (MC19): lab cases past their due date ("Lab cases overdue").</summary>
+    MonitoredLabCaseOverdue = 48
 }

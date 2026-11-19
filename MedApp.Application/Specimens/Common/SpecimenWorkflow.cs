@@ -42,14 +42,14 @@ public static class SpecimenWorkflow
     public static readonly IReadOnlyList<SpecimenStatus> OpenStatuses = [Taken, Sent, Received];
 
     public const string ChangedMeanwhileMessage =
-        "Someone else changed this specimen while you had it open. Reload it to see their change, then try again.";
+        "Someone else changed this sample while you had it open. Reload it to see their change, then try again.";
 
     public const string RestrictedTakeMessage =
-        "This patient's record is restricted, so a specimen can't be recorded for them until an admin lifts the restriction. " +
-        "Ask an admin what to do with the specimen.";
+        "This patient's record is restricted, so a sample can't be recorded for them until an admin lifts the restriction. " +
+        "Ask an admin what to do with the sample.";
 
     public const string ReportedFileMessage =
-        "This file is a specimen's report, so it can't be deleted on its own.";
+        "This file is a sample's report, so it can't be deleted on its own.";
 
     public static bool IsOpen(SpecimenStatus status) => OpenStatuses.Contains(status);
 
@@ -78,7 +78,7 @@ public static class SpecimenWorkflow
     };
 
     public static string ClosedMessage(SpecimenStatus status) =>
-        $"This specimen has been {Describe(status)}, so it can't be changed.";
+        $"This sample has been {Describe(status)}, so it can't be changed.";
 
     /// <summary>A change must start from the version saved now, or someone else has changed it since (409).</summary>
     public static void EnsureVersion(Specimen specimen, int expectedVersion)
@@ -87,13 +87,58 @@ public static class SpecimenWorkflow
             throw new ConflictException(ChangedMeanwhileMessage);
     }
 
-    /// <summary>When the report is expected: taken plus the type's expected days.</summary>
+    /// <summary>How many days before it's expected a sample with no case yet counts as due soon (a case's test sets its own).</summary>
+    public const int DueSoonDays = 2;
+
+    /// <summary>The clock of the lab case it's in (MC19), which its due date follows once the lab has it; else null.</summary>
+    public static Contracts.Lab.Responses.LabClockResponse? CaseClock(Specimen specimen, DateTime nowUtc) =>
+        specimen.LabCase is { } labCase ? Lab.Common.LabClock.Of(labCase, nowUtc) : null;
+
+    /// <summary>When the report is expected: its case's due moment (MC19), else taken plus the type's expected days.</summary>
+    public static DateTime ExpectedBy(Specimen specimen, DateTime nowUtc) =>
+        CaseClock(specimen, nowUtc)?.DueAtUtc ?? ExpectedBy(specimen);
+
+    /// <summary>Taken plus the type's expected days (a sample not in a case, and SQL's view of it).</summary>
     public static DateTime ExpectedBy(Specimen specimen) =>
         specimen.TakenAtUtc.AddDays(specimen.SpecimenType?.ExpectedTurnaroundDays ?? 0);
 
     /// <summary>Still open after it was expected back: a date comparison, nothing clinical.</summary>
     public static bool IsOverdueAtLab(Specimen specimen, DateTime nowUtc) =>
-        IsOpen(specimen.Status) && ExpectedBy(specimen) < nowUtc;
+        IsOpen(specimen.Status) && ExpectedBy(specimen, nowUtc) < nowUtc;
+
+    /// <summary>The Due filter's values.</summary>
+    public static readonly IReadOnlyList<string> DueValues = ["Overdue", "DueSoon", "NotDue"];
+
+    /// <summary>
+    /// Whether an open sample's due date matches the samples page's Due filter (<c>Overdue</c>, <c>DueSoon</c>,
+    /// <c>NotDue</c>): by its case's clock (MC19: due soon is at risk), else by when it's expected. Closed ones never.
+    /// </summary>
+    public static bool MatchesDue(Specimen specimen, string? due, DateTime nowUtc)
+    {
+        if (string.IsNullOrWhiteSpace(due))
+            return true;
+        if (!IsOpen(specimen.Status))
+            return false;
+
+        var which = due.Trim().ToLowerInvariant();
+        if (CaseClock(specimen, nowUtc) is { } clock)
+            return which switch
+            {
+                "overdue" => clock.State == Lab.Common.LabClock.Breached,
+                "duesoon" => clock.State == Lab.Common.LabClock.AtRisk,
+                "notdue" => clock.State == Lab.Common.LabClock.OnTime,
+                _ => true
+            };
+
+        var left = ExpectedBy(specimen) - nowUtc;
+        return which switch
+        {
+            "overdue" => left < TimeSpan.Zero,
+            "duesoon" => left >= TimeSpan.Zero && left <= TimeSpan.FromDays(DueSoonDays),
+            "notdue" => left > TimeSpan.FromDays(DueSoonDays),
+            _ => true
+        };
+    }
 
     /// <summary>
     /// Why a specimen can't be recorded as taken at this stage now, or null if it can: the record can change, the
@@ -106,16 +151,16 @@ public static class SpecimenWorkflow
         if (PatientRules.IsRestricted(pathway.Patient))
             return RestrictedTakeMessage;
         if (!PathwayWorkflow.IsOpen(pathway.Status))
-            return $"A specimen can't be recorded while the pathway is {PathwayWorkflow.Describe(pathway.Status)}.";
+            return $"A sample can't be recorded while the pathway is {PathwayWorkflow.Describe(pathway.Status)}.";
         return PathwayWorkflow.WhyStageCantBeEdited(pathway, stage) is { } why
-            ? $"A specimen can only be recorded at a stage being worked on. {why}"
+            ? $"A sample can only be recorded at a stage being worked on. {why}"
             : null;
     }
 
     /// <summary>Why its details can't be corrected now (only before it's sent, the record not restricted), or null.</summary>
     public static string? WhyCantEdit(Specimen specimen) =>
         PatientRules.WhyCantChange(specimen.Patient)
-        ?? (specimen.Status == Taken ? null : $"A specimen's details can only be changed before it's sent; this one has been {Describe(specimen.Status)}.");
+        ?? (specimen.Status == Taken ? null : $"A sample's details can only be changed before it's sent; this one has been {Describe(specimen.Status)}.");
 
     /// <summary>
     /// Why a lab step (to <paramref name="to"/>) can't be taken now, or null if it can: the status allows it and the
@@ -139,13 +184,13 @@ public static class SpecimenWorkflow
         };
         return allowed ? null : to switch
         {
-            Sent => $"Only a specimen not yet sent can be sent; this one has been {Describe(specimen.Status)}.",
+            Sent => $"Only a sample not yet sent can be sent; this one has been {Describe(specimen.Status)}.",
             Received => specimen.Status == Taken
-                ? "Record the specimen as sent before the lab receives it."
-                : $"This specimen has already been {Describe(specimen.Status)}.",
-            Reported => "Record the specimen as received by the lab before attaching its report.",
-            RejectedByLab => "Only a specimen sent to the lab can be rejected by it.",
-            _ => $"A specimen can't be {Describe(to)} from {Describe(specimen.Status)}."
+                ? "Record the sample as sent before the lab receives it."
+                : $"This sample has already been {Describe(specimen.Status)}.",
+            Reported => "Record the sample as received by the lab before attaching its report.",
+            RejectedByLab => "Only a sample sent to the lab can be rejected by it.",
+            _ => $"A sample can't be {Describe(to)} from {Describe(specimen.Status)}."
         };
     }
 
@@ -164,10 +209,10 @@ public static class SpecimenWorkflow
         actor.Has(Permission.RecordSpecimens) || actor.Has(Permission.ProcessSpecimens);
 
     public const string EnteredInErrorNotAllowedMessage =
-        "Only whoever recorded this specimen can mark it entered in error, within 24 hours of recording it. After that, ask an admin.";
+        "Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.";
 
     public const string LostNotAllowedMessage =
-        "Your roles don't allow recording specimens, so you can't mark one lost.";
+        "Your roles don't allow recording samples, so you can't mark one lost.";
 
     /// <summary>
     /// Why a step's time can't be used, or null if it can: not in the future, at most <see cref="MaxBackdating"/> back,

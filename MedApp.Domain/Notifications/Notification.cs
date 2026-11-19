@@ -64,17 +64,19 @@ public sealed class Notification
 
     /// <summary>
     /// Whether it's a monitoring notification: an admin told about what a member of staff did. It's about the staff,
-    /// not the patient, so a patient's export leaves it out. A set, not one range: 10 to 17, and 32 to 38 (the service
-    /// alerts and <see cref="NotificationKind.MonitoredStageFinishedWithoutVisit"/>).
+    /// not the patient, so a patient's export leaves it out. A set, not one range: 10 to 17, 32 to 38 (the service
+    /// alerts and <see cref="NotificationKind.MonitoredStageFinishedWithoutVisit"/>), and 47 and 48 (MC19's lab clocks).
     /// </summary>
     public static bool IsMonitoring(NotificationKind kind) =>
         kind is >= NotificationKind.MonitoredPathwayCreated and <= NotificationKind.MonitoredDueDateChanged
-            or >= NotificationKind.MonitoredReferralNotTriaged and <= NotificationKind.MonitoredStageFinishedWithoutVisit;
+            or >= NotificationKind.MonitoredReferralNotTriaged and <= NotificationKind.MonitoredStageFinishedWithoutVisit
+            or NotificationKind.MonitoredLabCaseAtRisk
+            or NotificationKind.MonitoredLabCaseOverdue;
 
     /// <summary>
     /// Whether notifications of this kind have a fixed title (the calendar kinds, 1 to 9: the appointment kinds'
     /// "Appointment booked", the meeting kinds' "Meeting invitation"; the monitoring kinds' "Stage finished"; the note
-    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; the result kinds' "Result ready"; the letter kinds' "Letter to approve"; "Clinic session cancelled"; "Scheduled job failing"; "MDT outcome recorded"; and "Data request due soon"), rather than the
+    /// deletion kinds' "Note deletion requested"; "Stage visit withdrawn"; "Referral triaged"; the specimen kinds' "Specimen rejected" and "Specimen lost"; the result kinds' "Result ready"; the letter kinds' "Letter to approve"; "Clinic session cancelled"; "Scheduled job failing"; "MDT outcome recorded"; "Data request due soon"; and "Repeat sample requested"), rather than the
     /// pathway's title, so anonymising a patient leaves it as it is.
     /// </summary>
     public static bool HasFixedTitle(NotificationKind kind) =>
@@ -93,6 +95,7 @@ public sealed class Notification
             or NotificationKind.ScheduledJobFailing
             or NotificationKind.MdtOutcomeRecorded
             or NotificationKind.DataRequestDueSoon
+            or NotificationKind.RepeatSampleRequested
         || IsMonitoring(kind)
         || IsNoteDeletion(kind);
 

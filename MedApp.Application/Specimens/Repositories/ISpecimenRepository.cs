@@ -49,13 +49,13 @@ public interface ISpecimenRepository
         Attachment report, Domain.Results.Result result, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
     /// <summary>The specimens a stage took, oldest first, with their types and labs.</summary>
-    Task<IReadOnlyList<Specimen>> GetForStageAsync(Guid stageId, CancellationToken ct);
+    Task<IReadOnlyList<Specimen>> GetForStageAsync(Guid? stageId, CancellationToken ct);
 
     /// <summary>A pathway's open specimens (taken, sent or received), oldest first, with their types: the last stage's gate.</summary>
     Task<IReadOnlyList<Specimen>> GetOpenForPathwayAsync(Guid pathwayId, CancellationToken ct);
 
     /// <summary>A page of specimens (see <see cref="SpecimenSearch"/>), with their patients, types and labs.</summary>
-    Task<PagedResult<Specimen>> SearchAsync(SearchSpecimensQuery query, DateTime nowUtc, CancellationToken ct);
+    Task<PagedResult<Specimen>> SearchAsync(SearchSpecimensQuery query, Guid? labTeamId, DateTime nowUtc, CancellationToken ct);
 
     /// <summary>Whether a file is some specimen's report (it can't then be deleted on its own).</summary>
     Task<bool> IsReportAsync(Guid attachmentId, CancellationToken ct);
@@ -84,19 +84,11 @@ public interface ISpecimenRepository
 
     Task DeleteTypeAsync(Guid id, CancellationToken ct);
 
-    Task<IReadOnlyList<Laboratory>> GetLaboratoriesAsync(bool includeArchived, CancellationToken ct);
+    /// <summary>A lab test with its steps, for a sample's choice (MC13), or null.</summary>
+    Task<Domain.Lab.LabTest?> GetLabTestAsync(Guid id, CancellationToken ct);
 
-    Task<Laboratory?> GetLaboratoryAsync(Guid id, CancellationToken ct);
-
-    Task<bool> LaboratoryNameExistsAsync(string name, Guid? exceptId, CancellationToken ct);
-
-    /// <summary>Which of these labs some specimen was sent to (so they're archived, not deleted).</summary>
-    Task<IReadOnlySet<Guid>> GetLaboratoriesInUseAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
-
-    Task AddLaboratoryAsync(Laboratory laboratory, CancellationToken ct);
-
-    /// <summary>Saves a lab changed after <see cref="GetLaboratoryAsync"/>.</summary>
-    Task UpdateLaboratoryAsync(Laboratory laboratory, CancellationToken ct);
-
-    Task DeleteLaboratoryAsync(Guid id, CancellationToken ct);
+    /// <summary>
+    /// A stage's other received samples that aren't in a lab case yet (tracked), which join a case opened there (MC15).
+    /// </summary>
+    Task<IReadOnlyList<Specimen>> GetReceivedWithoutCaseAsync(Guid stageId, Guid exceptId, CancellationToken ct);
 }

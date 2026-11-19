@@ -22,11 +22,11 @@ namespace MedApp.Application.Specimens.Common;
 /// changed, without values.
 /// </para>
 /// </summary>
-public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, PathwayActor actor, DateTime nowUtc)
+public sealed class SpecimenChange(Specimen specimen, PatientPathway? pathway, PathwayActor actor, DateTime nowUtc)
 {
     /// <summary>The fields an edit names when it changes them, as the audit and the timeline show them.</summary>
     public const string SpecimenTypeField = "specimenType";
-    public const string LaboratoryField = "laboratory";
+    public const string LabTestField = "labTest";
     public const string TakenAtField = "takenAtUtc";
     public const string RequestingUserField = "requestingUser";
     public const string SiteField = "site";
@@ -34,7 +34,7 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
 
     /// <summary>The edited fields whose values everyone may see on the timeline (structured, never free text).</summary>
     public static readonly IReadOnlySet<string> StructuredFields =
-        new HashSet<string> { SpecimenTypeField, LaboratoryField, TakenAtField, RequestingUserField };
+        new HashSet<string> { SpecimenTypeField, LabTestField, TakenAtField, RequestingUserField };
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -57,7 +57,7 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
     /// </summary>
     public void PassToLab(Guid labTeamId)
     {
-        if (pathway.TeamId != labTeamId)
+        if (pathway is not null && pathway.TeamId != labTeamId)
             _newGrants.Add(MedApp.Domain.Teams.PathwayAccess.StageOwner(pathway.Id, pathway.PatientId, labTeamId, nowUtc));
     }
 
@@ -76,7 +76,7 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
     /// </summary>
     public bool EditDetails(
         SpecimenType type,
-        Laboratory laboratory,
+        Domain.Lab.LabTest? labTest,
         DateTime takenAtUtc,
         string? site,
         string? requestNotes,
@@ -95,12 +95,12 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
             specimen.SpecimenType = type;
         }
 
-        if (specimen.LaboratoryId != laboratory.Id)
+        if (specimen.LabTestId != labTest?.Id)
         {
-            fields.Add(LaboratoryField);
-            changes[LaboratoryField] = new { from = specimen.Laboratory?.Name, to = laboratory.Name };
-            specimen.LaboratoryId = laboratory.Id;
-            specimen.Laboratory = laboratory;
+            fields.Add(LabTestField);
+            changes[LabTestField] = new { from = specimen.LabTest?.Name, to = labTest?.Name };
+            specimen.LabTestId = labTest?.Id;
+            specimen.LabTest = labTest;
         }
 
         if (specimen.TakenAtUtc != takenAtUtc)
@@ -196,25 +196,27 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
         specimen.Version++;
 
         // The specimen's identity first, then what this change did: every entry says which specimen, of what type,
-        // at which lab (names as they are now: admin-written).
+        // for which test and from where (names as they are now: admin-written). Entries from before MC13 name the lab
+        // it went to (laboratoryId, laboratory), kept as written.
         var details = new Dictionary<string, object?>
         {
             ["specimenId"] = specimen.Id,
             ["number"] = specimen.Number,
             ["specimenTypeId"] = specimen.SpecimenTypeId,
             ["specimenType"] = specimen.SpecimenType?.Name,
-            ["laboratoryId"] = specimen.LaboratoryId,
-            ["laboratory"] = specimen.Laboratory?.Name,
+            ["labTestId"] = specimen.LabTestId,
+            ["labTest"] = specimen.LabTest?.Name,
+            ["source"] = specimen.Source.ToString(),
         };
         foreach (var property in JsonSerializer.SerializeToElement(values, Json).EnumerateObject())
             details[property.Name] = property.Value;
 
-        var stage = pathway.Stages.FirstOrDefault(s => s.Id == specimen.StageId);
+        var stage = pathway?.Stages.FirstOrDefault(s => s.Id == specimen.StageId);
         _auditEntries.Add(new PatientPathwayAuditEntry
         {
             Id = Guid.NewGuid(),
-            PatientPathwayId = pathway.Id,
-            PathwayTitle = pathway.Title,
+            PatientPathwayId = pathway?.Id ?? PatientPathwayAuditEntry.NoPathway,
+            PathwayTitle = pathway?.Title ?? string.Empty,
             PatientId = specimen.PatientId,
             TeamId = specimen.TeamId,
             StageId = specimen.StageId,

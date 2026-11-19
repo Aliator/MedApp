@@ -13,6 +13,8 @@ using MedApp.Contracts.Specimens.Responses;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Specimens;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Teams.Repositories;
 using MediatR;
 
 namespace MedApp.Application.Specimens.Commands.ReportSpecimen;
@@ -63,6 +65,8 @@ public sealed class ReportSpecimenHandler(
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
     INotificationSender notifications,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<ReportSpecimenCommand, SpecimenResponse>
 {
@@ -73,9 +77,13 @@ public sealed class ReportSpecimenHandler(
         if (request.ContentLength > AttachmentLimits.MaxFileBytes)
             throw new FileTooLargeException();
 
-        var specimen = await repository.GetForUpdateOrThrowAsync(request.SpecimenId, cancellationToken);
+        var specimen = await repository.GetVisibleForUpdateOrThrowAsync(
+            request.SpecimenId, boundary, teams, request.Actor.Teams, cancellationToken);
         if (SpecimenWorkflow.WhyCantMoveTo(specimen, SpecimenStatus.Reported) is { } why)
             throw new ConflictException(why);
+        // A sample in a lab case (MC15) is reported by authorising the case's report, never on its own.
+        if (specimen.LabCase is { } labCase)
+            throw new ConflictException(InLabCaseMessage(labCase.Number));
         SpecimenWorkflow.EnsureVersion(specimen, request.ExpectedVersion);
 
         var fileName = AttachmentFileName.Clean(request.FileName)
@@ -157,6 +165,9 @@ public sealed class ReportSpecimenHandler(
     }
 
     /// <summary>A specimen's result's title: its type and number (admin-written and MedApp's own), "Skin biopsy (punch) MA26-000123".</summary>
+    public static string InLabCaseMessage(string number) =>
+        $"This sample is in lab case {number}: its report is authorised on the case.";
+
     public static string ResultTitle(Specimen specimen)
     {
         var title = $"{specimen.SpecimenType?.Name ?? "Specimen"} {specimen.Number}".Trim();

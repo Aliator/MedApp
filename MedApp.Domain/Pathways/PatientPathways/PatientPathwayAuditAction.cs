@@ -160,5 +160,27 @@ public enum PatientPathwayAuditAction
     /// A template's addable branch was added (MC10): <c>{templateBranchId, branch, afterStageId, stageIds}</c>; never
     /// the reason, which is kept on the branch addition.
     /// </summary>
-    BranchAdded = 49
+    BranchAdded = 49,
+
+    // Lab cases (MC15): written by LabCaseChange, on the case's pathway (or none: PatientPathwayAuditEntry.NoPathway).
+    // Details hold the case's ID and number and the test, steps and outcomes by ID and name; never the results, a
+    // detail typed or why a repeat was asked for.
+
+    /// <summary>A lab case was opened: <c>{labCaseId, number, labTestId, test, source}</c>.</summary>
+    LabCaseOpened = 50,
+
+    /// <summary>A step or a choice's outcome was recorded: <c>{labCaseId, number, stepId, step, choice, outcome}</c>.</summary>
+    LabStepRecorded = 51,
+
+    /// <summary>The latest step was marked entered in error: <c>{labCaseId, number, stepId, step}</c>.</summary>
+    LabStepEnteredInError = 52,
+
+    /// <summary>The results were entered and the report authorised: <c>{labCaseId, number, resultId}</c>.</summary>
+    LabReportAuthorised = 53,
+
+    /// <summary>The sample was insufficient and a repeat asked for: <c>{labCaseId, number}</c>.</summary>
+    RepeatSampleRequested = 54,
+
+    /// <summary>The case was marked entered in error, freeing its samples: <c>{labCaseId, number}</c>.</summary>
+    LabCaseEnteredInError = 55
 }

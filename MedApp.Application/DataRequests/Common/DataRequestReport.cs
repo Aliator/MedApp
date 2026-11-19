@@ -254,7 +254,7 @@ public static class DataRequestReport
         {
             Heading(md, "Samples taken for tests");
             foreach (var s in export.Specimens)
-                Bullet(md, $"{s.Number}: {s.SpecimenTypeName}, taken {Words.Time(s.TakenAtUtc)}, sent to {s.LaboratoryName}: {Words.Humanise(s.Status)}",
+                Bullet(md, $"{s.Number}: {s.SpecimenTypeName}, taken {Words.Time(s.TakenAtUtc)}{(s.LabTestName is { } test ? $", for {test}" : "")}: {Words.Humanise(s.Status)}",
                     string.Join("\n", new[] { s.Site, s.RequestNotes, s.RejectionReason, s.ClosedDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
             md.AppendLine();
         }

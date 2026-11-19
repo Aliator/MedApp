@@ -10,7 +10,11 @@ using MedApp.Domain.Teams;
 using MedApp.Application.Referrals.Common;
 using MedApp.Infrastructure.Data.Configurations.Appointments;
 using MedApp.Infrastructure.Data.Configurations.Referrals;
+using MedApp.Application.Lab.Common;
+using MedApp.Application.Specimens.Common;
+using MedApp.Domain.Lab;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace MedApp.Infrastructure.Data.Repositories;
 
@@ -20,7 +24,8 @@ namespace MedApp.Infrastructure.Data.Repositories;
 /// <see cref="PathwayChange"/> also brings the appointments it asked for and the history of those it changed;
 /// appointments loaded for update by <c>AppointmentRepository</c> share this DbContext, so the same save saves them.
 /// </summary>
-public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatientPathwayRepository
+public sealed class PatientPathwayRepository(MedAppDbContext context, IOptions<SpecimenOptions> specimenOptions)
+    : IPatientPathwayRepository
 {
     public async Task AddAsync(PatientPathway pathway, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
     {
@@ -39,12 +44,15 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     public async Task<PatientPathway?> GetByIdAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientPathways.AsNoTracking())
             .Include(x => x.Notes)
+            // A lab stage's cases (MC16), for its labCase fields and the gate.
+            .Include(x => x.Stages).ThenInclude(s => s.LabCases)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
 
     public async Task<PatientPathway?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.PatientPathways)
             .Include(x => x.Notes)
+            .Include(x => x.Stages).ThenInclude(s => s.LabCases)
             // The referral it was accepted from, with its team's targets and its pauses: a change may move its
             // waiting-time clock, saved in the same save (PathwayChange).
             .Include(x => x.Referral!).ThenInclude(r => r.Team)
@@ -184,6 +192,7 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         }
 
         context.PatientPathwayAuditEntries.AddRange(change.AuditEntries);
+        await OpenLabStageCasesAsync(change, ct);
         context.Appointments.AddRange(change.NewAppointments);
         context.AppointmentEvents.AddRange(change.AppointmentEvents);
         context.PatientPathwayNotes.AddRange(change.NewNotes);
@@ -191,6 +200,52 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         context.ReferralEvents.AddRange(change.ReferralEvents);
         context.ReferralClockPauses.AddRange(change.NewPauses);
         context.PathwayAccess.AddRange(grants);
+    }
+
+    /// <summary>
+    /// MC16: each lab stage the change made current opens its lab case, unless it has one open, waiting for its sample
+    /// (the test from the samples taken for it, else chosen by the lab when the sample comes), numbered from the one
+    /// sequence; saved in the same save, with its <c>LabCaseOpened</c> entry.
+    /// </summary>
+    private async Task OpenLabStageCasesAsync(PathwayChange change, CancellationToken ct)
+    {
+        if (!change.ReachedStages.Any(s => s.OwnerTeamId is not null))
+            return;
+
+        var labTeamId = await context.Teams
+            .Where(t => t.Kind == Domain.Teams.TeamKind.Lab && !t.IsArchived)
+            .Select(t => (Guid?)t.Id)
+            .FirstOrDefaultAsync(ct);
+        if (labTeamId is not { } lab)
+            return;
+
+        var reached = LabStages.ReachedLabStages(change, lab);
+        if (reached.Count == 0)
+            return;
+
+        var pathway = change.Pathway;
+        var samples = await context.Specimens.AsNoTracking().Where(s => s.PathwayId == pathway.Id).ToListAsync(ct);
+        foreach (var stage in reached)
+        {
+            var testId = LabStages.TestFromSamples(pathway, stage, samples, lab);
+            var test = testId is { } id ? await context.LabTests.Include(t => t.Steps).FirstOrDefaultAsync(t => t.Id == id, ct) : null;
+            var sequence = await NextSpecimenNumberAsync(ct);
+            var opened = LabCaseChange.Open(
+                SpecimenNumbers.Format(specimenOptions.Value.NumberPrefix, change.NowUtc, sequence),
+                testId, test, pathway.PatientId, lab, Domain.Specimens.SpecimenSource.Clinic, pathway.TeamId,
+                null, null, pathway, stage.Id, [], change.Actor, change.NowUtc);
+            stage.LabCases.Add(opened.Case);
+            context.LabCases.Add(opened.Case);
+            context.PatientPathwayAuditEntries.AddRange(opened.AuditEntries);
+        }
+    }
+
+    private async Task<long> NextSpecimenNumberAsync(CancellationToken ct)
+    {
+        var values = await context.Database
+            .SqlQueryRaw<long>($"SELECT NEXT VALUE FOR [{Configurations.Specimens.SpecimenConfiguration.NumberSequence}] AS [Value]")
+            .ToListAsync(ct);
+        return values.Single();
     }
 
     /// <summary>
