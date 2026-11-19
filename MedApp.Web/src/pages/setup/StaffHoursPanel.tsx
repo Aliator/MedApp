@@ -18,6 +18,7 @@ import {formatDate} from '../../utils/dates';
 import {rowProblem, staffInput, staffRows, WEEK_DAYS, type HoursRow} from '../../utils/workingHours';
 import {saveProblem, type SaveProblem} from '../saveProblem';
 import type {TemplatesOwner} from './calendarTemplatesOwner';
+import type {PageError} from './setupList';
 
 /** A person's hours as days with times, for `hoursSummary`. */
 export const hoursDays = (hours: StaffHours) => (hours.days ?? []).map((d) => ({dayOfWeek: d.dayOfWeek, from: d.starts, to: d.ends}));
@@ -34,7 +35,7 @@ export const problemText = (problem: SaveProblem) => problem.message ?? Object.v
  * day closes theirs. Holders of ManageClinics or ManageAnyCalendar change them (the API's `canEdit`), from today; past
  * days keep what applied then, and what's already on the calendar stays where it is.
  */
-export function StaffHoursPanel({owner, onError}: {owner: TemplatesOwner; onError: (message: string | null) => void}) {
+export function StaffHoursPanel({owner, onError}: {owner: TemplatesOwner; onError: (error: PageError) => void}) {
   const hours = useQuery({...staffHoursQuery(owner.ownerId ?? ''), enabled: owner.ownerId !== undefined});
   const sites = useQuery(sitesQuery());
   const {setHours} = useCalendarActions();
@@ -43,7 +44,7 @@ export function StaffHoursPanel({owner, onError}: {owner: TemplatesOwner; onErro
   const [isDefault, setIsDefault] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  if (hours.isError) return <AlertMessage message="The working hours could not be loaded. Please try again." />;
+  if (hours.isError) return <AlertMessage label="Working hours not loaded" message="The working hours could not be loaded. Please try again." />;
 
   const data = hours.data;
   const whose = owner.isOwn ? 'You work' : `${owner.ownerName || 'They'} works`;
@@ -127,7 +128,7 @@ export function StaffHoursPanel({owner, onError}: {owner: TemplatesOwner; onErro
         onConfirm={save}
         onCancel={close}>
         <VStack gap={3}>
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Working hours not saved" message={problem} />}
           <Switch
             label="Use the default hours: Monday to Friday, 08:00 to 18:00"
             value={isDefault}

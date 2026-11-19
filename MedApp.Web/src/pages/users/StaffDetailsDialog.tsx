@@ -69,7 +69,10 @@ function StaffDetailsForm({target, onClose, onSaved}: StaffDetailsDialogProps) {
       onCancel={close}>
       <VStack gap={2}>
         {save.isError && !errors && (
-          <AlertMessage message={problemMessage(save.error, `The details could not be saved for ${target?.username ?? 'them'}. Please try again.`)} />
+          <AlertMessage
+            label="Details not saved"
+            message={problemMessage(save.error, `The details could not be saved for ${target?.username ?? 'them'}. Please try again.`)}
+          />
         )}
         {/* Only while it's open, so its autofocus can't act in a closing dialog. */}
         {target && (

@@ -137,7 +137,7 @@ export function ClinicsPage({search, onSearchChange}: ClinicsPageProps) {
       title="Clinics"
       subtitle={subtitle}
       fill
-      message={sessions.isError ? <AlertMessage message="The clinic sessions could not be loaded. Please try again." /> : undefined}
+      message={sessions.isError ? <AlertMessage label="Clinic sessions not loaded" message="The clinic sessions could not be loaded. Please try again." /> : undefined}
       actions={
         <>
           {canManage && <Button label="Clinic Patterns" variant="secondary" href="/calendar/clinics/patterns" icon={<Icon icon={AppIcon.ClinicPatterns} />} />}

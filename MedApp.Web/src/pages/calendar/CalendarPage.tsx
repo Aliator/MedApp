@@ -247,7 +247,8 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
   const members = [...(team.data?.members ?? [])].sort((a, b) => (a.staffUsername ?? '').localeCompare(b.staffUsername ?? ''));
   const memberIds = members.map((m) => m.staffUserId ?? '');
 
-  const [message, setMessage] = useState<string | null>(null);
+  // What failed (the headline) and the API's words.
+  const [message, setMessage] = useState<{label: string; message: string} | null>(null);
   const [held, setHeld] = useState<CalendarSelection | null>(null);
   const [heldPlacement, setHeldPlacement] = useState<'end' | 'below'>('end');
   const heldAnchor = useRef<HTMLElement | null>(null);
@@ -368,7 +369,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           endUtc: to.endUtc,
           expectedLastUpdated: m.lastUpdated,
         },
-        {onSuccess: () => announce('Meeting moved'), onError: (error) => setMessage(problemMessage(error, 'The meeting could not be moved.'))},
+        {onSuccess: () => announce('Meeting moved'), onError: (error) => setMessage({label: 'Meeting not moved', message: problemMessage(error, 'The meeting could not be moved.')})},
       );
       return;
     }
@@ -403,7 +404,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       const day = to.date === block.date ? '' : `${formatCalendarDay(to.date)}, `;
       announce(`${block.activityName ?? 'Blocked time'} moved to ${day}${formatTimeRange(to.startUtc, to.endUtc)}`);
     } catch (error) {
-      setMessage(problemMessage(error, 'The blocked time could not be moved.'));
+      setMessage({label: 'Blocked time not moved', message: problemMessage(error, 'The blocked time could not be moved.')});
       // A clash or a change made meanwhile: the calendar as it is now, so another try starts from there.
       void calendar.refetch();
     } finally {
@@ -422,7 +423,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
         },
         onError: (error) => {
           setMove(null);
-          setMessage(problemMessage(error, 'The appointment could not be moved.'));
+          setMessage({label: 'Appointment not moved', message: problemMessage(error, 'The appointment could not be moved.')});
         },
       },
     );
@@ -447,7 +448,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
     setMessage(null);
     calendarActions.setWeekTemplate.mutate(
       {userId: staffUserId, weekTemplateId},
-      {onSuccess: () => announce(done), onError: (error) => setMessage(problemMessage(error, 'The default week could not be changed.'))},
+      {onSuccess: () => announce(done), onError: (error) => setMessage({label: 'Default week not changed', message: problemMessage(error, 'The default week could not be changed.')})},
     );
   }
 
@@ -686,8 +687,9 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
       message={
         message || linked.isError || isLinkedMeetingGone ? (
           <AlertMessage
+            label={message?.label ?? (linked.isError ? 'Appointment not found' : 'Meeting not found')}
             message={
-              message ??
+              message?.message ??
               (linked.isError ? "That appointment couldn't be found. It may have been deleted." : "That meeting couldn't be found. It may have been cancelled.")
             }
           />
@@ -893,7 +895,7 @@ export function CalendarPage({search, onSearchChange}: CalendarPageProps) {
           <Card ref={cardRef} padding={0} width="100%" height="100%">
             {shown.isError ? (
               <VStack padding={4}>
-                <AlertMessage message="The calendar could not be loaded. Please try again." />
+                <AlertMessage label="Calendar not loaded" message="The calendar could not be loaded. Please try again." />
               </VStack>
             ) : !shown.data ? (
               <VStack gap={2} padding={4}>

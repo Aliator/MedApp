@@ -33,6 +33,8 @@ interface StepWords {
   icon: IconType;
   announced: string;
   failed: string;
+  /** The banner's headline when it fails. */
+  notDone: string;
 }
 
 const WORDS: Record<SpecimenStep, StepWords> = {
@@ -43,6 +45,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     icon: AppIcon.SpecimenSent,
     announced: 'Sample marked sent',
     failed: 'The sample could not be marked sent.',
+    notDone: 'Not marked sent',
   },
   received: {
     title: 'Mark Received',
@@ -51,6 +54,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     icon: AppIcon.SpecimenReceived,
     announced: 'Sample marked received',
     failed: 'The sample could not be marked received.',
+    notDone: 'Not marked received',
   },
   rejected: {
     title: 'Reject Sample',
@@ -59,6 +63,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     icon: AppIcon.StatusCancelled,
     announced: 'Sample rejected',
     failed: 'The sample could not be rejected.',
+    notDone: 'Sample not rejected',
   },
   lost: {
     title: 'Mark Lost',
@@ -67,6 +72,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     icon: AppIcon.Warning,
     announced: 'Sample marked lost',
     failed: 'The sample could not be marked lost.',
+    notDone: 'Not marked lost',
   },
   enteredInError: {
     title: 'Mark Entered in Error?',
@@ -76,6 +82,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
     icon: AppIcon.EnteredInError,
     announced: 'Sample marked entered in error',
     failed: 'The sample could not be marked entered in error.',
+    notDone: 'Not marked entered in error',
   },
 };
 
@@ -161,7 +168,7 @@ export function SpecimenStepDialog({step, specimen, onClose}: SpecimenStepDialog
           <MetadataListItem label="Taken">{formatDateTime(specimen.takenAtUtc ?? '')}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={words.notDone} message={message} />}
         {isTimed && (
           <>
             <StepTimeFields step={step === 'sent' ? 'Sent' : 'Received'} value={at} onChange={setAt} status={fieldStatus(errors, 'atUtc')} />

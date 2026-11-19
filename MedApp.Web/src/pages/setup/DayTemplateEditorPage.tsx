@@ -85,9 +85,15 @@ export function DayTemplateEditorPage({id, staff}: {id?: string; staff?: string}
       loadingMessage="Loading day template..."
       message={
         failed ? (
-          <AlertMessage message="The day template could not be loaded. Please try again." />
+          <AlertMessage label="Day template not loaded" message="The day template could not be loaded. Please try again." />
         ) : (
-          !canAdd && <AlertMessage status="info" message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`} />
+          !canAdd && (
+            <AlertMessage
+              status="info"
+              label="Owner or admin only"
+              message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`}
+            />
+          )
         )
       }
     />
@@ -95,6 +101,9 @@ export function DayTemplateEditorPage({id, staff}: {id?: string; staff?: string}
 }
 
 const TIMES = quarterHours(EARLIEST, LATEST);
+
+/** Why Save did nothing: a block's own messages say what to change. */
+const BLOCKS_NEED_CHANGING = 'Some blocks need changing first: see the messages beside them.';
 
 /** The times a block can start or end at, with its own time too if that's off the 15-minute steps. */
 const timeOptions = (times: string[], current: string) =>
@@ -214,7 +223,7 @@ function DayTemplateEditor({
   const onSave = () => {
     setProblem(NO_PROBLEM);
     if (hasProblems) {
-      setProblem({validation: null, message: 'Some blocks need changing first: see the messages beside them.'});
+      setProblem({validation: null, message: BLOCKS_NEED_CHANGING});
       return;
     }
     // A new one applies nowhere yet; changes to one in use apply from today, so they're confirmed.
@@ -362,9 +371,18 @@ function DayTemplateEditor({
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={['name']} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage
+            label={problem.message === BLOCKS_NEED_CHANGING ? 'Blocks need changing' : template ? 'Not saved' : 'Not created'}
+            message={problem.message}
+          />
         ) : (
-          !canEdit && <AlertMessage status="info" message={`Only ${owner.ownerName || 'its owner'} or an admin can change this day template.`} />
+          !canEdit && (
+            <AlertMessage
+              status="info"
+              label="Read-only day template"
+              message={`Only ${owner.ownerName || 'its owner'} or an admin can change this day template.`}
+            />
+          )
         )
       }
       dialogs={

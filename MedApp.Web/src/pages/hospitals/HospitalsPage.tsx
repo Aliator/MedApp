@@ -64,7 +64,7 @@ export function HospitalsPage() {
   const [method, setMethod] = useState('Post');
   const [days, setDays] = useState<number | null>(10);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string | null} | null>(null);
   const close = () => setDialog(null);
 
   const edit = (hospital: Hospital | null) => {
@@ -96,7 +96,11 @@ export function HospitalsPage() {
     setError(null);
     (archive ? actions.archive : actions.restore).mutate(hospital.id ?? '', {
       onSuccess: () => announce(`${hospital.name ?? 'It'} ${archive ? 'archived' : 'restored'}`),
-      onError: (e) => setError(saveProblem(e, archive ? 'archive' : 'restore', 'hospital').message),
+      onError: (e) =>
+        setError({
+          label: archive ? 'Hospital not archived' : 'Hospital not restored',
+          message: saveProblem(e, archive ? 'archive' : 'restore', 'hospital').message,
+        }),
     });
   };
 
@@ -108,7 +112,7 @@ export function HospitalsPage() {
       title="Hospitals"
       subtitle={hospitals.data ? `${active} active ${active === 1 ? 'hospital' : 'hospitals'}` : 'Loading...'}
       fill
-      message={error && <AlertMessage message={error} />}
+      message={error && <AlertMessage label={error.label} message={error.message ?? undefined} />}
       dialogs={
         <>
           <ConfirmDialog
@@ -128,7 +132,7 @@ export function HospitalsPage() {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editing ? 'Hospital not saved' : 'Hospital not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={name}
@@ -193,7 +197,7 @@ export function HospitalsPage() {
                   close();
                 },
                 onError: (e) => {
-                  setError(saveProblem(e, 'delete', 'hospital').message);
+                  setError({label: 'Hospital not deleted', message: saveProblem(e, 'delete', 'hospital').message});
                   close();
                 },
               })
@@ -213,7 +217,7 @@ export function HospitalsPage() {
         footerActions={<Button label="Add Hospital" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => edit(null)} />}>
         {hospitals.isError ? (
           <VStack padding={6}>
-            <AlertMessage message="The hospitals could not be loaded. Please try again." />
+            <AlertMessage label="Hospitals not loaded" message="The hospitals could not be loaded. Please try again." />
           </VStack>
         ) : hospitals.isPending || items.length === 0 ? (
           <VStack padding={6}>

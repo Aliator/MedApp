@@ -83,8 +83,8 @@ export function LogDataRequestDialog({isOpen, patientId, patient, onClose}: LogD
       hasSaveShortcut>
       <VStack gap={3} hAlign="stretch">
         <PatientBanner patient={patient} isCompact />
-        {others.length > 0 && <AlertMessage message={errors?.title ?? 'The data request could not be logged.'} details={others} />}
-        {message && <AlertMessage message={message} />}
+        {others.length > 0 && <AlertMessage label="Check the form" message={errors?.title ?? 'The data request could not be logged.'} details={others} />}
+        {message && <AlertMessage label="Data request not logged" message={message} />}
         <DateInput
           label="Received on"
           value={receivedOn as ISODateString}

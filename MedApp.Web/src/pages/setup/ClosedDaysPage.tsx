@@ -64,8 +64,9 @@ export const closedDaysPageQuery = (search: ClosedDaysSearch, today?: string) =>
 /** Why a bank holiday wasn't added, in words. */
 const SKIPPED_REASONS: Record<string, string> = {AlreadyClosed: 'already closed', Past: 'past'};
 
-/** What a change did, shown above the list until it's dismissed: a headline, and a line for each thing to know. */
+/** What a change did, shown above the list until it's dismissed: a headline, the message, and a line for each thing to know. */
 export interface Outcome {
+  label: string;
   message: string;
   details: string[];
 }
@@ -93,7 +94,7 @@ export function bankHolidaysOutcome(result: AddedBankHolidays): Outcome {
     ),
     ...(result.added ?? []).flatMap(bookedOn),
   ];
-  return {message, details};
+  return {label: added === 0 ? 'No bank holidays added' : 'Bank holidays added', message, details};
 }
 
 /**
@@ -102,9 +103,13 @@ export function bankHolidaysOutcome(result: AddedBankHolidays): Outcome {
  */
 export function closedDayOutcome(saved: ClosedDay, name: string): Outcome {
   if (!isClosedEverywhere(saved)) {
-    return {message: `${formatShortDayDate(saved.date ?? '')} closed at ${saved.siteName ?? 'the site'}: ${saved.name ?? name}.`, details: []};
+    return {
+      label: 'Closed day added',
+      message: `${formatShortDayDate(saved.date ?? '')} closed at ${saved.siteName ?? 'the site'}: ${saved.name ?? name}.`,
+      details: [],
+    };
   }
-  return {message: `${saved.name ?? name} added as a closed day.`, details: bookedOn(saved)};
+  return {label: 'Closed day added', message: `${saved.name ?? name} added as a closed day.`, details: bookedOn(saved)};
 }
 
 /** Where a closed day is closed, in words: "Everywhere", or its site's name. */
@@ -156,7 +161,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
   const [name, setName] = useState('');
   const [problem, setProblem] = useState<Problem>(NO_PROBLEM);
   const [removing, setRemoving] = useState<ClosedDay | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string} | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   // Each outcome is a new banner, so one dismissed doesn't hide the next.
   const [outcomeKey, setOutcomeKey] = useState(0);
@@ -219,7 +224,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
         setRemoving(null);
       },
       onError: (e) => {
-        setError(problemMessage(e, 'The closed day could not be removed. Please try again.'));
+        setError({label: 'Closed day not removed', message: problemMessage(e, 'The closed day could not be removed. Please try again.')});
         setRemoving(null);
       },
     });
@@ -235,7 +240,8 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
         const skipped = result.skipped?.length ?? 0;
         announce([next.message, skipped > 0 ? `${skipped} left out.` : null, ...next.details.slice(skipped)].filter(Boolean).join(' '));
       },
-      onError: (e) => setError(problemMessage(e, 'The bank holidays could not be added. Please try again.')),
+      onError: (e) =>
+        setError({label: 'Bank holidays not added', message: problemMessage(e, 'The bank holidays could not be added. Please try again.')}),
     });
   };
 
@@ -302,9 +308,9 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
       fill
       message={
         error ? (
-          <AlertMessage message={error} />
+          <AlertMessage label={error.label} message={error.message} />
         ) : (
-          isError && <AlertMessage message="The closed days could not be loaded. Please try again." />
+          isError && <AlertMessage label="Closed days not loaded" message="The closed days could not be loaded. Please try again." />
         )
       }
       actions={
@@ -354,7 +360,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
             onCancel={() => setIsAdding(false)}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label="Closed day not added" message={problem.message} />}
               <DateInput
                 label="Date"
                 value={date as ISODateString | undefined}
@@ -391,10 +397,11 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
               {date !== undefined &&
                 isEverywhere &&
                 (bookings.isError ? (
-                  <AlertMessage status="warning" message="What's already booked then could not be checked." />
+                  <AlertMessage status="warning" label="Bookings not checked" message="What's already booked then could not be checked." />
                 ) : bookings.data ? (
                   <AlertMessage
                     status={hasBookings(bookings.data) ? 'warning' : 'info'}
+                    label={hasBookings(bookings.data) ? 'Already booked then' : 'Nothing is booked then'}
                     message={bookingsWords(bookings.data, formatShortDayDate(date, {withYear: false}))}
                   />
                 ) : (
@@ -445,6 +452,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
               <AlertMessage
                 key={outcomeKey}
                 status="success"
+                label={outcome.label}
                 message={outcome.message}
                 details={outcome.details}
                 onDismiss={() => setOutcome(null)}

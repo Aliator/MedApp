@@ -83,7 +83,7 @@ export function RecordResultDialog({attachment, patient, onClose}: RecordResultD
           <MetadataListItem label="Pathway">{attachment.pathwayId ? attachment.pathwayTitle : 'Not on a pathway'}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label="Result not recorded" message={message} />}
         <TextInput
           label="Title"
           description="What it is, e.g. CT chest report from another hospital."

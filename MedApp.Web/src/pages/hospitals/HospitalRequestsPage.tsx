@@ -132,7 +132,7 @@ export function HospitalRequestsPage({search, onSearchChange}: HospitalRequestsP
       title="Hospital Requests"
       subtitle={isPending ? 'Loading requests...' : `${total} ${noun}${hospitalName ? ` from ${hospitalName}` : ''}`}
       fill
-      message={isError && <AlertMessage message="The hospital requests could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Hospital requests not loaded" message="The hospital requests could not be loaded. Please try again." />}
       actions={
         <HStack gap={2} vAlign="center">
           <AnchoredSelector

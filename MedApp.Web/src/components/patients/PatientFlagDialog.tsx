@@ -24,24 +24,28 @@ const TEXT = {
     message:
       "While it's restricted (UK GDPR Article 18), nobody can change this patient, their pathways or their appointments. Staff see a banner with the reason.",
     confirm: 'Restrict Record',
+    notDone: 'Record not restricted',
     reasonLabel: 'Reason',
   },
   'restriction-clear': {
     title: 'Lift Restriction',
     message: 'Staff can change this patient, their pathways and their appointments again.',
     confirm: 'Lift Restriction',
+    notDone: 'Restriction not lifted',
     reasonLabel: 'Reason (optional)',
   },
   'dispute-set': {
     title: 'Mark as Disputed',
     message: 'Record that the patient disputes something in their record (Article 16). Staff see a banner with what they dispute.',
     confirm: 'Mark Disputed',
+    notDone: 'Not marked disputed',
     reasonLabel: "What's disputed",
   },
   'dispute-clear': {
     title: 'Clear Dispute',
     message: 'The banner saying the patient disputes their record is removed.',
     confirm: 'Clear Dispute',
+    notDone: 'Dispute not cleared',
     reasonLabel: 'Reason (optional)',
   },
 } as const;
@@ -103,7 +107,7 @@ export function PatientFlagDialog({
       onConfirm={() => onConfirm(reason.trim(), needsConfirming && isConfirmed)}
       onCancel={onCancel}>
       <VStack gap={4} hAlign="stretch">
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={text.notDone} message={message} />}
         {isCounting && (
           <Text type="body" color="secondary">
             Checking for pathways under way and open appointments...
@@ -111,7 +115,7 @@ export function PatientFlagDialog({
         )}
         {needsConfirming && (
           <VStack gap={2} hAlign="stretch">
-            {warning && <AlertMessage status="warning" message={warning} />}
+            {warning && <AlertMessage status="warning" label="Work stops while restricted" message={warning} />}
             <CheckboxInput
               label={`I understand that work on ${whatStops(pathways, appointments)} stops`}
               value={isConfirmed}

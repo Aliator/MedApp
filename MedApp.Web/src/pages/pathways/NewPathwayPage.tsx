@@ -132,7 +132,7 @@ export function NewPathwayPage({patientId}: NewPathwayPageProps) {
   if (!patientId) {
     return (
       <Page {...pageProps}>
-        <AlertMessage message="A pathway is for a patient: open the patient's pathways and choose New Pathway there." />
+        <AlertMessage label="No patient chosen" message="A pathway is for a patient: open the patient's pathways and choose New Pathway there." />
       </Page>
     );
   }
@@ -148,9 +148,9 @@ export function NewPathwayPage({patientId}: NewPathwayPageProps) {
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={NEW_PATHWAY_FIELDS} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label="Pathway not added" message={problem.message} />
         ) : templates.error ? (
-          <AlertMessage message="The templates could not be loaded. Please try again." />
+          <AlertMessage label="Templates not loaded" message="The templates could not be loaded. Please try again." />
         ) : (
           // The patient's restricted, disputed or anonymised banners, as on every page about the patient (hazard H-22).
           patient.data && <PatientFlagBanners patient={patient.data} />

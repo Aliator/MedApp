@@ -120,7 +120,7 @@ export function DnaFollowUpDialog({isOpen, appointment, onClose, onSaved, patien
       {isOpen && appointment && (
         <VStack gap={4} hAlign="stretch">
           <AppointmentPatientBanner state={patient} name={appointment.patientName} />
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Follow-up not recorded" message={problem} />}
           <MetadataList label={{position: 'start', width: 140}}>
             <MetadataListItem label="Missed">
               {appointment.startUtc

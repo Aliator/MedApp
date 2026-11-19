@@ -253,7 +253,7 @@ function UpcomingPathways({
     <VStack gap={3}>
       <Heading level={3}>Upcoming</Heading>
       {isError ? (
-        <AlertMessage message="What's due could not be loaded." />
+        <AlertMessage label="What's due not loaded" message="What's due could not be loaded." />
       ) : isPending ? (
         <Spinner size="sm" label="Loading what's due..." />
       ) : upcoming.length === 0 ? (
@@ -463,7 +463,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
       </Center>
     );
 
-  if (feed.isError && entries.length === 0) return <AlertMessage message="The timeline could not be loaded. Please try again." />;
+  if (feed.isError && entries.length === 0) return <AlertMessage label="Timeline not loaded" message="The timeline could not be loaded. Please try again." />;
 
   if (entries.length === 0 && !isUpdating)
     return (
@@ -495,7 +495,7 @@ function TimelineFeed({patientId, filters, onFiltersChange}: PatientTimelineProp
           ))}
         </List>
       ))}
-      {feed.isFetchNextPageError && !isUpdating && <AlertMessage message="Older entries could not be loaded. Please try again." />}
+      {feed.isFetchNextPageError && !isUpdating && <AlertMessage label="Older entries not loaded" message="Older entries could not be loaded. Please try again." />}
       {isUpdating ? (
         // At the end, so nothing above it moves.
         <Center axis="horizontal" padding={2}>

@@ -67,7 +67,7 @@ export function RolesPage({search, onSearchChange}: RolesPageProps) {
   const actions = useRoleActions();
   const announce = useAnnounce();
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string | null} | null>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = rolesPage(data, search, pageSize);
@@ -77,7 +77,7 @@ export function RolesPage({search, onSearchChange}: RolesPageProps) {
     expectedVersion: role.version ?? '',
   });
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'role').message);
+    setError({label: `Role not ${action}d`, message: saveProblem(e, action, 'role').message});
     close();
   };
   const target = dialog?.role ?? null;
@@ -182,9 +182,9 @@ export function RolesPage({search, onSearchChange}: RolesPageProps) {
       fill
       message={
         error ? (
-          <AlertMessage message={error} />
+          <AlertMessage label={error.label} message={error.message ?? undefined} />
         ) : (
-          isError && <AlertMessage message="The roles could not be loaded. Please try again." />
+          isError && <AlertMessage label="Roles not loaded" message="The roles could not be loaded. Please try again." />
         )
       }
       actions={<Button label="Add Role" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/roles/new" />}

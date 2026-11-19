@@ -124,7 +124,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
   const mine = uploads.filter((upload) => upload.targetKey === targetKey);
   const failed = mine.filter((upload) => upload.state === 'failed');
   const [toDelete, setToDelete] = useState<Attachment | null>(null);
-  const [rowError, setRowError] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{label: string; message: string} | null>(null);
   const [toRecord, setToRecord] = useState<Attachment | null>(null);
 
   /** A live file on the patient, a pathway or a stage can be recorded as a result from elsewhere (not a referral's letter). */
@@ -153,7 +153,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
         onSuccess: () => announce(`${attachment.fileName} ${isClinicalPhoto ? 'marked as a clinical photo' : 'no longer marked as a clinical photo'}`),
         onError: (error) => {
           const message = `${attachment.fileName} could not be ${isClinicalPhoto ? 'marked' : 'unmarked'}. ${problemMessage(error, 'Please try again.')}`;
-          setRowError(message);
+          setRowError({label: isClinicalPhoto ? 'File not marked' : 'File not unmarked', message});
           announce(message);
         },
       },
@@ -168,7 +168,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
       },
       onError: (error) => {
         const message = `${attachment.fileName} could not be deleted. ${problemMessage(error, 'Please try again.')}`;
-        setRowError(message);
+        setRowError({label: 'File not deleted', message});
         announce(message);
         setToDelete(null);
       },
@@ -200,7 +200,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
       {failed.length > 0 && (
         <VStack gap={2} hAlign="start">
           <AlertMessage
-            message={failed.length === 1 ? "A file wasn't attached" : `${failed.length} files weren't attached`}
+            label={failed.length === 1 ? "A file wasn't attached" : `${failed.length} files weren't attached`}
             details={failed.map((upload) => upload.error)}
           />
           <Button label="Dismiss" variant="ghost" size="sm" onClick={() => dismissFailed(targetKey)} />
@@ -208,7 +208,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
       )}
       {rowError && (
         <VStack gap={2} hAlign="start">
-          <AlertMessage message={rowError} />
+          <AlertMessage label={rowError.label} message={rowError.message} />
           <Button label="Dismiss" variant="ghost" size="sm" onClick={() => setRowError(null)} />
         </VStack>
       )}
@@ -223,7 +223,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
       {list.isPending ? (
         <Spinner size="sm" label="Loading files..." />
       ) : list.isError ? (
-        <AlertMessage message="The files could not be loaded. Please try again." />
+        <AlertMessage label="Files not loaded" message="The files could not be loaded. Please try again." />
       ) : items.length === 0 ? (
         <Text type="body" color="secondary">
           {emptyText}

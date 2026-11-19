@@ -102,7 +102,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
   const replyTo = useMeetingReply();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('view');
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<{label: string; message: string} | null>(null);
   // The meeting as the last reply returned it, until the dialog closes (the calendar behind refreshes too).
   const [replied, setReplied] = useState<Meeting | null>(null);
   const meeting = replied && replied.id === given?.id ? replied : given;
@@ -120,7 +120,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
           announce(answer === 'Accepted' ? 'Meeting accepted' : 'Meeting declined');
         },
         onError: (error) => {
-          setProblem(problemMessage(error, 'Your reply could not be saved. Please try again.'));
+          setProblem({label: 'Reply not saved', message: problemMessage(error, 'Your reply could not be saved. Please try again.')});
           // Moved or changed since this was opened: show the meeting as it is now, to reply to that.
           if (error instanceof ApiError && error.status === 409) void showLatest();
         },
@@ -146,7 +146,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
         onClose();
       },
       onError: (error) => {
-        setProblem(problemMessage(error, 'The meeting could not be cancelled. Please try again.'));
+        setProblem({label: 'Meeting not cancelled', message: problemMessage(error, 'The meeting could not be cancelled. Please try again.')});
         setMode('view');
       },
     });
@@ -178,7 +178,7 @@ function MeetingDialogBody({isOpen, onClose, meeting: given, initial, onSaved}: 
           </HStack>
         }>
         <VStack gap={5} hAlign="stretch">
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label={problem.label} message={problem.message} />}
           <VStack gap={1}>
             <Text type="large" weight="semibold">
               {meeting.title ?? ''}
@@ -543,7 +543,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   );
 
   const suggestionList = staff.isError ? (
-    <AlertMessage message="The staff could not be loaded. Please try again." />
+    <AlertMessage label="Staff not loaded" message="The staff could not be loaded. Please try again." />
   ) : !staff.data ? (
     <Skeleton height="var(--spacing-20)" />
   ) : attendees.length === 0 ? (
@@ -551,7 +551,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         Choose who’s going to see when they’re all free.
       </Text>
     ) : suggestions.isError ? (
-      <AlertMessage message="The suggested times could not be loaded. Please try again." />
+      <AlertMessage label="Suggested times not loaded" message="The suggested times could not be loaded. Please try again." />
     ) : !suggestions.data ? (
       <Skeleton height="var(--spacing-20)" />
     ) : suggested.length === 0 ? (
@@ -635,7 +635,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
           </StackItem>
         </HStack>
         {closedName !== undefined ? (
-          <AlertMessage status="warning" message={`The clinic is closed then: ${closedName}. Choose another day.`} />
+          <AlertMessage status="warning" label="Clinic closed then" message={`The clinic is closed then: ${closedName}. Choose another day.`} />
         ) : (
           times && attendees.length > 0 && <BusyThen busy={busy} isError={dayAvailability.isError} />
         )}
@@ -672,7 +672,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         }>
         {isOpen && (
           <VStack ref={content} gap={4} hAlign="stretch">
-            {problem.message && <AlertMessage message={problem.message} />}
+            {problem.message && <AlertMessage label="Meeting not saved" message={problem.message} />}
             {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
             {isNarrow ? (
               <VStack gap={6} hAlign="stretch">
@@ -705,7 +705,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
  * only warns: the meeting can still be saved, and the server has the final word.
  */
 function BusyThen({busy, isError}: {busy: string[] | undefined; isError: boolean}) {
-  if (isError) return <AlertMessage status="warning" message="Who's free then could not be checked. Saving still checks it." />;
+  if (isError) return <AlertMessage status="warning" label="Free times not checked" message="Who's free then could not be checked. Saving still checks it." />;
   if (!busy) return null;
   if (busy.length === 0) {
     return (
@@ -714,7 +714,7 @@ function BusyThen({busy, isError}: {busy: string[] | undefined; isError: boolean
       </Text>
     );
   }
-  return <AlertMessage status="warning" message="Not everyone is free then" details={busy} />;
+  return <AlertMessage status="warning" label="Not everyone is free then" details={busy} />;
 }
 
 /** A group of toggle buttons that is one tab stop, with the arrow keys (and Home and End) moving between them. */

@@ -70,7 +70,7 @@ export function OpenLabCaseDialog({specimen, onClose}: OpenLabCaseDialogProps) {
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={['labTestId']} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label="Lab case not opened" message={message} />}
         <RadioList label="Test" value={labTestId} onChange={setLabTestId} isRequired status={fieldStatus(errors, 'labTestId')}>
           {[...(tests.data ?? [])]
             .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))

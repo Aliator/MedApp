@@ -21,7 +21,7 @@ describe('PageHeader', () => {
       <PageHeader
         title="Patients"
         subtitle="Everyone registered with the centre"
-        message={<AlertMessage message="The patients could not be loaded." />}
+        message={<AlertMessage label="Patients not loaded" message="The patients could not be loaded." />}
         actions={<Button label="Search" />}
       />,
     );

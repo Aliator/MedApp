@@ -143,7 +143,7 @@ function RequestDialog({requestId, pathwayId, onClose, onWrongPathway}: Omit<Not
           </Text>
         </HStack>
       ) : query.isError || !request ? (
-        <AlertMessage message={problemMessage(query.error, 'The request could not be loaded.')} />
+        <AlertMessage label="Request not loaded" message={problemMessage(query.error, 'The request could not be loaded.')} />
       ) : (
         <VStack gap={4} hAlign="stretch">
           {canDecide && (
@@ -157,7 +157,7 @@ function RequestDialog({requestId, pathwayId, onClose, onWrongPathway}: Omit<Not
           <NoteShown request={request} />
           <Line label="Asked by">{`${request.requestedByUsername ?? ''}, ${formatDateTime(request.requestedAtUtc ?? '')}`}</Line>
           <Line label="Their reason">{describeNoteDeletionReason(request.reason, request.detail)}</Line>
-          {!canDecide && <AlertMessage message={outcome(request)} status={request.status === 'Pending' ? 'warning' : 'info'} />}
+          {!canDecide && <AlertMessage label={outcomeLabel(request)} message={outcome(request)} status={request.status === 'Pending' ? 'warning' : 'info'} />}
           {canDecide && (
             <NoteDeletionReasonFields
               label="Reason for deleting"
@@ -169,7 +169,7 @@ function RequestDialog({requestId, pathwayId, onClose, onWrongPathway}: Omit<Not
               isDisabled={isBusy}
             />
           )}
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Request not decided" message={problem} />}
         </VStack>
       )}
     </DialogFrame>
@@ -197,14 +197,14 @@ export const editedSinceRequest = (request: NoteDeletionRequest) =>
 /** The note itself, with who wrote it, when, and when it was edited; or, once its pathway is gone, that it's gone. */
 function NoteShown({request}: {request: NoteDeletionRequest}) {
   const note = request.note;
-  if (!note) return <AlertMessage message="This note's pathway has been deleted, and the note with it." status="info" />;
+  if (!note) return <AlertMessage label="Note deleted" message="This note's pathway has been deleted, and the note with it." status="info" />;
   return (
     <VStack gap={1} hAlign="stretch">
       <Text type="body" weight="semibold">
         {`The note, by ${note.authorUsername ?? ''}, ${formatDateTime(note.createdAtUtc ?? '')}`}
         {note.lastEditedAtUtc ? `. Edited ${formatDateTime(note.lastEditedAtUtc)}` : ''}
       </Text>
-      {editedSinceRequest(request) && <AlertMessage message={EDITED_SINCE_REQUEST} status="warning" />}
+      {editedSinceRequest(request) && <AlertMessage label="Edited since the request" message={EDITED_SINCE_REQUEST} status="warning" />}
       <Card variant="muted" padding={3}>
         <RichText>{note.text ?? ''}</RichText>
       </Card>
@@ -213,6 +213,20 @@ function NoteShown({request}: {request: NoteDeletionRequest}) {
 }
 
 /** Why a request can't be decided, or how it was. */
+/** The outcome's headline: what happened to the request, with `outcome`'s words behind its "i". */
+export function outcomeLabel(request: NoteDeletionRequest): string {
+  switch (request.status) {
+    case 'Approved':
+      return 'Note deleted';
+    case 'Declined':
+      return 'Note kept';
+    case 'Closed':
+      return 'Request closed';
+    default:
+      return "Request can't be decided";
+  }
+}
+
 export function outcome(request: NoteDeletionRequest): string {
   const by = request.decidedByUsername ?? 'An admin';
   const when = request.decidedAtUtc ? `, ${formatDateTime(request.decidedAtUtc)}` : '';

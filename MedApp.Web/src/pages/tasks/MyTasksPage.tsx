@@ -297,7 +297,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
       title="My Worklist"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage message="Your tasks could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Tasks not loaded" message="Your tasks could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
         columns={columnsFor(progress, view)}

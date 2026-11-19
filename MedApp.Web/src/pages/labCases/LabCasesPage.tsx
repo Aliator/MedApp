@@ -141,7 +141,7 @@ export function LabCasesPage({search, onSearchChange}: LabCasesPageProps) {
       title="Lab Cases"
       subtitle={isPending ? 'Loading lab cases...' : `${labCaseViewLabel(view)}: ${total} ${text || search.source ? `matching ${noun}` : noun}`}
       fill
-      message={isError && <AlertMessage message="The lab cases could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Lab cases not loaded" message="The lab cases could not be loaded. Please try again." />}>
       <DataTable
         data={(data?.items ?? []) as Row[]}
         columns={columns}

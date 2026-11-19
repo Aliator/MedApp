@@ -86,7 +86,7 @@ export function SurgeryDetailsDialog({labCase, onClose}: {labCase: LabCase; onCl
           <MetadataListItem label="Hospital">{labCase.hospitalName}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label="Surgery details not added" message={message} />}
         {closes && (
           <Switch label="No surgery expected" value={noSurgeryExpected} onChange={setNoSurgeryExpected} />
         )}

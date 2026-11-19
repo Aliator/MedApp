@@ -123,6 +123,7 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
             </Text>
             {cantTakeNotes && (
               <AlertMessage
+                label="Can't add notes here"
                 message={
                   pathway.readOnlyReason ??
                   (canWork ? "This pathway can't take notes now (it's cancelled or archived)." : "Your roles don't allow adding notes to pathways.")
@@ -138,7 +139,9 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
           <Card variant="muted" padding={3}>
             <RichText>{note.text}</RichText>
           </Card>
-          {isTooLong && <AlertMessage message={`Too long for a note: at most ${MAX_NOTE_LENGTH} characters. Select a part of it.`} />}
+          {isTooLong && (
+            <AlertMessage label="Too long for a note" message={`Too long for a note: at most ${MAX_NOTE_LENGTH} characters. Select a part of it.`} />
+          )}
         </VStack>
         <CheckboxInput
           label="Remove it from the notepad"
@@ -147,7 +150,7 @@ export function AddToPathwayDialog({note, pathways, onAdded, onCancel}: AddToPat
           isDisabled={add.isPending || !canRemove}
           description={canRemove ? undefined : CANT_REMOVE_SELECTION}
         />
-        {problem && <AlertMessage message={problem} />}
+        {problem && <AlertMessage label="Note not added" message={problem} />}
       </VStack>
     </ConfirmDialog>
   );

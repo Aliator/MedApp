@@ -86,7 +86,7 @@ export function AskConsultDialog({patient, pathwayTitle, teams, isLoadingTeams, 
         isDisabled={isProcessing}
         status={fieldStatus(errors, 'question') ?? (isTooLong ? tooLong(MAX_CONSULT_QUESTION_LENGTH) : undefined)}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Consult not asked" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -134,7 +134,7 @@ export function ReplyConsultDialog({consult, isProcessing, onConfirm, onCancel}:
         isDisabled={isProcessing}
         status={fieldStatus(errors, 'reply') ?? (isTooLong ? tooLong(MAX_CONSULT_REPLY_LENGTH) : undefined)}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Reply not saved" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -172,7 +172,7 @@ export function EndConsultDialog({consult, kind, isProcessing, onConfirm, onCanc
       }}
       onCancel={onCancel}>
       <Text type="body">{`Question: ${consult.question ?? ''}`}</Text>
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label={isClose ? 'Consult not closed' : 'Consult not withdrawn'} message={problem} />}
     </ConfirmDialog>
   );
 }

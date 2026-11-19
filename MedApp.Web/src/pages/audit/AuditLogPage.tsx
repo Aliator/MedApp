@@ -136,7 +136,7 @@ export function AuditLogPage({search, onSearchChange}: AuditLogPageProps) {
       backHref={search.pathwayId ? `/pathways/${search.pathwayId}` : undefined}
       backLabel="Back to the pathway"
       fill
-      message={isError && <AlertMessage message="The audit log could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Audit log not loaded" message="The audit log could not be loaded. Please try again." />}
 >
       <DataTable
         data={rows}

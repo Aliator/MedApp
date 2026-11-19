@@ -106,7 +106,7 @@ export function TriageDialog({
           {isChecking && summary}
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={fields} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label="Decision not recorded" message={message} />}
         {!isChecking && children}
       </VStack>
     </DialogFrame>

@@ -100,7 +100,7 @@ export function EditPatientPage({id}: {id: string}) {
       backHref={`/patients/${id}`}
       isLoading={isPending || isMissing}
       loadingMessage="Loading patient..."
-      message={error && !isMissing && <AlertMessage message="The patient could not be loaded. Please try again." />}
+      message={error && !isMissing && <AlertMessage label="Patient not loaded" message="The patient could not be loaded. Please try again." />}
     />
   );
 }
@@ -114,6 +114,8 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
   const [form, setForm] = useState<PatientInput>(() => toInput(patient));
   const [dialog, setDialog] = useState<'save' | 'delete' | null>(null);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
+  // The headline of a problem: which action failed.
+  const [problemLabel, setProblemLabel] = useState('Patient not saved');
   const lookUp = usePatientLookUp(form, setForm, 'edit');
   const changes = identityChanges(toInput(patient), form);
   const isBusy = update.isPending || remove.isPending;
@@ -131,6 +133,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
       },
       onError: (e) => {
         setProblem(saveProblem(e, 'save'));
+        setProblemLabel('Patient not saved');
         setDialog(null);
       },
     });
@@ -143,6 +146,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
       },
       onError: (e) => {
         setProblem(saveProblem(e, 'delete'));
+        setProblemLabel('Patient not deleted');
         setDialog(null);
       },
     });
@@ -158,7 +162,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label={problemLabel} message={problem.message} />
         ) : (
           // A restricted or anonymised record can't be changed: the API refuses, so its banners name the state before
           // anyone tries, with why over the page (and a disputed one names what the patient disputes when it's short).
@@ -217,6 +221,7 @@ function EditPatientForm({id, patient}: {id: string; patient: Patient}) {
           // Details a look-up filled for another number than the one now entered aren't saved (usePatientLookUp).
           if (lookUp.hold) {
             setProblem({validation: null, message: lookUp.hold});
+            setProblemLabel('Patient not saved');
             return;
           }
           // A postcode or mobile in the wrong format shows on its field before anything is sent (the API checks too).

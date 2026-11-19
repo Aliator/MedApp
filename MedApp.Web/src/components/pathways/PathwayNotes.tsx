@@ -154,7 +154,7 @@ export function PathwayNotes({pathway}: PathwayNotesProps) {
     problem &&
     problem.noteId === noteId && (
       <VStack gap={2} hAlign="start">
-        <AlertMessage message={problem.message} />
+        <AlertMessage label={noteId === null ? 'Note not added' : 'Note not saved'} message={problem.message} />
         {problem.isConflict && <Button label="Reload" variant="secondary" icon={<Icon icon={AppIcon.Refresh} />} onClick={doReload} />}
       </VStack>
     );
@@ -416,7 +416,7 @@ function NoteDeletionReasonDialog({note, patient, kind, isProcessing, onConfirm,
         errors={errors}
         isDisabled={isProcessing}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label={kind === 'delete' ? 'Note not deleted' : 'Request not sent'} message={problem} />}
     </ConfirmDialog>
   );
 }

@@ -146,7 +146,7 @@ function SessionForm({isOpen, onClose, session, date: initialDate, onSaved}: Ses
       }>
       {isOpen && (
         <VStack gap={4} hAlign="stretch">
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Session not saved" message={problem} />}
           {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
           <AnchoredSelector
             label="Clinician"

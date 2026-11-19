@@ -18,8 +18,7 @@ import {DataTable, type DataTableColumn} from '../../components/tables/DataTable
 import {TableActions} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
 import type {SetupListSearch} from '../listSearch';
-import {saveProblem} from '../saveProblem';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 import {useListSettings} from '../../app/listSettings';
 
 type TemplateRow = PathwayTemplate & Record<string, unknown>;
@@ -48,7 +47,7 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
   const {data = [], isPending, isError} = useQuery(allTemplatesQuery);
   const actions = useTemplateActions();
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
@@ -58,7 +57,7 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
     setDialog({kind, template});
   };
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'template').message);
+    setError(actionProblem(e, action, 'template'));
     close();
   };
   const target = dialog?.template;
@@ -121,7 +120,13 @@ export function PathwayTemplatesPage({search, onSearchChange}: PathwayTemplatesP
       title="Pathway Templates"
       subtitle={subtitle}
       fill
-      message={error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The templates could not be loaded. Please try again." />}
+      message={
+        error ? (
+          <AlertMessage label={error.label} message={error.message} />
+        ) : (
+          isError && <AlertMessage label="Templates not loaded" message="The templates could not be loaded. Please try again." />
+        )
+      }
       actions={<Button label="New Pathway Template" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/admin/pathway-templates/new" />}
       dialogs={
         <>

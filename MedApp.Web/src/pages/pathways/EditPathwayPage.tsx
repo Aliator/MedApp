@@ -50,7 +50,7 @@ export function EditPathwayPage({id}: {id: string}) {
 
   return (
     <Page {...pageProps} backHref={`/pathways/${id}`} isLoading={isPending || isMissing} loadingMessage="Loading pathway..."
-      message={error && !isMissing && <AlertMessage message="The pathway could not be loaded. Please try again." />}
+      message={error && !isMissing && <AlertMessage label="Pathway not loaded" message="The pathway could not be loaded. Please try again." />}
     />
   );
 }
@@ -90,6 +90,7 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
     return (
       <Page {...pageProps} onBack={backToPathway} banner={banner} message={flags}>
         <AlertMessage
+          label="Details can't be edited"
           message={
             // A restricted or anonymised record says so; otherwise the pathway's status is why.
             pathway.readOnlyReason ?? `This pathway is ${statusLabel(pathway.status ?? '').toLowerCase()}, so its details can't be edited.`
@@ -111,7 +112,7 @@ function EditPathwayForm({id, pathway}: {id: string; pathway: Pathway}) {
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATHWAY_DETAILS_FIELDS} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label="Not saved" message={problem.message} />
         ) : (
           flags
         )

@@ -44,6 +44,8 @@ interface FrameProps {
   confirmDisabled?: boolean;
   isProcessing: boolean;
   error: string | null;
+  /** The refusal's headline, naming what wasn't done ("Letter not sent"). */
+  errorLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -66,6 +68,7 @@ function DataRequestDialogFrame({
   confirmDisabled,
   isProcessing,
   error,
+  errorLabel,
   onConfirm,
   onCancel,
   children,
@@ -90,7 +93,7 @@ function DataRequestDialogFrame({
           <MetadataListItem label="Due">{formatDate(request.dueOn ?? '')}</MetadataListItem>
         </MetadataList>
         {children}
-        {error && <AlertMessage message={error} />}
+        {error && <AlertMessage label={errorLabel} message={error} />}
       </VStack>
     </ConfirmDialog>
   );
@@ -149,6 +152,7 @@ export function IdentityCheckDialog({request, patient, onCancel, onDone}: DataRe
       confirmDisabled={!checkedOn || !method || (needsDetail && !detail.trim())}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Identity check not recorded"
       onConfirm={() => change.run({checkedOn, method, detail: detail.trim() || null, expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
       <DateInput
@@ -209,6 +213,7 @@ export function ExtendDialog({request, patient, onCancel, onDone}: DataRequestDi
       confirmDisabled={!months || !reason.trim()}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Due date not extended"
       onConfirm={() => change.run({months: Number(months), reason: reason.trim(), expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
       <RadioList label="Extend by, in all" value={months} onChange={setMonths} isRequired status={fieldStatus(change.errors, 'months')}>
@@ -249,6 +254,7 @@ export function RecordSentDialog({request, patient, onCancel, onDone}: DataReque
       confirmDisabled={!sentOn || !method}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Not recorded as sent"
       onConfirm={() => change.run({sentOn, method, expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
       <DateInput
@@ -286,6 +292,7 @@ export function RefuseDialog({request, patient, onCancel, onDone}: DataRequestDi
       confirmDisabled={!reason.trim()}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Request not refused"
       onConfirm={() => change.run({reason: reason.trim(), expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
       <TextArea
@@ -316,6 +323,7 @@ export function WithdrawDialog({request, patient, onCancel, onDone}: DataRequest
       confirmText="Withdraw Request"
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Request not withdrawn"
       onConfirm={() => change.run({expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
       <Text type="body" color="secondary">

@@ -92,7 +92,7 @@ function AnonymiseForm({
       onConfirm={confirm}
       onCancel={onCancel}>
       <VStack gap={4} hAlign="stretch">
-        {problem.message && <AlertMessage message={problem.message} />}
+        {problem.message && <AlertMessage label="Record not anonymised" message={problem.message} />}
         <PatientSummary firstName={patient.firstName} lastName={patient.lastName} dateOfBirth={patient.dateOfBirth} showEmail={false} />
         <RadioList
           label="Reason"

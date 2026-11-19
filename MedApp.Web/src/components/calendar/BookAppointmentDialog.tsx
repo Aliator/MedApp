@@ -503,7 +503,7 @@ function BookingForm({
         <IconButton label="Next week" size="sm" variant="ghost" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => moveWeek(1)} />
       </HStack>
       {calendar.isError ? (
-        <AlertMessage message="The calendar could not be loaded. Please try again." />
+        <AlertMessage label="Calendar not loaded" message="The calendar could not be loaded. Please try again." />
       ) : !calendar.data ? (
         <VStack gap={3}>
           <Skeleton height="var(--spacing-12)" />
@@ -618,8 +618,10 @@ function BookingForm({
           <AppointmentPatientBanner state={patientState} name={appointment?.patientName} />
           {/* Why it can't be booked, on screen: the patient's restricted or anonymised banner above names the state, but its
               whole message is only in its overlay. */}
-          {refusal && !patientState.isLoading && <AlertMessage status="warning" message={refusal} />}
-          {problem.message && <AlertMessage message={problem.message} />}
+          {refusal && !patientState.isLoading && (
+            <AlertMessage status="warning" label={isRescheduling ? "Can't be moved" : "Can't be booked"} message={refusal} />
+          )}
+          {problem.message && <AlertMessage label="Appointment not saved" message={problem.message} />}
           {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
           {isNarrow ? (
             <VStack gap={6} hAlign="stretch">

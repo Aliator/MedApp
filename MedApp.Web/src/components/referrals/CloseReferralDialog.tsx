@@ -73,7 +73,7 @@ export function CloseReferralDialog({closing, referral, isProcessing, errors, me
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={closing === 'enteredInError' ? 'Not marked entered in error' : 'Referral not withdrawn'} message={message} />}
         <TextArea
           label={words.label}
           value={detail}

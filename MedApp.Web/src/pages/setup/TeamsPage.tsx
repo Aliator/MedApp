@@ -38,7 +38,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 
 type TeamRow = Team & Record<string, unknown>;
 
@@ -106,7 +106,7 @@ export function TeamsPage({search, onSearchChange}: TeamsPageProps) {
   const [name, setName] = useState('');
   const [targets, setTargets] = useState<TeamTargets>(DEFAULT_TEAM_TARGETS);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
@@ -124,7 +124,7 @@ export function TeamsPage({search, onSearchChange}: TeamsPageProps) {
     setDialog({kind, team});
   };
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'team').message);
+    setError(actionProblem(e, action, 'team'));
     close();
   };
   const versionOf = (team: Team) => ({id: team.id ?? '', expectedVersion: team.version ?? 0});
@@ -234,10 +234,10 @@ export function TeamsPage({search, onSearchChange}: TeamsPageProps) {
       fill
       message={
         error ? (
-          <AlertMessage message={error} />
+          <AlertMessage label={error.label} message={error.message} />
         ) : (
           isError ? (
-            <AlertMessage message="The teams could not be loaded. Please try again." />
+            <AlertMessage label="Teams not loaded" message="The teams could not be loaded. Please try again." />
           ) : (
             untriageable(data).length > 0 && (
               <SummaryAlert
@@ -270,7 +270,7 @@ export function TeamsPage({search, onSearchChange}: TeamsPageProps) {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FORM_FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editing ? 'Not saved' : 'Not added'} message={problem.message} />}
               {/* Only while it's open, so its autofocus can't act in a closing dialog. */}
               {dialog?.kind === 'edit' && (
                 <TextInput

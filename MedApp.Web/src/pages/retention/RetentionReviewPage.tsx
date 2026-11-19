@@ -141,7 +141,7 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
       subtitle={subtitle}
       fill
       message={
-        isError ? <AlertMessage message="The records due for review could not be loaded. Please try again." /> : undefined
+        isError ? <AlertMessage label="Records not loaded" message="The records due for review could not be loaded. Please try again." /> : undefined
       }
       actions={
         <Switch

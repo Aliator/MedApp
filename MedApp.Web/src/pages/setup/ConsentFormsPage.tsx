@@ -23,6 +23,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {TableActions} from '../../components/tables/TableActions';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
+import {actionProblem, type PageError} from './setupList';
 
 /** The page's query: every form, archived ones too. Its route's loader preloads the same. */
 export const consentFormsPageQuery = consentFormsQuery(true);
@@ -43,7 +44,7 @@ export function ConsentFormsPage() {
   const [name, setName] = useState('');
   const [version, setVersion] = useState('');
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
   const close = () => setDialog(null);
   const editing = dialog?.kind === 'edit' ? dialog.form : null;
   const deleting = dialog?.kind === 'delete' ? dialog.form : null;
@@ -73,7 +74,7 @@ export function ConsentFormsPage() {
     setError(null);
     (archive ? actions.archive : actions.restore).mutate(form.id ?? '', {
       onSuccess: () => announce(`${form.name ?? 'It'} ${archive ? 'archived' : 'restored'}`),
-      onError: (e) => setError(saveProblem(e, archive ? 'archive' : 'restore', 'consent form').message),
+      onError: (e) => setError(actionProblem(e, archive ? 'archive' : 'restore', 'consent form')),
     });
   };
 
@@ -84,7 +85,7 @@ export function ConsentFormsPage() {
       title="Consent Forms"
       subtitle={forms.data ? `${forms.data.filter((f) => !f.isArchived).length} active forms` : 'Loading...'}
       fill
-      message={error && <AlertMessage message={error} />}
+      message={error && <AlertMessage label={error.label} message={error.message} />}
       dialogs={
         <>
           <ConfirmDialog
@@ -104,7 +105,7 @@ export function ConsentFormsPage() {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={['name', 'formVersion']} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editing ? 'Not saved' : 'Not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={name}
@@ -143,7 +144,7 @@ export function ConsentFormsPage() {
                   close();
                 },
                 onError: (e) => {
-                  setError(saveProblem(e, 'delete', 'consent form').message);
+                  setError(actionProblem(e, 'delete', 'consent form'));
                   close();
                 },
               })
@@ -161,7 +162,7 @@ export function ConsentFormsPage() {
       <PanelCard title="Consent Forms" isBodyPadded={false} footerActions={add}>
         {forms.isError ? (
           <VStack padding={6}>
-            <AlertMessage message="The consent forms could not be loaded. Please try again." />
+            <AlertMessage label="Consent forms not loaded" message="The consent forms could not be loaded. Please try again." />
           </VStack>
         ) : forms.isPending || items.length === 0 ? (
           <VStack padding={6}>

@@ -92,13 +92,21 @@ describe('SummaryAlert', () => {
     expect(await screen.findByRole('dialog', {name: 'Synthetic state: details'})).toBeInTheDocument();
   });
 
-  it('ends with the status’s own icon, and shows no icon before the label', async () => {
+  it('ends an info banner with the "i" alone, with no icon before the label', async () => {
     const {container} = renderWithApp(<SummaryAlert status="info" label="Synthetic state" message={MESSAGE} />);
     const button = await screen.findByRole('button', {name: 'Synthetic state, show details'});
 
     // The only icon in the banner is the button's (Astryx draws its icons as svg).
     expect(container.querySelectorAll('svg')).toHaveLength(button.querySelectorAll('svg').length);
     expect(button.querySelectorAll('svg')).toHaveLength(1);
+  });
+
+  it('keeps a warning’s own icon before the label, so its status shows by more than colour', async () => {
+    const {container} = renderWithApp(<SummaryAlert label="Synthetic state" message={MESSAGE} />);
+    const button = await screen.findByRole('button', {name: 'Synthetic state, show details'});
+
+    expect(button.querySelectorAll('svg')).toHaveLength(1);
+    expect(container.querySelectorAll('svg').length).toBeGreaterThan(1);
   });
 
   it('paints the overlay on the popover colour, as menus and popovers are', async () => {

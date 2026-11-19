@@ -101,7 +101,7 @@ export function PracticesPage({search, onSearchChange}: PracticesPageProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<PracticeInput>(EMPTY_PRACTICE);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string | null} | null>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = practicesPage(data, search, pageSize);
@@ -118,7 +118,7 @@ export function PracticesPage({search, onSearchChange}: PracticesPageProps) {
     setDialog({kind, practice});
   };
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'practice').message);
+    setError({label: `Practice not ${action}d`, message: saveProblem(e, action, 'practice').message});
     close();
   };
   const versionOf = (practice: Practice) => ({id: practice.id ?? '', expectedVersion: practice.version ?? 0});
@@ -218,7 +218,11 @@ export function PracticesPage({search, onSearchChange}: PracticesPageProps) {
       subtitle={subtitle}
       fill
       message={
-        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The practices could not be loaded. Please try again." />
+        error ? (
+          <AlertMessage label={error.label} message={error.message ?? undefined} />
+        ) : (
+          isError && <AlertMessage label="Practices not loaded" message="The practices could not be loaded. Please try again." />
+        )
       }
       actions={canEdit && <Button label="Add Practice" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />}
       dialogs={
@@ -241,7 +245,7 @@ export function PracticesPage({search, onSearchChange}: PracticesPageProps) {
               onCancel={close}>
               <VStack gap={2}>
                 {problem.validation && <ValidationAlert errors={problem.validation} fields={PRACTICE_FIELDS} />}
-                {problem.message && <AlertMessage message={problem.message} />}
+                {problem.message && <AlertMessage label={editing ? 'Practice not saved' : 'Practice not added'} message={problem.message} />}
                 <TextInput
                   label="Name"
                   value={form.name}

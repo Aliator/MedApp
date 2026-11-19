@@ -77,11 +77,11 @@ export function ResultPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage message="Result not found. It may have been deleted." />
+          <AlertMessage label="Result not found" message="Result not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage message="The result could not be loaded. Please try again." />
+          <AlertMessage label="Result not loaded" message="The result could not be loaded. Please try again." />
         ) : problem ? (
-          <AlertMessage message={problem} />
+          <AlertMessage label="Not marked seen" message={problem} />
         ) : result?.patientFlags && hasPatientFlags(result.patientFlags) ? (
           <PatientFlagBanners patient={result.patientFlags} />
         ) : (
