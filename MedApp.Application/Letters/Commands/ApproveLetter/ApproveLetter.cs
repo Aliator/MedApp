@@ -81,6 +81,7 @@ public sealed class ApproveLetterHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = letter.PatientId,
+            TeamId = letter.TeamId,
             PathwayId = letter.PathwayId,
             // A referral's letter is filed on the referral; a pathway's on the pathway.
             ReferralId = letter.PathwayId is null ? letter.ReferralId : null,

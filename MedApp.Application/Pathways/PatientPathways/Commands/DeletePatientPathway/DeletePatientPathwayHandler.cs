@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Consent.Repositories;
@@ -12,6 +13,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.DeletePatientPathway;
 
 public sealed class DeletePatientPathwayHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IAttachmentRepository attachments,
     INoteDeletionRequestRepository noteDeletionRequests,
@@ -25,7 +27,7 @@ public sealed class DeletePatientPathwayHandler(
 {
     public async Task Handle(DeletePatientPathwayCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.Id, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.Id, boundary, request.Actor.Teams, cancellationToken);
 
         if (!PathwayWorkflow.CanBeDeleted(pathway))
             throw new ConflictException("Only cancelled or archived pathways can be deleted. Cancel it first.");

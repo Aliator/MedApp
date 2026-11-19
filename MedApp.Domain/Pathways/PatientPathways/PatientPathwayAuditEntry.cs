@@ -22,6 +22,12 @@ public sealed class PatientPathwayAuditEntry
 
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): copied from what it's about (its pathway, file, letter, result, consent record or specimen), for the timeline's filter. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     /// <summary>The stage the change was about, if any.</summary>
     public Guid? StageId { get; init; }
 

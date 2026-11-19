@@ -109,7 +109,7 @@ public sealed class CreateAppointmentHandler(
                 if (CalendarClashes.Find(data, start, end, ignoreSessionId: place.ClinicSessionId) is { } clash)
                     throw new ConflictException(clash);
 
-                var booked = New(request, now);
+                var booked = New(request, pathway, now);
                 var change = new AppointmentChange(booked, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
                 change.Book(staffUserId, staffUsername, start, end, place);
                 await repository.AddAsync(booked, change.Events, ct);
@@ -122,7 +122,7 @@ public sealed class CreateAppointmentHandler(
         }
         else
         {
-            appointment = New(request, now);
+            appointment = New(request, pathway, now);
             var change = new AppointmentChange(appointment, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
             change.Request();
             await repository.AddAsync(appointment, change.Events, cancellationToken);
@@ -138,10 +138,15 @@ public sealed class CreateAppointmentHandler(
         return new ConflictException(AppointmentWorkflow.StageHasOpenVisit(open, staffUsername));
     }
 
-    private static Appointment New(CreateAppointmentCommand request, DateTime nowUtc) => new()
+    /// <summary>
+    /// A new appointment. Its team (the team walls) is its pathway's, else the booker's (MC5 lets them choose, and checks
+    /// the clinician is in it), else General.
+    /// </summary>
+    private static Appointment New(CreateAppointmentCommand request, PatientPathway? pathway, DateTime nowUtc) => new()
     {
         Id = Guid.NewGuid(),
         PatientId = request.PatientId,
+        TeamId = pathway?.TeamId ?? request.Actor.Teams.DefaultTeamId ?? MedApp.Domain.Teams.Team.GeneralId,
         PathwayId = request.PathwayId,
         StageId = request.StageId,
         Status = AppointmentStatus.Requested,

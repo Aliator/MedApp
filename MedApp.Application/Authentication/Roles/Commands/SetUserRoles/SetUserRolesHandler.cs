@@ -2,7 +2,10 @@ using MedApp.Application.Activity.Common;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Calendar.Repositories;
+using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Domain.Activity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -15,7 +18,8 @@ namespace MedApp.Application.Authentication.Roles.Commands.SetUserRoles;
 /// calendar would go, leaving the appointments on a calendar nobody can open. It takes them off their meetings still to
 /// come. Nobody changes their own roles, and the last active admin keeps Admin (<see cref="ILastAdminGuard"/>, a 409).
 /// The roles, the meetings and the log entry are saved in one transaction, so a failure in any (another admin changing
-/// one of those meetings at that moment is a 409) leaves all three as they were.
+/// one of those meetings at that moment is a 409) leaves all three as they were. Someone in a team can't be given Admin
+/// (a 409, <see cref="TeamRules.TeamMemberIsNoAdmin"/>): an admin is in no team.
 /// </summary>
 public sealed class SetUserRolesHandler(
     IIdentityRoleService roleService,
@@ -25,7 +29,8 @@ public sealed class SetUserRolesHandler(
     IIdentityTransactions transactions,
     TimeProvider timeProvider,
     IActivityLog activityLog,
-    ILastAdminGuard lastAdmin)
+    ILastAdminGuard lastAdmin,
+    ITeamRepository teams)
     : IRequestHandler<SetUserRolesCommand, IdentityResult>
 {
     public async Task<IdentityResult> Handle(
@@ -46,6 +51,12 @@ public sealed class SetUserRolesHandler(
             return IdentityResult.Failed(upcoming);
 
         var before = await readService.GetRolesForUserAsync(request.Username, ct);
+
+        // An admin is in no team (decision 209): someone who is both has two accounts.
+        var becomesAdmin = request.Roles.Contains(AppRoles.Admin, StringComparer.Ordinal)
+                           && !(before ?? []).Contains(AppRoles.Admin, StringComparer.Ordinal);
+        if (becomesAdmin && target is not null && (await teams.GetForUserAsync(target.UserId, ct) ?? []).Count > 0)
+            throw new ConflictException(TeamRules.TeamMemberIsNoAdmin(target.Username));
 
         // SetRolesAsync's own transaction joins this one. A retry runs it all again, from the database as it was.
         var losesAdmin = !request.Roles.Contains(AppRoles.Admin, StringComparer.OrdinalIgnoreCase);

@@ -13,6 +13,12 @@ public sealed class AppointmentEvent
 
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): copied from its appointment, for the timeline's filter. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     public Guid? PathwayId { get; init; }
 
     /// <summary>

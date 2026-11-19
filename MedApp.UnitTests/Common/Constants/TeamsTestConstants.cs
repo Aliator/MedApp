@@ -18,11 +18,12 @@ public static class TeamsTestConstants
     public static readonly DateTime NowUtc = new(2026, 11, 18, 10, 15, 0, DateTimeKind.Utc);
 
     public static Team CreateTeam(
-        string name = TeamName, bool isArchived = false, int version = 3, Guid? id = null) => new()
+        string name = TeamName, bool isArchived = false, int version = 3, Guid? id = null, TeamKind kind = TeamKind.Clinic) => new()
     {
         Id = id ?? Guid.NewGuid(),
         Name = name,
         IsArchived = isArchived,
+        Kind = kind,
         Version = version,
         CreatedAt = CreatedAtUtc,
         LastUpdated = CreatedAtUtc

@@ -148,7 +148,7 @@ public sealed class ReferralRepository(MedAppDbContext context) : IReferralRepos
 
     public async Task<IReadOnlyList<ReferralTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct) =>
         await ReferralTimelineSearch
-            .Page(context.ReferralEvents.AsNoTracking(), context.Referrals.AsNoTracking(), query)
+            .Page(context.ReferralEvents.AsNoTracking(), context.Referrals.AsNoTracking(), query, context.PathwayAccess)
             .ToListAsync(ct);
 
     private static IQueryable<Referral> WithDetails(IQueryable<Referral> referrals) =>

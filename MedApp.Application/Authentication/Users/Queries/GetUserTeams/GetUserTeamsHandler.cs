@@ -17,6 +17,6 @@ public sealed class GetUserTeamsHandler(IIdentityReadService readService, ITeamR
         var user = await readService.GetUserAsync(request.Username, cancellationToken)
                    ?? throw new NotFoundException($"User '{request.Username}' was not found.");
 
-        return TeamMapper.ToStaffResponses(await repository.GetForUserAsync(user.UserId, cancellationToken));
+        return TeamMapper.ToStaffResponses(await repository.GetMembershipsAsync(user.UserId, cancellationToken));
     }
 }

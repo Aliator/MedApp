@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 
 namespace MedApp.API.Common.Authentication;
@@ -47,14 +48,29 @@ public static class ClaimsPrincipalExtensions
     public static bool HasPermission(this ClaimsPrincipal user, Permission permission) =>
         user.HasClaim(SessionAuthenticationDefaults.PermissionClaim, permission.ToString());
 
-    /// <summary>The signed-in user, as pathway changes record them, with what their roles allow.</summary>
+    /// <summary>The teams the signed-in user belongs to, from the session's <see cref="SessionAuthenticationDefaults.TeamClaim"/> claims.</summary>
+    public static IReadOnlyList<Guid> GetTeamIds(this ClaimsPrincipal user) =>
+        user.FindAll(SessionAuthenticationDefaults.TeamClaim)
+            .Select(claim => Guid.TryParse(claim.Value, out var id) ? id : (Guid?)null)
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+
+    /// <summary>
+    /// The signed-in user's team walls (<see cref="TeamScope"/>): their teams, and whether they see every team's records
+    /// (<see cref="Permission.ViewAllTeams"/>). Never the system's.
+    /// </summary>
+    public static TeamScope ToTeamScope(this ClaimsPrincipal user) =>
+        TeamScope.For(user.GetUserId(), user.GetTeamIds(), user.GetPermissions());
+
+    /// <summary>The signed-in user, as pathway changes record them, with what their roles allow and their team walls.</summary>
     public static PathwayActor ToPathwayActor(this ClaimsPrincipal user) =>
-        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions());
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions(), user.ToTeamScope());
 
     /// <summary>
     /// The signed-in user, for calendar changes: their own calendar, or anyone's with
     /// <see cref="Permission.ManageAnyCalendar"/>; meetings with <see cref="Permission.ArrangeMeetings"/>.
     /// </summary>
     public static CalendarActor ToCalendarActor(this ClaimsPrincipal user) =>
-        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions());
+        new(user.GetUserId(), user.Identity?.Name ?? string.Empty, user.GetPermissions(), user.ToTeamScope());
 }

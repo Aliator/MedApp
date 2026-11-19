@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.UnitTests.Common.Constants;
 using System.Net;
 using System.Reflection;
@@ -139,14 +140,14 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public void WhoAmI_AdminWhoMustSetUpTwoFactor_SaysSo()
+    public async Task WhoAmI_AdminWhoMustSetUpTwoFactor_SaysSo()
     {
         var user = SignedIn("Admin");
         ((System.Security.Claims.ClaimsIdentity)user.Identity!).AddClaim(
             new System.Security.Claims.Claim(SessionAuthenticationDefaults.MustSetUpTwoFactorClaim, "true"));
         var controller = new AuthController(new RecordingMediator(), _cookies.Object).WithRequest(user);
 
-        var result = controller.WhoAmI();
+        var result = await controller.WhoAmI(CancellationToken.None);
 
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeOfType<WhoAmIResponse>()
             .Which.MustSetUpTwoFactor.Should().BeTrue();
@@ -582,11 +583,13 @@ public sealed class AuthControllerTests
         using var cts = new CancellationTokenSource();
 
         var result = await Controller(mediator).SetUserTeams(
-            OtherUsername, new SetUserTeamsRequest(given ? [RecordId, OtherId] : null), cts.Token);
+            OtherUsername,
+            new SetUserTeamsRequest(given ? [new(RecordId, "ClinicAdmin"), new(OtherId, null)] : null),
+            cts.Token);
 
         var sent = mediator.Request.Should().BeOfType<SetUserTeamsCommand>().Subject;
         sent.Username.Should().Be(OtherUsername);
-        sent.TeamIds.Should().Equal(given ? [RecordId, OtherId] : []);
+        sent.Teams.Should().Equal(given ? [new TeamChoice(RecordId, "ClinicAdmin"), new TeamChoice(OtherId)] : []);
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(teams);
     }
@@ -690,31 +693,53 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public void WhoAmI_SignedIn_ReturnsTheirNameAndRoles()
+    public async Task WhoAmI_SignedIn_ReturnsTheirNameAndRoles()
     {
-        var result = Controller(new RecordingMediator(), roles: ["Admin", "User"]).WhoAmI();
+        var result = await Controller(new RecordingMediator(), roles: ["Admin", "User"]).WhoAmI(CancellationToken.None);
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["Admin", "User"], false, Permissions: Names(TestPermissions.ForRoles("Admin", "User"))));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(
+            true, Username, ["Admin", "User"], false, Permissions: Names(TestPermissions.ForRoles("Admin", "User")),
+            AccountType: AccountTypes.Admin, Teams: []));
     }
 
     [Test]
-    public void WhoAmI_MustChangePassword_SaysSo()
+    public async Task WhoAmI_SignedIn_SendsTheirTeamsAndTheAccountTypeTheyMake()
+    {
+        IReadOnlyList<TeamMembershipResponse> teams =
+        [
+            new() { Id = RecordId, Name = "Dermatology", Kind = "Clinic", Role = "ClinicAdmin" },
+        ];
+        var mediator = new RecordingMediator(request => request is GetMyTeamsQuery ? teams : null);
+        using var cts = new CancellationTokenSource();
+
+        var result = await Controller(mediator, roles: ["Clinician"]).WhoAmI(cts.Token);
+
+        var response = result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeOfType<WhoAmIResponse>().Subject;
+        response.AccountType.Should().Be(AccountTypes.ClinicAdmin);
+        response.Teams.Should().BeSameAs(teams);
+        mediator.Request.Should().BeOfType<GetMyTeamsQuery>();
+        mediator.Tokens.Single().Should().Be(cts.Token);
+    }
+
+    [Test]
+    public async Task WhoAmI_MustChangePassword_SaysSo()
     {
         var controller = new AuthController(new RecordingMediator(), _cookies.Object).WithRequest(MustChangePassword("User"));
 
-        var result = controller.WhoAmI();
+        var result = await controller.WhoAmI(CancellationToken.None);
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(true, Username, ["User"], true, Permissions: Names(TestPermissions.Staff)));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(
+            true, Username, ["User"], true, Permissions: Names(TestPermissions.Staff), AccountType: AccountTypes.Staff, Teams: []));
     }
 
     [Test]
-    public void WhoAmI_SignedOut_SaysSo()
+    public async Task WhoAmI_SignedOut_SaysSo()
     {
         var controller = new AuthController(new RecordingMediator(), _cookies.Object).WithRequest();
 
-        var result = controller.WhoAmI();
+        var result = await controller.WhoAmI(CancellationToken.None);
 
-        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: []));
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: [], Teams: []));
     }
 
     [Test]
@@ -782,11 +807,12 @@ public sealed class AuthControllerTests
     }
 
     [Test]
-    public void WhoAmI_NoIdentityAtAll_SaysSignedOut()
+    public async Task WhoAmI_NoIdentityAtAll_SaysSignedOut()
     {
         var controller = new AuthController(new RecordingMediator(), _cookies.Object);
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new System.Security.Claims.ClaimsPrincipal() } };
 
-        controller.WhoAmI().Should().BeOfType<OkObjectResult>().Which.Value.Should().BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: []));
+        (await controller.WhoAmI(CancellationToken.None)).Should().BeOfType<OkObjectResult>().Which.Value.Should()
+            .BeEquivalentTo(new WhoAmIResponse(false, null, [], false, Permissions: [], Teams: []));
     }
 }

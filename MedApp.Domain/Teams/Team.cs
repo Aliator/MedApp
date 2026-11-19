@@ -1,10 +1,10 @@
 namespace MedApp.Domain.Teams;
 
 /// <summary>
-/// A clinical service the centre offers, such as Dermatology: admins manage the list. Every pathway template belongs
-/// to one, a pathway keeps a copy of its template's, and staff belong to any number (<see cref="TeamMembership"/>).
-/// One that's in use (by a template, a pathway or a member of staff) is archived, never deleted. It's an
-/// organisational label only: it decides nothing clinical and limits nobody's reading.
+/// A team of the centre: a clinic (such as Dermatology) or the lab (<see cref="Kind"/>). Admins manage the list. Every
+/// pathway template belongs to one, a pathway keeps a copy of its template's, and staff belong to any number
+/// (<see cref="TeamMembership"/>). One that's in use is archived, never deleted. A team decides what its members see
+/// (the team walls, <c>docs/multi-clinic-plan.md</c> section 3); it decides nothing clinical.
 /// </summary>
 public sealed class Team
 {
@@ -16,6 +16,14 @@ public sealed class Team
     public static readonly Guid GeneralId = Guid.Parse("33333333-0000-0000-0000-000000000001");
 
     public const string GeneralName = "General";
+
+    /// <summary>
+    /// The lab, which every database has (seeded through <c>HasData</c>): the one team of the <see cref="TeamKind.Lab"/>
+    /// kind that isn't archived (a filtered unique index). Admins may rename it.
+    /// </summary>
+    public static readonly Guid LabId = Guid.Parse("33333333-0000-0000-0000-000000000002");
+
+    public const string LabName = "Lab";
 
     public const int MaxNameLength = 100;
 
@@ -36,6 +44,9 @@ public sealed class Team
 
     /// <summary>Archived teams can't be chosen for templates or given to staff; what has one keeps it.</summary>
     public bool IsArchived { get; set; }
+
+    /// <summary>A clinic, or the lab. Set when the team is made; teams made on the Teams page are clinics.</summary>
+    public TeamKind Kind { get; init; } = TeamKind.Clinic;
 
     /// <summary>
     /// One more for each change (a rename, archiving or restoring). A change names the version it started from, so a

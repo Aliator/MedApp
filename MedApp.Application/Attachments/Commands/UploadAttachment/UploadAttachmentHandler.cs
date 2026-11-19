@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -27,6 +28,7 @@ public sealed class UploadAttachmentHandler(
     IUploadStaging staging,
     IMalwareScanner scanner,
     IThumbnailGenerator thumbnails,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<UploadAttachmentCommand, AttachmentResponse>
 {
@@ -67,6 +69,11 @@ public sealed class UploadAttachmentHandler(
     {
         Id = stored.Id,
         PatientId = target.PatientId,
+        // Its pathway's or referral's team; a patient's own file, the uploader's (the team walls).
+        TeamId = target.Pathway?.TeamId
+                 ?? target.Referral?.TeamId
+                 ?? request.Actor.Teams.DefaultTeamId
+                 ?? MedApp.Domain.Teams.Team.GeneralId,
         PathwayId = target.Pathway?.Id,
         StageId = target.Stage?.Id,
         ReferralId = target.Referral?.Id,
@@ -89,6 +96,14 @@ public sealed class UploadAttachmentHandler(
     {
         var target = await AttachmentTargets.ResolveAsync(
             request.PatientId, request.PathwayId, request.StageId, request.ReferralId, patients, pathways, attachments, ct);
+        // The team walls: a pathway or referral behind them is a 404, as if it weren't there. Seen is enough (the lab
+        // attaches its reports to a pathway it was passed).
+        if (target.Pathway is { } pathway)
+            await boundary.EnsurePathwayVisibleAsync(
+                pathway, request.Actor.Teams, Pathways.Common.PathwayRepositoryExtensions.NotFoundMessage(pathway.Id), ct);
+        else if (target.Referral is { } referral)
+            await boundary.EnsureTeamVisibleAsync(
+                "Referral", referral.Id, referral.TeamId, request.Actor.Teams, $"Referral '{referral.Id}' was not found.", ct);
         PatientRules.EnsureCanChange(target.Owner);
         if (target.WhyFilesCantChange() is { } reason)
             throw new ConflictException(reason);

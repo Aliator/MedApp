@@ -1,6 +1,7 @@
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathways;
 using MedApp.Application.Pathways.Repositories;
@@ -54,6 +55,13 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         await context.PatientPathways
             .AsNoTracking()
             .Where(x => x.PatientId == patientId)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<PatientPathway>> GetByPatientAsync(Guid patientId, TeamScope scope, CancellationToken ct) =>
+        await context.PatientPathways
+            .AsNoTracking()
+            .Where(x => x.PatientId == patientId)
+            .Where(TeamAccess.Pathways(scope, context.PathwayAccess))
             .ToListAsync(ct);
 
     public async Task SaveAsync(IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct)
@@ -117,9 +125,13 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         await SaveChangesAsync(ct);
     }
 
-    public async Task<PagedResult<PatientPathway>> SearchAsync(SearchPatientPathwaysQuery query, DateTime nowUtc, CancellationToken ct)
+    public async Task<PagedResult<PatientPathway>> SearchAsync(
+        SearchPatientPathwaysQuery query, TeamScope scope, DateTime nowUtc, CancellationToken ct)
     {
-        var filtered = context.PatientPathways.AsNoTracking().Filter(query, nowUtc);
+        var filtered = context.PatientPathways
+            .AsNoTracking()
+            .Where(TeamAccess.Pathways(scope, context.PathwayAccess))
+            .Filter(query, nowUtc);
 
         var totalCount = await filtered.CountAsync(ct);
 
@@ -135,12 +147,13 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         return new PagedResult<PatientPathway>(page, totalCount);
     }
 
-    public async Task<IReadOnlyList<PathwayLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
+    public async Task<IReadOnlyList<PathwayLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, TeamScope scope, CancellationToken ct)
     {
         var list = ids.ToList();
         return await context.PatientPathways
             .AsNoTracking()
             .Where(p => list.Contains(p.Id))
+            .Where(TeamAccess.Pathways(scope, context.PathwayAccess))
             .Select(p => new PathwayLabel(p.Id, p.Title, p.Patient.FirstName, p.Patient.LastName))
             .ToListAsync(ct);
     }
@@ -158,6 +171,7 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         context.PatientPathwayNoteVersions.AddRange(change.NoteVersions);
         context.ReferralEvents.AddRange(change.ReferralEvents);
         context.ReferralClockPauses.AddRange(change.NewPauses);
+        context.PathwayAccess.AddRange(change.NewGrants);
     }
 
     /// <summary>

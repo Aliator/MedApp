@@ -11,14 +11,14 @@ public sealed class SetUserTeamsValidator : AbstractValidator<SetUserTeamsComman
             .NotEmpty()
             .WithMessage("Username must not be empty.");
 
-        RuleFor(x => x.TeamIds)
+        RuleFor(x => x.Teams)
             .NotNull()
-            .WithMessage("Team ids must be given (an empty list removes them all).")
-            .Must(ids => ids is null || ids.Count <= TeamLimits.MaxPerUser)
-            .WithMessage($"At most {TeamLimits.MaxPerUser} teams can be given.");
-
-        RuleForEach(x => x.TeamIds)
-            .NotEmpty()
-            .WithMessage("Team id must not be empty.");
+            .WithMessage("Teams must be given (an empty list removes them all).")
+            .Must(teams => teams is null || teams.Count <= TeamLimits.MaxPerUser)
+            .WithMessage($"At most {TeamLimits.MaxPerUser} teams can be given.")
+            .Must(teams => teams is null || teams.All(t => t.TeamId != Guid.Empty))
+            .WithMessage(TeamRules.ChooseTeamMessage)
+            .Must(teams => teams is null || teams.All(t => TeamRules.ParseRole(t.Role) is not null))
+            .WithMessage(TeamRules.ChooseRoleMessage);
     }
 }

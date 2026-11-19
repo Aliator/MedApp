@@ -25,6 +25,8 @@ public sealed class RecordSpecimenHandler(
     IIdentityReadService identity,
     IQrCodeRenderer qrCodes,
     IOptions<SpecimenOptions> options,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
+    MedApp.Application.Teams.Repositories.IPathwayAccessRepository access,
     TimeProvider timeProvider)
     : IRequestHandler<RecordSpecimenCommand, SpecimenResponse>
 {
@@ -50,6 +52,7 @@ public sealed class RecordSpecimenHandler(
             Id = Guid.NewGuid(),
             Number = SpecimenNumbers.Format(options.Value.NumberPrefix, now, sequence),
             PatientId = pathway.PatientId,
+            TeamId = pathway.TeamId,
             PathwayId = pathway.Id,
             StageId = stage.Id,
             SpecimenTypeId = type.Id,
@@ -66,7 +69,13 @@ public sealed class RecordSpecimenHandler(
 
         var change = new SpecimenChange(specimen, pathway, request.Actor, now);
         change.Take();
-        await repository.AddAsync(specimen, change.AuditEntries, cancellationToken);
+
+        // The sample passes the pathway to the lab (the team walls): it sees it in full from then on, and keeps it.
+        if (await teams.GetLabAsync(cancellationToken) is { } lab
+            && !await access.HasGrantAsync(pathway.Id, lab.Id, MedApp.Domain.Teams.PathwayAccessReason.StageOwner, cancellationToken))
+            change.PassToLab(lab.Id);
+
+        await repository.AddAsync(specimen, change.AuditEntries, change.NewGrants, cancellationToken);
 
         // For the response: the pathway as read (its patient and stages), never saved through the specimen.
         specimen.Patient = pathway.Patient;

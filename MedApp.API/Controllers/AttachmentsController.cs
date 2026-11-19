@@ -43,7 +43,8 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
             request.IncludeDeleted,
             User.GetUserId(),
             CanCorrectRecords,
-            User.HasPermission(Permission.AttachFiles)), ct));
+            User.HasPermission(Permission.AttachFiles),
+            User.ToTeamScope()), ct));
 
     /// <summary>
     /// Attaches a file to one patient, pathway or stage. The body is the file's bytes
@@ -102,7 +103,7 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> Thumbnail(Guid id, CancellationToken ct) =>
-        Send(await mediator.Send(new GetAttachmentThumbnailQuery(id), ct));
+        Send(await mediator.Send(new GetAttachmentThumbnailQuery(id, User.ToTeamScope()), ct));
 
     /// <summary>Deletes (hides) a file, audited: staff their own while it can be changed, admins any.</summary>
     [HttpDelete("{id:guid}")]

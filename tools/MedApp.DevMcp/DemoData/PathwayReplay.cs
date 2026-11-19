@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Specimens.Common;
 using MedApp.Application.Pathways.Common;
@@ -48,6 +49,8 @@ public sealed partial class PathwayReplay
     private readonly List<Notification> _notifications = [];
     private readonly List<Touch> _touches = [];
     private readonly List<ReferralEvent> _referralEvents = [];
+    private readonly List<PathwayAccess> _grants = [];
+    private bool _passedToLab;
 
     /// <summary>The referral it was accepted from, with its clock; null for a pathway created directly.</summary>
     private Referral? _referral;
@@ -128,6 +131,7 @@ public sealed partial class PathwayReplay
         if (_referral is not null)
             _world.Referrals.Add(_referral);
         _world.ReferralEvents.AddRange(_referralEvents);
+        _world.PathwayAccess.AddRange(_grants);
         _world.Bypasses += Bypasses;
         if (DeleteAtUtc is { } at)
             _world.Deletions.Add((_pathway, at));
@@ -659,6 +663,7 @@ public sealed partial class PathwayReplay
         // The clock's own history (stopped, paused, resumed, target re-read), saved with the change (its pauses go
         // with the referral).
         _referralEvents.AddRange(change.ReferralEvents);
+        _grants.AddRange(change.NewGrants);
         Touch(who, at);
 
         if (at >= _world.Timeline.NotificationsFromUtc)
@@ -792,6 +797,7 @@ public sealed partial class PathwayReplay
         {
             Id = Guid.NewGuid(),
             PatientId = _pathway.PatientId,
+            TeamId = _pathway.TeamId,
             PathwayId = _pathway.Id,
             StageId = stage.Id,
             Status = AppointmentStatus.Requested,

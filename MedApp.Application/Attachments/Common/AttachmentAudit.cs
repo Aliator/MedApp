@@ -27,6 +27,7 @@ public static class AttachmentAudit
         PatientPathwayId = target.Pathway?.Id ?? PatientPathwayAuditEntry.NoPathway,
         PathwayTitle = target.Pathway?.Title ?? string.Empty,
         PatientId = attachment.PatientId,
+        TeamId = attachment.TeamId,
         StageId = target.Stage?.Id,
         StageName = target.Stage?.Name,
         Action = action,

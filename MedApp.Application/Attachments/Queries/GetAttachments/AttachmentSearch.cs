@@ -1,3 +1,5 @@
+using MedApp.Domain.Teams;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Attachments.Common;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -10,9 +12,17 @@ namespace MedApp.Application.Attachments.Queries.GetAttachments;
 /// </summary>
 public static class AttachmentSearch
 {
-    /// <summary>The attachments the query asks for, in no order.</summary>
-    public static IQueryable<Attachment> Filter(IQueryable<Attachment> attachments, GetAttachmentsQuery query)
+    /// <summary>
+    /// The attachments the query asks for, in no order, that the viewer sees (the team walls: their team's, or on a
+    /// pathway they see in full; <paramref name="grants"/> is the grants table, needed unless they see every team's).
+    /// </summary>
+    public static IQueryable<Attachment> Filter(
+        IQueryable<Attachment> attachments, GetAttachmentsQuery query, IQueryable<PathwayAccess>? grants = null)
     {
+        if (!query.Teams.SeesAllTeams)
+            attachments = attachments.Where(TeamAccess.ByPathway<Attachment>(
+                query.Teams, grants ?? throw new ArgumentNullException(nameof(grants)), a => a.PathwayId, a => a.TeamId));
+
         var filtered = query switch
         {
             { PatientId: { } patientId } => attachments.Where(a => a.PatientId == patientId),

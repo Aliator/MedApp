@@ -1,3 +1,5 @@
+using MedApp.Application.Common.Teams;
+using MedApp.Domain.Teams;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -17,14 +19,27 @@ public static class PatientTimelineSearch
     /// for files attached to the patient themselves (<see cref="PatientPathwayAuditEntry.NoPathway"/>). Downloads
     /// are in the audit log, never on the timeline.
     /// </summary>
+    /// <remarks>
+    /// The team walls (<see cref="GetPatientTimelineQuery.Scope"/>): an entry about a pathway shows when the viewer sees
+    /// that pathway in full (<paramref name="grants"/>, the grants table); one about no pathway, when its team is theirs.
+    /// </remarks>
     public static IQueryable<PatientTimelineRow> Page(
         IQueryable<PatientPathwayAuditEntry> entries,
         IQueryable<PatientPathway> pathways,
-        GetPatientTimelineQuery query)
+        GetPatientTimelineQuery query,
+        IQueryable<PathwayAccess>? grants = null)
     {
         var patientId = query.PatientId;
         var noPathway = PatientPathwayAuditEntry.NoPathway;
         var filtered = entries.Where(e => e.PatientId == patientId && e.Action != PatientPathwayAuditAction.AttachmentDownloaded);
+
+        if (!query.Teams.SeesAllTeams)
+        {
+            var visible = TeamAccess.VisiblePathwayIds(query.Teams, grants ?? throw new ArgumentNullException(nameof(grants)));
+            var teamIds = query.Teams.TeamIds.ToList();
+            filtered = filtered.Where(e => (e.PatientPathwayId == noPathway && teamIds.Contains(e.TeamId))
+                                           || (e.PatientPathwayId != noPathway && visible.Contains(e.PatientPathwayId)));
+        }
 
         if (!query.FullView)
             filtered = filtered.Where(e => e.PatientPathwayId == noPathway || pathways.Any(p => p.Id == e.PatientPathwayId));

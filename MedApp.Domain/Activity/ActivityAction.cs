@@ -160,5 +160,12 @@ public enum ActivityAction
     /// A patient's data request was recorded or changed (identity checked, extended, reviewed, sent, refused or
     /// withdrawn): the request's ID and what changed in its details, never the requester, a reason or anything withheld.
     /// </summary>
-    DataRequestChanged = 53
+    DataRequestChanged = 53,
+
+    /// <summary>
+    /// Someone asked for something behind their team's wall (decision 204 of <c>docs/multi-clinic-plan.md</c>) and was
+    /// answered 404, as if it weren't there: <c>{targetKind, targetId}</c> in its details, the viewer as the actor; once
+    /// per target in the view window, so the privacy officer can see probing.
+    /// </summary>
+    TeamBoundaryRefused = 54
 }

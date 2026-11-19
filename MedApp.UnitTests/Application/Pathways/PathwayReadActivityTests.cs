@@ -41,7 +41,7 @@ public sealed class PathwayReadActivityTests : PathwayHandlerTestBase
         var first = CreatePathway(Status.Assigned);
         var second = CreatePathway(Status.InProgress);
         var query = CreateSearchQuery();
-        Repository.Setup(r => r.SearchAsync(query, Now, It.IsAny<CancellationToken>()))
+        Repository.Setup(r => r.SearchAsync(query, query.Teams, Now, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<PatientPathway>([first, second], 2));
         using var cts = new CancellationTokenSource();
 
@@ -58,7 +58,7 @@ public sealed class PathwayReadActivityTests : PathwayHandlerTestBase
     public async Task SearchPathways_NoResults_RecordsAnEmptyList()
     {
         var query = CreateSearchQuery();
-        Repository.Setup(r => r.SearchAsync(query, Now, It.IsAny<CancellationToken>()))
+        Repository.Setup(r => r.SearchAsync(query, query.Teams, Now, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<PatientPathway>([], 0));
 
         await Fixture.Create<SearchPatientPathwaysHandler>().Handle(query, CancellationToken.None);

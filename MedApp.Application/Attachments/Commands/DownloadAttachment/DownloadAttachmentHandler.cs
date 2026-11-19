@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
@@ -16,6 +17,7 @@ public sealed class DownloadAttachmentHandler(
     IPatientPathwayRepository pathways,
     IFileStore fileStore,
     IActivityLog activityLog,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<DownloadAttachmentCommand, AttachmentDownload>
 {
@@ -26,7 +28,8 @@ public sealed class DownloadAttachmentHandler(
 
         var attachment = await attachments.GetByIdAsync(request.Id, cancellationToken);
         if (attachment is null || attachment.IsDeleted)
-            throw new NotFoundException($"File '{request.Id}' was not found.");
+            throw new NotFoundException(AttachmentWalls.NotFoundMessage(request.Id));
+        await AttachmentWalls.EnsureVisibleAsync(attachment, boundary, request.Actor.Teams, cancellationToken);
 
         var content = await fileStore.OpenReadAsync(AttachmentStorageKeys.File(attachment.Id), cancellationToken)
                       ?? throw new NotFoundException($"File '{request.Id}' has no contents in storage.");

@@ -44,7 +44,7 @@ public sealed class TriageTests : IntegrationTest
         var clinician = await CreateStaffAsync("Clinician");
         (await _admin.PutAsJsonAsync(
                 $"/api/auth/users/{clinician.Username}/teams",
-                new SetUserTeamsRequest(teamIds.Length == 0 ? [Team.GeneralId] : teamIds)))
+                new SetUserTeamsRequest((teamIds.Length == 0 ? [Team.GeneralId] : teamIds).Select(id => new TeamMembershipRequest(id, null)).ToList())))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         return clinician;
     }
@@ -254,7 +254,7 @@ public sealed class TriageTests : IntegrationTest
         var nobody = await CreateTeamAsync();
         await ClinicianInAsync(Team.GeneralId);
         var nurse = await CreateStaffAsync("Nurse");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{nurse.Username}/teams", new SetUserTeamsRequest([nobody.Id])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{nurse.Username}/teams", new SetUserTeamsRequest([new(nobody.Id, null)])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
         var teams = await (await _admin.GetAsync("/api/teams")).ReadAsAsync<List<TeamResponse>>();

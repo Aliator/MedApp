@@ -41,7 +41,7 @@ public sealed class ActivityRepository(MedAppDbContext context) : IActivityRepos
     public Task<bool> HasRecentEntryAsync(
         Guid? userId,
         ActivityAction action,
-        Guid patientId,
+        Guid? patientId,
         string details,
         DateTime sinceUtc,
         CancellationToken ct) =>

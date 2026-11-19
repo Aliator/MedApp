@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
@@ -11,6 +12,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.ReinstatePathwayStage;
 
 public sealed class ReinstatePathwayStageHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
@@ -20,7 +22,7 @@ public sealed class ReinstatePathwayStageHandler(
 {
     public async Task<PatientPathwayResponse> Handle(ReinstatePathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
         if (!PathwayWorkflow.CanReinstateStage(pathway, stage))

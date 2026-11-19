@@ -77,6 +77,7 @@ public sealed class RecordConsentHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = pathway.PatientId,
+            TeamId = pathway.TeamId,
             PathwayId = pathway.Id,
             StageId = stage.Id,
             ConsentFormId = form.Id,

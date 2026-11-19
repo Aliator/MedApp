@@ -287,6 +287,7 @@ public static class ServiceExtensions
         services.AddScoped<IScheduledJobRepository, ScheduledJobRepository>();
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ITeamRepository, TeamRepository>();
+        services.AddScoped<IPathwayAccessRepository, PathwayAccessRepository>();
         services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
         services.AddScoped<ILetterRepository, LetterRepository>();

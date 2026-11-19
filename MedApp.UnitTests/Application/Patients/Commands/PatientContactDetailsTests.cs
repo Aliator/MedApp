@@ -215,7 +215,11 @@ public sealed class PatientContactDetailsTests
     {
         var patient = Given(WithContactDetails(_practice.Id));
 
-        var response = await new GetPatientByIdHandler(_patients.Object, _practices.Object, _activity)
+        var response = await new GetPatientByIdHandler(
+                _patients.Object, _practices.Object, _activity,
+                Mock.Of<MedApp.Application.Pathways.Repositories.IPatientPathwayRepository>(),
+                Mock.Of<MedApp.Application.Teams.Repositories.ITeamRepository>(),
+                Mock.Of<MedApp.Application.Common.Teams.ITeamBoundary>())
             .Handle(new GetPatientByIdQuery(patient.Id), _cts.Token);
 
         response!.Practice!.OdsCode.Should().Be(OdsCode);

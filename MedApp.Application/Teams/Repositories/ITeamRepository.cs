@@ -35,9 +35,19 @@ public interface ITeamRepository
     /// <summary>The teams a member of staff belongs to, sorted by name.</summary>
     Task<IReadOnlyList<Team>> GetForUserAsync(Guid userId, CancellationToken ct);
 
+    /// <summary>Someone's memberships, each with its team and their role in it, sorted by the team's name.</summary>
+    Task<IReadOnlyList<TeamMembership>> GetMembershipsAsync(Guid userId, CancellationToken ct);
+
+    /// <summary>Which of these people are the clinic admin of any of their teams (for their account type).</summary>
+    Task<IReadOnlySet<Guid>> GetClinicAdminsAsync(IEnumerable<Guid> userIds, CancellationToken ct);
+
+    /// <summary>The lab (the team of the lab kind that isn't archived), or null if there's none.</summary>
+    Task<Team?> GetLabAsync(CancellationToken ct);
+
     /// <summary>
-    /// Sets the teams a member of staff belongs to, exactly, and saves <paramref name="activity"/> in the same
-    /// save, so the change can't miss the activity log.
+    /// Sets the teams a member of staff belongs to, exactly, each with their role in it, and saves
+    /// <paramref name="activity"/> in the same save, so the change can't miss the activity log.
     /// </summary>
-    Task SetForUserAsync(Guid userId, IReadOnlyCollection<Guid> teamIds, ActivityEntry activity, CancellationToken ct);
+    Task SetForUserAsync(
+        Guid userId, IReadOnlyDictionary<Guid, TeamMemberRole> teams, ActivityEntry activity, CancellationToken ct);
 }

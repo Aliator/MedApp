@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
@@ -12,6 +13,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.ChangePatientPathwayStatus;
 
 public sealed class ChangePatientPathwayStatusHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
@@ -24,8 +26,8 @@ public sealed class ChangePatientPathwayStatusHandler(
         var to = PathwayEnums.Parse<PatientPathwayStatus>(request.Status);
         // Blocking and cancelling stay allowed while the patient's record is restricted, so care can be paused safely.
         var pathway = PatientRules.PausesWhileRestricted.Contains(to)
-            ? await repository.GetForPauseOrThrowAsync(request.Id, cancellationToken)
-            : await repository.GetForUpdateOrThrowAsync(request.Id, cancellationToken);
+            ? await repository.GetForPauseOrThrowAsync(request.Id, boundary, request.Actor.Teams, cancellationToken)
+            : await repository.GetForUpdateOrThrowAsync(request.Id, boundary, request.Actor.Teams, cancellationToken);
 
         if (!PathwayWorkflow.AllowedStatusChanges(pathway).Contains(to))
             throw new ConflictException(

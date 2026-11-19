@@ -287,10 +287,10 @@ From its design (`docs/multi-clinic-plan.md`, drafted in MC1). **None of this is
 
 | Planned | Personal data | About | Special category? | PR |
 |---|---|---|---|---|
-| `TeamMemberships` (today's `StaffSpecialties`) | Gains `Role` (member or clinic admin) | Staff | No | MC2, MC3 |
-| A `TeamId` on every clinical row (pathways, referrals, appointments, files, letters, results, consent, MDT items, samples, messages to patients, and the audit and history entries) | Which clinic a patient is under | Patients | **Yes:** a clinic's name can reveal the care | MC4 |
-| `PathwayAccess` | The pathway, patient, team or user, reason (`Owner`, `StageOwner`, `Consult`, `Mdt`), whether they can change it, and when access started and ended | Patients; staff | Indirectly | MC4, MC7, MC25, MC26 |
-| Activity log | Read entries gain `access` and an admin's `teamFilter`; a new `TeamBoundaryRefused` entry (the target's kind and ID) | Staff; patients by ID | Indirectly | MC4 |
+| `TeamMemberships` (today's `StaffSpecialties`) | Gains `Role` (member or clinic admin) | Staff | No | MC2, MC3: **in the backend** (migration pending) |
+| A `TeamId` on every clinical row (pathways, referrals, appointments, files, letters, results, consent, MDT items, samples, messages to patients, and the audit and history entries) | Which clinic a patient is under | Patients | **Yes:** a clinic's name can reveal the care | MC4: **in the backend** (migration pending) |
+| `PathwayAccess` | The pathway, patient, team or user, reason (`Owner`, `StageOwner`, `Consult`, `Mdt`), and when access started and ended (whether they can change it is worked out, not stored) | Patients; staff | Indirectly | MC4 (`Owner`, the lab's `StageOwner` with a first sample): **in the backend** (migration pending); MC7, MC25, MC26 |
+| Activity log | Read entries gain `access` and an admin's `teamFilter`; a new `TeamBoundaryRefused` entry (the target's kind and ID) | Staff; patients by ID | Indirectly | MC4: `PathwayViewed`'s `access` and `TeamBoundaryRefused` **in the backend**; the other views' `access` and `teamFilter` with MC5 and MC6 |
 | `HospitalRequests` | The hospital, its patient number, the NHS number, the surgeon's name as written, priority, cancer pathway or not, dates, the sample type | Hospital patients; the surgeon | **Yes** | MC18 |
 | `LabCases` and their steps | The test, the patient, statuses, who did each step and when, due dates; the report as an attached file | Patients; staff | **Yes** | MC15, MC19 |
 | Surgery details | Date, procedure and outcome, **free text as written** | Patients | **Yes** | MC20 |

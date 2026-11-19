@@ -15,6 +15,7 @@ public sealed class GetUserByUsernameHandlerTests
     private IFixture _fixture = null!;
     private Mock<IIdentityReadService> _service = null!;
     private GetUserByUsernameHandler _handler = null!;
+    private Mock<MedApp.Application.Teams.Repositories.ITeamRepository> _teams = null!;
 
     [SetUp]
     public void SetUp()
@@ -23,6 +24,11 @@ public sealed class GetUserByUsernameHandlerTests
 
         _service = new Mock<IIdentityReadService>();
         _fixture.Inject<IIdentityReadService>(_service.Object);
+        // Nobody is a clinic admin, unless a test says so.
+        _teams = new Mock<MedApp.Application.Teams.Repositories.ITeamRepository>();
+        _teams.Setup(t => t.GetClinicAdminsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
+        _fixture.Inject(_teams.Object);
 
         _handler = _fixture.Create<GetUserByUsernameHandler>();
     }
@@ -48,7 +54,7 @@ public sealed class GetUserByUsernameHandlerTests
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        result.Should().BeSameAs(user);
+        result.Should().Be(user with { AccountType = "Admin" });
     }
 
     [Test]

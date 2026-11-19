@@ -102,6 +102,7 @@ public sealed class ReportSpecimenHandler(
                 {
                     Id = stored.Id,
                     PatientId = specimen.PatientId,
+                    TeamId = specimen.TeamId,
                     PathwayId = target.Pathway?.Id,
                     FileName = stored.FileName,
                     ContentType = stored.Type.ContentType,
@@ -125,6 +126,7 @@ public sealed class ReportSpecimenHandler(
                     Id = Guid.NewGuid(),
                     PatientId = specimen.PatientId,
                     Patient = specimen.Patient,
+                    TeamId = specimen.TeamId,
                     PathwayId = specimen.PathwayId,
                     Pathway = pathway,
                     SpecimenId = specimen.Id,

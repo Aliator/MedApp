@@ -25,6 +25,12 @@ public sealed class Result
     public Guid Id { get; init; }
 
     public Guid PatientId { get; init; }
+
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its pathway's, else the recorder's team. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
     public Patient Patient { get; set; } = null!;
 
     /// <summary>The pathway it belongs to, if any (an external result may be the patient's alone).</summary>

@@ -14,6 +14,12 @@ public sealed class Attachment
     /// <summary>The patient it belongs to, always set, whatever it's attached to.</summary>
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its pathway's or referral's; a patient's own file, the uploader's team. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     /// <summary>The pathway it's attached to (also set for a stage's file); null for a patient's own file.</summary>
     public Guid? PathwayId { get; init; }
 

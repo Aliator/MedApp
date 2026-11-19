@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using System.Security.Cryptography;
 using MedApp.Application.Appointments.Common;
 using MedApp.Application.Attachments.Common;
@@ -106,6 +107,7 @@ public sealed partial class PathwayReplay
         {
             Id = Guid.NewGuid(),
             PatientId = _pathway.PatientId,
+            TeamId = _pathway.TeamId,
             PathwayId = _pathway.Id,
             StageId = stage.Id,
             ConsentFormId = gynaecology ? _world.Setup.GynaecologyConsentFormId : _world.Setup.SkinConsentFormId,
@@ -226,6 +228,7 @@ public sealed partial class PathwayReplay
             Id = Guid.NewGuid(),
             Number = SpecimenNumbers.Format(new SpecimenOptions().NumberPrefix, recordedAt, _world.NextSpecimenNumber++),
             PatientId = _pathway.PatientId,
+            TeamId = _pathway.TeamId,
             PathwayId = _pathway.Id,
             StageId = stage.Id,
             SpecimenTypeId = type.Id,
@@ -242,6 +245,13 @@ public sealed partial class PathwayReplay
         var change = new SpecimenChange(specimen, _pathway, by.Actor, recordedAt);
         change.Take();
         _audit.AddRange(change.AuditEntries);
+        // Passed to the lab: it sees the pathway in full from then on, and keeps it (the team walls).
+        if (!_passedToLab)
+        {
+            change.PassToLab(Team.LabId);
+            _passedToLab = true;
+        }
+        _grants.AddRange(change.NewGrants);
         _specimens.Add(specimen);
         Touch(by, recordedAt);
         return specimen;
@@ -379,6 +389,7 @@ public sealed partial class PathwayReplay
         {
             Id = Guid.NewGuid(),
             PatientId = specimen.PatientId,
+            TeamId = specimen.TeamId,
             PathwayId = onPathway ? _pathway.Id : null,
             FileName = histology ? $"Histology report {specimen.Number}.pdf" : $"{specimen.SpecimenType.Name} report {specimen.Number}.pdf",
             ContentType = "application/pdf",
@@ -402,6 +413,7 @@ public sealed partial class PathwayReplay
         {
             Id = Guid.NewGuid(),
             PatientId = specimen.PatientId,
+            TeamId = specimen.TeamId,
             PathwayId = _pathway.Id,
             Pathway = _pathway,
             SpecimenId = specimen.Id,

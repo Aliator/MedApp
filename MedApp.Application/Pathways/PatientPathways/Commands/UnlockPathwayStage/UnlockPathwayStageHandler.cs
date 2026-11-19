@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
@@ -9,6 +10,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.UnlockPathwayStage;
 
 public sealed class UnlockPathwayStageHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
@@ -17,7 +19,7 @@ public sealed class UnlockPathwayStageHandler(
 {
     public async Task<PatientPathwayResponse> Handle(UnlockPathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathways;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -46,12 +47,25 @@ public interface IPatientPathwayRepository
     /// </summary>
     Task DeleteAsync(PatientPathway pathway, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
-    /// <summary>A patient's pathways, in any status, read-only and without their stages, assignments or patient.</summary>
+    /// <summary>
+    /// A patient's pathways, in any status, read-only and without their stages, assignments or patient: every team's
+    /// (the team walls aren't applied), for system work and for the summaries of other teams' pathways.
+    /// </summary>
     Task<IReadOnlyList<PatientPathway>> GetByPatientAsync(Guid patientId, CancellationToken ct);
 
-    /// <summary>The titles and patients' names of these pathways (those that exist), read-only.</summary>
-    Task<IReadOnlyList<PathwayLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    /// <summary>
+    /// A patient's pathways the viewer sees in full (the team walls, <see cref="TeamAccess.Pathways"/>), in any status,
+    /// read-only and without their stages, assignments or patient.
+    /// </summary>
+    Task<IReadOnlyList<PatientPathway>> GetByPatientAsync(Guid patientId, TeamScope scope, CancellationToken ct);
 
-    /// <summary>One page of pathways matching the query (see <c>PathwaySearch</c>), with patients, stages and assignments.</summary>
-    Task<PagedResult<PatientPathway>> SearchAsync(SearchPatientPathwaysQuery query, DateTime nowUtc, CancellationToken ct);
+    /// <summary>The titles and patients' names of these pathways (those that exist and the viewer sees), read-only.</summary>
+    Task<IReadOnlyList<PathwayLabel>> GetLabelsAsync(IReadOnlyCollection<Guid> ids, TeamScope scope, CancellationToken ct);
+
+    /// <summary>
+    /// One page of pathways matching the query (see <c>PathwaySearch</c>) that the viewer sees in full (the team walls,
+    /// <see cref="TeamAccess.Pathways"/>), with patients, stages and assignments.
+    /// </summary>
+    Task<PagedResult<PatientPathway>> SearchAsync(
+        SearchPatientPathwaysQuery query, TeamScope scope, DateTime nowUtc, CancellationToken ct);
 }

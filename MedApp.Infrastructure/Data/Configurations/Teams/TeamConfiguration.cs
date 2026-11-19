@@ -25,6 +25,12 @@ public sealed class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(x => x.IsArchived)
             .HasDefaultValue(false);
 
+        // At most one lab that isn't archived (decision 181, MC3): the lab serves every clinic.
+        builder.HasIndex(x => x.Kind)
+            .IsUnique()
+            .HasFilter("[Kind] = 1 AND [IsArchived] = 0")
+            .HasDatabaseName("IX_Teams_OneLab");
+
         // Read back with each change: a save from a copy read before another is refused (409).
         builder.Property(x => x.Version)
             .IsRequired()
@@ -38,6 +44,15 @@ public sealed class TeamConfiguration : IEntityTypeConfiguration<Team>
             Id = Team.GeneralId,
             Name = Team.GeneralName,
             IsArchived = false,
+            Version = 1,
+            CreatedAt = GeneralCreatedAt,
+            LastUpdated = GeneralCreatedAt
+        }, new Team
+        {
+            Id = Team.LabId,
+            Name = Team.LabName,
+            IsArchived = false,
+            Kind = TeamKind.Lab,
             Version = 1,
             CreatedAt = GeneralCreatedAt,
             LastUpdated = GeneralCreatedAt

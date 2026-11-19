@@ -416,6 +416,7 @@ public sealed class ReferralChange(Referral referral, PathwayActor actor, DateTi
             Id = Guid.NewGuid(),
             ReferralId = referral.Id,
             PatientId = referral.PatientId,
+            TeamId = referral.TeamId,
             PathwayId = referral.PathwayId,
             Action = action,
             AtUtc = nowUtc.AddTicks(_events.Count),

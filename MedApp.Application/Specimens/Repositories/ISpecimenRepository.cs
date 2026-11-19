@@ -28,6 +28,16 @@ public interface ISpecimenRepository
     /// <summary>Adds a new specimen and its audit entries.</summary>
     Task AddAsync(Specimen specimen, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
+    /// <summary>
+    /// Adds a new specimen with its audit entries and the access grants its recording made (the lab's, once passed the
+    /// pathway), in one save.
+    /// </summary>
+    Task AddAsync(
+        Specimen specimen,
+        IEnumerable<PatientPathwayAuditEntry> audit,
+        IEnumerable<MedApp.Domain.Teams.PathwayAccess> grants,
+        CancellationToken ct);
+
     /// <summary>Saves changes to a specimen loaded with <see cref="GetForUpdateAsync"/>, with its audit entries.</summary>
     Task SaveAsync(IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 

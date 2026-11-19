@@ -18,6 +18,8 @@ public sealed class GetPatientTimelineOverviewHandler(
     IPathwayAuditRepository auditRepository,
     IReferralRepository referralRepository,
     IActivityLog activityLog,
+    MedApp.Application.Common.Teams.ITeamBoundary boundary,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<GetPatientTimelineOverviewQuery, PatientTimelineOverviewResponse>
 {
@@ -32,7 +34,16 @@ public sealed class GetPatientTimelineOverviewHandler(
         await activityLog.RecordViewsAsync(ActivityAction.PatientViewed, [request.PatientId], cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var pathways = await pathwayRepository.GetByPatientAsync(request.PatientId, cancellationToken);
+        // Every team's, then only those the viewer sees in full; the rest are summary lines (the team walls).
+        var all = await pathwayRepository.GetByPatientAsync(request.PatientId, cancellationToken);
+        var visible = await boundary.VisiblePathwaysAsync(all.Select(p => p.Id), request.Teams, cancellationToken);
+        var pathways = all.Where(p => visible.Contains(p.Id)).ToList();
+        var others = new List<MedApp.Contracts.Patients.Responses.OtherTeamPathwaySummaryResponse>();
+        if (!request.Teams.SeesAllTeams && pathways.Count < all.Count)
+        {
+            var names = (await teams.GetByIdsAsync(all.Select(p => p.TeamId), cancellationToken)).ToDictionary(t => t.Id, t => t.Name);
+            others = OtherTeamPathways.Summarise(all, visible, names, request.Teams);
+        }
 
         // Open or blocked: still to be done, so still due.
         var due = pathways
@@ -47,7 +58,7 @@ public sealed class GetPatientTimelineOverviewHandler(
             .Select(TimelineMapper.ToPathwayResponse)
             .ToList();
 
-        if (request.FullView)
+        if (request.FullView && request.Teams.SeesAllTeams)
         {
             var existing = pathways.Select(p => p.Id).ToHashSet();
             var deletions = await auditRepository.GetDeletionsAsync(request.PatientId, cancellationToken);
@@ -68,6 +79,7 @@ public sealed class GetPatientTimelineOverviewHandler(
             OpenCount = due.Count,
             Pathways = listed,
             AwaitingReferrals = awaiting.Select(TimelineMapper.ToReferralResponse).ToList(),
+            OtherTeamPathways = others,
         };
     }
 }

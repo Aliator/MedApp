@@ -105,7 +105,7 @@ public sealed class TeamTests : IntegrationTest
         await (await staff.Client.PostAsJsonAsync(Teams, new CreateTeamRequest { Name = UniqueName("Team") }))
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         await (await staff.Client.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams",
-                new SetUserTeamsRequest([Team.GeneralId])))
+                new SetUserTeamsRequest([new(Team.GeneralId, null)])))
             .ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
     }
 
@@ -175,7 +175,7 @@ public sealed class TeamTests : IntegrationTest
         var staff = await CreateStaffAsync(UserRole);
 
         var set = await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams",
-                new SetUserTeamsRequest([urology.Id, dermatology.Id])))
+                new SetUserTeamsRequest([new(urology.Id, null), new(dermatology.Id, null)])))
             .ReadAsAsync<List<TeamMembershipResponse>>();
         set.Select(s => s.Id).Should().BeEquivalentTo([dermatology.Id, urology.Id]);
         (await (await _admin.GetAsync($"/api/auth/users/{staff.Username}/teams")).ReadAsAsync<List<TeamMembershipResponse>>())
@@ -185,7 +185,7 @@ public sealed class TeamTests : IntegrationTest
         (await GetTeamAsync(urology.Id)).Should().BeEquivalentTo(new { MemberCount = 1, CanBeDeleted = false });
 
         // Down to one: recorded, by the admin, about the account, with no more than the teams.
-        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([dermatology.Id])))
+        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([new(dermatology.Id, null)])))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
         var entries = await (await _admin.GetAsync("/api/activity/search?PageSize=100&Actions=TeamMembershipChanged"))
             .ReadAsAsync<PagedResponse<ActivityEntryResponse>>();
@@ -195,9 +195,9 @@ public sealed class TeamTests : IntegrationTest
         // An archived one can be kept, not newly given; an unknown one is a 404; an unknown account too.
         await (await _admin.PostAsJsonAsync($"{Teams}/{urology.Id}/archive", new TeamVersionRequest { ExpectedVersion = 1 }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([dermatology.Id, urology.Id])))
+        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([new(dermatology.Id, null), new(urology.Id, null)])))
             .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([Guid.NewGuid()])))
+        await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/teams", new SetUserTeamsRequest([new(Guid.NewGuid(), null)])))
             .ShouldHaveStatusAsync(HttpStatusCode.NotFound);
         await (await _admin.GetAsync("/api/auth/users/nobody-at-all/teams")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
 

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
@@ -29,7 +30,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 public sealed class AppointmentsControllerTests
 {
     // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
-    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff, TeamScope.For(UserId, [], TestPermissions.Staff));
     private IFixture _fixture = null!;
     private AppointmentResponse _appointment = null!;
     private RecordingMediator _mediator = null!;
@@ -109,7 +110,7 @@ public sealed class AppointmentsControllerTests
         var result = await new AppointmentsController(mediator).WithRequest(SignedIn(role))
             .MarkEnteredInError(RecordId, new MarkEnteredInErrorRequest { Reason = "Wrong patient." }, _cts.Token);
 
-        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor with { Permissions = TestPermissions.For(isAdmin) }, isAdmin));
+        mediator.Request.Should().Be(new MarkAppointmentEnteredInErrorCommand(RecordId, "Wrong patient.", Actor with { Permissions = TestPermissions.For(isAdmin), Scope = TeamScope.For(UserId, [], TestPermissions.For(isAdmin)) }, isAdmin));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }
@@ -212,7 +213,6 @@ public sealed class AppointmentsControllerTests
             await Controller.UpdateNotes(RecordId, new UpdateAppointmentNotesRequest { Notes = "<p>Synthetic notes.</p>" }, _cts.Token));
 
     [TestCase("User", true)]
-    [TestCase("Admin", true)]
     [TestCase(null, false)]
     public async Task EveryAction_StaffOnly(string? role, bool allowed)
     {
@@ -220,5 +220,21 @@ public sealed class AppointmentsControllerTests
 
         foreach (var action in ControllerAuthorisation.Actions<AppointmentsController>())
             (await ControllerAuthorisation.MayCallAsync<AppointmentsController>(action, user)).Should().Be(allowed, action);
+    }
+
+    /// <summary>Admins are read only (decision 208): they read appointments, and book or change none.</summary>
+    [Test]
+    public async Task EveryAction_Admin_ReadsOnly()
+    {
+        foreach (var action in ControllerAuthorisation.Actions<AppointmentsController>())
+        {
+            var needs = typeof(AppointmentsController).GetMethod(action)!
+                .GetCustomAttributes(typeof(MedApp.API.Common.Authentication.RequirePermissionAttribute), true)
+                .Cast<MedApp.API.Common.Authentication.RequirePermissionAttribute>()
+                .Select(a => a.Permission)
+                .ToList();
+            var clinical = needs.Any(MedApp.Application.Common.Identity.Permissions.NotForAdmin.Contains);
+            (await ControllerAuthorisation.MayCallAsync<AppointmentsController>(action, SignedIn("Admin"))).Should().Be(!clinical, action);
+        }
     }
 }

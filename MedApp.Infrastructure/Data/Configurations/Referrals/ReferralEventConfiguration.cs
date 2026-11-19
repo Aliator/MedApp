@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using MedApp.Domain.Referrals;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,6 +10,14 @@ public sealed class ReferralEventConfiguration : IEntityTypeConfiguration<Referr
     public void Configure(EntityTypeBuilder<ReferralEvent> builder)
     {
         builder.ToTable("ReferralEvents");
+
+        // Its team (the team walls, decision 200): set when it's made, never edited by hand. A team anything has is
+        // archived, never deleted.
+        builder.HasOne<Team>()
+            .WithMany()
+            .HasForeignKey(x => x.TeamId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(x => x.TeamId);
 
         builder.HasKey(x => x.Id);
 

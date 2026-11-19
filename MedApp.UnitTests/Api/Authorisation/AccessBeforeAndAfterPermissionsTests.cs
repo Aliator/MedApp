@@ -378,6 +378,9 @@ public sealed class AccessBeforeAndAfterPermissionsTests
     /// <summary>The column of an account that held only a role an admin made through the old role endpoints.</summary>
     private const int CustomRoleColumn = 2;
 
+    /// <summary>The Admin column.</summary>
+    private const int AdminColumn = 4;
+
     /// <summary>Signed in with these roles, and the permissions they grant now, as the session handler builds them.</summary>
     private static ClaimsPrincipal Caller(params string[] roles) => ApiTestConstants.SignedIn(roles);
 
@@ -450,9 +453,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         var now = await AccessNowAsync();
         var before = AccessBefore();
 
+        // Admins became read only on purpose (decisions 182 and 208 of docs/multi-clinic-plan.md): they lose every
+        // endpoint that needs a clinical permission (Permissions.NotForAdmin), and nothing else.
+        var readOnlyAdmin = Endpoints()
+            .Where(e => e.Attributes.OfType<MedApp.API.Common.Authentication.RequirePermissionAttribute>()
+                .Any(a => Permissions.NotForAdmin.Contains(a.Permission)))
+            .Select(e => e.Name)
+            .ToHashSet();
         var differences = before.Keys.Intersect(now.Keys)
             .SelectMany(endpoint => Enumerable.Range(0, Callers.Length)
                 .Where(column => column != CustomRoleColumn && before[endpoint][column] != now[endpoint][column])
+                .Where(column => !(column == AdminColumn && now[endpoint][column] == '0' && readOnlyAdmin.Contains(endpoint)))
                 .Select(column => $"{endpoint}: {Callers[column].Name} {(now[endpoint][column] == '1' ? "gained" : "lost")} it"))
             .ToList();
 
