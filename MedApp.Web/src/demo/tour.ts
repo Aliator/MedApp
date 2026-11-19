@@ -68,7 +68,7 @@ export const TOUR: TourStep[] = [
     part: 'start',
     title: 'Two pages side by side',
     steps: [
-      'Rest the pointer on Patients in the side nav and open its menu (the … at the end of the row), then choose Open in half view on the right. Patients opens on the right, beside this Read Me.',
+      'Rest the pointer on Patients in the side nav and open its menu (the burger at the end of the row), then choose Open in half view on the right. Patients opens on the right, beside this Read Me.',
       'Close it with the close button (×) at the top of the Patients half.',
       'Shift-click Patients in the side nav: it opens on the right again.',
       'Close it again.',
@@ -87,14 +87,14 @@ export const TOUR: TourStep[] = [
     title: 'Pin a patient',
     steps: [
       'Opens Samuel Okafor’s record. While it’s open, he shows in the side nav, indented under Patients.',
-      'Rest the pointer on his row there and open its menu (the … at the end of the row), then choose Pin.',
+      'Rest the pointer on his row there and open its menu (the burger at the end of the row), then choose Pin.',
       'Go to another page, Home say: he stays under Patients. Click his name there to open him again.',
     ],
     path: `/patients/${PATIENTS.samuelOkafor}`,
     buttonLabel: 'Open the patient to pin',
     whyNot: () =>
       isPatientPinned(PATIENTS.samuelOkafor)
-        ? `You've pinned Samuel Okafor already: he's under Patients in the side nav. Unpin him from his row's menu (the …) to try again.`
+        ? `You've pinned Samuel Okafor already: he's under Patients in the side nav. Unpin him from his row's menu (the burger at the end of the row) to try again.`
         : null,
   },
   {
@@ -118,7 +118,7 @@ export const TOUR: TourStep[] = [
     title: 'The relay, 1: consent, then finish Triage',
     steps: [
       `As ${STAFF.fullName}, this opens Leah Corrin’s pathway, at Triage.`,
-      'Pin it: it shows in the side nav under Pathways while it’s open. Open its row’s menu (the … at the end of the row) and choose Pin. You’ll come back to it from there with the notepad later.',
+      'Pin it: it shows in the side nav under Pathways while it’s open. Open its row’s menu (the burger at the end of the row) and choose Pin. You’ll come back to it from there with the notepad later.',
       'She was seen yesterday, and a skin scraping was taken with her verbal agreement, but her consent was never recorded, so Triage can’t be finished yet.',
       'Record the consent she gave at yesterday’s visit in the Consent card (the form, who signed, the date it was given).',
       'Choose Finish Stage on Triage. The next stage, Testing, is the lab’s, so the pathway goes to the lab.',
