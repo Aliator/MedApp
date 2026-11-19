@@ -101,8 +101,7 @@ public sealed class UpdatePathwayTemplateHandler(
         }
 
         template.Maps = newMaps;
-        foreach (var definition in await repository.GetStageDefinitionsByIdAsync(
-                     PathwayTemplateMapper.BranchDefinitionIds([template]), cancellationToken))
+        foreach (var definition in (await PathwayTemplateMapper.BranchDefinitionsAsync(repository, [template], cancellationToken)).Values)
             named[definition.Id] = definition;
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);

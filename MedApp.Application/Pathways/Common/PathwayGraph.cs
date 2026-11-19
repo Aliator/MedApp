@@ -63,7 +63,7 @@ public static class PathwayGraph
 
     /// <summary>Whether a stage is one of the current ones.</summary>
     public static bool IsCurrent(PatientPathway pathway, PatientPathwayStage stage) =>
-        PathwayWorkflow.IsToDo(stage) && IsReached(pathway, stage);
+        PathwayWorkflow.IsToDo(stage) && pathway.Stages.Any(s => s.Id == stage.Id) && IsReached(pathway, stage);
 
     /// <summary>The first stage still to do before a stage (on a route into it), by order: what has to be done first.</summary>
     public static PatientPathwayStage? FirstToDoBefore(PatientPathway pathway, PatientPathwayStage stage)

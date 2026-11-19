@@ -29,7 +29,7 @@ public sealed record PathwayTemplateBranch(
 /// copied details and options, the links, and the addable branches, so later edits to the template don't change it. A
 /// pathway holds only the stages it has grown to (up to its next choice node not yet recorded); the rest stay here.
 /// </summary>
-public sealed record PathwayPlan(
+public sealed record PatientPathwayPlan(
     IReadOnlyList<PathwayPlanStage> Stages,
     IReadOnlyList<PathwayTemplateLink> Links,
     IReadOnlyList<PathwayPlanBranch> Branches);

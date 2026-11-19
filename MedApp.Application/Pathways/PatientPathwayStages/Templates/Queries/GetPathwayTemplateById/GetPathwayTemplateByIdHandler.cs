@@ -17,8 +17,7 @@ public sealed class GetPathwayTemplateByIdHandler(IPatientPathwayStagesRepositor
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
         // Its addable branches' stages are named from the library (MC10).
-        var definitions = (await repository.GetStageDefinitionsByIdAsync(
-            PathwayTemplateMapper.BranchDefinitionIds([template]), cancellationToken)).ToDictionary(d => d.Id);
+        var definitions = await PathwayTemplateMapper.BranchDefinitionsAsync(repository, [template], cancellationToken);
         return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);
     }
 }

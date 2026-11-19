@@ -82,6 +82,16 @@ public static class PathwayTemplateMapper
         };
     }
 
+    /// <summary>The stage definitions templates' addable branches name, by ID (none looked up when there are none).</summary>
+    public static async Task<Dictionary<Guid, PatientPathwayStageDefinition>> BranchDefinitionsAsync(
+        Repositories.IPatientPathwayStagesRepository repository, IEnumerable<PathwayTemplate> templates, CancellationToken ct)
+    {
+        var ids = BranchDefinitionIds(templates);
+        return ids.Count == 0
+            ? []
+            : (await repository.GetStageDefinitionsByIdAsync(ids, ct)).ToDictionary(d => d.Id);
+    }
+
     /// <summary>The stage definitions a template's addable branches name, for their stages' names.</summary>
     public static IReadOnlyList<Guid> BranchDefinitionIds(IEnumerable<PathwayTemplate> templates) =>
         templates.SelectMany(t => t.AddableBranches).SelectMany(b => b.StageDefinitionIds).Distinct().ToList();

@@ -22,8 +22,7 @@ public sealed class SetPathwayTemplateArchivedHandler(IPatientPathwayStagesRepos
         }
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
-        var definitions = (await repository.GetStageDefinitionsByIdAsync(
-            PathwayTemplateMapper.BranchDefinitionIds([template]), cancellationToken)).ToDictionary(d => d.Id);
+        var definitions = await PathwayTemplateMapper.BranchDefinitionsAsync(repository, [template], cancellationToken);
         return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);
     }
 }

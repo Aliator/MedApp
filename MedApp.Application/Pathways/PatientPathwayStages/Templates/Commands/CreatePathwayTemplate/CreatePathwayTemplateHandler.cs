@@ -77,7 +77,7 @@ public sealed class CreatePathwayTemplateHandler(
     /// <summary>The stage definitions addable branches name (those that exist), by ID.</summary>
     internal static async Task<IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>> BranchDefinitionsAsync(
         IPatientPathwayStagesRepository repository, IReadOnlyList<TemplateBranchInput>? branches, CancellationToken ct) =>
-        branches is null
+        branches is null || !branches.Any(b => (b.StageDefinitionIds ?? []).Count > 0)
             ? new Dictionary<Guid, PatientPathwayStageDefinition>()
             : (await repository.GetStageDefinitionsByIdAsync(
                 branches.SelectMany(b => b.StageDefinitionIds ?? []).Distinct().ToList(), ct)).ToDictionary(d => d.Id);

@@ -45,9 +45,10 @@ public sealed class CreatePatientPathwayHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         // Its addable branches' stages are copied from their definitions into its plan (MC10).
-        var branchDefinitions = (await stagesRepository.GetStageDefinitionsByIdAsync(
-                template.AddableBranches.SelectMany(b => b.StageDefinitionIds).Distinct().ToList(), cancellationToken))
-            .ToDictionary(d => d.Id);
+        var branchDefinitionIds = template.AddableBranches.SelectMany(b => b.StageDefinitionIds).Distinct().ToList();
+        var branchDefinitions = branchDefinitionIds.Count == 0
+            ? new Dictionary<Guid, PatientPathwayStageDefinition>()
+            : (await stagesRepository.GetStageDefinitionsByIdAsync(branchDefinitionIds, cancellationToken)).ToDictionary(d => d.Id);
         var pathway = PathwayCreation.FromTemplate(
             template,
             patient.Id,

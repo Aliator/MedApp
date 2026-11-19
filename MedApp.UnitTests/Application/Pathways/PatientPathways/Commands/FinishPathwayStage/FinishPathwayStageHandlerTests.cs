@@ -265,7 +265,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_NotTheLastStage_LoadsTheAppointmentsOfItAndTheNextStageAndPassesTheToken()
+    public async Task Handle_NotTheLastStage_LoadsTheAppointmentsOfItAndTheStagesStillToDoAndPassesTheToken()
     {
         var pathway = GivenPathway(CreatePathway(Status.InProgress));
         using var cts = new CancellationTokenSource();
@@ -273,7 +273,7 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
         await Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), cts.Token);
 
         Appointments.Verify(r => r.GetForStagesForUpdateAsync(
-            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { pathway.StageAt(1).Id, pathway.StageAt(2).Id })),
+            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { pathway.StageAt(1).Id, pathway.StageAt(2).Id, pathway.StageAt(3).Id })),
             cts.Token), Times.Once);
         VerifySavedOnce(cts.Token);
     }
@@ -302,119 +302,119 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_BranchPointWithoutABranch_ThrowsValidationNamingTheBranchesWithoutSaving()
+    public async Task Handle_ChoiceNodeWithoutAnOutcome_ThrowsValidationNamingTheOutcomesWithoutSaving()
     {
         var pathway = GivenPathway(CreateBranchingPathway());
 
         var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ValidationException>())
-            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "Branch"
-                                                      && e.ErrorMessage.Contains($"{BenignBranch}, {TreatmentBranch}"));
+            .Which.Errors.Should().ContainSingle(e => e.PropertyName == "Outcome"
+                                                      && e.ErrorMessage == $"Record the outcome: {BenignBranch}, {TreatmentBranch}.");
         VerifyNotSaved();
         pathway.StageAt(1).IsCompleted.Should().BeFalse();
     }
 
     [Test]
-    public async Task Handle_BranchPointWithAnUnknownBranch_ThrowsValidation()
+    public async Task Handle_ChoiceNodeWithAnUnknownOutcome_ThrowsValidation()
     {
         var pathway = GivenPathway(CreateBranchingPathway());
 
         var act = () => Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: "Surgery"), CancellationToken.None);
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: "Surgery"), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ValidationException>().WithMessage("*'Surgery' isn't one of the branches*");
+        await act.Should().ThrowAsync<ValidationException>().WithMessage("*Record the outcome*");
         VerifyNotSaved();
     }
 
     [Test]
-    public async Task Handle_BranchGivenForAStageThatIsntABranchPoint_ThrowsValidation()
+    public async Task Handle_OutcomeGivenForAPlainStage_ThrowsValidation()
     {
         var pathway = GivenPathway(CreatePathway(Status.InProgress));
 
         var act = () => Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: TreatmentBranch), CancellationToken.None);
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: TreatmentBranch), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ValidationException>().WithMessage("*isn't a branch point*");
+        await act.Should().ThrowAsync<ValidationException>().WithMessage("*recorded already*");
     }
 
     [Test]
-    public async Task Handle_BranchChosen_SkipsTheOtherBranchesStagesAndMovesToTheChosenOne()
+    public async Task Handle_OutcomeRecorded_GrowsThePathwayByItsStagesOnly()
     {
         var pathway = GivenPathway(CreateBranchingPathway());
 
         var response = await Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: "treatment"), CancellationToken.None);
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: "treatment"), CancellationToken.None);
 
-        response.CurrentStageId.Should().Be(pathway.StageAt(3).Id);
-        response.Stages.Select(s => s.State).Should().Equal("Completed", "Skipped", "NotStarted", "NotStarted", "NotStarted");
-        response.Stages[1].SkipReason.Should().Be(nameof(StageSkipReason.BranchNotChosen));
-        response.SkippedStageCount.Should().Be(1);
+        response.Stages.Select(s => s.Name).Should().Equal(ResultsStage, TreatmentStage, FollowUpStage, DischargeStage);
+        response.Stages[0].Outcome.Should().Be(TreatmentBranch);
+        response.Stages[0].NeedsOutcome.Should().BeFalse();
+        response.CurrentStageIds.Should().Equal(pathway.TemplateStageAt(3)!.Id);
+        response.StageCount.Should().Be(4);
+        response.Stages[3].PredecessorIds.Should().Equal(pathway.TemplateStageAt(4)!.Id);
+        SavedChanges.Single().NewStages.Should().HaveCount(3);
 
         var chosen = SavedAudit.Single(e => e.Action == PatientPathwayAuditAction.BranchChosen);
         chosen.StageId.Should().Be(pathway.StageAt(1).Id);
         using var details = JsonDocument.Parse(chosen.Details);
-        details.RootElement.GetProperty("branch").GetString().Should().Be(TreatmentBranch);
-        details.RootElement.GetProperty("skippedStageIds").EnumerateArray().Select(e => e.GetGuid()).Should().Equal(pathway.StageAt(2).Id);
-        details.RootElement.GetProperty("skippedStages").EnumerateArray().Select(e => e.GetString()).Should().Equal(BenignStage);
+        details.RootElement.GetProperty("outcome").GetString().Should().Be(TreatmentBranch);
+        details.RootElement.GetProperty("stageIds").EnumerateArray().Should().HaveCount(3);
         SavedAudit.Select(e => e.Action).Should().ContainInOrder(PatientPathwayAuditAction.StageFinished, PatientPathwayAuditAction.BranchChosen);
     }
 
     [Test]
-    public async Task Handle_BenignChosen_SkipsBothTreatmentStagesAndLeavesTheStageThatAlwaysRuns()
+    public async Task Handle_ChoiceNodeNotRecorded_ListsItsOutcomesNonePreSelected()
     {
         var pathway = GivenPathway(CreateBranchingPathway());
+        pathway.StageAt(1).StartedAtUtc = Now.AddDays(-1);
 
         var response = await Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: BenignBranch), CancellationToken.None);
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: BenignBranch), CancellationToken.None);
 
-        response.Stages.Select(s => s.State).Should().Equal("Completed", "NotStarted", "Skipped", "Skipped", "NotStarted");
-        response.CurrentStageId.Should().Be(pathway.StageAt(2).Id);
+        response.Stages.Select(s => s.Name).Should().Equal(ResultsStage, BenignStage, DischargeStage);
+        response.Stages[0].ChoiceKind.Should().Be("Assessment");
+        response.Stages[0].Outcomes.Select(o => o.Name).Should().Equal(BenignBranch, TreatmentBranch);
     }
 
     [Test]
-    public async Task Handle_BranchChosen_CancelsTheSkippedStagesRequestedVisitsAndAsksForTheNextOnes()
+    public async Task Handle_OutcomeRecorded_AsksForTheVisitOfTheStageItMakesCurrent()
     {
-        var pathway = GivenPathway(CreateBranchingPathway());
-        pathway.StageAt(3).VisitRequirement = VisitRequirement.Required;
-        var aheadOnBenign = new Appointment { Id = Guid.NewGuid(), StageId = pathway.StageAt(2).Id, Status = AppointmentStatus.Requested };
-        GivenStageAppointments(aheadOnBenign);
+        var pathway = CreateBranchingPathway();
+        pathway.Plan = pathway.Plan! with
+        {
+            Stages = pathway.Plan.Stages.Select(s => s.TemplateStageOrder == 3 ? s with { VisitRequirement = VisitRequirement.Required } : s).ToList()
+        };
+        GivenPathway(pathway);
 
         await Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: TreatmentBranch), CancellationToken.None);
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: TreatmentBranch), CancellationToken.None);
 
-        aheadOnBenign.Status.Should().Be(AppointmentStatus.Cancelled);
-        aheadOnBenign.CancelReason.Should().Be(PathwayChange.StageSkippedReason);
-        SavedChanges.Single().NewAppointments.Should().ContainSingle().Which.StageId.Should().Be(pathway.StageAt(3).Id);
-        Appointments.Verify(r => r.GetForStagesForUpdateAsync(
-            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { pathway.StageAt(1).Id, pathway.StageAt(2).Id, pathway.StageAt(3).Id })),
-            It.IsAny<CancellationToken>()), Times.Once);
+        SavedChanges.Single().NewAppointments.Should().ContainSingle().Which.StageId.Should().Be(pathway.TemplateStageAt(3)!.Id);
     }
 
     [Test]
-    public async Task Handle_BranchPointFinishedAgainAfterAnUnlock_AsksForNoBranchAndRefusesOne()
+    public async Task Handle_ChoiceNodeFinishedAgainAfterAnUnlock_AsksForNoOutcomeAndRefusesOne()
     {
-        var pathway = CreateBranchingPathway(finishedStages: 1);
-        Skip(pathway.StageAt(2), StageSkipReason.BranchNotChosen);
+        var pathway = CreateBranchingPathway(outcome: BenignBranch);
         pathway.StageAt(1).IsLocked = false;
         GivenPathway(pathway);
 
-        var withBranch = () => Handler.Handle(
-            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Branch: BenignBranch), CancellationToken.None);
-        await withBranch.Should().ThrowAsync<ValidationException>().WithMessage("*reinstate its stages*");
+        var withOutcome = () => Handler.Handle(
+            new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff, Outcome: TreatmentBranch), CancellationToken.None);
+        await withOutcome.Should().ThrowAsync<ValidationException>().WithMessage("*recorded already*");
 
         await Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);
 
         pathway.StageAt(1).IsLocked.Should().BeTrue();
-        pathway.StageAt(2).IsSkipped.Should().BeTrue();
+        pathway.StageAt(1).Outcome.Should().Be(BenignBranch);
         SavedAudit.Should().NotContain(e => e.Action == PatientPathwayAuditAction.BranchChosen);
     }
 
     [Test]
     public async Task Handle_SkippedStage_ThrowsConflictSayingItCanBeReinstated()
     {
-        var pathway = CreateBranchingPathway(finishedStages: 1);
-        Skip(pathway.StageAt(2), StageSkipReason.BranchNotChosen);
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        Skip(pathway.StageAt(2));
         GivenPathway(pathway);
 
         var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(2).Id, Staff), CancellationToken.None);
@@ -423,15 +423,97 @@ public sealed class FinishPathwayStageHandlerTests : PathwayHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_LastStageAfterSkippedOnes_MovesThePathwayToReview()
+    public async Task Handle_LastStageAfterTheChosenRoute_MovesThePathwayToReview()
     {
-        var pathway = CreateBranchingPathway(finishedStages: 2);
-        Skip(pathway.StageAt(3), StageSkipReason.BranchNotChosen);
-        Skip(pathway.StageAt(4), StageSkipReason.BranchNotChosen);
+        var pathway = CreateBranchingPathway(outcome: BenignBranch);
+        Finish(pathway.TemplateStageAt(2)!);
         GivenPathway(pathway);
 
-        var response = await Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(5).Id, Staff), CancellationToken.None);
+        var response = await Handler.Handle(
+            new FinishPathwayStageCommand(pathway.Id, pathway.TemplateStageAt(5)!.Id, Staff), CancellationToken.None);
 
         response.Status.Should().Be(nameof(Status.InReview));
+    }
+
+    // The relay (MC7) ------------------------------------------------------------------------------------------------
+
+    private static readonly Guid Lab = Guid.Parse("0000005a-0000-0000-0000-0000000000bb");
+
+    /// <summary>A chain of three, its second stage the lab's; the clinic (the pathway's team) works the rest.</summary>
+    private PatientPathway GivenRelay(int finishedStages = 0)
+    {
+        var pathway = CreatePathway(Status.InProgress, finishedStages: finishedStages);
+        pathway.TeamId = TeamId;
+        pathway.StageAt(2).OwnerTeamId = Lab;
+        return GivenPathway(pathway);
+    }
+
+    private static PathwayActor In(Guid team) =>
+        Staff with { Scope = new MedApp.Application.Common.Teams.TeamScope(Staff.UserId, [team], false) };
+
+    [Test]
+    public async Task Handle_FinishingBeforeTheLabsStage_HandsThePathwayOverToTheLab()
+    {
+        var pathway = GivenRelay();
+        var handovers = new Mock<IPathwayHandovers>();
+        Fixture.Inject(handovers.Object);
+
+        var response = await Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, In(TeamId)), CancellationToken.None);
+
+        var stage = pathway.StageAt(2);
+        stage.ReachedAtUtc.Should().Be(Now);
+        stage.HandedOverFromTeamId.Should().Be(TeamId);
+        var change = SavedChanges.Single();
+        change.NewGrants.Should().ContainSingle(g => g.TeamId == Lab && g.Reason == MedApp.Domain.Teams.PathwayAccessReason.StageOwner);
+        change.Handovers.Should().ContainSingle(h => h.ToTeamId == Lab && h.FromTeamId == TeamId);
+        SavedAudit.Should().ContainSingle(e => e.Action == PatientPathwayAuditAction.StageHandedOver && e.StageId == stage.Id);
+        handovers.Verify(h => h.NotifyAsync(change, It.IsAny<CancellationToken>()), Times.Once);
+        // The clinic reads the lab's stage, which it doesn't work.
+        response.Stages[1].IsWithAnotherTeam.Should().BeTrue();
+        response.Stages[1].CanEdit.Should().BeFalse();
+        response.Stages[1].CanPickUp.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task Handle_TheClinicFinishingTheLabsStage_IsRefused()
+    {
+        var pathway = GivenRelay(finishedStages: 1);
+
+        var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(2).Id, In(TeamId)), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage($"The '{PathwayStage}' stage is*to work*");
+        VerifyNotSaved();
+    }
+
+    [Test]
+    public async Task Handle_TheLabFinishingItsStage_PicksItUpAndHandsItBack()
+    {
+        var pathway = GivenRelay(finishedStages: 1);
+        pathway.StageAt(2).ReachedAtUtc = Now.AddDays(-1);
+        pathway.StageAt(2).HandedOverFromTeamId = TeamId;
+
+        await Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(2).Id, In(Lab)), CancellationToken.None);
+
+        pathway.StageAt(2).PickedUpAtUtc.Should().Be(Now);
+        pathway.StageAt(3).HandedOverFromTeamId.Should().Be(Lab);
+        SavedAudit.Select(e => e.Action).Should().ContainInOrder(
+            PatientPathwayAuditAction.StagePickedUp, PatientPathwayAuditAction.StageFinished, PatientPathwayAuditAction.StageHandedOver);
+        // Back with the clinic: no grant for its own team.
+        SavedChanges.Single().NewGrants.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task Handle_AnotherClinicsStage_IsRefusedAsTheirPathway()
+    {
+        var pathway = GivenRelay(finishedStages: 1);
+        var boundary = new Mock<MedApp.Application.Common.Teams.ITeamBoundary>();
+        boundary
+            .Setup(b => b.EnsureCanChangePathwayAsync(pathway, It.IsAny<MedApp.Application.Common.Teams.TeamScope>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConflictException(MedApp.Application.Common.Teams.TeamWalls.NotYourTeams("Dermatology")));
+        Fixture.Inject(boundary.Object);
+
+        var act = () => Handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(3).Id, In(Guid.NewGuid())), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("This pathway is*");
     }
 }

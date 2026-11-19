@@ -93,8 +93,9 @@ public static class PathwayRepositoryExtensions
         await boundary.EnsurePathwayVisibleAsync(pathway, scope, NotFoundMessage(id), ct);
         var stage = pathway.GetStageOrThrow(stageId);
         var worksStage = TeamAccess.CanWorkStage(pathway, stage, scope);
-        if (!TeamAccess.CanChange(pathway, scope) && !worksStage)
-            throw new ConflictException(TeamWalls.NotYourTeams(pathway.Team?.Name));
+        // Neither the pathway's team nor the stage's: a 409 naming whose the pathway is.
+        if (!worksStage)
+            await boundary.EnsureCanChangePathwayAsync(pathway, scope, NotFoundMessage(id), ct);
         if (!worksStage)
             throw new ConflictException(TeamWalls.StageNotYours(stage.Name, stage.OwnerTeam?.Name));
 
@@ -112,8 +113,9 @@ public static class PathwayRepositoryExtensions
     {
         var pathway = await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException(NotFoundMessage(id));
         await boundary.EnsurePathwayVisibleAsync(pathway, scope, NotFoundMessage(id), ct);
-        if (!TeamAccess.CanChange(pathway, scope) && !WorksCurrentStage(pathway, scope))
-            throw new ConflictException(TeamWalls.NotYourTeams(pathway.Team?.Name));
+        // Neither its own team nor the one working its current stage: a 409 naming whose it is.
+        if (!WorksCurrentStage(pathway, scope))
+            await boundary.EnsureCanChangePathwayAsync(pathway, scope, NotFoundMessage(id), ct);
 
         PatientRules.EnsureCanChange(pathway.Patient);
         return pathway;

@@ -121,34 +121,62 @@ public static class PathwaysTestConstants
     public const string SkipDetail = "Synthetic detail: seen elsewhere.";
 
     /// <summary>
-    /// A pathway that branches, InProgress unless given: 1 "Results and team review" is a branch point; 2 "Benign letter"
-    /// is the Benign branch; 3 "Treatment" and 4 "Follow-up" (optional) the Treatment branch; 5 "Discharge letter"
-    /// always runs. The first <paramref name="finishedStages"/> are finished.
+    /// A pathway that grows (MC10b), InProgress unless given, from a plan of five stages: 1 "Results and team review" is
+    /// a choice node (Assessment) whose outcome Benign leads to 2 "Benign letter" and Treatment to 3 "Treatment", then 4
+    /// "Follow-up" (optional); 5 "Discharge letter" joins both routes. It starts with stage 1 only; with an
+    /// <paramref name="outcome"/>, stage 1 is finished with it recorded and the pathway has grown by its stages.
     /// </summary>
     public static PatientPathway CreateBranchingPathway(
-        PatientPathwayStatus status = PatientPathwayStatus.InProgress, int finishedStages = 0)
+        PatientPathwayStatus status = PatientPathwayStatus.InProgress, string? outcome = null)
     {
         var pathway = CreatePathway(status);
-        var id = pathway.Id;
-        pathway.Stages =
-        [
-            CreateStage(id, 1, ConsultationDefinitionId, ResultsStage),
-            CreateStage(id, 2, PathwayDefinitionId, BenignStage),
-            CreateStage(id, 3, PathwayDefinitionId, TreatmentStage),
-            CreateStage(id, 4, ConsultationDefinitionId, FollowUpStage),
-            CreateStage(id, 5, PathwayDefinitionId, DischargeStage),
-        ];
-        pathway.StageAt(1).ChoosesBranch = true;
-        pathway.StageAt(2).Branch = BenignBranch;
-        pathway.StageAt(3).Branch = TreatmentBranch;
-        pathway.StageAt(4).Branch = TreatmentBranch;
-        pathway.StageAt(4).IsOptional = true;
+        pathway.Stages = [];
+        pathway.Plan = BranchingPlan();
+        PathwayGrowth.Grow(pathway, Now.AddDays(-7));
 
-        foreach (var stage in pathway.Stages.Take(finishedStages))
-            Finish(stage);
+        if (outcome is not null)
+        {
+            var choice = pathway.StageAt(1);
+            Finish(choice);
+            choice.Outcome = outcome;
+            PathwayGrowth.Grow(pathway, Now.AddDays(-4));
+        }
 
         return pathway;
     }
+
+    /// <summary>The plan of <see cref="CreateBranchingPathway"/>: five stages, a choice node first, and a join last.</summary>
+    public static PatientPathwayPlan BranchingPlan() => new(
+        [
+            Planned(1, ConsultationDefinitionId, ResultsStage, StageChoiceKind.Assessment,
+                [new PathwayTemplateOutcome(BenignBranch, [2]), new PathwayTemplateOutcome(TreatmentBranch, [3])]),
+            Planned(2, PathwayDefinitionId, BenignStage),
+            Planned(3, PathwayDefinitionId, TreatmentStage),
+            Planned(4, ConsultationDefinitionId, FollowUpStage, isOptional: true),
+            Planned(5, PathwayDefinitionId, DischargeStage),
+        ],
+        [
+            new PathwayTemplateLink(1, 2), new PathwayTemplateLink(1, 3), new PathwayTemplateLink(3, 4),
+            new PathwayTemplateLink(2, 5), new PathwayTemplateLink(4, 5)
+        ],
+        []);
+
+    /// <summary>A planned stage (a plan's copy of a template stage), plain unless given.</summary>
+    public static PathwayPlanStage Planned(
+        int order,
+        Guid definitionId,
+        string name,
+        StageChoiceKind? choiceKind = null,
+        IReadOnlyList<PathwayTemplateOutcome>? outcomes = null,
+        bool isOptional = false,
+        Guid? ownerTeamId = null,
+        VisitRequirement visit = VisitRequirement.None) =>
+        new(order, definitionId, name, $"{name} description", $"{name} instructions", null, null, visit, null, false, false,
+            isOptional, false, choiceKind, outcomes ?? [], ownerTeamId);
+
+    /// <summary>The pathway's stage copied from the template stage at this 1-based place, or null where it hasn't grown.</summary>
+    public static PatientPathwayStage? TemplateStageAt(this PatientPathway pathway, int templateOrder) =>
+        pathway.Stages.SingleOrDefault(s => s.TemplateStageOrder == templateOrder);
 
     /// <summary>Marks a stage skipped by <see cref="Staff"/>, for a reason.</summary>
     public static void Skip(PatientPathwayStage stage, StageSkipReason reason = StageSkipReason.NotNeeded, string? detail = null)

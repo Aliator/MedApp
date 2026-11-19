@@ -11,7 +11,7 @@ public static class PathwayCreation
 {
     /// <summary>
     /// A new, unassigned pathway for a patient, in the template's team, keeping the template's whole tree as its plan
-    /// (<see cref="PathwayPlan"/>: each stage's definition's names, descriptions, instructions, SNOMED CT codes, visit
+    /// (<see cref="PatientPathwayPlan"/>: each stage's definition's names, descriptions, instructions, SNOMED CT codes, visit
     /// requirements and gates, the template's options, owners, choice nodes and links, and its addable branches), so
     /// later edits to the template or definitions don't change it. It starts with the stages up to its first choice
     /// node (the owner's model, MC10b: <see cref="PathwayGrowth"/>). The template's maps must have their stage
@@ -48,8 +48,8 @@ public static class PathwayCreation
         return pathway;
     }
 
-    /// <summary>A template's whole tree, as a pathway keeps it (<see cref="PathwayPlan"/>).</summary>
-    public static PathwayPlan PlanOf(
+    /// <summary>A template's whole tree, as a pathway keeps it (<see cref="PatientPathwayPlan"/>).</summary>
+    public static PatientPathwayPlan PlanOf(
         PathwayTemplate template, IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>? branchDefinitions = null)
     {
         var maps = template.Maps.OrderBy(m => m.StageOrder).ToList();
@@ -73,7 +73,7 @@ public static class PathwayCreation
                 b.IsRepeatable))
             .ToList();
 
-        return new PathwayPlan(stages, links, branches);
+        return new PatientPathwayPlan(stages, links, branches);
     }
 
     private static PathwayPlanStage Planned(

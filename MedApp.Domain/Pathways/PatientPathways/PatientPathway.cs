@@ -63,7 +63,7 @@ public sealed class PatientPathway
     /// Its template's whole tree, kept when it was made (MC10b): it grows from this as outcomes are recorded. Null for a
     /// pathway made before plans (it has every stage already). Stored as JSON; replaced, never changed in place.
     /// </summary>
-    public PathwayPlan? Plan { get; set; }
+    public PatientPathwayPlan? Plan { get; set; }
 
     /// <summary>The template's addable branches added to it (MC10), with their reasons.</summary>
     public List<PathwayBranchAddition> BranchAdditions { get; set; } = [];
