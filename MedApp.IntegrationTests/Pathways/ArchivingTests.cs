@@ -110,7 +110,7 @@ public sealed class ArchivingTests : IntegrationTest
             .ReadAsAsync<PathwayTemplateResponse>();
 
         archived.IsArchived.Should().BeTrue();
-        var refused = await _admin.PostAsJsonAsync("/api/pathways/patient-pathways",
+        var refused = await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/pathways/patient-pathways",
             new Contracts.Pathways.PatientPathways.Requests.CreatePatientPathwayRequest
             {
                 PatientId = pathway.PatientId,

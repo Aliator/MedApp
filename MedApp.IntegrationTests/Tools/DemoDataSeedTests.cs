@@ -254,7 +254,8 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
 
         patients.Should().HaveCount(15);
         patients.Should().OnlyContain(p => p.NhsNumber != null && p.NhsNumber.StartsWith("999") && NhsNumbers.IsValid(p.NhsNumber));
-        patients.Where(p => p.Email != null).Should().OnlyContain(p => p.Email!.EndsWith("@example.com"));
+        // A hospital-only patient has no address (an empty one).
+        patients.Where(p => !string.IsNullOrEmpty(p.Email)).Should().OnlyContain(p => p.Email!.EndsWith("@example.com"));
         emails.Should().OnlyContain(e => e.EndsWith(".example") || e.EndsWith("@example.com"));
     }
 

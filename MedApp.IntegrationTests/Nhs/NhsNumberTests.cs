@@ -181,7 +181,7 @@ public sealed class NhsNumberTests : IntegrationTest
     public async Task ExportAndAnonymise_TheNumberIsExported_ThenRemoved_AndFreeForAnother()
     {
         var admin = await SignInAsAdminAsync();
-        var patient = await (await PostPatientAsync(NhsNumber, admin)).ReadAsAsync<PatientResponse>(HttpStatusCode.Created);
+        var patient = await (await PostPatientAsync(NhsNumber)).ReadAsAsync<PatientResponse>(HttpStatusCode.Created);
 
         var export = await (await admin.GetAsync($"/api/patients/{patient.Id}/export")).ReadAsAsync<PatientExportResponse>();
         export.Patient.NhsNumber.Should().Be(NhsNumber);

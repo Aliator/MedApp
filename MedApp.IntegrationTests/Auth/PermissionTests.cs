@@ -53,7 +53,8 @@ public sealed class PermissionTests : IntegrationTest
         yield return Case(Permission.AssignPathways, "POST", $"{pathway}/assignments/{AnyId}", "Manager", "Clinician");
         yield return Case(Permission.UnlockStages, "POST", $"{pathway}/stages/{AnyId}/unlock", SeniorClinicianRole, "Nurse");
         yield return Case(Permission.UnlockStages, "POST", $"{pathway}/stages/{AnyId}/reinstate", "Clinician", "Lab");
-        yield return Case(Permission.DeletePathways, "DELETE", pathway, AdminRole, "Clinician");
+        // No starting role holds it, and Admin no longer does (admins are read only): an organisation gives it on a role it makes.
+        yield return Case(Permission.DeletePathways, "DELETE", pathway, EveryStaffPermissionRole, "Clinician");
         yield return Case(Permission.BookAppointments, "POST", "/api/appointments", "Booking", "Lab");
         yield return Case(Permission.ArrangeMeetings, "GET", "/api/calendar/availability", "Manager", "Nurse");
         yield return Case(Permission.AttachFiles, "POST", $"/api/attachments?patientId={AnyId}", "Lab", "Manager");
@@ -72,7 +73,7 @@ public sealed class PermissionTests : IntegrationTest
     [TestCaseSource(nameof(Guarded))]
     public async Task Endpoint_RoleWithThePermission_GetsPastAuthorisation(Permission permission, string method, string url, string allowed, string refused)
     {
-        var staff = await CreateStaffAsync(allowed);
+        var staff = allowed == EveryStaffPermissionRole ? await CreateClinicStaffAsync() : await CreateStaffAsync(allowed);
 
         var response = await SendAsync(staff.Client, method, url);
 
@@ -187,12 +188,12 @@ public sealed class PermissionTests : IntegrationTest
         var nurse = await CreateStaffAsync("Nurse");
         var pathway = await CreatePatientWithPathwayAsync(admin);
 
-        var refused = await admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{booking.UserId}", null);
+        var refused = await (await ClinicalAsync(admin)).PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{booking.UserId}", null);
         var problem = await refused.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         problem.Errors.Should().ContainKey("UserId")
             .WhoseValue.Should().Equal(AssignPatientPathwayHandler.CantWorkOnPathways(booking.Username));
 
-        var assigned = await (await admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{nurse.UserId}", null))
+        var assigned = await (await (await ClinicalAsync(admin)).PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{nurse.UserId}", null))
             .ReadAsAsync<PatientPathwayResponse>();
         assigned.Assignments.Should().ContainSingle(a => a.UserId == nurse.UserId);
     }
@@ -224,8 +225,9 @@ public sealed class PermissionTests : IntegrationTest
         // A Manager, who can't manage users, reads who can be assigned.
         var holders = await (await manager.Client.GetAsync("/api/calendar/staff?permission=WorkPathways"))
             .ReadAsAsync<List<StaffMemberResponse>>();
-        holders.Select(s => s.UserId).Should().Contain([nurse.UserId, await GetUserIdAsync(await SignInAsAdminAsync(), AdminUsername)])
-            .And.NotContain([booking.UserId, manager.UserId]);
+        // Admins are read only: they don't work on pathways, so aren't listed.
+        holders.Select(s => s.UserId).Should().Contain(nurse.UserId)
+            .And.NotContain([booking.UserId, manager.UserId, await GetUserIdAsync(await SignInAsAdminAsync(), AdminUsername)]);
 
         var everyone = await (await manager.Client.GetAsync("/api/calendar/staff")).ReadAsAsync<List<StaffMemberResponse>>();
         everyone.Select(s => s.UserId).Should().Contain([booking.UserId, nurse.UserId, manager.UserId]);

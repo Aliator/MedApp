@@ -73,7 +73,8 @@ public sealed class UserTests : IntegrationTest
     [Test]
     public async Task SetUserRoles_DifferentRoles_ReplacesThemInOneStep()
     {
-        var staff = await CreateStaffAsync(UserRole);
+        // In no team: an admin is in none (decision 209).
+        var staff = await CreateStaffInAsync([], UserRole);
 
         var response = await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([AdminRole]));
 
@@ -88,7 +89,8 @@ public sealed class UserTests : IntegrationTest
     [Test]
     public async Task SetUserRoles_BothRolesThenNone_AddsAndRemovesThem()
     {
-        var staff = await CreateStaffAsync(UserRole);
+        // In no team: an admin is in none (decision 209).
+        var staff = await CreateStaffInAsync([], UserRole);
 
         await (await _admin.PutAsJsonAsync($"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([AdminRole, UserRole])))
             .ShouldHaveStatusAsync(HttpStatusCode.NoContent);
@@ -103,7 +105,8 @@ public sealed class UserTests : IntegrationTest
     [Test]
     public async Task SetUserRoles_UnknownRole_Returns400AndKeepsTheRolesTheyHad()
     {
-        var staff = await CreateStaffAsync(UserRole);
+        // In no team: an admin is in none (decision 209).
+        var staff = await CreateStaffInAsync([], UserRole);
 
         var response = await _admin.PutAsJsonAsync(
             $"/api/auth/users/{staff.Username}/roles", new SetUserRolesRequest([AdminRole, "NoSuchRole"]));

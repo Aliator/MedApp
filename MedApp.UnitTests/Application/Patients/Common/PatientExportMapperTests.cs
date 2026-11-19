@@ -149,6 +149,42 @@ public sealed class PatientExportMapperTests
     }
 
     [Test]
+    public void ToResponse_MdtItem_NamesItsPresenter()
+    {
+        var pathway = CreatePathway();
+        var record = PrivacyTestConstants.CreateRecord(null, pathway);
+        var item = new MedApp.Domain.Mdt.MdtItem
+        {
+            Id = Guid.NewGuid(), PatientId = pathway.PatientId, PathwayId = pathway.Id, Pathway = pathway,
+            Question = "Synthetic question.", ListedByUsername = Staff.Username, ListedAtUtc = Now,
+            PresenterUserId = Staff.UserId, PresenterUsername = Staff.Username,
+        };
+        var withItem = new PatientRecord
+        {
+            Patient = record.Patient,
+            Pathways = record.Pathways,
+            PathwayHistory = record.PathwayHistory,
+            Activity = record.Activity,
+            Appointments = record.Appointments,
+            AppointmentHistory = record.AppointmentHistory, PatientMessages = record.PatientMessages,
+            Notifications = record.Notifications,
+            NoteVersions = [],
+            NoteDeletionRequests = [],
+            Attachments = [],
+            Referrals = [],
+            ReferralHistory = [],
+            Letters = [],
+            Specimens = [],
+            MdtItems = [item],
+            ConsentRecords = []
+        };
+
+        var export = PatientExportMapper.ToResponse(withItem, Usernames, Now, "exporter");
+
+        export.MdtItems.Should().ContainSingle().Which.Presenter.Should().Be(Staff.Username);
+    }
+
+    [Test]
     public void ToResponse_KnownRecipient_IsNamed()
     {
         var record = PrivacyTestConstants.CreateRecord(null, CreatePathway());

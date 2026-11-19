@@ -51,7 +51,7 @@ public sealed class ReferralTests : IntegrationTest
     };
 
     private static async Task<ReferralResponse> RegisterAsync(HttpClient client, Guid patientId, bool confirm = false) =>
-        await (await client.PostAsJsonAsync(Referrals, Request(patientId, confirm: confirm))).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
+        await (await (await ClinicalAsync(client)).PostAsJsonAsync(Referrals, Request(patientId, confirm: confirm))).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 
     [Test]
     public async Task Register_ThenRead_GivesItsDetailsHistoryAndBanner()
@@ -79,7 +79,7 @@ public sealed class ReferralTests : IntegrationTest
         var patient = await CreatePatientAsync(_admin);
         await RegisterAsync(_admin, patient.Id);
 
-        var again = await _admin.PostAsJsonAsync(Referrals, Request(patient.Id));
+        var again = await (await ClinicalAsync(_admin)).PostAsJsonAsync(Referrals, Request(patient.Id));
         var problem = await again.ReadAsAsync<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         problem.Errors.Should().ContainKey("ConfirmPossibleDuplicate");
         problem.Errors["ConfirmPossibleDuplicate"].Single().Should().NotContain(Reason).And.NotContain(Practice);
@@ -94,7 +94,7 @@ public sealed class ReferralTests : IntegrationTest
         (await _admin.PutAsJsonAsync($"/api/patients/{patient.Id}/restriction", new SetPatientFlagRequest { Set = true, Reason = "Synthetic." }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var response = await _admin.PostAsJsonAsync(Referrals, Request(patient.Id));
+        var response = await (await ClinicalAsync(_admin)).PostAsJsonAsync(Referrals, Request(patient.Id));
 
         var problem = await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict);
         problem.Title.Should().Contain("Give the referral letter to an admin");
@@ -111,11 +111,11 @@ public sealed class ReferralTests : IntegrationTest
             RequestedPriority = "High", Reason = "Synthetic corrected reason.", ExpectedVersion = 1
         };
 
-        var edited = await (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).ReadAsAsync<ReferralResponse>();
+        var edited = await (await (await ClinicalAsync(_admin)).PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).ReadAsAsync<ReferralResponse>();
         edited.Version.Should().Be(2);
         edited.History.Single(h => h.Action == "DetailsEdited").ChangedFields.Should().Contain(["reason", "requestedPriority", "referrerClinician", "referrerOdsCode"]);
 
-        (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await (await ClinicalAsync(_admin)).PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         var details = await RunInScopeAsync(async sp =>
         {
@@ -132,16 +132,16 @@ public sealed class ReferralTests : IntegrationTest
         var first = await RegisterAsync(_admin, patient.Id);
         var second = await RegisterAsync(_admin, patient.Id, confirm: true);
 
-        var withdrawn = await (await _admin.PostAsJsonAsync($"{Referrals}/{first.Id}/withdraw",
+        var withdrawn = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{first.Id}/withdraw",
             new CloseReferralRequest { Detail = "Synthetic: the practice withdrew it.", ExpectedVersion = 1 })).ReadAsAsync<ReferralResponse>();
         withdrawn.Status.Should().Be("Withdrawn");
         withdrawn.DecisionDetail.Should().Be("Synthetic: the practice withdrew it.");
 
-        var inError = await (await _admin.PostAsJsonAsync($"{Referrals}/{second.Id}/entered-in-error",
+        var inError = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{second.Id}/entered-in-error",
             new CloseReferralRequest { Detail = "Synthetic: registered twice.", ExpectedVersion = 1 })).ReadAsAsync<ReferralResponse>();
         inError.Status.Should().Be("EnteredInError");
 
-        (await _admin.PostAsJsonAsync($"{Referrals}/{first.Id}/withdraw", new CloseReferralRequest { Detail = "Again.", ExpectedVersion = 2 }))
+        (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{first.Id}/withdraw", new CloseReferralRequest { Detail = "Again.", ExpectedVersion = 2 }))
             .StatusCode.Should().Be(HttpStatusCode.Conflict);
         // Files can't be added to one entered in error.
         (await UploadAttachmentAsync(_admin, $"referralId={second.Id}", SyntheticPdf, "letter.pdf")).StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -164,9 +164,9 @@ public sealed class ReferralTests : IntegrationTest
             TeamId = referral.TeamId, ReceivedOn = referral.ReceivedOn, ReferrerPractice = Practice,
             RequestedPriority = "High", Reason = Reason, ExpectedVersion = 1
         };
-        (await _admin.PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await (await ClinicalAsync(_admin)).PutAsJsonAsync($"{Referrals}/{referral.Id}", edit)).StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await UploadAttachmentAsync(_admin, $"referralId={referral.Id}", SyntheticPdf, "letter.pdf")).StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await _admin.PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw", new CloseReferralRequest { Detail = "Synthetic.", ExpectedVersion = 1 }))
+        (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw", new CloseReferralRequest { Detail = "Synthetic.", ExpectedVersion = 1 }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -198,10 +198,12 @@ public sealed class ReferralTests : IntegrationTest
             .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
         var newer = await CreatePatientAsync(_admin);
         var older = await CreatePatientAsync(_admin);
-        await _admin.PostAsJsonAsync(Referrals, Request(newer.Id, team.Id));
+        // Its own staff register them (the team walls).
+        var member = await CreateClinicStaffAsync(team.Id);
+        await (await member.Client.PostAsJsonAsync(Referrals, Request(newer.Id, team.Id))).ShouldHaveStatusAsync(HttpStatusCode.Created);
         var olderRequest = Request(older.Id, team.Id);
         olderRequest.ReceivedOn = UkToday.AddDays(-30);
-        await _admin.PostAsJsonAsync(Referrals, olderRequest);
+        await (await member.Client.PostAsJsonAsync(Referrals, olderRequest)).ShouldHaveStatusAsync(HttpStatusCode.Created);
         await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
 
         var inbox = await (await _admin.GetAsync($"{Referrals}/search?Statuses=AwaitingTriage&TeamIds={team.Id}"))
@@ -209,7 +211,7 @@ public sealed class ReferralTests : IntegrationTest
         inbox.Items.Select(i => i.PatientId).Should().Equal(older.Id, newer.Id);
         inbox.Items[0].DaysSinceReceived.Should().Be(30);
 
-        var count = await (await _admin.GetAsync($"{Referrals}/awaiting-triage/count")).ReadAsAsync<ReferralCountResponse>();
+        var count = await (await member.Client.GetAsync($"{Referrals}/awaiting-triage/count")).ReadAsAsync<ReferralCountResponse>();
         count.Count.Should().BeGreaterThanOrEqualTo(2);
 
         var entries = (await (await _admin.GetAsync("/api/activity/search?PageSize=100&Actions=PatientListed"))
@@ -228,7 +230,7 @@ public sealed class ReferralTests : IntegrationTest
         var staff = await CreateStaffAsync("Nurse");
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(_admin, patient.Id);
-        await _admin.PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw",
+        await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw",
             new CloseReferralRequest { Detail = "Synthetic withdrawal detail.", ExpectedVersion = 1 });
 
         var staffBody = await (await staff.Client.GetAsync($"/api/patients/{patient.Id}/timeline?Kinds=Referrals")).Content.ReadAsStringAsync();
@@ -246,7 +248,7 @@ public sealed class ReferralTests : IntegrationTest
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(_admin, patient.Id);
 
-        (await _admin.DeleteAsync($"/api/patients/{patient.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await (await ClinicalAsync(_admin)).DeleteAsync($"/api/patients/{patient.Id}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         var anonymise = new AnonymisePatientRequest
         {
             Reason = "RetentionPeriodEnded", Confirmation = $"{patient.FirstName} {patient.LastName}"
@@ -257,7 +259,7 @@ public sealed class ReferralTests : IntegrationTest
         export.Referrals.Single().Reason.Should().Be(Reason);
         export.ReferralHistory.Single().Action.Should().Be("Registered");
 
-        await _admin.PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw", new CloseReferralRequest { Detail = "Synthetic.", ExpectedVersion = 1 });
+        await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Referrals}/{referral.Id}/withdraw", new CloseReferralRequest { Detail = "Synthetic.", ExpectedVersion = 1 });
         (await _admin.PostAsJsonAsync($"/api/patients/{patient.Id}/anonymise", anonymise)).StatusCode.Should().Be(HttpStatusCode.OK);
         var anonymised = await (await _admin.GetAsync($"{Referrals}/{referral.Id}")).ReadAsAsync<ReferralResponse>();
         anonymised.Reason.Should().NotBe(Reason);
@@ -267,7 +269,8 @@ public sealed class ReferralTests : IntegrationTest
     [Test]
     public async Task WithoutRegisterReferrals_ChangesAreForbidden_ButReadingIsAllowed()
     {
-        var reader = await CreateStaffAsync("Lab");
+        // Lab staff in General too, so the team's referral is theirs to read.
+        var reader = await CreateStaffInAsync([MedApp.Domain.Teams.Team.GeneralId], "Lab");
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(_admin, patient.Id);
 

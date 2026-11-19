@@ -117,7 +117,6 @@ public sealed class ResultsController(IMediator mediator) : ControllerBase
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(ResultResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> MarkEnteredInError(Guid id, [FromBody] MarkResultEnteredInErrorRequest request, CancellationToken ct) =>

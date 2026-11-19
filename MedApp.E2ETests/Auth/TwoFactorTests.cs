@@ -20,8 +20,8 @@ public sealed class TwoFactorTests : E2ETest
     {
         // A member of staff with their own password (made through the API).
         var username = E2EData.UniqueName("twofactor").Replace(' ', '-').ToLowerInvariant();
-        var firstPassword = await Api.CreateUserAsync(username, "All staff (before roles)");
-        Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
+        var firstPassword = await AdminApi.CreateUserAsync(username, "Nurse");
+        Data.OnCleanUp($"user {username}", () => AdminApi.DeleteUserAsync(username, E2ESettings.Password!));
         var theirApi = await SignInToApiAsync(username, firstPassword);
         await theirApi.UpdateOwnPasswordAsync(username, firstPassword, ChosenPassword);
 
@@ -37,7 +37,7 @@ public sealed class TwoFactorTests : E2ETest
         await page.GetByRole(AriaRole.Textbox, new() { Name = "Code from your authenticator app" }).FillAsync(CodeFor(key));
         // Turning it on needs the password again, so a session left open can't do it.
         await page.GetByLabel("Your password").FillAsync(ChosenPassword);
-        await page.GetByRole(AriaRole.Button, new() { Name = "Turn on two-factor" }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Turn On Two-Factor" }).ClickAsync();
 
         // The recovery codes are shown once.
         await Expect(page.GetByText("Save your recovery codes now. They won't be shown again.")).ToBeVisibleAsync();

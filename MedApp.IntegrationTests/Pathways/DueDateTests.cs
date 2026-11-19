@@ -62,7 +62,7 @@ public sealed class DueDateTests : IntegrationTest
     [Test]
     public async Task CreatePathway_DueYesterday_Returns400ValidationProblem()
     {
-        var response = await _admin.PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
+        var response = await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
         {
             PatientId = _patientId,
             TemplateId = _templateId,
@@ -107,7 +107,7 @@ public sealed class DueDateTests : IntegrationTest
         var later = await CreatePathwayAsync(_admin, _patientId, _templateId, UkToday.AddDays(9));
         var sooner = await CreatePathwayAsync(_admin, _patientId, _templateId, UkToday.AddDays(1));
         var cancelled = await CreatePathwayAsync(_admin, _patientId, _templateId, UkToday);
-        await (await _admin.PostAsJsonAsync($"{PathwayUrl(cancelled.Id)}/status",
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{PathwayUrl(cancelled.Id)}/status",
             new ChangePatientPathwayStatusRequest { Status = "Cancelled", Reason = BlockReason })).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var open = await SearchAsync("");

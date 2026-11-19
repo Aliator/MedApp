@@ -116,6 +116,9 @@ public static class DemoPeople
             if (extra.Count > 0)
                 Guards.Check(await users.RemoveFromRolesAsync(user, extra), "Set the admin account's roles");
             user.CreatedAt = seed.Timeline.Ago(200, 9, 0);
+            // Kept through the wipe: cleared, so naming them below is recorded each time (the same story every run).
+            user.FullName = null;
+            user.JobTitle = null;
             Guards.Check(await users.UpdateAsync(user), "Date the admin account");
         });
         admin.Password = TestAdminTools.Password;

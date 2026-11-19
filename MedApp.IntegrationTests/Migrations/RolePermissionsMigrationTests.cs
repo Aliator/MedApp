@@ -90,7 +90,7 @@ public sealed class RolePermissionsMigrationTests
         roles[MadeClinicianRoleId].Should().Be(("Clinician", "CLINICIAN", false, false));
         (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty();
 
-        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician && r != StandardRoles.SeniorClinician))
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(Migration).Where(r => r != StandardRoles.Clinician))
         {
             roles[role.Id].Should().Be((role.Name, role.Name.ToUpperInvariant(), false, false));
             // ManageClinics came later, with AddedWorkingHours, the letter permissions with AddedLetters, and the specimen
@@ -106,7 +106,7 @@ public sealed class RolePermissionsMigrationTests
         await SeedOldRolesAsync();
         await _context.GetService<IMigrator>().MigrateAsync(WorkingHoursMigration);
 
-        foreach (var role in StandardRoles.Starting.Where(r => r != StandardRoles.Clinician && r != StandardRoles.SeniorClinician))
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(Migration).Where(r => r != StandardRoles.Clinician))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, WorkingHoursMigration), role.Name);
         (await PermissionsOfAsync(MadeClinicianRoleId)).Should().BeEmpty("a role an admin made with a starting role's name is left alone");
 
@@ -121,7 +121,7 @@ public sealed class RolePermissionsMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(SpecimensMigration);
 
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(SpecimensMigration))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, SpecimensMigration), role.Name);
         (await PermissionsOfAsync(StandardRoles.Admin.Id)).Should().BeEmpty("Admin's permissions are fixed in code, without these");
 
@@ -136,7 +136,7 @@ public sealed class RolePermissionsMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(ResultsMigration);
 
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(ResultsMigration))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, ResultsMigration), role.Name);
         (await PermissionsOfAsync(StandardRoles.Clinician.Id)).Should().Contain(nameof(Permission.SignOffResults));
         (await PermissionsOfAsync(StandardRoles.Nurse.Id)).Should().NotContain(nameof(Permission.SignOffResults));
@@ -152,7 +152,7 @@ public sealed class RolePermissionsMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(ConsentMigration);
 
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(ConsentMigration))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, ConsentMigration), role.Name);
         (await PermissionsOfAsync(StandardRoles.Nurse.Id)).Should().Contain(nameof(Permission.RecordConsent));
         (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().NotContain(nameof(Permission.RecordConsent));
@@ -168,7 +168,7 @@ public sealed class RolePermissionsMigrationTests
     {
         await _context.GetService<IMigrator>().MigrateAsync(LettersMigration);
 
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(LettersMigration))
             (await PermissionsOfAsync(role.Id)).Should().BeEquivalentTo(LaterMigrationPermissions.AsAt(role, LettersMigration), role.Name);
         (await PermissionsOfAsync(StandardRoles.Clinician.Id)).Should().Contain(LetterPermissions.Select(p => p.ToString()));
         (await PermissionsOfAsync(StandardRoles.Booking.Id)).Should().Contain(nameof(Permission.SendLetters))
@@ -176,7 +176,7 @@ public sealed class RolePermissionsMigrationTests
 
         await _context.GetService<IMigrator>().MigrateAsync(BeforeLetters);
 
-        foreach (var role in StandardRoles.Starting)
+        foreach (var role in LaterMigrationPermissions.StartingAsAt(LettersMigration))
             (await PermissionsOfAsync(role.Id)).Should().NotContain(LetterPermissions.Select(p => p.ToString()), role.Name);
     }
 
@@ -186,8 +186,8 @@ public sealed class RolePermissionsMigrationTests
         await _context.GetService<IMigrator>().MigrateAsync(Migration);
 
         var roles = await RolesAsync();
-        // Senior clinician came later, with SplitOverrideStages.
-        roles.Keys.Should().BeEquivalentTo(StandardRoles.All.Where(r => r != StandardRoles.SeniorClinician).Select(r => r.Id));
+        // Senior clinician came later, with SplitOverrideStages, and Pathologist with AddedMultiClinicCentre.
+        roles.Keys.Should().BeEquivalentTo(LaterMigrationPermissions.AllAsAt(Migration).Select(r => r.Id));
         roles[StandardRoles.Admin.Id].IsBuiltIn.Should().BeTrue();
         (await PermissionsOfAsync(StandardRoles.Clinician.Id)).Should().Contain(nameof(Permission.TriageReferrals));
     }

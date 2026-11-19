@@ -20,7 +20,7 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 - **Synthetic data only.** This is a medical app: the seeder and `seed_patients` invent names and use `@example.com` emails. Never enter a real person's details.
 - **Demo data comes only from the script.** `seed_patients` and `create_patient` make a throwaway record or two while trying a screen. They aren't demo data: anything a demo, a screenshot or a snapshot should show belongs in the seeder (`DemoData/`), loaded by `tools/seed-demo-data.sh`. Never add demo or dummy records by hand, with SQL or through the app.
 - **Passwords.** `create_user` / `set_password` return any password they generate, so the agent can sign in with it. Only use this for local dev accounts.
-- **No forced password change.** The app makes an account an admin creates or resets change its generated password at first sign-in (`MustChangePassword`). Accounts this tool makes or sets a password on aren't: `create_user`, `set_password`, `ensure_test_admin` and `reset_demo_data`'s staff can sign in and use the app straight away, except the demo's new starter, kept to show the forced change.
+- **No forced password change.** The app makes an account an admin creates or resets change its generated password at first sign-in (`MustChangePassword`). Accounts this tool makes or sets a password on aren't: `create_user`, `set_password`, `ensure_test_admin`, `ensure_test_staff` and `reset_demo_data`'s staff can sign in and use the app straight away, except the demo's new starter, kept to show the forced change.
 - **All or nothing.** `create_user` makes the account, sets its password and gives it its roles in one transaction, so a failure part-way leaves no account behind.
 
 ## Tools
@@ -28,7 +28,7 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 | Area | Tools |
 |---|---|
 | State | `get_status`: database, migrations (applied/pending), row counts |
-| Accounts | `list_users`, `list_roles`, `create_user`, `set_password`, `set_roles`, `unlock_user`, `delete_user`, `ensure_test_admin` |
+| Accounts | `list_users`, `list_roles`, `create_user`, `set_password`, `set_roles`, `unlock_user`, `delete_user`, `ensure_test_admin`, `ensure_test_staff` |
 | Sessions | `list_sessions`, `revoke_sessions` (sign an account out everywhere) |
 | Patients | `list_patients`, `create_patient`, `seed_patients`, `delete_patient` |
 | Snapshots | `save_snapshot`, `list_snapshots`, `restore_snapshot` (whole-database backup/restore, files in the git-ignored `.backups/`; the AppHost bind-mounts that folder into the SQL container at `/var/opt/mssql/backups`) |
@@ -37,9 +37,13 @@ It reuses the app's own Application and Infrastructure layers, so the app's rule
 
 ### The test login: `admin` / `admin`
 
-`ensure_test_admin` makes sure the local test login exists, with the Admin and Clinician roles, and isn't locked out (the demo data then leaves it Admin alone, read only, as the light demo's admin is). It creates the account if it's missing, and otherwise puts the password back to `admin`. `reset_demo_data` runs it too, so the login is always there after a reset.
+`ensure_test_admin` makes sure the local test login exists, with the Admin role alone (admins are read only and in no team, as the light demo's admin is), and isn't locked out. It creates the account if it's missing, and otherwise puts the password back to `admin`. `reset_demo_data` runs it too, so the login is always there after a reset.
 
 `admin` is far too weak for the app's password rules, so the tool sets the password hash directly instead of going through the app's commands. That's only acceptable because medapp-dev refuses to run against anything but a local database. Never create this account anywhere else.
+
+### Test staff: `ensure_test_staff`
+
+Clinical work needs a member of staff in the right team. `ensure_test_staff` makes `<prefix>-clinician` (Clinician and Booking, Dermatology's clinic admin) and `<prefix>-lab` (Lab and Pathologist, in the lab team), named, through the app's commands; it makes Dermatology too if the database has none. Run again, it sets their password, unlocks them and puts their roles and team back exactly. The prefix is `dev` by default (`dev-parity` for the UI parity tool); the password is the one given or a generated one each, returned. `reset_demo_data` remakes the teams, so run it again after a reset. The E2E tests don't need it: they make their own staff account.
 
 ## The demo data: one script
 

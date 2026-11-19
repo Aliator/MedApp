@@ -211,6 +211,7 @@ public sealed class AppointmentConcurrencyTests : IntegrationTest
         PatientId = _patient.Id,
         PathwayId = pathwayId,
         StageId = stageId,
+        TeamId = MedApp.Domain.Teams.Team.GeneralId,
         Status = status,
         CancelReason = status == AppointmentStatus.Cancelled ? CancelReason : null,
         CreatedAtUtc = Now,

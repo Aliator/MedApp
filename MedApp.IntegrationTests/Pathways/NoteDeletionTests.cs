@@ -215,7 +215,7 @@ public sealed class NoteDeletionTests : IntegrationTest
         var requestId = requested.DeletionRequestId!.Value;
         requested.CanRequestDeletion.Should().BeFalse();
         (await GetPathwayAsync(_staff.Client, pathway.Id)).NoteList.Single().DeletionRequestId.Should().Be(requestId);
-        (await (await RequestAsync(_admin, pathway.Id, note.Id)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
+        (await (await RequestAsync(await ClinicalAsync(_admin), pathway.Id, note.Id)).ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict))
             .Title.Should().Contain(_staff.Username);
 
         // Every admin is told, with a link to the request; the requester isn't.
@@ -309,10 +309,11 @@ public sealed class NoteDeletionTests : IntegrationTest
         var requested = await (await RequestAsync(_staff.Client, pathway.Id, note.Id)).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
         await (await PostPathwayStatusAsync(_admin, pathway.Id, "Cancelled", "Synthetic cancellation")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await (await ClinicalAsync(_admin)).DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         var request = await (await _admin.GetAsync(RequestUrl(requested.DeletionRequestId!.Value))).ReadAsAsync<NoteDeletionRequestResponse>();
-        request.Should().BeEquivalentTo(new { Status = "Closed", DecidedByUsername = AdminUsername, Note = (object?)null, PathwayTitle = (string?)null, CanDecide = false });
+        // Closed by whoever deleted the pathway (staff: admins are read only).
+        request.Should().BeEquivalentTo(new { Status = "Closed", DecidedByUsername = (await ClinicStaffAsync()).Username, Note = (object?)null, PathwayTitle = (string?)null, CanDecide = false });
         request.Patient!.Id.Should().Be(pathway.PatientId);
         await (await DecideAsync(_admin, request.Id, true)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
@@ -322,7 +323,8 @@ public sealed class NoteDeletionTests : IntegrationTest
     {
         var (pathway, note) = await PathwayWithNoteAsync();
 
-        var responses = await Task.WhenAll(RequestAsync(_staff.Client, pathway.Id, note.Id), RequestAsync(_admin, pathway.Id, note.Id));
+        var other = await ClinicalAsync(_admin);
+        var responses = await Task.WhenAll(RequestAsync(_staff.Client, pathway.Id, note.Id), RequestAsync(other, pathway.Id, note.Id));
 
         responses.Select(r => r.StatusCode).Should().BeEquivalentTo([HttpStatusCode.Created, HttpStatusCode.Conflict]);
         var pending = await RunInScopeAsync(sp => sp.GetRequiredService<MedAppDbContext>().PathwayNoteDeletionRequests

@@ -3,18 +3,22 @@ using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
+using MedApp.Contracts.Teams.Responses;
 using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
 
 namespace MedApp.E2ETests.Common;
 
 /// <summary>
-/// Base class for end-to-end tests: a fresh browser page per test, at the app's base URL, signed in as the
-/// E2E account. The settings match the UI parity screenshots: desktop 1440×900, en-GB, Europe/London.
-/// Override <see cref="IsSignedIn"/> for tests that start signed out, such as the login page.
+/// Base class for end-to-end tests: a fresh browser page per test, at the app's base URL, signed in as the run's
+/// member of staff (<see cref="Staff"/>), who does the clinical work in the E2E clinic, as admins are read only. The
+/// settings match the UI parity screenshots: desktop 1440×900, en-GB, Europe/London.
+/// Override <see cref="SignedInAs"/> for an admin journey (users, setup), and <see cref="IsSignedIn"/> for tests that
+/// start signed out, such as the login page.
 /// <para>
-/// <see cref="Api"/> is the app's API as the E2E account, for a test's setup and checks; whatever a test makes it
-/// registers with <see cref="Data"/>, which deletes it when the test ends.
+/// <see cref="Api"/> is the app's API as the account the page is signed in as, <see cref="StaffApi"/> and
+/// <see cref="AdminApi"/> as each, for a test's setup and checks; whatever a test makes it registers with
+/// <see cref="Data"/>, which deletes it when the test ends.
 /// </para>
 /// </summary>
 public abstract class E2ETest : PageTest
@@ -32,12 +36,28 @@ public abstract class E2ETest : PageTest
         " ' + e.violatedDirective + ' blocked ' + (e.blockedURI || 'inline') + ' at ' + (e.sourceFile || document.location.href) + ':' + e.lineNumber));";
 
     private readonly List<string> _cspViolations = [];
-    private IAPIRequestContext? _request;
+    private IAPIRequestContext? _adminRequest;
+    private IAPIRequestContext? _staffRequest;
 
     protected virtual bool IsSignedIn => true;
 
-    /// <summary>The API, signed in as the E2E account (whether or not the page is).</summary>
-    protected E2EApi Api { get; private set; } = null!;
+    /// <summary>Who the page is signed in as: the run's member of staff, unless an admin journey says otherwise.</summary>
+    protected virtual E2EAccount SignedInAs => E2EAccount.Staff;
+
+    /// <summary>The API as the account the page is signed in as (<see cref="SignedInAs"/>), whether or not the page is.</summary>
+    protected E2EApi Api => SignedInAs == E2EAccount.Admin ? AdminApi : StaffApi;
+
+    /// <summary>The API as the run's member of staff: patients, pathways, referrals, appointments, letters.</summary>
+    protected E2EApi StaffApi { get; private set; } = null!;
+
+    /// <summary>The API as the E2E admin: accounts, roles, teams, the stage library and templates.</summary>
+    protected E2EApi AdminApi { get; private set; } = null!;
+
+    /// <summary>The run's member of staff (<see cref="E2ESession"/>).</summary>
+    protected static E2EStaff Staff => E2ESession.Staff;
+
+    /// <summary>The E2E clinic, the run's member of staff's team, where templates and referrals go.</summary>
+    protected static TeamResponse Team => Staff.Team;
 
     protected E2EData Data { get; private set; } = null!;
 
@@ -48,7 +68,7 @@ public abstract class E2ETest : PageTest
         Locale = "en-GB",
         TimezoneId = "Europe/London",
         IgnoreHTTPSErrors = true, // ASP.NET Core dev certificates
-        StorageStatePath = IsSignedIn ? E2ESettings.StorageStatePath : null,
+        StorageStatePath = IsSignedIn ? E2ESettings.StorageStatePath(SignedInAs) : null,
     };
 
     [SetUp]
@@ -71,8 +91,10 @@ public abstract class E2ETest : PageTest
         if (E2ESettings.TraceDirectory is not null)
             await Context.Tracing.StartAsync(new TracingStartOptions { Screenshots = true, Snapshots = true });
 
-        _request = await NewApiContextAsync(E2ESettings.StorageStatePath);
-        Api = new E2EApi(_request);
+        _adminRequest = await NewApiContextAsync(E2ESettings.AdminStorageStatePath);
+        _staffRequest = await NewApiContextAsync(E2ESettings.StaffStorageStatePath);
+        AdminApi = new E2EApi(_adminRequest);
+        StaffApi = new E2EApi(_staffRequest);
         Data = new E2EData();
     }
 
@@ -96,8 +118,10 @@ public abstract class E2ETest : PageTest
         }
         finally
         {
-            if (_request is not null)
-                await _request.DisposeAsync();
+            if (_staffRequest is not null)
+                await _staffRequest.DisposeAsync();
+            if (_adminRequest is not null)
+                await _adminRequest.DisposeAsync();
         }
 
         // Last, once everything is cleaned up: a violation fails the test even when the journey worked.
@@ -149,30 +173,88 @@ public abstract class E2ETest : PageTest
     }
 
     /// <summary>
+    /// Another member of staff, made by the admin with these roles (by name), in the E2E clinic unless
+    /// <paramref name="inTheClinic"/> is false, who has chosen their own password (as an account an admin makes must
+    /// first), with their API. Deleted after the test.
+    /// </summary>
+    protected async Task<E2EColleague> CreateColleagueAsync(string[] roles, bool inTheClinic = true)
+    {
+        var username = E2EData.UniqueName("staff").Replace(' ', '-').ToLowerInvariant();
+        var firstPassword = await AdminApi.CreateUserAsync(username, roles);
+        Data.OnCleanUp($"user {username}", () => AdminApi.DeleteUserAsync(username, E2ESettings.Password!));
+        if (inTheClinic)
+            await AdminApi.SetTeamsAsync(username, Team.Id);
+
+        var password = E2EData.NewPassword();
+        await (await SignInToApiAsync(username, firstPassword)).UpdateOwnPasswordAsync(username, firstPassword, password);
+        return new E2EColleague(username, password, await AdminApi.UserIdOfAsync(username), await SignInToApiAsync(username, password));
+    }
+
+    /// <summary>
+    /// A browser page of its own, signed in as <paramref name="account"/> from its saved session, for a second person in
+    /// the journey (closed after the test).
+    /// </summary>
+    protected async Task<IPage> NewPageAsAsync(E2EAccount account)
+    {
+        var options = ContextOptions();
+        options.StorageStatePath = E2ESettings.StorageStatePath(account);
+        var context = await Browser.NewContextAsync(options);
+        Data.OnCleanUp($"the {account} browser", () => context.CloseAsync());
+        context.SetDefaultTimeout(15_000);
+        return await context.NewPageAsync();
+    }
+
+    /// <summary>
+    /// A browser page of its own in which <paramref name="username"/> signs in through the login page (closed after the
+    /// test).
+    /// </summary>
+    protected async Task<IPage> SignInPageAsync(string username, string password)
+    {
+        var options = ContextOptions();
+        options.StorageStatePath = null;
+        var context = await Browser.NewContextAsync(options);
+        Data.OnCleanUp($"the browser of {username}", () => context.CloseAsync());
+        context.SetDefaultTimeout(15_000);
+        var page = await context.NewPageAsync();
+        await OpenAsync(page, "/login");
+        await page.GetByRole(AriaRole.Textbox, new() { Name = "Username" }).FillAsync(username);
+        await page.GetByRole(AriaRole.Textbox, new() { Name = "Password" }).FillAsync(password);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
+        await Expect(page).Not.ToHaveURLAsync(new Regex("/login"));
+        return page;
+    }
+
+    /// <summary>
     /// A synthetic patient, deleted after the test, with any pathways made for them (cancelled and deleted first).
     /// A patient who has had an appointment can't be deleted (the app never deletes appointments): their open ones are
     /// cancelled instead, and the patient stays.
     /// </summary>
     protected async Task<PatientResponse> CreatePatientAsync(string firstName = "Grace")
     {
-        var patient = await Api.CreatePatientAsync(firstName, E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
+        var patient = await StaffApi.CreatePatientAsync(firstName, E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
         Data.OnCleanUp($"patient {patient.LastName}", async () =>
         {
-            var appointments = await Api.AppointmentsOfPatientAsync(patient.Id);
+            var appointments = await StaffApi.AppointmentsOfPatientAsync(patient.Id);
             foreach (var appointment in appointments.Where(a => a.CanCancel))
-                await Api.CancelAppointmentAsync(appointment.Id, "End-to-end test clean-up.");
+                await StaffApi.CancelAppointmentAsync(appointment.Id, "End-to-end test clean-up.");
             if (appointments.Count == 0)
-                await Api.DeletePatientAsync(patient.Id);
+                await StaffApi.DeletePatientAsync(patient.Id);
         });
-        Data.OnCleanUp($"the pathways of {patient.LastName}", async () =>
-        {
-            foreach (var pathway in await Api.PathwaysOfPatientAsync(patient.Id))
-                await Api.CancelAndDeletePathwayAsync(pathway.Id);
-        });
+        Data.OnCleanUp($"the pathways of {patient.LastName}", () => DeletePathwaysOfAsync(patient.Id));
         return patient;
     }
 
-    /// <summary>A template of new stages, deleted after the test with its stages (after any pathways made from it).</summary>
+    /// <summary>Cancels and deletes a patient's pathways (the E2E clinic's: all a test makes).</summary>
+    protected async Task DeletePathwaysOfAsync(Guid patientId)
+    {
+        foreach (var pathway in await StaffApi.PathwaysOfPatientAsync(patientId))
+            await StaffApi.CancelAndDeletePathwayAsync(pathway.Id);
+    }
+
+    /// <summary>
+    /// A template of new stages in the E2E clinic, made by the admin, deleted after the test with its stages (after any
+    /// pathways made from it).
+    /// </summary>
     protected Task<(PathwayTemplateResponse Template, IReadOnlyList<PatientPathwayStageDefinitionResponse> Stages)>
         CreateTemplateAsync(int stageCount) =>
         CreateTemplateAsync([.. Enumerable.Repeat("None", stageCount)]);
@@ -196,22 +278,25 @@ public abstract class E2ETest : PageTest
         var stages = new List<PatientPathwayStageDefinitionResponse>();
         for (var i = 1; i <= visitRequirements.Length; i++)
         {
-            var stage = await Api.CreateStageDefinitionAsync(
+            var stage = await AdminApi.CreateStageDefinitionAsync(
                 E2EData.UniqueName($"Stage {i}"), $"Synthetic instructions for stage {i}.", visitRequirements[i - 1]);
             Data.OnCleanUp($"stage {stage.Name}", () =>
-                keptByAPathway ? Api.DeleteOrArchiveStageDefinitionAsync(stage.Id) : Api.DeleteStageDefinitionAsync(stage.Id));
+                keptByAPathway ? AdminApi.DeleteOrArchiveStageDefinitionAsync(stage.Id) : AdminApi.DeleteStageDefinitionAsync(stage.Id));
             stages.Add(stage);
         }
 
-        var template = await Api.CreateTemplateAsync(E2EData.UniqueName("Template"), [.. stages.Select(s => s.Id)]);
+        var template = await AdminApi.CreateTemplateAsync(E2EData.UniqueName("Template"), Team.Id, [.. stages.Select(s => s.Id)]);
         Data.OnCleanUp($"template {template.Name}", () =>
-            keptByAPathway ? Api.DeleteOrArchiveTemplateAsync(template.Id) : Api.DeleteTemplateAsync(template.Id));
+            keptByAPathway ? AdminApi.DeleteOrArchiveTemplateAsync(template.Id) : AdminApi.DeleteTemplateAsync(template.Id));
         return (template, stages);
     }
 
-    /// <summary>A pathway for a patient made with <see cref="CreatePatientAsync"/> (so it's deleted with them).</summary>
+    /// <summary>
+    /// A pathway, made by the run's member of staff, for a patient made with <see cref="CreatePatientAsync"/> (so it's
+    /// deleted with them).
+    /// </summary>
     protected Task<PatientPathwayResponse> CreatePathwayAsync(Guid patientId, Guid templateId) =>
-        Api.CreatePathwayAsync(patientId, templateId, E2EData.UniqueName("Pathway"), UkToday.AddDays(7));
+        StaffApi.CreatePathwayAsync(patientId, templateId, E2EData.UniqueName("Pathway"), UkToday.AddDays(7));
 
     /// <summary>
     /// Opens a page and waits until it can be used. Pages are rendered on the server, then taken over by React in the
@@ -272,3 +357,6 @@ public abstract class E2ETest : PageTest
         return search;
     }
 }
+
+/// <summary>Another member of staff a test made (<see cref="E2ETest.CreateColleagueAsync"/>), with their API.</summary>
+public sealed record E2EColleague(string Username, string Password, Guid UserId, E2EApi Api);

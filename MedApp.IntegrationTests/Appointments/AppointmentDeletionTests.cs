@@ -61,7 +61,7 @@ public sealed class AppointmentDeletionTests : IntegrationTest
             pathwayId: pathway.Id, stageId: pathway.Stages[1].Id);
         await (await PostPathwayStatusAsync(_staff.Client, pathway.Id, "Cancelled", BlockReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await (await ClinicalAsync(_admin)).DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         await (await _staff.Client.GetAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
         foreach (var id in new[] { requested.Id, booked.Id })
@@ -134,7 +134,7 @@ public sealed class AppointmentDeletionTests : IntegrationTest
         (await GetCalendarAsync(_admin, _staff.UserId, UkToday)).Should().NotBeNull("they're still staff, with a calendar");
 
         // Another staff role is fine: they keep their calendar.
-        await (await _admin.PutAsJsonAsync(url, new SetUserRolesRequest([AdminRole]))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await _admin.PutAsJsonAsync(url, new SetUserRolesRequest(["Nurse"]))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         await (await PostCancelAsync(_admin, appointment.Id, CancelReason)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await _admin.PutAsJsonAsync(url, new SetUserRolesRequest([]))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);

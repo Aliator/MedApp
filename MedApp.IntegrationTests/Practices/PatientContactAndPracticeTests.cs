@@ -41,7 +41,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
     private static string UniqueOdsCode() => "Z" + Random.Shared.Next(100000, 999999);
 
     private static async Task<PracticeResponse> CreatePracticeAsync(HttpClient client, string? odsCode = null) =>
-        await (await client.PostAsJsonAsync(Practices, new CreatePracticeRequest
+        await (await (await ClinicalAsync(client)).PostAsJsonAsync(Practices, new CreatePracticeRequest
             {
                 Name = UniqueName("Testbrook Surgery"),
                 OdsCode = odsCode,
@@ -53,7 +53,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
             .ReadAsAsync<PracticeResponse>(HttpStatusCode.Created);
 
     private async Task<PatientResponse> CreatePatientWithContactDetailsAsync(Guid practiceId) =>
-        await (await _admin.PostAsJsonAsync("/api/patients", new CreatePatientRequest
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/patients", new CreatePatientRequest
             {
                 FirstName = UniqueName("First"),
                 LastName = UniqueName("Last"),
@@ -134,7 +134,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
         (await GetPracticeAsync(practice.Id)).Should().BeEquivalentTo(new { PatientCount = 1, CanBeDeleted = false });
 
         // An edit records the names of the fields changed, never their values.
-        await (await _admin.PatchAsJsonAsync($"/api/patients/{patient.Id}", new UpdatePatientRequest
+        await (await (await ClinicalAsync(_admin)).PatchAsJsonAsync($"/api/patients/{patient.Id}", new UpdatePatientRequest
             {
                 FirstName = patient.FirstName, LastName = patient.LastName, DateOfBirth = patient.DateOfBirth, Email = patient.Email,
                 Postcode = "ZZ9 9ZZ", MobilePhone = ""
@@ -147,7 +147,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
         details.Should().NotContain("ZZ9").And.NotContain("7700");
 
         // The practice can't be deleted while a patient has it, and the database refuses too.
-        await (await _admin.DeleteAsync($"{Practices}/{practice.Id}")).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await (await ClinicalAsync(_admin)).DeleteAsync($"{Practices}/{practice.Id}")).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
         var fhir = await (await _admin.GetAsync($"/api/fhir/Patient/{patient.Id}")).Content.ReadFromJsonAsync<FhirPatient>();
         fhir!.Address!.Single().PostalCode.Should().Be("ZZ9 9ZZ");
@@ -175,7 +175,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
     {
         var practice = await CreatePracticeAsync(_admin);
         var patient = await CreatePatientWithContactDetailsAsync(practice.Id);
-        await (await _admin.PostAsJsonAsync($"{Practices}/{practice.Id}/archive", new PracticeVersionRequest { ExpectedVersion = 1 }))
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Practices}/{practice.Id}/archive", new PracticeVersionRequest { ExpectedVersion = 1 }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var edit = new UpdatePatientRequest
@@ -183,18 +183,18 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
             FirstName = patient.FirstName, LastName = patient.LastName, DateOfBirth = patient.DateOfBirth, Email = patient.Email,
             PracticeId = practice.Id
         };
-        (await (await _admin.PatchAsJsonAsync($"/api/patients/{patient.Id}", edit)).ReadAsAsync<PatientResponse>())
+        (await (await (await ClinicalAsync(_admin)).PatchAsJsonAsync($"/api/patients/{patient.Id}", edit)).ReadAsAsync<PatientResponse>())
             .Practice!.IsArchived.Should().BeTrue();
 
         var other = await CreatePatientAsync(_admin);
-        await (await _admin.PatchAsJsonAsync($"/api/patients/{other.Id}", new UpdatePatientRequest
+        await (await (await ClinicalAsync(_admin)).PatchAsJsonAsync($"/api/patients/{other.Id}", new UpdatePatientRequest
             {
                 FirstName = other.FirstName, LastName = other.LastName, DateOfBirth = other.DateOfBirth, Email = other.Email,
                 PracticeId = practice.Id
             }))
             .ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
-        await (await _admin.PostAsJsonAsync("/api/patients", new CreatePatientRequest
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/patients", new CreatePatientRequest
             {
                 FirstName = "Synthetic", LastName = "Person", DateOfBirth = DateOfBirth, Email = $"x@{PatientEmailDomain}",
                 Postcode = "nowhere", MobilePhone = "01632 960000", AddressLines = ["a", "b", "c", "d"]
@@ -208,7 +208,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
         var practice = await CreatePracticeAsync(_admin, UniqueOdsCode());
         var patient = await CreatePatientAsync(_admin);
 
-        var referral = await (await _admin.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
+        var referral = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
             {
                 PatientId = patient.Id,
                 TeamId = Team.GeneralId,
@@ -223,7 +223,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
         referral.Should().BeEquivalentTo(new { PracticeId = practice.Id, ReferrerPractice = practice.Name, ReferrerOdsCode = practice.OdsCode });
         (await GetPracticeAsync(practice.Id)).Should().BeEquivalentTo(new { ReferralCount = 1, CanBeDeleted = false });
 
-        var edited = await (await _admin.PutAsJsonAsync($"/api/referrals/{referral.Id}", new EditReferralRequest
+        var edited = await (await (await ClinicalAsync(_admin)).PutAsJsonAsync($"/api/referrals/{referral.Id}", new EditReferralRequest
             {
                 TeamId = Team.GeneralId,
                 ReceivedOn = referral.ReceivedOn,

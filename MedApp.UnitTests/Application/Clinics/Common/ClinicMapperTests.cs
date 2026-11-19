@@ -80,6 +80,21 @@ public sealed class ClinicMapperTests
     }
 
     [Test]
+    public void ToDetailResponse_AnotherTeamsAppointment_IsABookedSlotWithNoAppointmentOrPatient()
+    {
+        var session = CreateSession();
+        var hidden = InSession(session, At(NextMonday, 9), AppointmentStatus.Booked);
+
+        var detail = ClinicMapper.ToDetailResponse(session, StaffUsername, [hidden], At(NextMonday, 8), true, new HashSet<Guid> { hidden.Id });
+
+        detail.Slots[0].Should().BeEquivalentTo(new
+        {
+            AppointmentId = (Guid?)null, PatientId = (Guid?)null, PatientName = (string?)null, AppointmentStatus = "Booked",
+        });
+        detail.Session.BookedCount.Should().Be(1, "the slot is still taken");
+    }
+
+    [Test]
     public void ToDetailResponse_CancelledSession_ListsThoseCancelledWithItToTell_NotInItsSlots()
     {
         var session = CreateSession(status: ClinicSessionStatus.Cancelled);

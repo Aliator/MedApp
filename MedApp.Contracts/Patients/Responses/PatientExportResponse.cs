@@ -364,6 +364,9 @@ public sealed class ExportedMdtItemResponse
     public List<string> Present { get; set; } = [];
     public string? WithdrawnBy { get; set; }
     public DateTime? WithdrawnAtUtc { get; set; }
+
+    /// <summary>Who presents it at the MDT (MC21), as their username was then; null when nobody is named.</summary>
+    public string? Presenter { get; set; }
 }
 
 /// <summary>A patient's record in full, as the export gives it.</summary>

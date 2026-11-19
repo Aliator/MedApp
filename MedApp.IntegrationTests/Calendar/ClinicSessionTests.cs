@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
@@ -45,11 +46,12 @@ public sealed class ClinicSessionTests : IntegrationTest
     public async Task SetUpClinicAsync()
     {
         _admin = await SignInAsAdminAsync();
-        _clinician = await CreateStaffAsync(UserRole);
         _site = await CreateSiteAsync(_admin);
         _room = await CreateRoomAsync(_admin, _site.Id);
         _team = await (await _admin.PostAsJsonAsync("/api/teams", new CreateTeamRequest { Name = UniqueName("Team") }))
             .ReadAsAsync<TeamResponse>(HttpStatusCode.Created);
+        // In General (where the test's patients' visits are) and the clinic's team.
+        _clinician = await CreateStaffInAsync([Team.GeneralId, _team.Id], UserRole);
         _day = NextWorkingDay();
     }
 
@@ -68,8 +70,8 @@ public sealed class ClinicSessionTests : IntegrationTest
     private async Task<ClinicSessionResponse> CreateSessionAsync(int startHour = 9, int endHour = 12) =>
         await (await PostSessionAsync(_admin, _clinician.UserId, _room.Id, startHour, endHour)).ReadAsAsync<ClinicSessionResponse>(HttpStatusCode.Created);
 
-    private static Task<HttpResponseMessage> BookIntoSlotAsync(HttpClient client, Guid appointmentId, ClinicSessionResponse session, DateTime slotStart) =>
-        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
+    private static async Task<HttpResponseMessage> BookIntoSlotAsync(HttpClient client, Guid appointmentId, ClinicSessionResponse session, DateTime slotStart) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
         {
             StaffUserId = session.StaffUserId,
             StartUtc = slotStart,
@@ -161,7 +163,8 @@ public sealed class ClinicSessionTests : IntegrationTest
         var session = await CreateSessionAsync();
         var slot = UkAt(_day, 10);
 
-        Task<HttpResponseMessage> Book(Guid patientId) => _admin.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+        var booker = await ClinicalAsync(_admin);
+        Task<HttpResponseMessage> Book(Guid patientId) => booker.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = patientId,
             StaffUserId = _clinician.UserId,
@@ -195,6 +198,7 @@ public sealed class ClinicSessionTests : IntegrationTest
                 {
                     Id = Guid.NewGuid(),
                     PatientId = patient.Id,
+                    TeamId = Team.GeneralId,
                     Status = AppointmentStatus.Requested,
                     CreatedAtUtc = Now,
                     CreatedByUserId = _clinician.UserId,
@@ -246,7 +250,7 @@ public sealed class ClinicSessionTests : IntegrationTest
 
         var responses = await Task.WhenAll(
             PostSessionAsync(_admin, _clinician.UserId, _room.Id, 9, 12),
-            _admin.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+            (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
             {
                 PatientId = patient.Id,
                 StaffUserId = other.UserId,

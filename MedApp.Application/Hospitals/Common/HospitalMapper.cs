@@ -21,7 +21,6 @@ public static class HospitalMapper
         DefaultDeadlineDays = hospital.DefaultDeadlineDays,
         IsArchived = hospital.IsArchived,
         CanBeDeleted = !inUse,
-        ExpectedVersion = hospital.Version,
     };
 
     /// <summary>A patient a request could be for: names, date of birth, NHS number and whether restricted only.</summary>

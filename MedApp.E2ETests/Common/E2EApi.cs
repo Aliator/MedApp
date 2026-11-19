@@ -8,6 +8,7 @@ using MedApp.Contracts.Notepads.Responses;
 using MedApp.Contracts.Notifications.Responses;
 using MedApp.Contracts.Patients.Responses;
 using MedApp.Contracts.Referrals.Responses;
+using MedApp.Contracts.Roles.Responses;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Definitions.Responses;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
@@ -17,7 +18,8 @@ using Microsoft.Playwright;
 namespace MedApp.E2ETests.Common;
 
 /// <summary>
-/// The app's API, signed in as the E2E account (or another account a test made), for what a test needs around the
+/// The app's API, signed in as the E2E admin, the run's member of staff (<see cref="E2EStaff"/>) or another account a
+/// test made, for what a test needs around the
 /// journey it checks: making its data first, checking what the UI did, and deleting it all afterwards. Everything a
 /// test makes is synthetic, with a unique name, and registered with <see cref="E2EData"/> to be deleted.
 /// </summary>
@@ -60,17 +62,14 @@ public sealed class E2EApi(IAPIRequestContext request)
     /// <summary>Deletes a stage definition, or archives it if a template or pathway that stays still uses it.</summary>
     public Task DeleteOrArchiveStageDefinitionAsync(Guid id) => DeleteOrArchiveAsync($"{Stages}/definitions/{id}");
 
-    /// <summary>A template in the first team that isn't archived (every database starts with General).</summary>
-    public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, params Guid[] stageDefinitionIds)
-    {
-        var team = (await SendAsync<List<TeamResponse>>("GET", "/api/teams")).First();
-        return await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
+    /// <summary>A template in a team (the E2E clinic: <see cref="E2EStaff.Team"/>). Needs an admin.</summary>
+    public async Task<PathwayTemplateResponse> CreateTemplateAsync(string name, Guid teamId, params Guid[] stageDefinitionIds) =>
+        await SendAsync<PathwayTemplateResponse>("POST", $"{Stages}/templates", new
         {
             name,
-            teamId = team.Id,
+            teamId,
             stageDefinitionIdsInOrder = stageDefinitionIds,
         });
-    }
 
     public Task DeleteTemplateAsync(Guid id) => DeleteIfThereAsync($"{Stages}/templates/{id}");
 
@@ -100,7 +99,10 @@ public sealed class E2EApi(IAPIRequestContext request)
     public async Task SaveStageNotesAsync(Guid pathwayId, Guid stageId, string notes) =>
         await SendAsync<PatientPathwayResponse>("PUT", $"{Pathways}/{pathwayId}/stages/{stageId}/notes", new { notes });
 
-    /// <summary>Cancels a pathway if it's still open, then deletes it (only cancelled ones can be). Needs an admin.</summary>
+    /// <summary>
+    /// Cancels a pathway if it's still open, then deletes it (only cancelled ones can be). Needs a member of its team with
+    /// DeletePathways (the run's member of staff).
+    /// </summary>
     public async Task CancelAndDeletePathwayAsync(Guid id)
     {
         var pathway = await FindPathwayAsync(id);
@@ -176,13 +178,39 @@ public sealed class E2EApi(IAPIRequestContext request)
         return await SendAsync<NotepadResponse>("PUT", "/api/me/notepad", new SaveNotepadRequest { Text = text, ExpectedVersion = current.Version });
     }
 
-    /// <summary>The teams a member of staff belongs to, exactly. Needs an admin.</summary>
+    /// <summary>The teams a member of staff belongs to, exactly, each as a member. Needs an admin.</summary>
     public async Task SetTeamsAsync(string username, params Guid[] teamIds) =>
-        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/teams", new { teamIds });
+        await SendAsync<object>("PUT", $"/api/auth/users/{Uri.EscapeDataString(username)}/teams", new
+        {
+            teams = teamIds.Select(teamId => new { teamId, role = "Member" }).ToArray(),
+        });
 
-    /// <summary>The first team that isn't archived, the one <see cref="CreateTemplateAsync"/> puts templates in.</summary>
-    public async Task<TeamResponse> FirstTeamAsync() =>
-        (await SendAsync<List<TeamResponse>>("GET", "/api/teams")).First();
+    /// <summary>
+    /// The clinic team with this name: found (restored if archived) or made. Never deleted: what the journeys keep (a
+    /// referral, a letter's pathway) stays in it (README). Needs an admin.
+    /// </summary>
+    public async Task<TeamResponse> EnsureTeamAsync(string name)
+    {
+        var team = (await SendAsync<List<TeamResponse>>("GET", "/api/teams?includeArchived=true"))
+            .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (team is null)
+            return await SendAsync<TeamResponse>("POST", "/api/teams", new { name });
+        if (team.IsArchived)
+            return await SendAsync<TeamResponse>("POST", $"/api/teams/{team.Id}/restore", new { expectedVersion = team.Version });
+        return team;
+    }
+
+    /// <summary>A role granting these permissions, by name. Needs an admin.</summary>
+    public async Task<RoleResponse> CreateRoleAsync(string name, IReadOnlyList<string> permissions) =>
+        await SendAsync<RoleResponse>("POST", "/api/roles", new
+        {
+            name,
+            description = "Made by the end-to-end tests for their run's member of staff; deleted when the run ends.",
+            permissions,
+        });
+
+    /// <summary>Deletes a role nobody holds any more. Nothing happens if it's gone already. Needs an admin.</summary>
+    public Task DeleteRoleAsync(Guid id) => DeleteIfThereAsync($"/api/roles/{id}");
 
     /// <summary>
     /// Registers a referral for a patient, received two days ago, asking for Urgent. Referrals are never deleted, and
@@ -236,7 +264,7 @@ public sealed class E2EApi(IAPIRequestContext request)
 
     /// <summary>
     /// Cancels a pathway if it's still open. A pathway with letters can't be deleted (they're clinical correspondence):
-    /// it stays, cancelled (README). Needs an admin.
+    /// it stays, cancelled (README). Needs a member of its team (the run's member of staff).
     /// </summary>
     public async Task CancelPathwayAsync(Guid id)
     {

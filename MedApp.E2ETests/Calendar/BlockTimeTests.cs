@@ -22,7 +22,7 @@ public sealed class BlockTimeTests : E2ETest
     [Test]
     public async Task BlockTime_DraggedOverFreeTime_OpensTheMenuNextToItAndBlocksThatTime()
     {
-        var myId = await Api.UserIdOfAsync((await Api.WhoAmIAsync()).Name!);
+        var myId = Staff.UserId;
         var (day, hour) = await FreeHourAsync(myId);
         var startUtc = Utc(day, hour);
         var endUtc = Utc(day, hour + 1);

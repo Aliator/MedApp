@@ -87,9 +87,9 @@ public sealed class InsightsTests : IntegrationTest
 
         // Since the moment: one blocked, one's target date moved on, one reopened.
         await ChangeStatusAsync(assigned.Id, "Blocked", "Waiting for results.");
-        (await _admin.PatchAsJsonAsync(PathwayUrl(lateThen.Id), new UpdatePatientPathwayRequest { DueDate = UkToday.AddDays(20) }))
+        (await (await ClinicalAsync(_admin)).PatchAsJsonAsync(PathwayUrl(lateThen.Id), new UpdatePatientPathwayRequest { DueDate = UkToday.AddDays(20) }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _admin.PostAsync($"{StageUrl(completed.Id, completed.Stages[1].Id)}/unlock", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await (await ClinicalAsync(_admin)).PostAsync($"{StageUrl(completed.Id, completed.Stages[1].Id)}/unlock", null)).StatusCode.Should().Be(HttpStatusCode.OK);
         var later = await CreatePathwayAsync(_admin, patient.Id, template.Id);
 
         var inSql = await RunInScopeAsync(services =>
@@ -161,10 +161,10 @@ public sealed class InsightsTests : IntegrationTest
     }
 
     private async Task AssignAsync(Guid pathwayId, Guid userId) =>
-        (await _admin.PostAsync($"{PathwayUrl(pathwayId)}/assignments/{userId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(pathwayId)}/assignments/{userId}", null)).StatusCode.Should().Be(HttpStatusCode.OK);
 
     private async Task ChangeStatusAsync(Guid pathwayId, string status, string? reason = null) =>
-        (await _admin.PostAsJsonAsync($"{PathwayUrl(pathwayId)}/status", new ChangePatientPathwayStatusRequest { Status = status, Reason = reason }))
+        (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{PathwayUrl(pathwayId)}/status", new ChangePatientPathwayStatusRequest { Status = status, Reason = reason }))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
     /// <summary>Target dates can't be set in the past through the API, so this moves one there in the database.</summary>
