@@ -6,12 +6,13 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import {useState} from 'react';
-import {mdtStatusWords, useMdtItemActions, type MdtItem, type MdtMeeting} from '../../api/mdt';
+import {mdtStatusWords, useMdtItemActions, type MdtItem, type MdtLabWork, type MdtMeeting} from '../../api/mdt';
+import {specimenStatusLabel} from '../../api/specimens';
 import {useAnnounce} from '../../app/announcements';
 import {formatDateTime} from '../../utils/dates';
 import {PatientBanner} from '../patients/PatientBanner';
 import {AppIcon} from '../shared/icons';
-import {DeferMdtItemDialog, RecordMdtOutcomeDialog, WithdrawMdtItemDialog} from './MdtDialogs';
+import {ChooseMdtPresenterDialog, DeferMdtItemDialog, RecordMdtOutcomeDialog, WithdrawMdtItemDialog} from './MdtDialogs';
 
 export interface MdtItemListProps {
   items: readonly MdtItem[];
@@ -28,7 +29,7 @@ export interface MdtItemListProps {
   emptyText: string;
 }
 
-type Asking = {item: MdtItem; kind: 'outcome' | 'defer' | 'withdraw'};
+type Asking = {item: MdtItem; kind: 'outcome' | 'defer' | 'withdraw' | 'presenter'};
 
 /** Where an item stands, in words: its meeting, or that its meeting was cancelled. */
 export function mdtMeetingWords(item: MdtItem): string {
@@ -38,10 +39,18 @@ export function mdtMeetingWords(item: MdtItem): string {
   return `${item.teamName ?? ''} MDT`;
 }
 
+/** A sample on the item's pathway, in words: "Skin biopsy S-0001: Reported 3 Dec 2026, 14:00". */
+export function labWorkWords(work: MdtLabWork): string {
+  const what = [work.typeName, work.number].filter(Boolean).join(' ');
+  const status = specimenStatusLabel(work.status);
+  return `${what}: ${status}${work.reportedAtUtc ? ` ${formatDateTime(work.reportedAtUtc)}` : ''}`;
+}
+
 /**
  * MDT items, in the order given (the API's: listed order on a meeting, newest first on a pathway): the patient banner
  * where asked (hazard H-58), the question, where it stands, the outcome as written and who was present once discussed,
- * and the actions each item's flags allow (Record Outcome, Move, Withdraw), each in its dialog. Nothing is coloured
+ * the presenter and the lab's samples and reports on the pathway (MC21),
+ * and the actions each item's flags allow (Record Outcome, Presenter, Move, Withdraw), each in its dialog. Nothing is coloured
  * or ordered by clinical content.
  */
 export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, linksPathway, isReadOnly, emptyText}: MdtItemListProps) {
@@ -49,7 +58,7 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
   const actions = useMdtItemActions();
   const announce = useAnnounce();
   const close = () => setAsking(null);
-  const isBusy = actions.withdraw.isPending || actions.defer.isPending || actions.recordOutcome.isPending;
+  const isBusy = actions.withdraw.isPending || actions.defer.isPending || actions.recordOutcome.isPending || actions.choosePresenter.isPending;
   const attendeesOf = (item: MdtItem) => meetings.find((m) => m.id === item.meetingId)?.attendees ?? [];
 
   if (items.length === 0) return <Text type="body" color="secondary">{emptyText}</Text>;
@@ -79,6 +88,13 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
                 {linksPathway && <Text type="supporting">{mdtMeetingWords(item)}</Text>}
                 <Text type="body">{`Question: ${item.question ?? ''}`}</Text>
                 <Text type="supporting" color="secondary">{`Listed by ${item.listedByUsername ?? ''}, ${formatDateTime(item.listedAtUtc ?? '')}`}</Text>
+                {item.presenterUsername && <Text type="supporting">{`Presenter: ${item.presenterUsername}`}</Text>}
+                {(item.labWork ?? []).map((work) => (
+                  <HStack key={work.specimenId} gap={2} vAlign="center" wrap="wrap">
+                    <Text type="supporting">{`Lab: ${labWorkWords(work)}`}</Text>
+                    {work.resultId && <Link href={`/results/${work.resultId}`}>Report</Link>}
+                  </HStack>
+                ))}
                 {item.status === 'Discussed' && (
                   <>
                     <Text type="body">{`Outcome: ${item.outcome ?? ''}`}</Text>
@@ -94,11 +110,15 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
             }
             endContent={
               !isReadOnly &&
-              (item.canRecordOutcome || item.canDefer || item.canWithdraw) && (
+              (item.canRecordOutcome || item.canChoosePresenter || item.canDefer || item.canWithdraw) && (
                 <HStack gap={1} vAlign="center" wrap="wrap">
                   {item.canRecordOutcome && (
                     <Button label="Record Outcome" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Mdt} />}
                       onClick={() => setAsking({item, kind: 'outcome'})} isDisabled={isBusy} />
+                  )}
+                  {item.canChoosePresenter && (
+                    <Button label="Presenter" variant="ghost" size="sm" icon={<Icon icon={AppIcon.Assign} />}
+                      onClick={() => setAsking({item, kind: 'presenter'})} isDisabled={isBusy} />
                   )}
                   {item.canDefer && (
                     <Button label={item.meetingId ? 'Move' : 'List Again'} variant="ghost" size="sm" icon={<Icon icon={AppIcon.Calendar} />}
@@ -124,6 +144,21 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
             actions.recordOutcome.mutate(
               {id: asking.item.id ?? '', expectedVersion: asking.item.version ?? 1, ...input},
               {onSuccess: () => {close(); announce('MDT outcome recorded');}, onError: fail},
+            )
+          }
+          onCancel={close}
+        />
+      )}
+      {asking?.kind === 'presenter' && (
+        <ChooseMdtPresenterDialog
+          key={`presenter-${asking.item.id}`}
+          item={asking.item}
+          attendees={attendeesOf(asking.item)}
+          isProcessing={actions.choosePresenter.isPending}
+          onConfirm={(presenterUserId, fail) =>
+            actions.choosePresenter.mutate(
+              {id: asking.item.id ?? '', presenterUserId, expectedVersion: asking.item.version ?? 1},
+              {onSuccess: () => {close(); announce('MDT presenter saved');}, onError: fail},
             )
           }
           onCancel={close}

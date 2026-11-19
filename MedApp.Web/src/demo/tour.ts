@@ -307,6 +307,21 @@ export const TOUR: TourStep[] = [
         : `This item has been discussed already in your copy of the demo. ${RESET_HINT}`,
   },
   {
+    key: 'mdt-pathology',
+    title: 'Pathology at the MDT',
+    steps: [
+      `As ${LAB.fullName} from the lab, this morning’s skin MDT: the lab was invited, so it reads the cases listed on it, read only, until each is discussed or withdrawn.`,
+      'Harriet Quill’s case names him as its presenter, with her biopsy and a link to its report. Only Dermatology chooses the presenter, moves or withdraws an item.',
+    ],
+    account: LAB.username,
+    path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,
+    buttonLabel: 'Open this morning’s MDT as the lab',
+    whyNot: (state) =>
+      state.mdtItems.find((i) => i.id === CLINICAL_IDS.mdtItemPresented)?.presenterUserId === LAB.id
+        ? null
+        : `Harriet Quill’s case has another presenter, or none, in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
     key: 'timeline',
     title: 'A patient’s timeline',
     steps: ['Opens Priya Holloway: everything that happened to her, newest first. Filter it by kind with the chips above it.'],
