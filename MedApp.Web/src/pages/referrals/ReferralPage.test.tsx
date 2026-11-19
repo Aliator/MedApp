@@ -217,7 +217,10 @@ describe('ReferralPage', () => {
     await user.click(screen.getByRole('heading', {name: 'Waiting time'}));
     await waitFor(() => expect(screen.queryByText('This referral has no waiting-time clock.')).not.toBeInTheDocument());
     expect(await screen.findByText('No letter attached yet.')).toBeInTheDocument();
-    await user.click(screen.getByRole('heading', {name: 'Letter'}));
+    expect(screen.getByText('From the referrer')).toBeInTheDocument();
+    expect(screen.getByText('Replies')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: 'Letter'})).not.toBeInTheDocument();
+    await user.click(screen.getByRole('heading', {name: 'Letters'}));
     await waitFor(() => expect(screen.queryByText('No letter attached yet.')).not.toBeInTheDocument());
     await user.click(screen.getByRole('heading', {name: 'Triage'}));
     await waitFor(() => expect(screen.queryByText(/Only a member of its team/)).not.toBeInTheDocument());
@@ -229,7 +232,7 @@ describe('ReferralPage', () => {
   it('folds into one card in a narrow window or half view', async () => {
     const {user} = renderPage(testReferral(), {}, true);
     const history = await screen.findByRole('heading', {name: 'History'});
-    expect(screen.getByRole('heading', {name: 'Letter'})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Letters'})).toBeInTheDocument();
     expect(screen.getByText('Registered by k.ashford')).toBeInTheDocument();
     await user.click(history);
     await waitFor(() => expect(screen.queryByText('Registered by k.ashford')).not.toBeInTheDocument());
@@ -241,7 +244,9 @@ describe('referral words', () => {
     expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: false, whyCantTriage: 'You are not a Dermatology clinician.'})).toBe(
       'You are not a Dermatology clinician.',
     );
-    expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true})).toMatch(/^Read the referral and its letter, then decide/);
+    expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true, letterCount: 1})).toMatch(/^Read the referral and its letter, then decide/);
+    // No letter attached: nothing but the referral to read.
+    expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true, letterCount: 0})).toMatch(/^Read the referral, then decide/);
     expect(triageWords({isOpen: false, status: 'Accepted'})).toBe("This referral has been triaged: accepted. A referral isn't triaged again.");
     expect(triageWords({isOpen: false, status: 'Withdrawn'})).toBe("This referral is withdrawn, so it isn't triaged.");
     expect(triageWords({isOpen: true, status: 'InformationRequested', canTriage: true})).toMatch(/^More information has been asked of the referrer/);
@@ -286,7 +291,7 @@ describe('ReferralPage triage', () => {
       clinician,
     );
 
-    expect(await screen.findByText(/^Read the referral and its letter/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Read the referral(,| and its letter,) then decide/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Accept'}));
     const dialog = within(await waitFor(() => openDialog()!));
     await user.click(dialog.getByRole('combobox', {name: /Template/}));
@@ -436,7 +441,7 @@ describe('ReferralPage triage', () => {
       clinician,
     );
 
-    expect(await screen.findByText(/^Read the referral and its letter/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Read the referral(,| and its letter,) then decide/)).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Information Received'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Ask for More Information'}));
     const dialog = within(await waitFor(() => openDialog()!));

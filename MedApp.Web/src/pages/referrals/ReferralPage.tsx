@@ -53,7 +53,7 @@ const TRIAGED = ['Accepted', 'Rejected', 'RedirectedElsewhere'];
  * What the Triage section says: that it's been triaged, or closed without triage; for a triager, what they can do; for
  * anyone else, the API's reason they can't (`whyCantTriage`: not a member of the team, or without the permission).
  */
-export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canTriage' | 'whyCantTriage'>): string {
+export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canTriage' | 'whyCantTriage' | 'letterCount'>): string {
   if (!referral.isOpen) {
     const status = referralStatusLabel(referral.status).toLowerCase();
     return TRIAGED.includes(referral.status ?? '')
@@ -63,7 +63,8 @@ export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canT
   if (referral.canTriage)
     return referral.status === 'InformationRequested'
       ? 'More information has been asked of the referrer. Record it when it arrives; meanwhile you can still accept, reject or redirect it.'
-      : 'Read the referral and its letter, then decide: accept it into a pathway, reject it, or redirect it.';
+      : // Its letter only when one is attached (under Letters): otherwise there's nothing more to read.
+        `Read the referral${(referral.letterCount ?? 0) > 0 ? ' and its letter' : ''}, then decide: accept it into a pathway, reject it, or redirect it.`;
   return referral.whyCantTriage?.trim() || 'Only a member of its team who can triage referrals can accept, reject or redirect it.';
 }
 
@@ -74,8 +75,8 @@ type Triage = 'accept' | 'reject' | 'redirect' | ReferralInformationStep;
 
 /**
  * One referral (`/referrals/$id`): the patient's banner, then its details as typed from the letter (the team, when
- * it was received, the referrer and the reason), what became of it, the letter (attached here: "No letter attached
- * yet" until it is), triage and its history in words. While it awaits triage, Edit Details, and in the More menu
+ * it was received, the referrer and the reason), what became of it, its letters (the referrer's, attached here: "No
+ * letter attached yet" until it is; and the replies written about it), triage and its history in words. While it awaits triage, Edit Details, and in the More menu
  * Withdraw and Entered in Error, each asking for a detail with the patient shown, as the API's flags (`canEdit`,
  * `canClose`) allow. A change someone made meanwhile is a 409, shown in the API's words with Reload.
  *
@@ -90,7 +91,7 @@ type Triage = 'accept' | 'reject' | 'redirect' | ReferralInformationStep;
  * The waiting-time clock sits under the details: the wait, the target date, Breached, Paused or Stopped and why, and
  * its pauses (paused and resumed from its pathway's page).
  *
- * Two cards side by side (details, waiting time and the letter; triage, the other referrals and history), or in a
+ * Two cards side by side (details, waiting time and the letters; triage, the other referrals and history), or in a
  * narrow window one card of six folding sections; either way the cards scroll, not the page.
  */
 export function ReferralPage({id}: {id: string}) {
@@ -106,7 +107,7 @@ export function ReferralPage({id}: {id: string}) {
   const [dialogKey, setDialogKey] = useState(0);
   const [closeErrors, setCloseErrors] = useState<ValidationErrors | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [open, setOpen] = useState({wait: true, letter: true, letters: true, triage: true, others: true, history: true});
+  const [open, setOpen] = useState({wait: true, letters: true, triage: true, others: true, history: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const closeMutation = closing === 'enteredInError' ? actions.enteredInError : actions.withdraw;
@@ -247,11 +248,11 @@ export function ReferralPage({id}: {id: string}) {
       {referral &&
         (isNarrow ? (
           <FoldingCard
-            sections={[details(referral), waitingTime(referral), letter(referral), letters(referral), triageSection(referral), others(referral), history(referral)]}
+            sections={[details(referral), waitingTime(referral), letters(referral), triageSection(referral), others(referral), history(referral)]}
           />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[details(referral), waitingTime(referral), letter(referral), letters(referral)]} />}
+            start={<FoldingCard sections={[details(referral), waitingTime(referral), letters(referral)]} />}
             end={<FoldingCard sections={[triageSection(referral), others(referral), history(referral)]} />}
           />
         ))}
@@ -302,30 +303,11 @@ export function ReferralPage({id}: {id: string}) {
     };
   }
 
-  /** The letter: files attached to the referral. Added while `canAttachFiles`; never while the record is locked. */
-  function letter(referral: Referral): FoldingSection {
-    return {
-      key: 'letter',
-      title: 'Letter',
-      isOpen: open.letter,
-      onToggle: () => toggle('letter'),
-      children: (
-        <Section variant="transparent" padding={6}>
-          <Attachments
-            target={{referralId: referral.id ?? id}}
-            canChange={referral.canAttachFiles ?? false}
-            isLocked={isLocked}
-            state={attachments}
-            emptyText="No letter attached yet."
-          />
-        </Section>
-      ),
-    };
-  }
-
   /**
-   * Letters written about the referral: replies and requests for more information (decision 106), each linking to its
-   * page, and Write Letter for holders of WriteLetters while the record can change.
+   * Its letters, in one section (the owner, 19 November 2026): the referrer's (files attached to the referral, added
+   * while `canAttachFiles` and never while the record is locked), then the replies written about it, requests for more
+   * information included (decision 106), each linking to its page, with Write Letter for holders of WriteLetters while
+   * the record can change.
    */
   function letters(referral: Referral): FoldingSection {
     return {
@@ -335,7 +317,26 @@ export function ReferralPage({id}: {id: string}) {
       onToggle: () => toggle('letters'),
       children: (
         <Section variant="transparent" padding={6}>
-          <LettersAbout about={{referralId: referral.id ?? id}} teamId={referral.teamId} patient={referral.patient} isLocked={isLocked} />
+          <VStack gap={6} hAlign="stretch">
+            <VStack gap={2} hAlign="stretch">
+              <Text type="body" weight="semibold">
+                From the referrer
+              </Text>
+              <Attachments
+                target={{referralId: referral.id ?? id}}
+                canChange={referral.canAttachFiles ?? false}
+                isLocked={isLocked}
+                state={attachments}
+                emptyText="No letter attached yet."
+              />
+            </VStack>
+            <VStack gap={2} hAlign="stretch">
+              <Text type="body" weight="semibold">
+                Replies
+              </Text>
+              <LettersAbout about={{referralId: referral.id ?? id}} teamId={referral.teamId} patient={referral.patient} isLocked={isLocked} />
+            </VStack>
+          </VStack>
         </Section>
       ),
     };
