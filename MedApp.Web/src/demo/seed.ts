@@ -47,7 +47,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 16;
+export const SEED_VERSION = 17;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -1023,6 +1023,16 @@ export function seed(): DemoState {
           isRead: false,
         };
       }),
+      // A service alert (MC19) from the admin's lab clock rule: a fixed title and a count, never the patient.
+      {
+        id: '000000e0-0000-4000-8000-000000000006',
+        userId: ADMIN.id,
+        kind: 'MonitoredLabCaseOverdue',
+        title: 'Lab cases overdue',
+        message: '1 lab case is past its due date.',
+        createdAtUtc: ago(1, 7, 0),
+        isRead: false,
+      },
     ],
     notepads: {},
     settings: {},

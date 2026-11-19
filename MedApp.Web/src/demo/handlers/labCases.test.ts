@@ -166,4 +166,14 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect(asClinic.canRecord).toBe(false);
     expect((await call('POST', `/api/lab-cases/${asClinic.id}/report`, {results: 'x', expectedVersion: asClinic.version})).status).toBe(403);
   });
+
+  it('seeds clocks on time, at risk and breached, the sooner deadline applying (MC19)', async () => {
+    startLightDemo(LAB);
+    const ids = async (view: string) => (await call('POST', '/api/lab-cases/search', {view})).body.items.map((c: {id: string}) => c.id);
+    expect(await ids('AtRisk')).toEqual([LAB_CASES.ilonaBlood]);
+    expect(await ids('Overdue')).toEqual([LAB_CASES.ellis]);
+    expect((await caseOf(LAB_CASES.wilfred)).clock).toMatchObject({setBy: 'Hospital', hospitalDueBasis: 'ReportNeededBy', state: 'OnTime', daysLeft: 3});
+    expect((await caseOf(LAB_CASES.maya)).clock).toMatchObject({setBy: 'Lab', hospitalDueBasis: 'HospitalDefault', state: 'OnTime'});
+    expect((await caseOf(LAB_CASES.priyaBiopsy)).clock?.state).toMatch(/^Reported/);
+  });
 });

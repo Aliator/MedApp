@@ -13,6 +13,7 @@ import {logActivity} from './adminLogs';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {specimenSummary} from './lab';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, stepTime} from './labCommon';
+import {labClock, type LabClock} from './labClock';
 import {canSeeRecord, labTeamId, myScope, refuseAcrossWall, type TeamScope} from './teamWalls';
 
 /**
@@ -68,6 +69,35 @@ export type NextWork =
 const testOf = (c: Pick<DemoLabCase, 'labTestId'>) => db().labTests.find((t) => t.id === c.labTestId);
 const liveSteps = (c: DemoLabCase) => c.steps.filter((s) => !s.enteredInError);
 const samplesOf = (c: DemoLabCase) => db().specimens.filter((s) => s.labCaseId === c.id);
+
+/**
+ * The case's strict clock (MC19, `labClock.ts`): the lab's target from its test, and for a hospital case the hospital's
+ * date from its request; whichever is sooner applies. Undefined before the lab has received it.
+ */
+export function clockOf(c: DemoLabCase): LabClock | undefined {
+  const request = c.hospitalRequestId ? db().hospitalRequests.find((r) => r.id === c.hospitalRequestId) : undefined;
+  const hospital = request ? db().hospitals.find((h) => h.id === request.hospitalId) : undefined;
+  return labClock({
+    receivedAtUtc: c.receivedAtUtc,
+    status: c.status,
+    reportedAtUtc: c.report?.atUtc ?? null,
+    test: testOf(c),
+    hospital: request
+      ? {
+          reportNeededBy: request.reportNeededBy,
+          isCancerPathway: request.isCancerPathway,
+          collectedAtUtc: request.collectedAtUtc,
+          defaultDeadlineDays: hospital?.defaultDeadlineDays ?? 10,
+        }
+      : null,
+    nowUtc: nowUtc(),
+  });
+}
+
+/** A running clock's state, for the at-risk and overdue views: open cases only. */
+const clockState = (c: DemoLabCase) => (c.status === 'Open' ? clockOf(c)?.state : undefined);
+/** A case's due moment for ordering (none sorts last). */
+const dueKey = (c: DemoLabCase) => clockOf(c)?.dueAtUtc ?? '9999';
 
 /** The test's optional steps an extra outcome adds: its extra tests, or the second opinion's two. */
 function extraSteps(test: DemoLabTest | undefined, outcome: LabOutcome | null): DemoLabTest['steps'] {
@@ -190,6 +220,7 @@ export function caseResponse(c: DemoLabCase): Case {
     openedAtUtc: c.openedAtUtc,
     openedByUsername: usernameOf(c.openedByUserId),
     receivedAtUtc: c.receivedAtUtc,
+    clock: clockOf(c),
     steps: c.steps.map((s) => stepResponse(c, s, canWork)),
     next: next
       ? {
@@ -237,6 +268,7 @@ function caseSummary(c: DemoLabCase): Schemas['LabCaseSummaryResponse'] {
     nextKind: next?.kind ?? null,
     openedAtUtc: c.openedAtUtc,
     reportedAtUtc: c.report?.atUtc ?? null,
+    clock: clockOf(c),
   };
 }
 
@@ -345,8 +377,11 @@ export const canOpenCaseFor = (sample: DemoSpecimen) =>
 export const caseOfSample = (sample: DemoSpecimen) => (sample.labCaseId ? db().labCases.find((c) => c.id === sample.labCaseId) : undefined);
 
 const VIEWS: Record<string, {match: (c: DemoLabCase) => boolean; key: (c: DemoLabCase) => string; newestFirst?: boolean}> = {
-  Open: {match: (c) => c.status === 'Open', key: (c) => c.openedAtUtc},
-  ToReport: {match: (c) => nextWork(c)?.kind === 'Report', key: (c) => c.openedAtUtc},
+  // MC19: open work in due order, soonest first (dates only, decision 191).
+  Open: {match: (c) => c.status === 'Open', key: dueKey},
+  AtRisk: {match: (c) => clockState(c) === 'AtRisk', key: dueKey},
+  Overdue: {match: (c) => clockState(c) === 'Breached', key: dueKey},
+  ToReport: {match: (c) => nextWork(c)?.kind === 'Report', key: dueKey},
   Reported: {match: (c) => c.status === 'Reported', key: (c) => c.report?.atUtc ?? '', newestFirst: true},
   RepeatRequested: {match: (c) => c.status === 'RepeatRequested', key: (c) => c.repeat?.atUtc ?? '', newestFirst: true},
   All: {match: () => true, key: (c) => c.openedAtUtc, newestFirst: true},
@@ -426,6 +461,7 @@ export function registerLabCases() {
         source: (c) => sourceName(c) ?? '',
         test: (c) => testOf(c)?.name ?? '',
         opened: (c) => c.openedAtUtc,
+        due: dueKey,
       }) ?? items;
     const page = paged(ordered.map(caseSummary), new URLSearchParams({Page: String(body.page ?? 1), PageSize: String(body.pageSize ?? 10)}));
     for (const c of page.items) logActivity('PatientListed', {patientId: c.patientId});
