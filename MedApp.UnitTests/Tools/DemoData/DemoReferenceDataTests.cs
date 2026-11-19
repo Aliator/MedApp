@@ -1,186 +1,121 @@
 using FluentAssertions;
-using MedApp.Application.Attachments.Common;
+using MedApp.Application.Calendar.Common;
+using MedApp.Application.Common.Identity;
 using MedApp.DevMcp.DemoData;
 using MedApp.Domain.Patients;
-using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Referrals;
-using MedApp.Domain.Terminology;
+using MedApp.Domain.Teams;
 using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 
 namespace MedApp.UnitTests.Tools.DemoData;
 
-/// <summary>The demo's fixed data: stage definitions, pathways, NHS numbers and the files it attaches.</summary>
+/// <summary>The demo data's people, patients and moments: the light demo's, synthetic, and kept to the rules.</summary>
 [TestFixture]
 public sealed class DemoReferenceDataTests
 {
     [Test]
-    public void Definitions_SnomedCodes_AreValidConceptIdsWithTerms_AndSomeAreLeftBlank()
+    public void People_AreTheLightDemosClinic_WithTheirRolesAndTeams()
     {
-        var coded = DemoPathwayKinds.Definitions.Where(d => d.SnomedCode is not null).ToList();
+        var people = DemoPeople.Roster();
 
-        coded.Should().OnlyContain(d => SnomedCt.IsConceptId(d.SnomedCode) && !string.IsNullOrWhiteSpace(d.SnomedTerm));
-        DemoPathwayKinds.Definitions.Should().Contain(d => d.SnomedCode == null && !d.IsArchived);
+        people.Select(p => (p.Username, p.FullName, string.Join("+", p.Roles.Select(r => r.Name)))).Should().Equal(
+            ("admin", "Centre administrator", "Admin"),
+            ("n.thornbury", "Nadia Thornbury", "Clinician"),
+            ("r.aldous", "Ravi Aldous", "Lab+Pathologist"),
+            ("j.whitlock", "Jo Whitlock", "Manager"),
+            ("b.sandiford", "Bea Sandiford", "Nurse"),
+            ("h.marsh", "Hannah Marsh", "Booking"),
+            ("t.hallworth", "Tom Hallworth", "Clinician"));
+        DemoPeople.Thornbury.Teams.Should().Equal((DemoPeople.Dermatology, TeamMemberRole.ClinicAdmin));
+        DemoPeople.Aldous.Teams.Should().Equal((Team.LabName, TeamMemberRole.Member));
+        DemoPeople.Admin.Teams.Should().BeEmpty("an admin is in no team, and read only");
     }
 
     [Test]
-    public void PathwayKinds_EveryStage_NamesADefinitionThatIsntArchived()
+    public void People_NeverHoldTheRoleFromBeforeRoles()
     {
-        var active = DemoPathwayKinds.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).ToHashSet();
-
-        DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Should().OnlyContain(s => active.Contains(s.Definition));
+        DemoPeople.Roster().SelectMany(p => p.Roles).Should().NotContain(StandardRoles.AllStaffBeforeRoles);
     }
 
     [Test]
-    public void PathwayKinds_StagesWithAVisitHaveAVisitLength_AndOnlyThose()
+    public void People_ActAsTheirSessionWould_WithinTheirTeams()
     {
-        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
-
-        foreach (var stage in DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Where(s => s.VisitMinutes > 0))
-            visits[stage.Definition].Should().NotBe(VisitRequirement.None, stage.Definition);
-        foreach (var stage in DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages)
-                     .Where(s => visits[s.Definition] == VisitRequirement.Required))
-            stage.VisitMinutes.Should().BePositive($"{stage.Definition} needs a visit, so the seed books one");
-    }
-
-    /// <summary>
-    /// Every live definition is used by a pathway; the retired ones (the paper triage form, and the Referral received and
-    /// Triage stages that referrals replaced, decision 26) by none; and the archived pathway is the only archived one.
-    /// </summary>
-    [Test]
-    public void PathwayKinds_UseEveryLiveDefinition_AndNoneOfTheRetiredOnes()
-    {
-        var used = DemoPathwayKinds.PathwayKinds.SelectMany(p => p.Stages).Select(s => s.Definition).ToHashSet();
-
-        DemoPathwayKinds.Definitions.Where(d => !d.IsArchived).Select(d => d.Name).Should().BeEquivalentTo(used);
-        DemoPathwayKinds.Definitions.Where(d => d.IsArchived).Select(d => d.Name)
-            .Should().BeEquivalentTo([DemoPathwayKinds.ReferralReceived, DemoPathwayKinds.Triage, "Paper triage form (retired)"]);
-        DemoPathwayKinds.PathwayKinds.Should().ContainSingle(p => p.IsArchived).Which.PathwayKind.Should().Be(PathwayKind.SkinLesion2024);
-        DemoPathwayKinds.PathwayKinds.Select(p => p.TemplateName).Should().OnlyHaveUniqueItems();
-    }
-
-    /// <summary>
-    /// Visits are needed where the patient must be seen, suggested where a call often does, and never for the lab's work
-    /// or a letter.
-    /// </summary>
-    [Test]
-    public void Definitions_VisitRequirements_FitTheWork()
-    {
-        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
-
-        new[] { DemoPathwayKinds.FirstClinicVisit, DemoPathwayKinds.BiopsyOrSample, DemoPathwayKinds.Treatment, DemoPathwayKinds.BloodAndUrineTests, DemoPathwayKinds.ClinicReview, DemoPathwayKinds.BiomechanicsSession }
-            .Should().OnlyContain(name => visits[name] == VisitRequirement.Required);
-        new[] { DemoPathwayKinds.FollowUp, DemoPathwayKinds.ResultsAndTeamReview, DemoPathwayKinds.MedicinesReview }
-            .Should().OnlyContain(name => visits[name] == VisitRequirement.Suggested);
-        new[] { DemoPathwayKinds.ReferralReceived, DemoPathwayKinds.Triage, DemoPathwayKinds.Histology, DemoPathwayKinds.LabTests, DemoPathwayKinds.DischargeLetter }
-            .Should().OnlyContain(name => visits[name] == VisitRequirement.None);
-    }
-
-    /// <summary>
-    /// Every template has a clock-stop stage (decision 36): one of its own stages, where the patient is seen (the first
-    /// clinic visit, or the diabetes clinic review), so the wait ends with being seen.
-    /// </summary>
-    [Test]
-    public void PathwayKinds_EachHasAClockStopStage_WhereThePatientIsSeen()
-    {
-        var visits = DemoPathwayKinds.Definitions.ToDictionary(d => d.Name, d => d.Visit);
-
-        foreach (var kind in DemoPathwayKinds.PathwayKinds)
+        var people = DemoPeople.Roster();
+        var dermatology = Guid.NewGuid();
+        foreach (var person in people)
         {
-            kind.ClockStopIndex.Should().BeGreaterThanOrEqualTo(0, kind.TemplateName);
-            visits[kind.ClockStop].Should().Be(VisitRequirement.Required, kind.TemplateName);
-        }
-    }
-
-    /// <summary>
-    /// Each team's waiting-time targets are ones the app accepts (1 to 365 days), shorter for higher priorities;
-    /// the new service, which nobody belongs to, isn't one of the centre's original five.
-    /// </summary>
-    [Test]
-    public void Teams_TargetsAreValid_AndTheNewServiceHasNoMembers()
-    {
-        foreach (var name in DemoTeams.Names.Append(DemoTeams.NewService))
-        {
-            var (urgent, high, medium, low) = DemoTeams.Targets(name);
-            new[] { urgent, high, medium, low }.Should().OnlyContain(days => days >= 1 && days <= 365, name);
-            urgent.Should().BeLessThanOrEqualTo(high);
-            high.Should().BeLessThanOrEqualTo(medium);
-            medium.Should().BeLessThanOrEqualTo(low);
+            person.Id = Guid.NewGuid();
+            person.TeamIds.AddRange(person.Teams.Select(t => t.Team == Team.LabName ? Team.LabId : dermatology));
         }
 
-        DemoTeams.Names.Should().NotContain(DemoTeams.NewService);
-        Enum.GetValues<StaffKind>().Should().OnlyContain(kind => !DemoTeams.For(kind).Contains(DemoTeams.NewService));
-    }
-
-    /// <summary>What staff "type" on referrals fits the app's limits, and the practices are distinct invented names.</summary>
-    [Test]
-    public void ReferralTexts_FitTheAppsLimits()
-    {
-        var random = new Random(Seed);
-        var kinds = DemoPathwayKinds.PathwayKinds.SelectMany(p => ProcedureKinds.For(p.PathwayKind)).Append(null).ToList();
-
-        for (var i = 0; i < 200; i++)
-        {
-            ReferralTexts.Reason(kinds[i % kinds.Count], random).Length.Should().BeInRange(20, Referral.MaxReasonLength);
-            ReferralTexts.Clinician(random)?.Length.Should().BeLessThanOrEqualTo(Referral.MaxClinicianLength);
-            foreach (var reason in Enum.GetValues<ReferralRejectionReason>())
-                ReferralTexts.RejectionDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(Referral.MaxDetailLength);
-            foreach (var reason in Enum.GetValues<ClockPauseReason>())
-                ReferralTexts.PauseDetail(reason, random)?.Length.Should().BeLessThanOrEqualTo(ReferralClockPause.MaxDetailLength);
-            foreach (var team in DemoTeams.Names)
-            {
-                var (elsewhere, detail) = ReferralTexts.Elsewhere(team, random);
-                elsewhere.Length.Should().BeLessThanOrEqualTo(Referral.MaxRedirectedToLength);
-                detail.Length.Should().BeInRange(1, Referral.MaxDetailLength);
-            }
-        }
-
-        ReferralTexts.RejectionDetail(ReferralRejectionReason.Other, random).Should().NotBeNullOrWhiteSpace("Other needs a detail");
-        ReferralTexts.PauseDetail(ClockPauseReason.Other, random).Should().NotBeNullOrWhiteSpace("Other needs a detail");
-        ReferralTexts.WithdrawalDetail(random).Length.Should().BeInRange(1, Referral.MaxDetailLength);
-        ReferralTexts.EnteredInErrorDetail.Length.Should().BeInRange(1, Referral.MaxDetailLength);
-        ReferralTexts.Practices.Should().OnlyHaveUniqueItems().And.OnlyContain(p => p.Length <= Referral.MaxPracticeLength);
-    }
-
-    /// <summary>The two pathways that see only women, or only men, see only adults old enough; children only where the story says.</summary>
-    [Test]
-    public void Sees_TheTwoSingleSexPathways_SeeOnlyOlderAdults()
-    {
-        ProcedureKinds.Sees(PathwayKind.PostMenopausalBleeding).Should().Be((true, 50));
-        ProcedureKinds.Sees(PathwayKind.Prostate).Should().Be((false, 50));
-        ProcedureKinds.Sees(PathwayKind.Diabetes).Should().Be(((bool?)null, 0));
-        Enum.GetValues<PathwayKind>().Where(ProcedureKinds.SeesChildren).Should().BeEquivalentTo([PathwayKind.InflammatorySkin, PathwayKind.Biomechanics]);
+        DemoPeople.Admin.Actor.Has(Permission.WorkPathways).Should().BeFalse("admins are read only");
+        DemoPeople.Admin.Actor.Teams.SeesAllTeams.Should().BeTrue();
+        DemoPeople.Admin.Actor.Teams.IsSystem.Should().BeFalse("the seed works as people, never as the system");
+        DemoPeople.Thornbury.Actor.Teams.TeamIds.Should().Equal(dermatology);
+        DemoPeople.Thornbury.Actor.Teams.SeesAllTeams.Should().BeFalse();
+        DemoPeople.Aldous.Actor.Has(Permission.AuthoriseLabReports).Should().BeTrue();
+        DemoPeople.Aldous.Actor.Has(Permission.ProcessSpecimens).Should().BeTrue();
+        DemoPeople.Whitlock.Actor.Has(Permission.AssignPathways).Should().BeTrue();
+        people.Where(p => !p.IsAdmin).Should().OnlyContain(p => p.Actor.Has(Permission.UseApp));
     }
 
     [Test]
-    public void SyntheticNhsNumber_IsValidAndInThe999TestRange()
+    public void Patients_HaveUniqueNames_AndValidNhsNumbersFromThe999RangeOnly()
     {
-        var numbers = Enumerable.Range(0, 300).Select(DemoPatients.SyntheticNhsNumber).ToList();
+        var numbers = DemoPatients.NhsNumbers.ToList();
 
-        numbers.Should().OnlyHaveUniqueItems();
-        numbers.Should().OnlyContain(n => n.StartsWith("999") && NhsNumbers.IsValid(n) && !NhsNumbers.IsPlaceholder(n));
+        numbers.Should().HaveCount(15).And.OnlyHaveUniqueItems();
+        numbers.Should().OnlyContain(n => n.StartsWith("999") && NhsNumbers.IsValid(n));
+        DemoPatients.All.Select(p => p.Name).Should().OnlyHaveUniqueItems();
     }
 
     [Test]
-    public void SyntheticFiles_AreRecognisedByTheAppsOwnTypeSniffer()
+    public void Timeline_Ago_IsAUkTimeOnADayBeforeToday()
     {
-        var random = new Random(Seed);
+        var timeline = new DemoTimeline(Now);
 
-        Sniff(SyntheticFiles.Pdf("Report", ["Line one", "Line (two)"]), "Report.pdf").Should().Be(AttachmentFileTypes.Pdf);
-        Sniff(SyntheticFiles.FlowTracePng(12, random), "Flow test.png").Should().Be(AttachmentFileTypes.Png);
-        Sniff(SyntheticFiles.DiagramPng("Home programme", ["Stretch", "Strength"]), "Home programme.png").Should().Be(AttachmentFileTypes.Png);
-        foreach (var site in DemoPathwayKinds.PathwayKinds.SelectMany(p => ProcedureKinds.For(p.PathwayKind)).SelectMany(k => k.Sites).Distinct())
-            Sniff(SyntheticFiles.SiteMapPng(site), "Lesion site map.png").Should().Be(AttachmentFileTypes.Png, site);
-        Sniff(SyntheticFiles.Text("Note", ["Called the patient."]), "Note.txt").ContentType.Should().StartWith("text/plain");
+        timeline.Today.Should().Be(Thursday);
+        timeline.ThisMonday.Should().Be(Monday);
+        UkTime.DateOf(timeline.Ago(3, 14, 10)).Should().Be(Thursday.AddDays(-3));
+        UkTime.TimeOf(timeline.Ago(3, 14, 10)).Should().Be(new TimeOnly(14, 10));
+    }
 
-        static AttachmentFileType Sniff(byte[] bytes, string name) => FileTypeSniffer.Identify(new MemoryStream(bytes), name);
+    [TestCase(1, "2026-11-20")]
+    [TestCase(2, "2026-11-23")]
+    public void Timeline_OpenDayAhead_SkipsWeekends(int n, string expected) =>
+        new DemoTimeline(Now).OpenDayAhead(n).Should().Be(DateOnly.Parse(expected));
+
+    [Test]
+    public void Timeline_OpenDays_SkipTheClosedBankHolidays()
+    {
+        var timeline = new DemoTimeline(ChristmasEve);
+
+        timeline.OpenDayAhead(1).Should().Be(new DateOnly(2026, 12, 28));
+        timeline.OpenDaysFromToday(2).Should().Equal(new DateOnly(2026, 12, 24), new DateOnly(2026, 12, 28));
     }
 
     [Test]
-    public void SyntheticFiles_PdfHasNoActiveContentAndSaysItsSynthetic()
-    {
-        var text = System.Text.Encoding.ASCII.GetString(SyntheticFiles.Pdf("Report", ["Line"]));
+    public void Timeline_WeekdayBack_MovesAWeekendBackToFriday() =>
+        new DemoTimeline(SaturdayMorning).WeekdayBack(0).Should().Be(new DateOnly(2026, 11, 13));
 
-        FileTypeSniffer.PdfActiveContent.Should().OnlyContain(marker => !text.Contains(marker));
-        text.Should().Contain(SyntheticFiles.Banner).And.EndWith("%%EOF\n");
+    [TestCase("2026-11-19T09:40:00Z", "2026-11-19")]
+    [TestCase("2026-11-16T07:00:00Z", "2026-11-13")]
+    [TestCase("2026-11-14T11:00:00Z", "2026-11-13")]
+    public void Timeline_LastPast_IsOverBeforeNow_OnAWeekday(string now, string expected)
+    {
+        var timeline = new DemoTimeline(DateTime.Parse(now).ToUniversalTime());
+
+        var visit = timeline.LastPast(9, 0, 15);
+
+        UkTime.DateOf(visit).Should().Be(DateOnly.Parse(expected));
+        visit.AddMinutes(15).Should().BeBefore(timeline.NowUtc);
+    }
+
+    [Test]
+    public void Timeline_Past_KeepsTodayInThePast()
+    {
+        var timeline = new DemoTimeline(MondayEarly);
+
+        timeline.Past(timeline.Ago(0, 15, 0)).Should().BeBefore(timeline.NowUtc);
+        timeline.Past(timeline.Ago(1, 15, 0)).Should().Be(timeline.Ago(1, 15, 0));
     }
 }
