@@ -63,7 +63,7 @@ describe('PathwaySpecimens', () => {
     await user.click(screen.getByRole('button', {name: 'Record Sample'}));
     const dialog = within(await waitFor(() => openDialog()!));
     expect(dialog.getByText('Biopsy')).toBeInTheDocument();
-    await user.click(dialog.getByRole('combobox', {name: /Specimen type/}));
+    await user.click(dialog.getByRole('combobox', {name: /Sample type/}));
     await user.click(await screen.findByRole('option', {name: 'Skin biopsy (punch)'}));
     await waitFor(() => expect(dialog.getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('test-nurse'));
     await user.click(dialog.getByRole('button', {name: 'Record Sample'}));
@@ -84,7 +84,7 @@ describe('PathwaySpecimens', () => {
   it("says when the samples couldn't be loaded", async () => {
     mockApi({'GET /api/specimens/search': () => json({}, 500)});
     renderWithApp(<PathwaySpecimens pathway={pathway} />, {user: nurseUser});
-    expect(await screen.findByText('The samples could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Samples not loaded')).toBeInTheDocument();
   });
 
   it('groups by stage in the pathway\'s order, leaving out stages with none that can\'t take one', () => {

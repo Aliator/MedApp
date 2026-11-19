@@ -91,8 +91,8 @@ describe('NoteDeletionRequestDialog', () => {
     // Loaded: no "Loading the request" left behind, seen or hidden.
     expect(dialog.queryByText(/Loading the request/)).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/Loading the request/);
-    expect(dialog.getByRole('button', {name: 'Delete note'})).toBeInTheDocument();
-    expect(dialog.getByRole('button', {name: 'Keep note'})).toBeInTheDocument();
+    expect(dialog.getByRole('button', {name: 'Delete Note'})).toBeInTheDocument();
+    expect(dialog.getByRole('button', {name: 'Keep Note'})).toBeInTheDocument();
   });
 
   it("deletes the note from the version shown, with the reason, which starts as the requester's and can be changed", async () => {
@@ -109,9 +109,9 @@ describe('NoteDeletionRequestDialog', () => {
     // Other needs a detail.
     await user.click(dialog.getByRole('radio', {name: 'Other'}));
     await user.clear(detail);
-    expect(isDisabled(dialog.getByRole('button', {name: 'Delete note'}))).toBe(true);
+    expect(isDisabled(dialog.getByRole('button', {name: 'Delete Note'}))).toBe(true);
     await user.type(detail, 'Synthetic: confirmed with the author.');
-    await user.click(dialog.getByRole('button', {name: 'Delete note'}));
+    await user.click(dialog.getByRole('button', {name: 'Delete Note'}));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(await decisionBody(fetch)).toEqual({deleteNote: true, expectedVersion: 2, reason: 'Other', detail: 'Synthetic: confirmed with the author.'});
@@ -160,7 +160,7 @@ describe('NoteDeletionRequestDialog', () => {
     const {user, onClose} = renderDialog();
     const dialog = within(await dialogShown());
 
-    await user.click(await dialog.findByRole('button', {name: 'Delete note'}));
+    await user.click(await dialog.findByRole('button', {name: 'Delete Note'}));
 
     expect(await dialog.findByText('Synthetic: choose a reason.')).toBeInTheDocument();
     expect(dialog.getByText('Synthetic: too long.')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('NoteDeletionRequestDialog', () => {
     const {user, onClose} = renderDialog();
     const dialog = within(await dialogShown());
 
-    await user.click(await dialog.findByRole('button', {name: 'Keep note'}));
+    await user.click(await dialog.findByRole('button', {name: 'Keep Note'}));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(await decisionBody(fetch)).toEqual({deleteNote: false});
@@ -194,11 +194,11 @@ describe('NoteDeletionRequestDialog', () => {
     const {user, onClose} = renderDialog();
     const dialog = within(await dialogShown());
 
-    await user.click(await dialog.findByRole('button', {name: 'Delete note'}));
+    await user.click(await dialog.findByRole('button', {name: 'Delete Note'}));
 
     expect(await dialog.findByText(/other\.admin already decided to keep this note/)).toBeInTheDocument();
     expect(await dialog.findByText(/^other\.admin kept this note/)).toBeInTheDocument();
-    expect(dialog.queryByRole('button', {name: 'Delete note'})).not.toBeInTheDocument();
+    expect(dialog.queryByRole('button', {name: 'Delete Note'})).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     expect(calls(fetch).filter((c) => c === `GET ${path}`).length).toBeGreaterThan(1);
   });
@@ -209,7 +209,7 @@ describe('NoteDeletionRequestDialog', () => {
     const dialog = within(await dialogShown());
 
     expect(await dialog.findByText("This patient's record is restricted.")).toBeInTheDocument();
-    expect(dialog.queryByRole('button', {name: 'Keep note'})).not.toBeInTheDocument();
+    expect(dialog.queryByRole('button', {name: 'Keep Note'})).not.toBeInTheDocument();
     // The footer's Close (the header has its own).
     await user.click(dialog.getAllByRole('button', {name: 'Close'}).at(-1)!);
     expect(onClose).toHaveBeenCalled();

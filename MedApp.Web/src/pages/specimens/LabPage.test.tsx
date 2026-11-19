@@ -146,7 +146,7 @@ describe('LabPage', () => {
 
   it("says when the samples couldn't be loaded", async () => {
     renderPage({}, labUser, {[WORKLIST]: () => json({}, 500)});
-    expect(await screen.findByText('The samples could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Samples not loaded')).toBeInTheDocument();
   });
 
   it.each([

@@ -83,8 +83,8 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         // A pathway's case: the results go on its lab stage, and the pathway opens next for the lab to finish the stage
         // there (with its notes), which sends it back (the owner, 19 November 2026).
         message: labCase.pathwayId
-          ? 'The results you enter are the report. Authorising sends it to the clinic, reports the case’s samples and puts the results on the pathway’s lab stage. The pathway opens next: finish the stage there to send it back to the clinic.'
-          : 'The results you enter are the report. Authorising sends it back to the clinic or the hospital, and reports the case’s samples.',
+          ? 'The results you enter are the report. Authorising sends it to the clinic and adds the results to the pathway. The pathway then opens: finish the lab stage to hand it back.'
+          : 'The results you enter are the report. Authorising sends it back to the clinic or the hospital.',
         confirm: labCase.pathwayId ? 'Authorise and Open Pathway' : 'Authorise Report',
         icon: AppIcon.SignOff,
         announced: 'Report authorised',

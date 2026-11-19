@@ -154,7 +154,7 @@ describe('ResultPage', () => {
     await opens(button('Reassign'), 'Reassign Result');
     await opens(async () => {
       await user.click(screen.getByRole('button', {name: 'More'}));
-      await user.click(await screen.findByRole('menuitem', {name: /^Entered in Error/}));
+      await user.click(await screen.findByRole('menuitem', {name: /^Mark Entered in Error/}));
     }, 'Mark Entered in Error?');
     expect(calls(fetch)).toContain('GET /api/calendar/staff?permission=SignOffResults');
   });
@@ -171,7 +171,7 @@ describe('ResultPage', () => {
 
   it('says when it could not be loaded', async () => {
     renderPage(() => json({}, 500));
-    expect(await screen.findByText('The result could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Result not loaded')).toBeInTheDocument();
   });
 });
 

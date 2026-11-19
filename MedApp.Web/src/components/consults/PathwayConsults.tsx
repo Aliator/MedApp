@@ -58,7 +58,7 @@ export function PathwayConsults({pathway}: {pathway: Pathway}) {
               {`${open.length} open${replied > 0 ? `, ${replied} replied and waiting to be closed` : ''}`}
             </Text>
           )}
-          <ConsultList consults={consults.data.consults ?? []} emptyText="No consults asked." />
+          <ConsultList consults={consults.data.consults ?? []} emptyText="No consults sent." />
         </>
       )}
       {isAsking && (
@@ -74,7 +74,7 @@ export function PathwayConsults({pathway}: {pathway: Pathway}) {
               {
                 onSuccess: () => {
                   setIsAsking(false);
-                  announce('Consult asked');
+                  announce('Consult sent');
                 },
                 onError: fail,
               },

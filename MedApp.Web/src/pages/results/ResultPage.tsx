@@ -79,7 +79,7 @@ export function ResultPage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Result not found" message="Result not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage label="Result not loaded" message="The result could not be loaded. Please try again." />
+          <AlertMessage label="Result not loaded" />
         ) : problem ? (
           <AlertMessage label="Not marked seen" message={problem} />
         ) : result?.patientFlags && hasPatientFlags(result.patientFlags) ? (
@@ -182,7 +182,7 @@ function Actions({result, onOpen, onProblem}: ActionsProps) {
     ? [
         {
           id: 'enteredInError',
-          label: 'Entered in Error',
+          label: 'Mark Entered in Error',
           description: 'On the wrong patient or sample',
           icon: AppIcon.EnteredInError,
           variant: 'destructive' as const,

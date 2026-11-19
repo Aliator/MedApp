@@ -181,7 +181,7 @@ describe('ReferralPage', () => {
     unmount();
 
     renderPage(() => json({title: 'Down'}, 500));
-    expect(await findAlert('The referral could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Referral not loaded')).toBeInTheDocument();
   });
 
   it("dismisses a 409's message, and cancels withdrawing", async () => {

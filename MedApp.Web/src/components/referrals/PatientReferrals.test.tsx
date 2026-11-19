@@ -61,6 +61,6 @@ describe('PatientReferrals', () => {
     mockApi({'GET /api/referrals/search': () => json({title: 'Down'}, 500)});
     renderWithApp(<PatientReferrals patientId={REFERRAL_PATIENT_ID} canRegister />, {user: staffUser});
 
-    expect(await findAlert('The referrals could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Referrals not loaded')).toBeInTheDocument();
   });
 });

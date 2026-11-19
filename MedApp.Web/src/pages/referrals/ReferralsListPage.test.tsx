@@ -232,7 +232,7 @@ describe('ReferralsListPage', () => {
 
   it('says when the referrals could not be loaded', async () => {
     renderList({}, {body: {title: 'Down'}, status: 500});
-    expect(await findAlert('The referrals could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Referrals not loaded')).toBeInTheDocument();
   });
 
   it('drops the practice and letter in a narrow window or half view', async () => {

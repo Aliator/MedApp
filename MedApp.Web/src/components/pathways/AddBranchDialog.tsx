@@ -46,7 +46,7 @@ export function AddBranchDialog({pathway, isProcessing, onConfirm, onCancel}: Ad
     <ConfirmDialog
       isOpen
       title="Add a Branch"
-      message="Add one of this template's branches because of new information. Choose the branch, the stage it comes after, and say why: nothing is chosen for you."
+      message="Add one of this template's branches because of new information. Choose the branch, the stage it comes after, and say why."
       icon={AppIcon.Add}
       confirmText="Add Branch"
       confirmDisabled={!branch || !afterId || !reason.trim() || isTooLong}

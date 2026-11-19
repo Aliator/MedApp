@@ -79,7 +79,7 @@ describe('LabHomePage', () => {
     // The hospital's requests (MC18), each opening its lab case.
     expect(screen.getByRole('link', {name: 'MA26-000201'})).toHaveAttribute('href', `/hospital-requests/${REQUEST_ID}`);
     // Overdue lab cases by their clock (MC19), with the countdown.
-    expect(screen.getByText('Skin histology · Freya Ahmed · Riverside General · 2 days overdue, due 5 Nov 2026')).toBeInTheDocument();
+    expect(screen.getByText('Skin histology · Freya Ahmed · Riverside General · 2 days past due, due 5 Nov 2026')).toBeInTheDocument();
     // Empty lists say what they'd hold.
     expect(screen.getByText(/^Nothing at risk\. Lab cases near their due date/)).toBeInTheDocument();
     expect(screen.getByText('No pathway is with the lab. Pathways at a stage the lab works.')).toBeInTheDocument();
@@ -108,15 +108,15 @@ describe('LabHomePage', () => {
     });
     renderWithApp(<LabHomePage />, {user: labUser});
 
-    expect(await screen.findByText('New for the lab could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('New for the lab not loaded')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', {level: 2}).map((h) => h.textContent)).toEqual([
       'New for the lab',
       'Our turn',
-      'To receive',
+      'On its way',
       'In progress',
       'To report',
       'At risk',
-      'Overdue',
+      'Breached',
       'Back to the clinic',
       'From the hospital',
       'Awaiting surgery details',

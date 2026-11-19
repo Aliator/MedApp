@@ -50,7 +50,7 @@ export function EditPathwayPage({id}: {id: string}) {
 
   return (
     <Page {...pageProps} backHref={`/pathways/${id}`} isLoading={isPending || isMissing} loadingMessage="Loading pathway..."
-      message={error && !isMissing && <AlertMessage label="Pathway not loaded" message="The pathway could not be loaded. Please try again." />}
+      message={error && !isMissing && <AlertMessage label="Pathway not loaded" />}
     />
   );
 }

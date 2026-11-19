@@ -63,9 +63,9 @@ export type SpecimenView = (typeof SPECIMEN_VIEWS)[number];
 export const SAMPLE_TABS = ['ToReceive', 'InLab', 'Reported', 'RejectedAndLost'] as const satisfies readonly SpecimenView[];
 
 const VIEW_LABELS: Record<SpecimenView, string> = {
-  ToReceive: 'To receive',
+  ToReceive: 'Not yet received',
   ToSend: 'To send',
-  Expected: 'Expected',
+  Expected: 'On its way',
   InLab: 'In the lab',
   Overdue: 'Overdue',
   RejectedAndLost: 'Rejected and lost',

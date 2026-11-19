@@ -27,13 +27,13 @@ export type LetterKind =
 /** Each kind in words, in the order pickers offer them. */
 export const LETTER_KIND_LABELS: Record<LetterKind, string> = {
   ClinicLetter: 'Clinic letter',
-  DischargeSummary: 'Discharge summary',
+  DischargeSummary: 'End of care letter',
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
   /** A referral on to the hospital (MC28, `LetterKind.OnwardReferral = 7`). */
   OnwardReferral: 'Onward referral to hospital',
-  Other: 'Other',
+  Other: 'General letter',
 };
 
 /** A kind in words; one this copy of the app doesn't know yet as the API named it. */

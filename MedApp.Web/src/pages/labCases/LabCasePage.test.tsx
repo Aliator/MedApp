@@ -20,12 +20,12 @@ describe('LabCasePage', () => {
     expectPatientFirstInDetails();
     const steps = within(screen.getByRole('list', {name: 'Steps'}));
     expect(steps.getByText('Sample adequate? Adequate')).toBeInTheDocument();
-    expect(steps.getByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
+    expect(steps.getByRole('button', {name: 'Mark Entered in Error'})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Skin lesion review'})).toHaveAttribute('href', '/pathways/00000051-0000-0000-0000-000000000003');
     expect(screen.getByRole('link', {name: 'MA26-000123'})).toBeInTheDocument();
 
     // None is chosen or suggested: each outcome is its own button, in a fixed order.
-    const outcomes = ['No more work', 'Extra tests (special stains)', 'A second opinion'];
+    const outcomes = ['No further work', 'Extra tests (special stains)', 'Send for second opinion'];
     for (const name of outcomes) expect(screen.getByRole('button', {name})).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'A second opinion'}));
     expect(within(openDialog()!).getByRole('heading', {name: 'Needs more work? A second opinion'})).toBeInTheDocument();
@@ -72,14 +72,14 @@ describe('LabCasePage', () => {
     expect(screen.getByText('7 November 2026')).toBeInTheDocument();
     expect(screen.getByText('Due tomorrow')).toBeInTheDocument();
     expect(screen.getByText('At risk')).toBeInTheDocument();
-    expect(screen.getByText('10 November 2026 (limit 13 Nov 2026)')).toBeInTheDocument();
+    expect(screen.getByText('10 November 2026; latest acceptable 13 Nov 2026')).toBeInTheDocument();
     expect(screen.getByText('7 November 2026, as the request gave it')).toBeInTheDocument();
   });
 
   it('shows a hospital case’s report as sent, and offers the lab its surgery details (MC20)', async () => {
     const {user} = renderPage(() => json(testHospitalCase()));
     expect(await screen.findByText('Ms A. Example (synthetic), Riverside General (test)')).toBeInTheDocument();
-    expect(screen.getByText('Awaiting the hospital’s surgery details.')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for the hospital to confirm what surgery was done.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Add Surgery Details'}));
     expect(within(openDialog()!).getByRole('heading', {name: 'Add Surgery Details'})).toBeInTheDocument();
   });

@@ -113,7 +113,7 @@ const EMPTY_TITLES: Record<ReferralView, string> = {
 
 const EMPTY_DESCRIPTIONS: Partial<Record<ReferralView, string>> = {
   awaiting: 'Registered referrals wait here until they are triaged.',
-  waiting: "Accepted referrals wait here until their clock stops, when the pathway's clock-stop stage is finished or the pathway ends.",
+  waiting: 'Accepted referrals wait here until their waiting-time clock stops: when the pathway finishes the stage that stops it, or is completed or cancelled.',
   paused: "A clock paused for the patient's own delay shows here, by its review date.",
 };
 
@@ -172,7 +172,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       width: REFERRAL_COLUMN_WIDTH.patient,
       renderCell: (r) => <ReferralPatientCell id={r.id ?? ''} patientName={r.patientName ?? ''} nhsNumber={r.patientNhsNumber} />,
     },
-    {key: 'Team', header: 'Team', sortable: true, width: REFERRAL_COLUMN_WIDTH.team, renderCell: (r) => <TextCell text={r.teamName} />},
+    {key: 'Team', header: 'Clinic', sortable: true, width: REFERRAL_COLUMN_WIDTH.team, renderCell: (r) => <TextCell text={r.teamName} />},
     {
       key: 'Received',
       header: 'Received',
@@ -244,7 +244,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       title="Referrals"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage label="Referrals not loaded" message="The referrals could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Referrals not loaded" />}
       actions={
         <HStack gap={2} vAlign="center">
           {clinic.picker}
@@ -265,7 +265,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
             list="referrals"
             isUnfiltered={!isSearched && search.view === undefined}
             label="Search referrals"
-            placeholder="Search referrals by the patient's name, or filter by team, or show the waiting list..."
+            placeholder="Search referrals by the patient's name, or filter by clinic, or show the waiting list..."
             textKey="patient"
             favourites={FAVOURITES}
           />

@@ -250,7 +250,7 @@ describe('SpecimenPage', () => {
 
   it('says when it could not be loaded', async () => {
     renderPage(() => json({}, 500));
-    expect(await screen.findByText('The sample could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Sample not loaded')).toBeInTheDocument();
   });
 
   it('lists the steps in order, a closed one ending with how it closed', () => {

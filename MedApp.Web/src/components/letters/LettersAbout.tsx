@@ -42,7 +42,7 @@ export function LettersAbout({about, teamId, patient, isLocked = false}: Letters
   return (
     <VStack gap={4} hAlign="stretch">
       {isError ? (
-        <AlertMessage label="Letters not loaded" message="The letters could not be loaded. Please try again." />
+        <AlertMessage label="Letters not loaded" />
       ) : isPending ? (
         <Text type="body" color="secondary">
           Loading letters...

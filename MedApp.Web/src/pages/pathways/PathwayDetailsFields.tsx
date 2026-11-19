@@ -81,7 +81,7 @@ export function PathwayDetailsFields<T extends DetailsValue>({
         />
         {isDueDateFromClock ? (
           <TextInput
-            label="Target Date"
+            label="Target date"
             description={DUE_DATE_FROM_CLOCK}
             value={value.dueDate ? formatDate(value.dueDate) : ''}
             onChange={() => undefined}
@@ -90,7 +90,7 @@ export function PathwayDetailsFields<T extends DetailsValue>({
           />
         ) : (
           <DateInput
-            label="Target Date"
+            label="Target date"
             description="Due by the end of the day, UK time."
             value={(value.dueDate || undefined) as ISODateString | undefined}
             onChange={(v) => set('dueDate', v ?? '')}

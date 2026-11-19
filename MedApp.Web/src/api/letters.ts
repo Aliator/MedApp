@@ -33,18 +33,18 @@ export type LetterView = (typeof LETTER_VIEWS)[number]['value'];
 /** A view in words ("ToSend" → "To send"). */
 export const letterViewLabel = (view: LetterView) => LETTER_VIEWS.find((v) => v.value === view)?.label ?? view;
 
-/** What a letter is, in words, as the API's `LetterKinds.Describe` says it (the letter templates page says "Other" for the last). */
+/** What a letter is, in words: the same names as the letter templates' kinds (`LETTER_KIND_LABELS`). */
 const KIND_WORDS: Record<string, string> = {
   ClinicLetter: 'Clinic letter',
-  DischargeSummary: 'Discharge summary',
+  DischargeSummary: 'End of care letter',
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
-  OnwardReferral: 'Onward referral',
-  Other: 'Letter',
+  OnwardReferral: 'Onward referral to hospital',
+  Other: 'General letter',
 };
 
-/** A letter's kind in words ("DischargeSummary" → "Discharge summary"); one this copy doesn't know as the API named it. */
+/** A letter's kind in words ("DischargeSummary" → "End of care letter"); one this copy doesn't know as the API named it. */
 export const letterKindWords = (kind: string | null | undefined) => KIND_WORDS[kind ?? ''] ?? kind ?? 'Letter';
 
 /** The kinds a stage can need (`NeedsLetterKind`), in the order pickers offer them. */

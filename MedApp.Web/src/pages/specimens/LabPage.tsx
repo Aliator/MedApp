@@ -59,7 +59,7 @@ const VIEW_DESCRIPTIONS: Record<LabView, string> = {
   ToSend: 'Taken and not yet sent, oldest first.',
   Expected: 'Sent and not yet received by the lab, oldest first.',
   InLab: 'Received by the lab and not yet reported, oldest first.',
-  Overdue: "Not reported by the type's expected days, oldest first.",
+  Overdue: 'Past the expected turnaround for its sample type, oldest first.',
   RejectedAndLost: 'Rejected by the lab or lost in the last 30 days, oldest first.',
   Reported: 'Reported in the last 7 days, oldest first.',
   All: 'Every sample, from the clinics and the hospital, newest taken first.',
@@ -237,7 +237,7 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
       title="Samples"
       subtitle={isPending ? 'Loading samples...' : `${viewLabel(view)}: ${total} ${isSearched ? `matching ${noun}` : noun}`}
       fill
-      message={isError && <AlertMessage label="Samples not loaded" message="The samples could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Samples not loaded" />}>
       <DataTable
         data={(data?.items ?? []) as SpecimenRow[]}
         columns={columns}

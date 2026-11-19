@@ -85,7 +85,7 @@ export function RedirectReferralDialog({isOpen, referral, onCancel, onRedirected
       isProcessing={redirect.isPending}
       outcome={
         destination === 'team'
-          ? `It moves to ${team?.name ?? 'that team'}'s referrals, still awaiting triage, and its wait still counts from when it was received.`
+          ? `It moves to ${team?.name ?? 'that clinic'}'s referrals, still awaiting triage, and its wait still counts from when it was received.`
           : "It's closed as redirected elsewhere; it stays in the patient's record. Whoever registered it is told, so the referrer can be written to."
       }
       errors={errors}
@@ -113,7 +113,7 @@ export function RedirectReferralDialog({isOpen, referral, onCancel, onRedirected
           <>
             <AnchoredSelector
               label="Clinic"
-              placeholder="Choose a team"
+              placeholder="Choose a clinic"
               options={others.map((s) => ({value: s.id ?? '', label: s.name ?? ''}))}
               value={teamId || undefined}
               onChange={(value: string) => setTeamId(value)}

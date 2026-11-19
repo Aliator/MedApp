@@ -140,7 +140,7 @@ export function LettersPage({search, onSearchChange}: LettersPageProps) {
       subtitle={subtitle}
       fill
       actions={clinic.picker}
-      message={isError && <AlertMessage label="Letters not loaded" message="The letters could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Letters not loaded" />}>
       <DataTable
         data={rows}
         columns={columns}

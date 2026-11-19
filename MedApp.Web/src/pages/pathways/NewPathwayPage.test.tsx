@@ -95,7 +95,7 @@ describe('NewPathwayPage', () => {
 
     await user.click(await screen.findByRole('combobox', {name: /Template/}));
     await user.click(screen.getByRole('option', {name: 'Knee review'}));
-    await user.type(screen.getByRole('combobox', {name: /Target Date/}), '01/12/2099');
+    await user.type(screen.getByRole('combobox', {name: /Target date/}), '01/12/2099');
     await user.tab();
     await typeRichText(screen.getByRole('textbox', {name: /First note/}), 'Bring previous scans.');
     await user.click(screen.getByRole('button', {name: 'Create Pathway'}));
@@ -165,7 +165,7 @@ describe('NewPathwayPage', () => {
   it('says when the templates could not be loaded', async () => {
     renderNew({[`GET ${TEMPLATES}`]: () => json({title: 'Server error'}, 500)});
 
-    expect(await findAlert('The templates could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Templates not loaded')).toBeInTheDocument();
   });
 
   it('puts the template and the details in one card in a half view', async () => {

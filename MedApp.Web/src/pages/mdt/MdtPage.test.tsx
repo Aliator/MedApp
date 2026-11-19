@@ -36,7 +36,7 @@ describe('MdtPage', () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const {user} = renderWithApp(<MdtPage search={{meeting: mdtMeeting().id}} onSearchChange={vi.fn()} />, {user: staffUser});
 
-    expect(await screen.findByText(/Nobody is listed for this MDT yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No pathways are listed for this MDT yet/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', {name: 'Print'})).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(screen.getByRole('button', {name: 'Print'}));
     expect(print).toHaveBeenCalled();

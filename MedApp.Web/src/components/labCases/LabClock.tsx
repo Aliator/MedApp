@@ -10,7 +10,7 @@ import {AppIcon} from '../shared/icons';
 
 /**
  * A lab case's strict clock (MC19), the same way everywhere it shows: the countdown ("Due in 3 days", "2 days
- * overdue"), the due date, and a flag once it's at risk or overdue. Time only: it says nothing about the sample or its
+ * past due"), the due date, and a flag once it's at risk or overdue. Time only: it says nothing about the sample or its
  * results. `LabClockToken` is the flag, `LabClockCell` a list's Due column, `LabClockDetails` the case page's account
  * of both deadlines and which one applies (hazard H-71).
  */
@@ -24,7 +24,7 @@ const COLORS: Record<string, TokenColor> = {
   Stopped: 'gray',
 };
 
-/** The clock's state as a flag: On time, At risk, Overdue, Reported on time or late, Clock stopped. */
+/** The clock's state as a flag: On time, At risk, Breached, Reported on time or late, Clock stopped. */
 export function LabClockToken({clock}: {clock: LabClock}) {
   const {flags} = useAccessibility();
   const warns = clock.state === 'AtRisk' || clock.state === 'Breached';
@@ -89,7 +89,7 @@ export function LabClockDetails({clock}: {clock?: LabClock | null}) {
         </VStack>
       </MetadataListItem>
       <MetadataListItem label="Set by">{`${labClockSetBy(clock)} (the sooner applies)`}</MetadataListItem>
-      <MetadataListItem label="The lab's target">{`${formatDate(clock.labDueOn ?? '')} (limit ${formatShortDate(clock.labLimitOn ?? '')})`}</MetadataListItem>
+      <MetadataListItem label="Lab target">{`${formatDate(clock.labDueOn ?? '')}; latest acceptable ${formatShortDate(clock.labLimitOn ?? '')}`}</MetadataListItem>
       {clock.hospitalDueOn && (
         <MetadataListItem label="The hospital's date">{`${formatDate(clock.hospitalDueOn)}, ${hospitalDueBasis(clock.hospitalDueBasis)}`}</MetadataListItem>
       )}

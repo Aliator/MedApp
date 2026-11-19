@@ -55,7 +55,7 @@ describe('LetterPage', () => {
     withAnnouncements();
     const {user, fetch} = render(testLetter(), {[`PUT ${BASE}`]: () => json(testLetter({version: 4, body: 'Changed'}))});
 
-    expect(await screen.findByRole('heading', {name: 'Discharge summary', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'End of care letter', level: 1})).toBeInTheDocument();
     expect(screen.getByText('Dermatology discharge · Draft')).toBeInTheDocument();
     expectPatientFirstInDetails();
     expect(screen.getByRole('link', {name: 'Download Preview'})).toHaveAttribute('href', `/api/letters/${LETTER_ID}/preview`);
@@ -281,7 +281,7 @@ describe('LetterPage', () => {
     expect(await screen.findByText('Letter not found. It may have been discarded.')).toBeInTheDocument();
     unmount();
     render(() => json({title: 'Boom'}, 500));
-    expect(await screen.findByText('The letter could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Letter not loaded')).toBeInTheDocument();
   });
 
   it('folds each section into one card in a narrow window or half view', async () => {
@@ -350,7 +350,7 @@ describe('LetterPage', () => {
   it('opens at /letters/$id (the route)', async () => {
     mockApi({[`GET ${BASE}`]: () => json(testLetter({canEdit: false})), 'GET /api/letter-templates/merge-fields': () => json([])});
     renderApp({path: `/letters/${LETTER_ID.toUpperCase()}`, user: staffUser});
-    expect(await screen.findByRole('heading', {name: 'Discharge summary', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'End of care letter', level: 1})).toBeInTheDocument();
   });
 });
 

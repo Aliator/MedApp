@@ -131,7 +131,7 @@ describe('StageList', () => {
   it('says when a stage needs a letter before it can be finished, and nothing for one that needs none', async () => {
     renderWithApp(<StageList stages={[stage({isCurrent: true, needsLetterKind: 'DischargeSummary'}), stage({id: 'x', stageOrder: 2, needsLetterKind: 'None'})]} />);
 
-    expect(await screen.findByText('Needs a discharge summary, approved and sent, before it can be finished.')).toBeVisible();
+    expect(await screen.findByText('Needs an end of care letter, approved and sent, before it can be finished.')).toBeVisible();
     expect(screen.getAllByText(/^Needs a/)).toHaveLength(1);
     // While the stage is open, a compact banner names the need, with the rule behind its "i".
     expect(screen.getByRole('button', {name: 'Letter needed, show details'})).toBeInTheDocument();
@@ -271,7 +271,7 @@ describe('StageList: skipped stages and choice nodes', () => {
     expect(physio.className).not.toBe(screen.getByText('1. Biopsy').className);
     expect(screen.getByText('Skipped: Other')).toBeInTheDocument();
     expect(screen.getByText('Optional')).toBeInTheDocument();
-    expect(screen.getByText('Choice: lab result')).toBeInTheDocument();
+    expect(screen.queryByText(/^Outcome needed/)).not.toBeInTheDocument();
     expect(screen.getByText('Outcome: Benign')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', header('2. Physio')));

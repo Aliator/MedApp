@@ -58,7 +58,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
   },
   rejected: {
     title: 'Reject Sample',
-    message: "The lab can't test it. It's closed, and whoever asked for it and took it are told; taking another is a new sample.",
+    message: "The lab can't test it. It's closed, and whoever asked for it and took it are told. To repeat it, record a new sample.",
     confirm: 'Reject Sample',
     icon: AppIcon.StatusCancelled,
     announced: 'Sample rejected',
@@ -67,7 +67,7 @@ const WORDS: Record<SpecimenStep, StepWords> = {
   },
   lost: {
     title: 'Mark Lost',
-    message: "It can't be found. It's closed, and whoever asked for it and took it are told; taking another is a new sample.",
+    message: "It can't be found. It's closed, and whoever asked for it and took it are told. To repeat it, record a new sample.",
     confirm: 'Mark Lost',
     icon: AppIcon.Warning,
     announced: 'Sample marked lost',

@@ -129,7 +129,7 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
           // A restricted or anonymised record: the API says to give the letter to an admin, so it isn't lost.
           <AlertMessage label="Referral not registered" message={problem.message} />
         ) : patient.error ? (
-          <AlertMessage label="Patient not loaded" message="The patient could not be loaded. Please try again." />
+          <AlertMessage label="Patient not loaded" />
         ) : (
           patient.data && <PatientFlagBanners patient={patient.data} />
         )

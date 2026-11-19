@@ -37,7 +37,7 @@ export function PathwayConsent({pathway}: {pathway: Pathway}) {
   const [isRecording, setIsRecording] = useState(false);
   const [acting, setActing] = useState<{action: ConsentAction; record: ConsentRecord} | null>(null);
 
-  if (isError) return <AlertMessage label="Consent records not loaded" message="The consent records could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Consent records not loaded" />;
   if (isPending)
     return (
       <Text type="body" color="secondary">
@@ -110,7 +110,7 @@ export function PathwayConsent({pathway}: {pathway: Pathway}) {
                       <Button label="Add Scan" variant="secondary" size="sm" onClick={() => setActing({action: 'attachScan', record})} />
                     )}
                     {record.canMarkEnteredInError && record.status !== 'EnteredInError' && (
-                      <Button label="Entered in Error" variant="secondary" size="sm" onClick={() => setActing({action: 'enteredInError', record})} />
+                      <Button label="Mark Entered in Error" variant="secondary" size="sm" onClick={() => setActing({action: 'enteredInError', record})} />
                     )}
                   </HStack>
                 </VStack>
