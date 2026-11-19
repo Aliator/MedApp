@@ -21,12 +21,18 @@ describe('the team walls in the light demo', () => {
     expect(timeline.items.some((e: {pathwayId?: string}) => e.pathwayId === PATHWAYS.priyaGynaecology)).toBe(false);
   });
 
-  it('lets the lab read only the pathways passed to it, and change none of them', async () => {
+  it('lets the lab read only the pathways passed to it, and change them only while it has a stage of theirs', async () => {
     startLightDemo(LAB);
+    // At the lab's Histology stage: the lab works it and adds notes, and changes nothing else.
     const passed = await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`);
     expect(passed.status).toBe(200);
-    expect(passed.body.canWorkOnStages).toBe(false);
-    expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/notes`, {text: 'x'})).status).toBe(409);
+    expect(passed.body).toMatchObject({canWorkOnStages: true, canAddNotes: true, canEditDetails: false, readOnlyReason: null});
+    expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/notes`, {text: 'x'})).status).toBe(200);
+    expect((await call('PATCH', `${PATHWAY}/${PATHWAYS.histologyToFinish}`, {title: 'x'})).status).toBe(409);
+    // Handed back (Harriet's is at Treatment): read only.
+    const back = (await call('GET', `${PATHWAY}/${PATHWAYS.consentToRecord}`)).body;
+    expect(back).toMatchObject({canWorkOnStages: false, canAddNotes: false});
+    expect((await call('POST', `${PATHWAY}/${PATHWAYS.consentToRecord}/notes`, {text: 'x'})).status).toBe(409);
     expect((await call('GET', `${PATHWAY}/${PATHWAYS.biopsyToBook}`)).status).toBe(404);
   });
 

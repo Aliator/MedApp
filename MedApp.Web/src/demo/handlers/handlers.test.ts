@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, STAFF} from '../accounts';
+import {ADMIN, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
 import {db} from '../store';
 
@@ -26,7 +26,8 @@ describe('the light demo handlers', () => {
   });
 
   it('finishes the current stage, and moves on to the next', async () => {
-    startLightDemo(STAFF);
+    // Histology is the lab's stage (the relay), so the lab finishes it.
+    startLightDemo(LAB);
     const before = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`)).body;
     const current = before.stages.find(isCurrent);
     expect(current.name).toBe('Histology (lab)');
@@ -178,10 +179,15 @@ describe('the light demo handlers', () => {
     const review = pathway.stages.find((s: {name: string}) => s.name === 'Results and team review');
     expect(review.predecessorIds).toEqual([histology.id, labTests.id]);
     expect((await call('POST', `${url}/stages/${review.id}/finish`, {withoutVisit: true})).status).toBe(409);
+    // Both routes are the lab's (the relay): the lab finishes them, and the join comes back to Dermatology once.
+    expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
+    db().user = LAB.username;
     pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([labTests.id]);
     pathway = (await call('POST', `${url}/stages/${labTests.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
+    expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});
+    expect(db().pathways.find((p) => p.id === PATHWAYS.forkedTests)!.handovers.filter((h) => h.stageId === review.id)).toHaveLength(1);
   });
 
   it('skips an optional stage with a reason, and reinstates it', async () => {

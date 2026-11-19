@@ -68,7 +68,7 @@ describe('ReadMePage', () => {
     db().referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
     const {user, router} = renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
 
-    await user.click(await screen.findByRole('button', {name: 'Open the pathway at its current stage'}));
+    await user.click(await screen.findByRole('button', {name: 'Open the pathway as the lab'}));
     expect(await screen.findByText(/isn’t in your copy of the demo any more/)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/read-me');
 
