@@ -125,7 +125,7 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
       title={isEditing ? `Edit Sample ${specimen.number ?? ''}` : 'Record Sample'}
       message={
         isEditing
-          ? 'Correct its details before it goes to the lab. Once it has been sent they can no longer change.'
+          ? "Correct its details before it goes to the lab. Once it has been sent, they can't be changed."
           : "A sample taken from the patient at this stage. It's given its own number, for its label and the lab."
       }
       icon={isEditing ? AppIcon.Edit : AppIcon.Specimens}
@@ -144,13 +144,13 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
         {message && <AlertMessage label={isEditing ? 'Sample not saved' : 'Sample not recorded'} message={message} />}
         <AnchoredSelector
-          label="Specimen type"
-          placeholder={types.isPending ? 'Loading specimen types...' : 'Choose the type'}
+          label="Sample type"
+          placeholder={types.isPending ? 'Loading sample types...' : 'Choose the type'}
           options={choices(types.data, specimen?.specimenTypeId ?? '')}
           value={typeId || undefined}
           onChange={(value: string) => setTypeId(value)}
           isRequired
-          status={types.isError ? {type: 'error', message: 'The specimen types could not be loaded.'} : fieldStatus(errors, 'specimenTypeId')}
+          status={types.isError ? {type: 'error', message: 'The sample types could not be loaded.'} : fieldStatus(errors, 'specimenTypeId')}
         />
         <AnchoredSelector
           label="Test"

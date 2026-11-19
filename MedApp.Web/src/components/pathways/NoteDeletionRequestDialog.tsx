@@ -119,9 +119,9 @@ function RequestDialog({requestId, pathwayId, onClose, onWrongPathway}: Omit<Not
       footer={
         canDecide ? (
           <>
-            <Button label="Keep note" variant="secondary" isDisabled={isBusy} isLoading={isBusy && decide.variables?.deleteNote === false} onClick={() => send(false)} />
+            <Button label="Keep Note" variant="secondary" isDisabled={isBusy} isLoading={isBusy && decide.variables?.deleteNote === false} onClick={() => send(false)} />
             <Button
-              label="Delete note"
+              label="Delete Note"
               variant="destructive"
               icon={<Icon icon={AppIcon.Delete} />}
               isDisabled={isBusy || !reasonFieldsComplete(reasonShown, detailShown)}

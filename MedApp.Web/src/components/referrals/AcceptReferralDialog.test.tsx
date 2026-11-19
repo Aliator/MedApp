@@ -69,7 +69,7 @@ describe('AcceptReferralDialog', () => {
     expect(dialog().getByRole('combobox', {name: /Priority/})).toHaveTextContent('Choose a priority');
     expect(dialog().getByRole('textbox', {name: 'Title'})).toHaveValue('');
     // No target date to choose: the waiting-time clock sets it, for the priority chosen.
-    expect(dialog().queryByRole('combobox', {name: /Target Date/})).not.toBeInTheDocument();
+    expect(dialog().queryByRole('combobox', {name: /Target date/})).not.toBeInTheDocument();
     expect(dialog().getByText(TARGET_FROM_CLOCK)).toBeInTheDocument();
     // Assigning needs AssignPathways, which a clinician doesn't have.
     expect(dialog().queryByRole('combobox', {name: /Assign to/})).not.toBeInTheDocument();

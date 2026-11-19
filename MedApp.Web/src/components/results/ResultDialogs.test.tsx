@@ -12,7 +12,7 @@ describe('SignOffResultDialog', () => {
     withAnnouncements();
     const onClose = vi.fn();
     const fetch = mockApi({[`POST /api/results/${RESULT_ID}/sign-off`]: () => json(testResult({status: 'SignedOff'}))});
-    const {user} = renderWithApp(<SignOffResultDialog result={testResult()} onClose={onClose} />, {user: seniorClinicianUser});
+    const {user, router} = renderWithApp(<SignOffResultDialog result={testResult()} onClose={onClose} />, {user: seniorClinicianUser});
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
     expect(dialog().getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
@@ -22,16 +22,34 @@ describe('SignOffResultDialog', () => {
     expect(radios).toHaveLength(6);
     labels.forEach((label, index) => expect(dialog().getByRole('radio', {name: label})).toBe(radios[index]));
     expect(radios.some((r) => (r as HTMLInputElement).checked)).toBe(false);
-    expect(isDisabled(dialog().getByRole('button', {name: 'Sign Off'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}))).toBe(true);
 
     await user.click(dialog().getByRole('radio', {name: 'Other'}));
-    expect(isDisabled(dialog().getByRole('button', {name: 'Sign Off'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /^Detail/}), 'Synthetic: phoned the GP');
-    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(await sentBody(fetch)).toEqual({action: 'Other', detail: 'Synthetic: phoned the GP', expectedVersion: 2});
     await expectAnnounced('Result signed off');
+    // On a pathway: it goes back to the pathway.
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${testResult().pathwayId}`));
+  });
+
+  it('signs off a result with no pathway with Sign Off, and stays put', async () => {
+    const onClose = vi.fn();
+    mockApi({[`POST /api/results/${RESULT_ID}/sign-off`]: () => json(testResult({status: 'SignedOff', pathwayId: null}))});
+    const {user, router} = renderWithApp(<SignOffResultDialog result={testResult({pathwayId: null})} onClose={onClose} />, {
+      user: seniorClinicianUser,
+    });
+
+    await waitFor(() => expect(openDialog()).not.toBeNull());
+    expect(dialog().queryByRole('button', {name: 'Sign Off and Open Pathway'})).not.toBeInTheDocument();
+    await user.click(dialog().getByRole('radio', {name: 'No further action'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it("shows the API's 400 on its field and a 409 in its words", async () => {
@@ -44,11 +62,11 @@ describe('SignOffResultDialog', () => {
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
     await user.click(dialog().getByRole('radio', {name: 'No further action'}));
-    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}));
     expect((await dialog().findAllByText('The detail is too long.')).length).toBeGreaterThan(0);
 
     status = 409;
-    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}));
     expect(await dialog().findByText('Someone else signed it off.')).toBeInTheDocument();
   });
 });
@@ -148,7 +166,7 @@ describe('ResultDialogs, refusals and missing details', () => {
     const {user} = renderWithApp(<TakeOverResultDialog result={bare()} userId={SENIOR_USER_ID} onClose={vi.fn()} />, {user: seniorClinicianUser});
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
-    expect(dialog().getByText(/and they're no longer/)).toBeInTheDocument();
+    expect(dialog().getByText(/signing it off instead of them/)).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Take Over'}));
     expect(await dialog().findByText(/Synthetic take over refusal\.|could not be taken over/)).toBeInTheDocument();
   });
@@ -168,7 +186,7 @@ describe('ResultDialogs, refusals and missing details', () => {
     const {user} = renderWithApp(<SignOffResultDialog result={bare()} onClose={vi.fn()} />, {user: seniorClinicianUser});
     await waitFor(() => expect(openDialog()).not.toBeNull());
     await user.click(dialog().getByRole('radio', {name: 'Patient informed'}));
-    await user.click(dialog().getByRole('button', {name: 'Sign Off'}));
+    await user.click(dialog().getByRole('button', {name: 'Sign Off and Open Pathway'}));
     expect(await dialog().findByText(/Synthetic sign-off refusal\.|could not be signed off/)).toBeInTheDocument();
   });
 });

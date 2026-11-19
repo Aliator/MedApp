@@ -163,7 +163,7 @@ export function StageProgressCell({
   return (
     <VStack gap={0}>
       <Text type="body" maxLines={1}>
-        {currentStageName ?? 'Completed'}
+        {currentStageName ?? 'All stages finished'}
       </Text>
       <HStack gap={1} vAlign="center">
         {isHeld && <StatusToken status={status} />}

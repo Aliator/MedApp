@@ -39,7 +39,9 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       {stage.isCurrent && <Token size="sm" label="Current stage" color="blue" />}
       {stage.state === 'Completed' && !stage.isLocked && <Token size="sm" label="Unlocked for editing" color="orange" />}
       {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
-      {stage.choiceKind && <Token size="sm" label={`Choice: ${choiceKindLabel(stage.choiceKind).toLowerCase()}`} color="purple" />}
+      {stage.choiceKind && !stage.outcome && (
+        <Token size="sm" label={`Outcome needed: ${choiceKindLabel(stage.choiceKind).toLowerCase()}`} color="purple" />
+      )}
       {stage.outcome && <Token size="sm" label={`Outcome: ${stage.outcome}`} color="purple" />}
       {/* The relay: a stage another team works (the lab's), named on it wherever the pathway is seen. */}
       {stage.ownerTeamName && (
@@ -183,7 +185,7 @@ export function StageResult({stage, title}: {stage: PathwayStage; title?: string
  */
 export const labCaseOpenWords = (stage: PathwayStage): string | null =>
   stage.labCaseId && stage.labCaseStatus === 'Open'
-    ? `Lab case ${stage.labCaseNumber ?? ''} is open: authorise its report first, then finish this stage.`
+    ? `Lab case ${stage.labCaseNumber ?? ''} is still open. This stage can be finished once the lab authorises its report.`
     : null;
 
 /** A lab stage's lab case (MC16): its number, linked, and where it stands. */
@@ -195,7 +197,7 @@ export function StageLabCase({stage}: {stage: PathwayStage}) {
       <Link href={`/lab/cases/${stage.labCaseId}`}>{stage.labCaseNumber ?? 'Open the case'}</Link>
       <Text type="body" color="secondary">
         {stage.labCaseStatus === 'Open'
-          ? '(open): authorise its report first, then finish this stage.'
+          ? '(still open): this stage can be finished once the lab authorises its report.'
           : `(${labCaseStatusLabel(stage.labCaseStatus).toLowerCase()})`}
       </Text>
     </HStack>

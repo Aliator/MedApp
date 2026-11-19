@@ -149,7 +149,7 @@ export function SpecimenPage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Sample not found" message="Sample not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage label="Sample not loaded" message="The sample could not be loaded. Please try again." />
+          <AlertMessage label="Sample not loaded" />
         ) : specimen?.patientFlags && hasPatientFlags(specimen.patientFlags) ? (
           <PatientFlagBanners patient={specimen.patientFlags} />
         ) : (
@@ -226,7 +226,7 @@ function Actions({specimen, offered, onOpen}: ActionsProps) {
       ? [
           {
             id: 'enteredInError',
-            label: 'Entered in Error',
+            label: 'Mark Entered in Error',
             description: 'Recorded by mistake, or on the wrong patient',
             icon: AppIcon.EnteredInError,
             variant: 'destructive' as const,
@@ -280,7 +280,7 @@ function SpecimenDetails({specimen}: {specimen: Specimen}) {
         </MetadataListItem>
         {specimen.clock ? (
           // In a lab case: its strict clock (MC19), the sooner of the lab's target and the hospital's date.
-          <MetadataListItem label="Due (its lab case's clock)">{labClockLine(specimen.clock)}</MetadataListItem>
+          <MetadataListItem label="Lab due date">{labClockLine(specimen.clock)}</MetadataListItem>
         ) : (
           <MetadataListItem label="Expected by">
             {`${formatDateTime(specimen.expectedByUtc ?? '')} (${specimen.expectedTurnaroundDays} ${specimen.expectedTurnaroundDays === 1 ? 'day' : 'days'})`}

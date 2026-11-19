@@ -112,6 +112,6 @@ describe('WriteLetterDialog', () => {
   it("says when the templates can't be loaded", async () => {
     mockApi({'GET /api/letter-templates': () => json({title: 'Boom'}, 500)});
     renderWithApp(<WriteLetterDialog about={{pathwayId: 'p'}} teamId={UROLOGY} onCancel={vi.fn()} onCreated={vi.fn()} />, {user: staffUser});
-    expect(await screen.findByText('The templates could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Templates not loaded')).toBeInTheDocument();
   });
 });

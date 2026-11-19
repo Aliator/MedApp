@@ -16,7 +16,7 @@ describe('statusWords', () => {
   it.each([
     ['InReview', 'awaiting review'],
     ['Blocked', 'on hold'],
-    ['Completed', 'discharged'],
+    ['Completed', 'completed'],
   ])('shows %s by the name people see: %s', (value, words) => {
     expect(statusWords(value)).toBe(words);
   });
@@ -27,7 +27,7 @@ describe('statusLabel', () => {
     ['InProgress', 'In progress'],
     ['InReview', 'Awaiting review'],
     ['Blocked', 'On hold'],
-    ['Completed', 'Discharged'],
+    ['Completed', 'Completed'],
     ['Cancelled', 'Cancelled'],
     ['', ''],
   ])('labels %s as %s', (status, label) => {

@@ -194,7 +194,7 @@ export function SubmitLetterDialog({letter, onCancel, onDone}: LetterDialogProps
       />
       {approvers.isSuccess && options.length === 0 && (
         <Text type="body" color="secondary">
-          Nobody else can approve letters. Ask an administrator to give someone the permission.
+          Nobody else can approve letters. Ask an admin to give someone the permission.
         </Text>
       )}
     </LetterDialogFrame>
@@ -293,7 +293,7 @@ export function WithdrawLetterDialog({letter, onCancel, onDone}: LetterDialogPro
     <LetterDialogFrame
       letter={letter}
       title="Withdraw Letter?"
-      message="It's marked withdrawn, and the PDF stays on file marked so. It can't be sent to anyone else. You can write a correction after."
+      message="It's marked withdrawn, and the PDF is kept, marked withdrawn. It can't be sent to anyone else. You can write a correction after."
       icon={AppIcon.Withdraw}
       intent="warning"
       isDanger

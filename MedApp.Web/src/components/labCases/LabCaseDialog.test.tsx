@@ -58,7 +58,7 @@ describe('LabCaseDialog', () => {
       labCase,
     );
 
-    expect(await screen.findByRole('heading', {name: 'Sample adequate? Insufficient: ask for a repeat'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Sample adequate? Insufficient – repeat needed'})).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Record Outcome'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /Why it.s insufficient/}), 'Too little to test');
     await user.click(dialog().getByRole('button', {name: 'Record Outcome'}));
@@ -76,7 +76,7 @@ describe('LabCaseDialog', () => {
     );
 
     expect(await screen.findByRole('heading', {name: 'Enter Results and Authorise'})).toBeInTheDocument();
-    expect(dialog().getByText(/finish the stage there to send it back/)).toBeInTheDocument();
+    expect(dialog().getByText(/finish the lab stage to hand it back/)).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Authorise and Open Pathway'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /^Results/}), 'Synthetic results.');
     await user.click(dialog().getByRole('button', {name: 'Authorise and Open Pathway'}));

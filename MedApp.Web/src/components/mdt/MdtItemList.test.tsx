@@ -165,7 +165,7 @@ describe('MdtItemList', () => {
     const fetch = mockApi({[`POST /api/mdt/items/${item.id}/presenter`]: () => json({...item, presenterUserId: 'u-2'})});
     const {user} = renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
 
-    await user.click(await screen.findByRole('button', {name: 'Presenter'}));
+    await user.click(await screen.findByRole('button', {name: 'Set Presenter'}));
     await waitFor(() => expect(openDialog()).not.toBeNull());
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('button', {name: 'Save'})).toHaveAttribute('aria-disabled', 'true');
@@ -184,7 +184,7 @@ describe('MdtItemList', () => {
     const fetch = mockApi({[`POST /api/mdt/items/${item.id}/presenter`]: () => json({...item, presenterUserId: null})});
     const {user} = renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
 
-    await user.click(await screen.findByRole('button', {name: 'Presenter'}));
+    await user.click(await screen.findByRole('button', {name: 'Set Presenter'}));
     await waitFor(() => expect(openDialog()).not.toBeNull());
     const dialog = within(openDialog()!);
     await user.click(dialog.getByRole('combobox', {name: /Presenter/}));

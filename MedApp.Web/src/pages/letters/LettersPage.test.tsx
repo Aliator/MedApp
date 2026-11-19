@@ -63,7 +63,7 @@ describe('LettersPage', () => {
 
     mockApi({'GET /api/letters/search': () => json({title: 'Boom'}, 500)});
     renderWithApp(<LettersPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
-    expect(await screen.findByText('The letters could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Letters not loaded')).toBeInTheDocument();
   });
 
   it('asks for the patient searched for, every letter once the view is removed, and the column sorted by', async () => {

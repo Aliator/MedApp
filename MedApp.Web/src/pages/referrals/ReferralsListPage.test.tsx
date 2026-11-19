@@ -200,7 +200,7 @@ describe('ReferralsListPage', () => {
     const {user, onSearchChange} = renderList({page: 2});
     await screen.findByText('Freya Ahmed');
 
-    await user.click(screen.getByRole('button', {name: /Team/}));
+    await user.click(screen.getByRole('button', {name: /Clinic/}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, sort: 'Team', asc: true});
     await user.click(screen.getByRole('button', {name: /previous page/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});
@@ -232,7 +232,7 @@ describe('ReferralsListPage', () => {
 
   it('says when the referrals could not be loaded', async () => {
     renderList({}, {body: {title: 'Down'}, status: 500});
-    expect(await findAlert('The referrals could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Referrals not loaded')).toBeInTheDocument();
   });
 
   it('drops the practice and letter in a narrow window or half view', async () => {

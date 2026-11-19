@@ -41,10 +41,10 @@ export function statusAction(to: string): StatusAction {
       };
     case 'Completed':
       return {
-        label: 'Mark Discharged',
+        label: 'Mark Completed',
         variant: 'primary',
-        title: 'Discharge Pathway',
-        message: 'Every stage is finished. Mark the pathway as discharged?',
+        title: 'Complete Pathway',
+        message: 'Every stage is finished. Mark the pathway as completed?',
         icon: AppIcon.Success,
         needsReason: false,
       };

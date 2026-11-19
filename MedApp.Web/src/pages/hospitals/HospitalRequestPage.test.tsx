@@ -15,7 +15,7 @@ describe('HospitalRequestPage', () => {
   it('shows the patient, first in Details, over the request’s own numbers, what was asked, and the lab case', async () => {
     renderPage(() => json(testRequest()));
 
-    expect(await screen.findByRole('heading', {name: 'Lab Case MA26-000201', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Hospital Request MA26-000201', level: 1})).toBeInTheDocument();
     expectPatientFirstInDetails(/Ashdown, Wilfred/);
     expect(screen.getByText('From Riverside General, hospital number RG-204817')).toBeInTheDocument();
     expect(screen.getByText('Riverside General (ZZR01)')).toBeInTheDocument();

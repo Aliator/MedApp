@@ -49,7 +49,7 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
   const [recordingAt, setRecordingAt] = useState<PathwayStage | null>(null);
   const [recorded, setRecorded] = useState<Specimen | null>(null);
 
-  if (isError) return <AlertMessage label="Samples not loaded" message="The samples could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Samples not loaded" />;
   if (isPending)
     return (
       <Text type="body" color="secondary">

@@ -39,7 +39,7 @@ export function EditReferralPage({id}: {id: string}) {
         error && (
           <AlertMessage
             label={isMissing ? 'Referral not found' : 'Referral not loaded'}
-            message={isMissing ? 'Referral not found. It may have been deleted.' : 'The referral could not be loaded. Please try again.'}
+            message={isMissing ? 'Referral not found. It may have been deleted.' : undefined}
           />
         )
       }

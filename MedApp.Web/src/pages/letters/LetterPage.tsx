@@ -196,7 +196,7 @@ export function LetterPage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Letter not found" message="Letter not found. It may have been discarded." />
         ) : error ? (
-          <AlertMessage label="Letter not loaded" message="The letter could not be loaded. Please try again." />
+          <AlertMessage label="Letter not loaded" />
         ) : actionError ? (
           <VStack gap={2} hAlign="stretch">
             <AlertMessage label={actionError.label} message={actionError.message} onDismiss={() => setActionError(null)} />
@@ -258,7 +258,7 @@ export function LetterPage({id}: {id: string}) {
             {
               id: 'withdraw',
               label: 'Withdraw',
-              description: 'It was found wrong after approval',
+              description: 'An error was found after approval',
               icon: AppIcon.Withdraw,
               variant: 'destructive' as const,
               onClick: () => setDialog({kind: 'withdraw'}),
@@ -375,8 +375,8 @@ export function LetterPage({id}: {id: string}) {
           label="Body"
           description={
             headings.length > 0
-              ? `Markdown (# for a heading, **bold**). Write under each heading: ${headings.join(', ')}.`
-              : 'Markdown (# for a heading, **bold**). Merge fields such as {{patient.name}} are filled when it is approved.'
+              ? `Start a line with # for a heading; wrap words in ** for bold. Write under each heading: ${headings.join(', ')}.`
+              : 'Start a line with # for a heading; wrap words in ** for bold. Fields in {{ }}, such as {{patient.name}}, are filled in when it is approved.'
           }
           value={input.body}
           onChange={(body) => setInput({body})}

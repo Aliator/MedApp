@@ -12,7 +12,7 @@ describe('StatusChangeDialog', () => {
   it('names each change by what it does', () => {
     expect(statusAction('Blocked').label).toBe('Put on Hold');
     expect(statusAction('Cancelled').label).toBe('Cancel Pathway');
-    expect(statusAction('Completed').label).toBe('Mark Discharged');
+    expect(statusAction('Completed').label).toBe('Mark Completed');
     expect(statusAction('Archived').label).toBe('Archive');
     expect(statusAction('InProgress')).toMatchObject({label: 'Take off Hold', message: expect.stringContaining('in progress')});
   });
@@ -35,7 +35,7 @@ describe('StatusChangeDialog', () => {
 
     await screen.findByRole('dialog');
     expect(within(openDialog()!).queryByRole('textbox')).not.toBeInTheDocument();
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Mark Discharged'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Mark Completed'}));
 
     expect(onConfirm).toHaveBeenCalledWith(undefined);
   });

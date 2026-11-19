@@ -38,7 +38,7 @@ describe('LettersAbout', () => {
   it("says when the letters can't be loaded", async () => {
     mockApi({'GET /api/letters/search': () => json({title: 'Boom'}, 500)});
     renderWithApp(<LettersAbout about={{referralId: 'r1'}} teamId="s" />, {user: staffUser});
-    expect(await screen.findByText('The letters could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Letters not loaded')).toBeInTheDocument();
     expect(screen.queryByText('Loading letters...')).not.toBeInTheDocument();
   });
 
