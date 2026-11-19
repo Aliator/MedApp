@@ -120,7 +120,6 @@ const result = {
 
 /** The pages about one patient, as the router names them, and an address for each. */
 const PAGES: Record<string, string> = {
-  '/patients/$id': `/patients/${patientId}`,
   '/patients/$id/edit': `/patients/${patientId}/edit`,
   '/patients/$id/export': `/patients/${patientId}/export`,
   '/patients/$id/pathways': `/patients/${patientId}/pathways`,
@@ -139,6 +138,8 @@ const PAGES: Record<string, string> = {
 const WITHOUT_BANNER: Record<string, string> = {
   // The patient is at the top of its Details, which never fold and come first (the owner's decision, 18 November 2026).
   '/pathways/$id': `/pathways/${pathwayId}`,
+  // Personal Information comes first in its Details, which never fold (the owner's decision, 19 November 2026).
+  '/patients/$id': `/patients/${patientId}`,
 };
 
 function answerApi() {
@@ -195,6 +196,17 @@ describe('the patient banner', {timeout: 30_000}, () => {
     expect(screen.getAllByRole('heading', {level: 2})[0]).toBe(details);
     expect(screen.getByRole('link', {name: /Ahmed, Freya/})).toBeInTheDocument();
     expect(screen.getByText(/^1 December 1976/)).toBeInTheDocument();
+    expect(screen.getByText('999 000 0018')).toBeInTheDocument();
+  });
+
+  it("is replaced on the patient's page by Personal Information, first, in Details that never fold", async () => {
+    answerApi();
+    renderApp({path: WITHOUT_BANNER['/patients/$id'], user: adminUser});
+
+    await screen.findByText('Personal Information', {}, {timeout: 15_000});
+    expect(screen.queryByRole('region', {name: 'Patient: Ahmed, Freya'})).not.toBeInTheDocument();
+    expect(screen.getAllByText('Freya').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ahmed').length).toBeGreaterThan(0);
     expect(screen.getByText('999 000 0018')).toBeInTheDocument();
   });
 });
