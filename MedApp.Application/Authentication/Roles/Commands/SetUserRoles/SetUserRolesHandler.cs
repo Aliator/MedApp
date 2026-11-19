@@ -54,8 +54,8 @@ public sealed class SetUserRolesHandler(
 
         // An admin is in no team (decision 209): someone who is both has two accounts.
         var becomesAdmin = request.Roles.Contains(AppRoles.Admin, StringComparer.Ordinal)
-                           && !before.Contains(AppRoles.Admin, StringComparer.Ordinal);
-        if (becomesAdmin && target is not null && (await teams.GetForUserAsync(target.UserId, ct)).Count > 0)
+                           && !(before ?? []).Contains(AppRoles.Admin, StringComparer.Ordinal);
+        if (becomesAdmin && target is not null && (await teams.GetForUserAsync(target.UserId, ct) ?? []).Count > 0)
             throw new ConflictException(TeamRules.TeamMemberIsNoAdmin(target.Username));
 
         // SetRolesAsync's own transaction joins this one. A retry runs it all again, from the database as it was.

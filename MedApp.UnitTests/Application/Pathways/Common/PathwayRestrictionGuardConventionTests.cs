@@ -39,11 +39,12 @@ public sealed class PathwayRestrictionGuardConventionTests
     private static readonly MethodInfo GetForUpdate =
         typeof(IPatientPathwayRepository).GetMethod(nameof(IPatientPathwayRepository.GetForUpdateAsync))!;
 
-    private static readonly MethodInfo[] Guards =
-    [
-        typeof(PathwayRepositoryExtensions).GetMethod(nameof(PathwayRepositoryExtensions.GetForUpdateOrThrowAsync))!,
-        typeof(PathwayRepositoryExtensions).GetMethod(nameof(PathwayRepositoryExtensions.GetForPauseOrThrowAsync))!,
-    ];
+    /// <summary>Every overload of the guards: with the team walls (a team's change) or without (system work).</summary>
+    private static readonly MethodInfo[] Guards = typeof(PathwayRepositoryExtensions).GetMethods()
+        .Where(m => m.Name is nameof(PathwayRepositoryExtensions.GetForUpdateOrThrowAsync)
+            or nameof(PathwayRepositoryExtensions.GetForPauseOrThrowAsync)
+            or nameof(PathwayRepositoryExtensions.GetForCorrectionOrThrowAsync))
+        .ToArray();
 
     private static readonly MethodInfo EnsureCanChange = typeof(PatientRules).GetMethod(nameof(PatientRules.EnsureCanChange))!;
 

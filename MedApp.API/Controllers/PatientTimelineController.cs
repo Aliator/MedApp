@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
@@ -33,14 +34,15 @@ public sealed class PatientTimelineController(IMediator mediator) : ControllerBa
             request.PageSize,
             request.Kinds,
             request.PathwayIds,
-            FullView), ct));
+            FullView,
+            User.ToTeamScope()), ct));
 
     /// <summary>The patient's pathways that are due, and the pathways to filter the timeline by.</summary>
     [HttpGet("overview")]
     [ProducesResponseType(typeof(PatientTimelineOverviewResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOverview(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientTimelineOverviewQuery(id, FullView), ct));
+        Ok(await mediator.Send(new GetPatientTimelineOverviewQuery(id, FullView, User.ToTeamScope()), ct));
 
     // The full view (deleted pathways, free text): holders of ViewAudit.
     private bool FullView => User.HasPermission(Permission.ViewAudit);

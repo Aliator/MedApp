@@ -1,3 +1,5 @@
+using MedApp.Application.Common.Teams;
+using MedApp.Domain.Teams;
 using MedApp.Application.Pathways.Timeline.Common;
 using MedApp.Domain.Referrals;
 
@@ -30,13 +32,26 @@ public static class ReferralTimelineSearch
     /// (<see cref="GetPatientTimelineQuery.FullView"/>) gets the free text the referral holds now (its reason, referring
     /// practice and the detail given when it was closed); staff get none of it.
     /// </summary>
+    /// <remarks>
+    /// The team walls (<see cref="GetPatientTimelineQuery.Scope"/>): a referral's entry shows when its team is the
+    /// viewer's, or its pathway is one they see in full (<paramref name="grants"/>, the grants table).
+    /// </remarks>
     public static IQueryable<ReferralTimelineRow> Page(
         IQueryable<ReferralEvent> events,
         IQueryable<Referral> referrals,
-        GetPatientTimelineQuery query)
+        GetPatientTimelineQuery query,
+        IQueryable<PathwayAccess>? grants = null)
     {
         var patientId = query.PatientId;
         var filtered = events.Where(e => e.PatientId == patientId);
+
+        if (!query.Teams.SeesAllTeams)
+        {
+            var visible = TeamAccess.VisiblePathwayIds(query.Teams, grants ?? throw new ArgumentNullException(nameof(grants)));
+            var teamIds = query.Teams.TeamIds.ToList();
+            filtered = filtered.Where(e => teamIds.Contains(e.TeamId)
+                                           || (e.PathwayId != null && visible.Contains(e.PathwayId.Value)));
+        }
 
         // Two kinds: the clock's entries are Waiting time, the rest Referrals.
         var kinds = PatientTimelineKinds.Parse(query.Kinds);

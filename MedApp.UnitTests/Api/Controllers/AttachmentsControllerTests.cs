@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -21,7 +22,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 public sealed class AttachmentsControllerTests
 {
     // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
-    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff, TeamScope.For(UserId, [], TestPermissions.Staff));
 
     [TestCase("User", false)]
     [TestCase("Admin", true)]
@@ -34,7 +35,10 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).GetAttachments(request, cts.Token);
 
-        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, null, true, UserId, isAdmin, CanAttachFiles: true));
+        // Admins are read only: they attach nothing (decision 208).
+        mediator.Request.Should().Be(new GetAttachmentsQuery(
+            RecordId, null, null, null, true, UserId, isAdmin, CanAttachFiles: !isAdmin,
+            Scope: TeamScope.For(UserId, [], TestPermissions.For(isAdmin))));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(list);
     }
@@ -49,7 +53,9 @@ public sealed class AttachmentsControllerTests
             .WithRequest(SignedInWith(Permission.UseApp, Permission.ViewPatients))
             .GetAttachments(request, CancellationToken.None);
 
-        mediator.Request.Should().Be(new GetAttachmentsQuery(RecordId, null, null, null, false, UserId, false, CanAttachFiles: false));
+        mediator.Request.Should().Be(new GetAttachmentsQuery(
+            RecordId, null, null, null, false, UserId, false, CanAttachFiles: false,
+            Scope: TeamScope.For(UserId, [], new HashSet<Permission> { Permission.UseApp, Permission.ViewPatients })));
     }
 
     [Test]
@@ -114,7 +120,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await controller.Thumbnail(RecordId, CancellationToken.None);
 
-        mediator.Request.Should().Be(new GetAttachmentThumbnailQuery(RecordId));
+        mediator.Request.Should().Be(new GetAttachmentThumbnailQuery(RecordId, Actor.Scope));
         result.Should().BeOfType<FileStreamResult>().Which.ContentType.Should().Be("image/png");
         controller.Response.Headers.XContentTypeOptions.ToString().Should().Be("nosniff");
     }
@@ -128,7 +134,7 @@ public sealed class AttachmentsControllerTests
 
         var result = await new AttachmentsController(mediator).WithRequest(SignedIn(role)).Delete(RecordId, cts.Token);
 
-        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor with { Permissions = TestPermissions.For(isAdmin) }, isAdmin));
+        mediator.Request.Should().Be(new DeleteAttachmentCommand(RecordId, Actor with { Permissions = TestPermissions.For(isAdmin), Scope = TeamScope.For(UserId, [], TestPermissions.For(isAdmin)) }, isAdmin));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<NoContentResult>();
     }

@@ -37,7 +37,7 @@ public sealed class AttachmentRepository(MedAppDbContext context) : IAttachmentR
 
     public async Task<(IReadOnlyList<AttachmentRow> Rows, int TotalCount)> ListAsync(GetAttachmentsQuery query, CancellationToken ct)
     {
-        var filtered = AttachmentSearch.Filter(context.Attachments.AsNoTracking(), query);
+        var filtered = AttachmentSearch.Filter(context.Attachments.AsNoTracking(), query, context.PathwayAccess);
         var totalCount = await filtered.CountAsync(ct);
         var rows = await AttachmentSearch
             .Newest(filtered, context.PatientPathways.AsNoTracking(), context.PatientPathwayStages.AsNoTracking())

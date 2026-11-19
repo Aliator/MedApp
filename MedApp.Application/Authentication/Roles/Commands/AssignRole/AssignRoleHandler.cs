@@ -26,7 +26,7 @@ public sealed class AssignRoleHandler(
     {
         if (string.Equals(request.Role, AppRoles.Admin, StringComparison.Ordinal)
             && await readService.GetUserAsync(request.Username, ct) is { } user
-            && (await teams.GetForUserAsync(user.UserId, ct)).Count > 0)
+            && (await teams.GetForUserAsync(user.UserId, ct) ?? []).Count > 0)
             throw new ConflictException(TeamRules.TeamMemberIsNoAdmin(user.Username));
 
         var role = await userRoleService.AssignRoleAsync(

@@ -112,7 +112,7 @@ public sealed class AppointmentRepository(MedAppDbContext context) : IAppointmen
 
     public async Task<IReadOnlyList<AppointmentTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct) =>
         await AppointmentTimelineSearch
-            .Page(context.AppointmentEvents.AsNoTracking(), context.PatientPathways.AsNoTracking(), query)
+            .Page(context.AppointmentEvents.AsNoTracking(), context.PatientPathways.AsNoTracking(), query, context.PathwayAccess)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyDictionary<Guid, int>> CountMissedAsync(IReadOnlyCollection<Appointment> appointments, CancellationToken ct)

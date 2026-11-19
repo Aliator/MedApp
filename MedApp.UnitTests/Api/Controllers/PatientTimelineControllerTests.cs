@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using FluentAssertions;
 using MedApp.API.Controllers;
 using MedApp.Application.Pathways.Timeline.Queries.GetPatientTimeline;
@@ -24,7 +25,9 @@ public sealed class PatientTimelineControllerTests
 
         var result = await new PatientTimelineController(mediator).WithRequest(SignedIn(role)).GetTimeline(RecordId, request, cts.Token);
 
-        mediator.Request.Should().Be(new GetPatientTimelineQuery(RecordId, "cursor", 5, request.Kinds, request.PathwayIds, isAdmin));
+        mediator.Request.Should().Be(new GetPatientTimelineQuery(
+            RecordId, "cursor", 5, request.Kinds, request.PathwayIds, isAdmin,
+            MedApp.Application.Common.Teams.TeamScope.For(UserId, [], MedApp.UnitTests.Common.Constants.TestPermissions.For(isAdmin))));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
@@ -39,7 +42,8 @@ public sealed class PatientTimelineControllerTests
 
         var result = await new PatientTimelineController(mediator).WithRequest(SignedIn(role)).GetOverview(RecordId, cts.Token);
 
-        mediator.Request.Should().Be(new GetPatientTimelineOverviewQuery(RecordId, isAdmin));
+        mediator.Request.Should().Be(new GetPatientTimelineOverviewQuery(
+            RecordId, isAdmin, MedApp.Application.Common.Teams.TeamScope.For(UserId, [], MedApp.UnitTests.Common.Constants.TestPermissions.For(isAdmin))));
         mediator.Tokens.Single().Should().Be(cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(overview);
     }

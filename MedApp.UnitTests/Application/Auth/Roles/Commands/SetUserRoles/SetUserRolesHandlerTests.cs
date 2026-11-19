@@ -6,6 +6,9 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Teams.Common;
+using MedApp.Application.Teams.Repositories;
+using MedApp.Domain.Teams;
 using MedApp.UnitTests.Common.Constants;
 using MedApp.UnitTests.Common.Fixtures;
 using Microsoft.AspNetCore.Identity;
@@ -23,6 +26,7 @@ public sealed class SetUserRolesHandlerTests
     private Mock<IMeetingRepository> _meetings = null!;
     private PassThroughIdentityTransactions _transactions = null!;
     private SetUserRolesHandler _handler = null!;
+    private Mock<ITeamRepository> _teams = null!;
 
     [SetUp]
     public void SetUp()
@@ -46,8 +50,25 @@ public sealed class SetUserRolesHandlerTests
         _fixture.Inject<TimeProvider>(new FixedTimeProvider(CalendarTestConstants.Now));
         _transactions = new PassThroughIdentityTransactions();
         _fixture.Inject<IIdentityTransactions>(_transactions);
+        // In no team, unless a test says so.
+        _teams = new Mock<ITeamRepository>();
+        _fixture.Inject(_teams.Object);
 
         _handler = _fixture.Create<SetUserRolesHandler>();
+    }
+
+    [Test]
+    public async Task Handle_AdminForSomeoneInATeam_ThrowsConflictWithoutChangingTheirRoles()
+    {
+        var target = AuthTestConstants.SessionUser("User");
+        _teams.Setup(t => t.GetForUserAsync(target.UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new Team { Id = Guid.NewGuid(), Name = "Synthetic clinic" }]);
+
+        var act = () => _handler.Handle(
+            new SetUserRolesCommand(AuthTestConstants.Usernames[1], [AppRoles.Admin], AuthTestConstants.Usernames[0]), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(TeamRules.TeamMemberIsNoAdmin(target.Username));
+        _service.Verify(s => s.SetRolesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

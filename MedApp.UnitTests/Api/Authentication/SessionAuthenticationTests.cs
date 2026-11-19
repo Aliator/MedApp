@@ -82,6 +82,47 @@ public sealed class SessionAuthenticationHandlerTests
     }
 
     [Test]
+    public async Task Authenticate_ValidSession_AddsAClaimForEachTeam_WhichMakeTheirTeamScope()
+    {
+        var dermatology = Guid.Parse("0000005a-0000-0000-0000-0000000000d1");
+        var lab = MedApp.Domain.Teams.Team.LabId;
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(
+                UserId, Username, ["Lab"], Permissions: MedApp.Application.Common.Identity.StandardRoles.Lab.Permissions,
+                TeamIds: [dermatology, lab]));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindAll(SessionAuthenticationDefaults.TeamClaim).Select(c => c.Value)
+            .Should().BeEquivalentTo([dermatology.ToString(), lab.ToString()]);
+        var scope = result.Principal!.ToTeamScope();
+        scope.TeamIds.Should().BeEquivalentTo([dermatology, lab]);
+        scope.SeesAllTeams.Should().BeFalse();
+        scope.IsSystem.Should().BeFalse();
+        scope.UserId.Should().Be(UserId);
+        result.Principal!.ToPathwayActor().Scope.Should().Be(scope);
+        result.Principal!.ToCalendarActor().Scope.Should().Be(scope);
+    }
+
+    [Test]
+    public async Task Authenticate_NoTeams_AddsNoTeamClaims_AndAnAdminSeesEveryTeam()
+    {
+        _sessions
+            .Setup(s => s.ValidateSessionAsync(SessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionValidationResult(
+                UserId, Username, ["Admin"], Permissions: MedApp.Application.Common.Identity.Permissions.Admin));
+
+        var result = await Authenticate(SessionId.ToString());
+
+        result.Principal!.FindAll(SessionAuthenticationDefaults.TeamClaim).Should().BeEmpty();
+        var scope = result.Principal!.ToTeamScope();
+        scope.TeamIds.Should().BeEmpty();
+        scope.SeesAllTeams.Should().BeTrue();
+        scope.IsSystem.Should().BeFalse("a request is never the system");
+    }
+
+    [Test]
     public async Task Authenticate_NoPermissions_AddsNoPermissionClaims()
     {
         _sessions
@@ -249,7 +290,8 @@ public sealed class ClaimsPrincipalExtensionsTests
         var user = SignedIn("User");
 
         user.GetUserId().Should().Be(UserId);
-        user.ToPathwayActor().Should().Be(new MedApp.Application.Pathways.Common.PathwayActor(UserId, Username, TestPermissions.Staff));
+        user.ToPathwayActor().Should().Be(new MedApp.Application.Pathways.Common.PathwayActor(
+            UserId, Username, TestPermissions.Staff, MedApp.Application.Common.Teams.TeamScope.For(UserId, [], TestPermissions.Staff)));
     }
 
     [Test]
@@ -268,6 +310,21 @@ public sealed class ClaimsPrincipalExtensionsTests
     }
 
     [Test]
+    public void GetTeamIds_IgnoresWhatIsntAnId()
+    {
+        var team = Guid.NewGuid();
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
+            new Claim(SessionAuthenticationDefaults.TeamClaim, team.ToString()),
+            new Claim(SessionAuthenticationDefaults.TeamClaim, team.ToString()),
+            new Claim(SessionAuthenticationDefaults.TeamClaim, "not-an-id"),
+        ]));
+
+        user.GetTeamIds().Should().Equal(team);
+    }
+
+    [Test]
     public void ToPathwayActor_NoName_UsesAnEmptyName()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, UserId.ToString())]));
@@ -282,7 +339,9 @@ public sealed class ClaimsPrincipalExtensionsTests
     {
         var user = SignedIn([role, .. moreRoles]);
 
-        user.ToCalendarActor().Should().Be(new MedApp.Application.Calendar.Common.CalendarActor(UserId, Username, TestPermissions.ForRoles([role, .. moreRoles])));
+        var permissions = TestPermissions.ForRoles([role, .. moreRoles]);
+        user.ToCalendarActor().Should().Be(new MedApp.Application.Calendar.Common.CalendarActor(
+            UserId, Username, permissions, MedApp.Application.Common.Teams.TeamScope.For(UserId, [], permissions)));
         user.ToCalendarActor().CanArrangeMeetings.Should().Be(isAdmin);
     }
 

@@ -56,7 +56,8 @@ public sealed class PatientsControllerTests
         var found = await Controller(mediator).GetPatientById(RecordId);
         var missing = await Controller(new RecordingMediator()).GetPatientById(RecordId);
 
-        mediator.Request.Should().Be(new GetPatientByIdQuery(RecordId));
+        mediator.Request.Should().Be(new GetPatientByIdQuery(
+            RecordId, MedApp.Application.Common.Teams.TeamScope.For(UserId, [], MedApp.UnitTests.Common.Constants.TestPermissions.Staff)));
         found.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(patient);
         missing.Should().BeOfType<NotFoundResult>();
     }

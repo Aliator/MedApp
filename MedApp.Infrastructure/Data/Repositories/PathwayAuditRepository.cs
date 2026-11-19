@@ -28,7 +28,7 @@ public sealed class PathwayAuditRepository(MedAppDbContext context) : IPathwayAu
 
     public async Task<IReadOnlyList<PatientTimelineRow>> GetPatientTimelineAsync(GetPatientTimelineQuery query, CancellationToken ct) =>
         await PatientTimelineSearch
-            .Page(context.PatientPathwayAuditEntries.AsNoTracking(), context.PatientPathways.AsNoTracking(), query)
+            .Page(context.PatientPathwayAuditEntries.AsNoTracking(), context.PatientPathways.AsNoTracking(), query, context.PathwayAccess)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<PatientPathwayNoteVersion>> GetNoteVersionsAsync(
