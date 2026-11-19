@@ -18,4 +18,5 @@ public sealed record ServiceAlertSources(
     IQueryable<Appointment> Appointments,
     IQueryable<Specimen> Specimens,
     IQueryable<PatientPathwayStage> Stages,
-    IQueryable<MonitoringAlertSent> Sent);
+    IQueryable<MonitoringAlertSent> Sent,
+    IQueryable<MedApp.Domain.Lab.LabCase>? LabCases = null);

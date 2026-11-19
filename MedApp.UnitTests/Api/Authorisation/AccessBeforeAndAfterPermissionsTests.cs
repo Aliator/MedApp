@@ -187,6 +187,14 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.SearchPatients 00011
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LabCasesController.Authorise 00000
+        LabCasesController.Get 00011
+        LabCasesController.MarkEnteredInError 00011
+        LabCasesController.MarkStepEnteredInError 00000
+        LabCasesController.Open 00000
+        LabCasesController.RecordOutcome 00000
+        LabCasesController.RecordStep 00000
+        LabCasesController.Search 00011
         LettersController.ApproveLetter 00000
         LettersController.CountLetters 00011
         LettersController.CreateLetter 00000
@@ -342,17 +350,17 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         SitesController.SetSiteHours 00001
         SitesController.UpdateRoom 00001
         SitesController.UpdateSite 00001
-        SpecimenSetupController.ArchiveLaboratory 00001
+        SpecimenSetupController.ArchiveLabTest 00001
         SpecimenSetupController.ArchiveType 00001
-        SpecimenSetupController.CreateLaboratory 00001
+        SpecimenSetupController.CreateLabTest 00001
         SpecimenSetupController.CreateType 00001
-        SpecimenSetupController.DeleteLaboratory 00001
+        SpecimenSetupController.DeleteLabTest 00001
         SpecimenSetupController.DeleteType 00001
-        SpecimenSetupController.GetLaboratories 00011
+        SpecimenSetupController.GetLabTests 00011
         SpecimenSetupController.GetTypes 00011
-        SpecimenSetupController.RestoreLaboratory 00001
+        SpecimenSetupController.RestoreLabTest 00001
         SpecimenSetupController.RestoreType 00001
-        SpecimenSetupController.UpdateLaboratory 00001
+        SpecimenSetupController.UpdateLabTest 00001
         SpecimenSetupController.UpdateType 00001
         SpecimensController.EditSpecimen 00000
         SpecimensController.FindSpecimen 00011

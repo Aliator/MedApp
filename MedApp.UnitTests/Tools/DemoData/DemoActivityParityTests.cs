@@ -120,7 +120,7 @@ public sealed class DemoActivityParityTests
         var repository = new Mock<IPatientRepository>();
         repository.Setup(r => r.SearchAsync(query, It.IsAny<CancellationToken>())).ReturnsAsync(new PagedResult<Patient>(found, found.Length));
 
-        await new SearchPatientsHandler(repository.Object, _activity).Handle(query, CancellationToken.None);
+        await new SearchPatientsHandler(repository.Object, _activity, Mock.Of<MedApp.Application.Teams.Repositories.ITeamRepository>()).Handle(query, CancellationToken.None);
 
         var searched = _activity.Recorded.Should().ContainSingle("every search the seed makes uses a filter, so it's recorded").Subject;
         (searched.Action, searched.Details).Should().Be(

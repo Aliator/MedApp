@@ -27,6 +27,19 @@ public static class PathwayRepositoryExtensions
     }
 
     /// <summary>
+    /// The pathway, tracked, for the lab's own work on a sample or lab case it holds (MC16: picking its lab stage up,
+    /// putting the authorised results on it, reopening the stage that took an insufficient sample). The sample or case
+    /// was found behind the walls first; allowed while the patient's record is restricted, as care that protects the
+    /// patient must finish (decision 75), but a 409 if it's anonymised.
+    /// </summary>
+    public static async Task<PatientPathway> GetForLabWorkOrThrowAsync(this IPatientPathwayRepository repository, Guid id, CancellationToken ct)
+    {
+        var pathway = await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException(NotFoundMessage(id));
+        PatientRules.EnsureCanPause(pathway.Patient);
+        return pathway;
+    }
+
+    /// <summary>
     /// The pathway, tracked, to block or cancel it: the team walls as <see cref="GetForUpdateOrThrowAsync(IPatientPathwayRepository, Guid, ITeamBoundary, TeamScope, CancellationToken)"/>,
     /// then allowed while its patient's record is restricted (a 409 if it's anonymised).
     /// </summary>

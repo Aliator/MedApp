@@ -79,8 +79,19 @@ public abstract class MonitoringRuleInputValidator<T> : AbstractValidator<T> whe
 
         RuleFor(x => x.TemplateId)
             .Null()
-            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && !MonitoringRuleInput.HasTemplate(e))
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && e == MonitoringEvent.ReferralNotTriaged)
             .WithMessage("A referral awaiting triage has no pathway yet, so it has no template: leave it on any.");
+
+        // MC19's lab clocks: a lab case has no template or pathway priority (a hospital case has no pathway).
+        RuleFor(x => x.TemplateId)
+            .Null()
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && MonitoringEvents.IsLabClock(e))
+            .WithMessage("A lab case has no template.");
+
+        RuleFor(x => x.MinimumPriority)
+            .Null()
+            .When(x => PathwayEnums.TryParse<MonitoringEvent>(x.Event, out var e) && MonitoringEvents.IsLabClock(e))
+            .WithMessage("A lab case has no pathway priority.");
     }
 
     private static bool IsServiceAlert(string value) =>
@@ -116,7 +127,8 @@ public static class MonitoringRuleInput
         !MonitoringEvents.IsServiceAlert(monitoringEvent) || monitoringEvent == MonitoringEvent.ResultNotSignedOff;
 
     /// <summary>Whether a rule for this event can name a template: all but a referral awaiting triage (no pathway yet).</summary>
-    public static bool HasTemplate(MonitoringEvent monitoringEvent) => monitoringEvent != MonitoringEvent.ReferralNotTriaged;
+    public static bool HasTemplate(MonitoringEvent monitoringEvent) =>
+        monitoringEvent != MonitoringEvent.ReferralNotTriaged && !MonitoringEvents.IsLabClock(monitoringEvent);
 
     /// <summary>The message when "Stage unlocked" names someone who can't unlock stages.</summary>
     public const string UnlockNeedsAdmin = "Only people whose roles let them unlock stages do, so choose one of them, or anyone.";

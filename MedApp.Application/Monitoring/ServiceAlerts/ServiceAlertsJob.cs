@@ -34,7 +34,8 @@ public sealed class ServiceAlertsJob(
 
     public string Description =>
         "Tells admins, by their monitoring rules, of work waiting longer than they chose: referrals not triaged, results not "
-        + "signed off, visits not booked, specimens overdue, waiting-time targets near and pause reviews passed. Each item once per rule.";
+        + "signed off, visits not booked, samples overdue, waiting-time targets near, pause reviews passed and lab cases at risk or "
+        + "overdue. Each item once per rule.";
 
     public JobSchedule Schedule { get; } = JobSchedule.Every(TimeSpan.FromMinutes(15));
 

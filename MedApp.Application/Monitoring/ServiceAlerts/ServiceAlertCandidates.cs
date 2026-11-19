@@ -39,12 +39,49 @@ public static class ServiceAlertCandidates
             MonitoringEvent.SpecimenOverdue => SpecimensOverdue(sources, rule, nowUtc, days),
             MonitoringEvent.WaitBreached => WaitsBreached(sources, rule, today.AddDays(days)),
             MonitoringEvent.PauseReviewPassed => PauseReviewsPassed(sources, rule, today.AddDays(-days)),
+            MonitoringEvent.LabCaseAtRisk or MonitoringEvent.LabCaseOverdue =>
+                throw new ArgumentException("A lab clock alert is worked out in memory (LabCasesToCheck, IsLabCaseDue).", nameof(rule)),
             _ => throw new ArgumentOutOfRangeException(nameof(rule), rule.Event, "Not a service alert.")
         };
 
         var ruleId = rule.Id;
         var sent = sources.Sent;
         return items.Where(id => !sent.Any(s => s.RuleId == ruleId && s.SubjectId == id));
+    }
+
+    /// <summary>
+    /// MC19's lab clock alerts, narrowed in SQL: open cases the lab has received, from the rule's team (the clinic it
+    /// came from), not yet reported for this rule. Their clock is worked out in memory (<see cref="IsLabCaseDue"/>).
+    /// </summary>
+    public static IQueryable<MedApp.Domain.Lab.LabCase> LabCasesToCheck(ServiceAlertSources sources, MonitoringRule rule)
+    {
+        var cases = (sources.LabCases ?? throw new ArgumentException("The lab cases are needed.", nameof(sources)))
+            .Where(c => c.Status == MedApp.Domain.Lab.LabCaseStatus.Open && c.ReceivedAtUtc != null);
+        if (rule.TeamId is { } teamId)
+            cases = cases.Where(c => c.RequestingTeamId == teamId);
+
+        var ruleId = rule.Id;
+        var sent = sources.Sent;
+        return cases.Where(c => !sent.Any(s => s.RuleId == ruleId && s.SubjectId == c.Id));
+    }
+
+    /// <summary>
+    /// Whether an open case's clock (with its test) is due for the rule: at risk for more than the rule's days (0: at its
+    /// at-risk point, or past it), or more than the rule's days past its due date (0: past it). UK dates.
+    /// </summary>
+    public static bool IsLabCaseDue(MedApp.Domain.Lab.LabCase labCase, MonitoringRule rule, DateTime nowUtc, DateOnly today)
+    {
+        if (MedApp.Application.Lab.Common.LabClock.Of(labCase, nowUtc) is not { } clock
+            || !MedApp.Application.Lab.Common.LabClock.IsRunning(clock))
+            return false;
+
+        var days = rule.ThresholdDays ?? 0;
+        return rule.Event switch
+        {
+            MonitoringEvent.LabCaseAtRisk => today >= clock.AtRiskOn.AddDays(days),
+            MonitoringEvent.LabCaseOverdue => today > clock.DueOn.AddDays(days),
+            _ => false
+        };
     }
 
     private static IQueryable<Guid> ReferralsNotTriaged(ServiceAlertSources sources, MonitoringRule rule, DateOnly receivedBefore)
@@ -92,11 +129,11 @@ public static class ServiceAlertCandidates
             (s.Status == SpecimenStatus.Taken || s.Status == SpecimenStatus.Sent || s.Status == SpecimenStatus.Received)
             && s.TakenAtUtc.AddDays(s.SpecimenType.ExpectedTurnaroundDays + days) < nowUtc);
         if (rule.TeamId is { } teamId)
-            specimens = specimens.Where(s => s.Pathway.TeamId == teamId);
+            specimens = specimens.Where(s => s.Pathway != null && s.Pathway.TeamId == teamId);
         if (rule.MinimumPriority is { } priority)
-            specimens = specimens.Where(s => s.Pathway.Priority >= priority);
+            specimens = specimens.Where(s => s.Pathway != null && s.Pathway.Priority >= priority);
         if (rule.TemplateId is { } templateId)
-            specimens = specimens.Where(s => s.Pathway.TemplateId == templateId);
+            specimens = specimens.Where(s => s.Pathway != null && s.Pathway.TemplateId == templateId);
         if (rule.StageDefinitionId is { } stageDefinitionId)
         {
             var stages = sources.Stages;

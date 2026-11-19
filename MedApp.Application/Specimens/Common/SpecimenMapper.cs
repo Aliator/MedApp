@@ -22,7 +22,8 @@ public static class SpecimenMapper
         IReadOnlyList<Specimen> others,
         QrCodeImage label,
         PathwayActor viewer,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        bool canOpenLabCase = false)
     {
         var canRecord = viewer.Has(Permission.RecordSpecimens);
         var canProcess = viewer.Has(Permission.ProcessSpecimens);
@@ -35,15 +36,22 @@ public static class SpecimenMapper
             PatientId = specimen.PatientId,
             Patient = PathwayMapper.ToPatient(specimen.Patient),
             PatientFlags = specimen.Patient is null ? null : PatientMapper.ToFlags(specimen.Patient),
+            Source = specimen.Source.ToString(),
+            RequestingTeamId = specimen.RequestingTeamId,
+            RequestingTeamName = specimen.RequestingTeam?.Name,
+            HospitalId = specimen.HospitalId,
+            HospitalName = null,
+            HospitalRequestId = specimen.HospitalRequestId,
+            LabTestId = specimen.LabTestId,
+            LabTestName = specimen.LabTest?.Name,
+            LabCaseId = specimen.LabCaseId,
             PathwayId = specimen.PathwayId,
-            PathwayTitle = specimen.Pathway?.Title ?? string.Empty,
+            PathwayTitle = specimen.Pathway?.Title,
             StageId = specimen.StageId,
-            StageName = specimen.Pathway?.Stages.FirstOrDefault(s => s.Id == specimen.StageId)?.Name ?? string.Empty,
+            StageName = specimen.Pathway?.Stages.FirstOrDefault(s => s.Id == specimen.StageId)?.Name,
             SpecimenTypeId = specimen.SpecimenTypeId,
             SpecimenTypeName = specimen.SpecimenType?.Name ?? string.Empty,
             ExpectedTurnaroundDays = specimen.SpecimenType?.ExpectedTurnaroundDays ?? 0,
-            LaboratoryId = specimen.LaboratoryId,
-            LaboratoryName = specimen.Laboratory?.Name ?? string.Empty,
             Site = specimen.Site,
             RequestNotes = specimen.RequestNotes,
             RequestingUserId = specimen.RequestingUserId,
@@ -65,8 +73,9 @@ public static class SpecimenMapper
             ClosedDetail = specimen.ClosedDetail,
             ClosedAtUtc = specimen.ClosedAtUtc,
             ClosedByUsername = Username(usernames, specimen.ClosedByUserId),
-            ExpectedByUtc = SpecimenWorkflow.ExpectedBy(specimen),
+            ExpectedByUtc = SpecimenWorkflow.ExpectedBy(specimen, nowUtc),
             IsOverdueAtLab = SpecimenWorkflow.IsOverdueAtLab(specimen, nowUtc),
+            Clock = SpecimenWorkflow.CaseClock(specimen, nowUtc),
             Version = specimen.Version,
             CanEdit = canRecord && SpecimenWorkflow.WhyCantEdit(specimen) is null,
             CanMarkSent = canRecord && Can(Sent),
@@ -76,6 +85,8 @@ public static class SpecimenMapper
             CanMarkLost = SpecimenWorkflow.MayMarkLost(viewer) && Can(Lost),
             CanMarkEnteredInError = SpecimenWorkflow.MayMarkEnteredInError(specimen, viewer, nowUtc) && Can(EnteredInError),
             ReadOnlyReason = ReadOnlyReason(specimen),
+            LabCaseNumber = specimen.LabCase?.Number,
+            CanOpenLabCase = canOpenLabCase,
             Label = new SpecimenLabelResponse { QrPath = label.Path, Size = label.Size },
             OtherSpecimensFromStage = others
                 .Where(o => o.Id != specimen.Id)
@@ -94,10 +105,18 @@ public static class SpecimenMapper
         PatientName = specimen.Patient is null ? string.Empty : PatientMapper.FullName(specimen.Patient),
         PatientNhsNumber = specimen.Patient?.NhsNumber,
         PatientDateOfBirth = specimen.Patient?.DateOfBirth ?? default,
+        Source = specimen.Source.ToString(),
+        RequestingTeamId = specimen.RequestingTeamId,
+        RequestingTeamName = specimen.RequestingTeam?.Name,
+        HospitalId = specimen.HospitalId,
+        HospitalName = null,
+        HospitalRequestId = specimen.HospitalRequestId,
+        LabTestId = specimen.LabTestId,
+        LabTestName = specimen.LabTest?.Name,
+        LabCaseId = specimen.LabCaseId,
         PathwayId = specimen.PathwayId,
         StageId = specimen.StageId,
         SpecimenTypeName = specimen.SpecimenType?.Name ?? string.Empty,
-        LaboratoryName = specimen.Laboratory?.Name ?? string.Empty,
         Status = specimen.Status.ToString(),
         IsOpen = SpecimenWorkflow.IsOpen(specimen.Status),
         TakenAtUtc = specimen.TakenAtUtc,
@@ -105,8 +124,9 @@ public static class SpecimenMapper
         ReceivedAtUtc = specimen.ReceivedAtUtc,
         ReportedAtUtc = specimen.ReportedAtUtc,
         ClosedAtUtc = specimen.ClosedAtUtc,
-        ExpectedByUtc = SpecimenWorkflow.ExpectedBy(specimen),
+        ExpectedByUtc = SpecimenWorkflow.ExpectedBy(specimen, nowUtc),
         IsOverdueAtLab = SpecimenWorkflow.IsOverdueAtLab(specimen, nowUtc),
+        Clock = SpecimenWorkflow.CaseClock(specimen, nowUtc),
     };
 
     public static SpecimenTypeResponse ToResponse(SpecimenType type, bool inUse) => new()
@@ -114,18 +134,11 @@ public static class SpecimenMapper
         Id = type.Id,
         Name = type.Name,
         ExpectedTurnaroundDays = type.ExpectedTurnaroundDays,
+        SnomedCode = type.SnomedCode,
         IsArchived = type.IsArchived,
         CanBeDeleted = !inUse,
     };
 
-    public static LaboratoryResponse ToResponse(Laboratory laboratory, bool inUse) => new()
-    {
-        Id = laboratory.Id,
-        Name = laboratory.Name,
-        UsesMedApp = laboratory.UsesMedApp,
-        IsArchived = laboratory.IsArchived,
-        CanBeDeleted = !inUse,
-    };
 
     /// <summary>Everyone a specimen names, for one username lookup.</summary>
     public static IEnumerable<Guid> PeopleIn(Specimen specimen) =>
@@ -140,7 +153,7 @@ public static class SpecimenMapper
         PatientRules.IsAnonymised(specimen.Patient) ? PatientRules.AnonymisedMessage
         : !SpecimenWorkflow.IsOpen(specimen.Status) ? SpecimenWorkflow.ClosedMessage(specimen.Status)
         : PatientRules.IsRestricted(specimen.Patient)
-            ? "This patient's record is restricted: the specimen can still go on to the lab and be reported, but its details can't be changed."
+            ? "This patient's record is restricted: the sample can still go on to the lab and be reported, but its details can't be changed."
             : null;
 
     private static string Username(IReadOnlyDictionary<Guid, string> usernames, Guid userId) =>

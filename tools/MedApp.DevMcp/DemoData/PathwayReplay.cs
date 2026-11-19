@@ -612,7 +612,8 @@ public sealed partial class PathwayReplay
             var open = _specimens.Where(s => SpecimenWorkflow.IsOpen(s.Status)).ToList();
             var awaiting = _results.Where(r => r.IsAwaitingSignOff).ToList();
             var last = StageGates.IsLastToFinish(_pathway, stage);
-            var gate = (last ? StageGates.WhyCantFinish(_pathway, stage, open) : null)
+            var gate = StageGates.WhyLabCaseOpen(stage, MedApp.Domain.Teams.Team.LabId)
+                       ?? (last ? StageGates.WhyCantFinish(_pathway, stage, open) : null)
                        ?? (stage.WaitsForResults || last ? StageGates.WhyResultsAwaiting(_pathway, stage, awaiting) : null)
                        ?? StageGates.WhyConsentMissing(stage, _consents)
                        ?? (stage.NeedsLetterKind is not null && _letter?.SentUtc is null ? "Its letter isn't sent." : null);

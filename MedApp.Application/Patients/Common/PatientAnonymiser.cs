@@ -248,6 +248,27 @@ public static class PatientAnonymiser
                 result.ActionDetail = Removed(result.ActionDetail);
             if (result.ErrorDetail is not null)
                 result.ErrorDetail = Removed(result.ErrorDetail);
+            if (result.ReportText is not null)
+                result.ReportText = Removed(result.ReportText);
+        }
+
+        // Lab cases (MC15) keep their numbers, statuses, tests, steps' kinds and outcomes, and dates; their free text
+        // (the results, why a repeat was asked for, every detail typed and the error details) goes.
+        foreach (var labCase in record.LabCases)
+        {
+            if (labCase.ReportText is not null)
+                labCase.ReportText = Removed(labCase.ReportText);
+            if (labCase.RepeatDetail is not null)
+                labCase.RepeatDetail = Removed(labCase.RepeatDetail);
+            if (labCase.ErrorDetail is not null)
+                labCase.ErrorDetail = Removed(labCase.ErrorDetail);
+            foreach (var step in labCase.Steps)
+            {
+                if (step.Detail is not null)
+                    step.Detail = Removed(step.Detail);
+                if (step.ErrorDetail is not null)
+                    step.ErrorDetail = Removed(step.ErrorDetail);
+            }
         }
 
         // MDT items: the question and the outcome are free text. Open ones are withdrawn, as the record can't change

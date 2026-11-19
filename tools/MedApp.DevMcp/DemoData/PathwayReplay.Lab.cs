@@ -64,6 +64,11 @@ public sealed record LetterPlan(
 public sealed partial class PathwayReplay
 {
     private readonly List<Specimen> _specimens = [];
+
+    /// <summary>Which of the stories' labs each sample went to (timing only: MC13 dropped the labs list).</summary>
+    private readonly Dictionary<Guid, DemoLaboratory> _labOf = [];
+
+    private DemoLaboratory LabOf(Specimen specimen) => _labOf[specimen.Id];
     private readonly List<Result> _results = [];
     private readonly List<ConsentRecord> _consents = [];
     private readonly List<MdtItem> _mdtItems = [];
@@ -217,7 +222,7 @@ public sealed partial class PathwayReplay
             Lab(urine, scientist, rejectAt, c => c.Reject(SpecimenRejection.Reason, SpecimenRejection.Detail));
             Tell(SpecimenNotifications.Rejected(urine, scientist.Actor, rejectAt), rejectAt);
 
-            var again = Take(stage, worker, urine.SpecimenType, urine.Laboratory, retakeAt, retakeAt.AddMinutes(2), null,
+            var again = Take(stage, worker, urine.SpecimenType, LabOf(urine), retakeAt, retakeAt.AddMinutes(2), null,
                 "Mid-stream sample, taken again: the first pot came without a label.");
             var resendAt = retakeAt.AddMinutes(_random.Next(10, 25));
             Send(again, worker, resendAt);
@@ -227,7 +232,7 @@ public sealed partial class PathwayReplay
         return last;
     }
 
-    private Specimen Take(PatientPathwayStage stage, StaffMember by, SpecimenType type, Laboratory lab, DateTime takenAt, DateTime recordedAt,
+    private Specimen Take(PatientPathwayStage stage, StaffMember by, SpecimenType type, DemoLaboratory lab, DateTime takenAt, DateTime recordedAt,
         string? site, string notes)
     {
         var specimen = new Specimen
@@ -240,8 +245,8 @@ public sealed partial class PathwayReplay
             StageId = stage.Id,
             SpecimenTypeId = type.Id,
             SpecimenType = type,
-            LaboratoryId = lab.Id,
-            Laboratory = lab,
+            Source = SpecimenSource.Clinic,
+            RequestingTeamId = _pathway.TeamId,
             Site = site,
             RequestNotes = notes,
             RequestingUserId = _lead.Id,
@@ -249,6 +254,7 @@ public sealed partial class PathwayReplay
             TakenByUserId = by.Id,
             RecordedAtUtc = recordedAt,
         };
+        _labOf[specimen.Id] = lab;
         var change = new SpecimenChange(specimen, _pathway, by.Actor, recordedAt);
         change.Take();
         _audit.AddRange(change.AuditEntries);
@@ -265,7 +271,7 @@ public sealed partial class PathwayReplay
     }
 
     private void Send(Specimen specimen, StaffMember by, DateTime at) =>
-        Lab(specimen, by, at, c => c.Send(at, specimen.Laboratory.UsesMedApp ? null : $"CR{_random.Next(100000, 999999)}"));
+        Lab(specimen, by, at, c => c.Send(at, LabOf(specimen).UsesMedApp ? null : $"CR{_random.Next(100000, 999999)}"));
 
     /// <summary>One step of a specimen's life, as its handler applies it: checked by the rules first.</summary>
     private void Lab(Specimen specimen, StaffMember by, DateTime at, Action<SpecimenChange> apply)
@@ -292,7 +298,7 @@ public sealed partial class PathwayReplay
 
         // Lost on the way to the partner lab: the clinician who asked for it marks it lost when it hasn't arrived, and
         // puts the pathway on hold while a repeat biopsy is arranged.
-        if (_plan.LosesSpecimen && open.FirstOrDefault(s => !s.Laboratory.UsesMedApp && s.Status == SpecimenStatus.Sent) is { } missing)
+        if (_plan.LosesSpecimen && open.FirstOrDefault(s => !LabOf(s).UsesMedApp && s.Status == SpecimenStatus.Sent) is { } missing)
         {
             var lostAt = Working(missing.SentAtUtc!.Value.AddDays(9 + _random.NextDouble() * 4));
             if (lostAt >= _now)
@@ -306,7 +312,7 @@ public sealed partial class PathwayReplay
         }
 
         var reportAt = plannedReportAt;
-        if (open.Any(s => !s.Laboratory.UsesMedApp))
+        if (open.Any(s => !LabOf(s).UsesMedApp))
             reportAt = Working(startAt.AddDays((plannedReportAt - startAt).TotalDays * (1.6 + _random.NextDouble())));
 
         foreach (var specimen in open.Where(s => s.Status == SpecimenStatus.Sent))
@@ -370,7 +376,7 @@ public sealed partial class PathwayReplay
             }
 
             var days = specimen.SpecimenType.ExpectedTurnaroundDays * (0.4 + _random.NextDouble() * 0.5)
-                       * (specimen.Laboratory.UsesMedApp ? 1 : 1.6 + _random.NextDouble());
+                       * (LabOf(specimen).UsesMedApp ? 1 : 1.6 + _random.NextDouble());
             var reportAt = Working(Max(specimen.ReceivedAtUtc!.Value.AddHours(1), specimen.TakenAtUtc.AddDays(days)));
             if (reportAt >= _now)
                 continue;
@@ -387,7 +393,7 @@ public sealed partial class PathwayReplay
         [
             "SYNTHETIC: not a real result.",
             $"Specimen: {specimen.Number}, {specimen.SpecimenType.Name}",
-            $"Laboratory: {specimen.Laboratory.Name}",
+            $"Laboratory: {LabOf(specimen).Name}",
             "Report: as recorded in the stage notes. No values: a demonstration file.",
         ]);
         // On the pathway if it still takes files; otherwise the patient (cancelled or archived meanwhile), as the handler does.

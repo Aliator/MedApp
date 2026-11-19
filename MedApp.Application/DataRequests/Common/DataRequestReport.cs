@@ -254,7 +254,7 @@ public static class DataRequestReport
         {
             Heading(md, "Samples taken for tests");
             foreach (var s in export.Specimens)
-                Bullet(md, $"{s.Number}: {s.SpecimenTypeName}, taken {Words.Time(s.TakenAtUtc)}, sent to {s.LaboratoryName}: {Words.Humanise(s.Status)}",
+                Bullet(md, $"{s.Number}: {s.SpecimenTypeName}, taken {Words.Time(s.TakenAtUtc)}{(s.LabTestName is { } test ? $", for {test}" : "")}: {Words.Humanise(s.Status)}",
                     string.Join("\n", new[] { s.Site, s.RequestNotes, s.RejectionReason, s.ClosedDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
             md.AppendLine();
         }
@@ -265,7 +265,16 @@ public static class DataRequestReport
             foreach (var r in export.Results)
                 Bullet(md, $"{r.Title}, reported {Words.Time(r.ReportedAtUtc)}: {Words.Humanise(r.Status)}" +
                            (r.SignedOffAtUtc is null ? "" : $", signed off by {r.SignedOffBy} ({Words.Humanise(r.Action)})"),
-                    r.ActionDetail);
+                    string.Join("\n", new[] { r.ReportText, r.ActionDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
+            md.AppendLine();
+        }
+
+        if (export.LabCases.Count > 0)
+        {
+            Heading(md, "Lab cases");
+            foreach (var c in export.LabCases)
+                Bullet(md, $"{c.Number}{(c.LabTestName is { } test ? $", {test}" : "")}, opened {Words.Time(c.OpenedAtUtc)}: {Words.Humanise(c.Status)}",
+                    string.Join("\n", new[] { c.ReportText, c.RepeatDetail, c.ErrorDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
             md.AppendLine();
         }
     }

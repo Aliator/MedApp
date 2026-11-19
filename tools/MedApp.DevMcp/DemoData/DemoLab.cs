@@ -87,9 +87,8 @@ public static class DemoLab
         foreach (var specimen in world.Specimens)
         {
             specimen.SpecimenType = null!;
-            specimen.Laboratory = null!;
             specimen.Patient = null!;
-            specimen.Pathway = null!;
+            specimen.Pathway = null;
         }
 
         foreach (var result in world.Results)

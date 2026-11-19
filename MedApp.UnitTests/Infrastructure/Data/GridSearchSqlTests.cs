@@ -38,7 +38,7 @@ public sealed class GridSearchSqlTests
     {
         foreach (var view in Enum.GetNames<SpecimenView>())
         {
-            var query = new SearchSpecimensQuery(1, 10, view, null, null, null, "MA26 000123", sort, false);
+            var query = new SearchSpecimensQuery(1, 10, view, null, null, "MA26 000123", sort, false);
 
             var sql = _context.Specimens.Filter(query, Now).Sort(query.ParsedView, query.Sort, query.Ascending).ToQueryString();
 

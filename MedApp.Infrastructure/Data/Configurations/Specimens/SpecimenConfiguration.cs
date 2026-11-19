@@ -59,13 +59,31 @@ public sealed class SpecimenConfiguration : IEntityTypeConfiguration<Specimen>
             .HasForeignKey(x => x.SpecimenTypeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Laboratory)
+        // MC14: where it came from, the clinic that asked for it, and the test (archived, never deleted, once used).
+        builder.Property(x => x.Source).IsRequired();
+        builder.HasOne(x => x.RequestingTeam)
             .WithMany()
-            .HasForeignKey(x => x.LaboratoryId)
+            .HasForeignKey(x => x.RequestingTeamId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(x => x.RequestingTeamId);
+
+        builder.HasOne(x => x.LabTest)
+            .WithMany()
+            .HasForeignKey(x => x.LabTestId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // The lab's worklist: a status's specimens at a lab, oldest sent first; and a pathway's and a patient's.
-        builder.HasIndex(x => new { x.Status, x.LaboratoryId, x.SentAtUtc });
+        // The lab case it's in (MC15): a case entered in error lets its samples go first.
+        builder.HasOne(x => x.LabCase)
+            .WithMany(c => c.Specimens)
+            .HasForeignKey(x => x.LabCaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // The hospital and its request (MC18) come with S3b's tables; indexed for their lookups.
+        builder.HasIndex(x => x.HospitalRequestId).HasFilter("[HospitalRequestId] IS NOT NULL");
+
+        // The samples' tabs: a status's samples, oldest sent first; and a pathway's, a patient's and a case's.
+        builder.HasIndex(x => new { x.Status, x.SentAtUtc });
+        builder.HasIndex(x => x.LabCaseId);
         builder.HasIndex(x => x.PathwayId);
         builder.HasIndex(x => x.PatientId);
 

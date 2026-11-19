@@ -125,8 +125,16 @@ public abstract class PathwayHandlerTestBase
         Letters.Setup(l => l.GetForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Letters.Setup(l => l.CountForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
         Fixture.Inject(Letters.Object);
+        // No lab cases, unless a test says so: none stops a pathway's deletion or a lab stage's finish.
+        LabCases = new Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository>();
+        LabCases.Setup(l => l.AnyForPathwayAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        LabCases.Setup(l => l.AnyForPatientAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        Fixture.Inject(LabCases.Object);
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(PathwaysTestConstants.Now));
     }
+
+    /// <summary>Lab cases (MC15): none, unless a test says so.</summary>
+    protected Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository> LabCases { get; private set; } = null!;
 
     /// <summary>Makes the repository return this pathway, for reading and for updating.</summary>
     protected PatientPathway GivenPathway(PatientPathway pathway)

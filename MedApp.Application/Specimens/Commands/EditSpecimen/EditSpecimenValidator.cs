@@ -9,7 +9,6 @@ public sealed class EditSpecimenValidator : AbstractValidator<EditSpecimenComman
     {
         RuleFor(x => x.SpecimenId).NotEmpty().WithMessage("Specimen id is required.");
         RuleFor(x => x.SpecimenTypeId).NotEmpty().WithMessage(SpecimenChoices.TypeMessage);
-        RuleFor(x => x.LaboratoryId).NotEmpty().WithMessage(SpecimenChoices.LaboratoryMessage);
         RuleFor(x => x.RequestingUserId).NotEmpty().WithMessage(SpecimenRules.RequestingUserMessage);
         RuleFor(x => x.Site).Site();
         RuleFor(x => x.RequestNotes).RequestNotes();

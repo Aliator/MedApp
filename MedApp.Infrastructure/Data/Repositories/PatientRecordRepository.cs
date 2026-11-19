@@ -122,15 +122,28 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             .AsSplitQuery()
             .ToListAsync(ct);
 
-        // Specimens, with their types and labs; their history is in the audit entries above.
+        // Specimens, with their types, tests and lab cases' numbers; their history is in the audit entries above.
         var specimens = await Tracking(context.Specimens, forUpdate)
             .Include(s => s.SpecimenType)
-            .Include(s => s.Laboratory)
+            .Include(s => s.LabTest)
             .Where(s => s.PatientId == patientId)
             .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
             .ToListAsync(ct);
         foreach (var specimen in specimens)
             specimen.Patient = patient;
+
+        // Lab cases (MC15), with their steps and tests: the results and every detail typed are free text.
+        var labCases = await Tracking(context.LabCases, forUpdate)
+            .Include(c => c.Steps)
+            .Include(c => c.LabTest!).ThenInclude(t => t.Steps)
+            .Where(c => c.PatientId == patientId)
+            .OrderBy(c => c.OpenedAtUtc).ThenBy(c => c.Id)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+        foreach (var labCase in labCases)
+            labCase.Patient = patient;
+        foreach (var specimen in specimens)
+            specimen.LabCase ??= labCases.FirstOrDefault(c => c.Id == specimen.LabCaseId);
 
         // Results; their history is in the audit entries above, their reports among the files.
         var results = await Tracking(context.Results, forUpdate)
@@ -199,6 +212,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             ReferralHistory = referralHistory,
             Letters = letters,
             Specimens = specimens,
+            LabCases = labCases,
             Results = results,
             MdtItems = mdtItems,
             ConsentRecords = consentRecords,

@@ -44,6 +44,14 @@ public sealed class ResultResponse
     /// <summary>Whether the report has a thumbnail (an image).</summary>
     public bool ReportHasThumbnail { get; set; }
 
+    /// <summary>The lab case whose authorised report made it (MC15), if any.</summary>
+    public Guid? LabCaseId { get; set; }
+
+    public string? LabCaseNumber { get; set; }
+
+    /// <summary>A lab case's results as entered (free text); null for a report that's a file.</summary>
+    public string? ReportText { get; set; }
+
     public DateTime ReportedAtUtc { get; set; }
 
     /// <summary>Who attached the report or recorded the result, or "Deleted user".</summary>

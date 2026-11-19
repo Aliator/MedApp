@@ -13,8 +13,8 @@ namespace MedApp.Application.Specimens.Common;
 /// </summary>
 public static class SpecimenChoices
 {
-    public const string TypeMessage = "Choose a specimen type that isn't archived.";
-    public const string LaboratoryMessage = "Choose a lab that isn't archived.";
+    public const string TypeMessage = "Choose a sample type that isn't archived.";
+    public const string LabTestMessage = "Choose a lab test that isn't archived, or none.";
 
     /// <summary>
     /// The requesting clinician must hold this: SignOffResults, the permission that makes someone a responsible
@@ -25,11 +25,11 @@ public static class SpecimenChoices
     public const string RequestingUserNotClinicianMessage =
         "Choose a clinician whose roles allow signing off results: they'll get the result.";
 
-    public static async Task<(SpecimenType Type, Laboratory Laboratory)> CheckAsync(
+    public static async Task<(SpecimenType Type, Domain.Lab.LabTest? LabTest)> CheckAsync(
         ISpecimenRepository repository,
         IPermissionHolders permissionHolders,
         Guid typeId,
-        Guid laboratoryId,
+        Guid? labTestId,
         Guid requestingUserId,
         Specimen? existing,
         CancellationToken ct)
@@ -40,9 +40,14 @@ public static class SpecimenChoices
         if (type is null || (type.IsArchived && existing?.SpecimenTypeId != type.Id))
             failures.Add(new ValidationFailure("SpecimenTypeId", TypeMessage));
 
-        var laboratory = await repository.GetLaboratoryAsync(laboratoryId, ct);
-        if (laboratory is null || (laboratory.IsArchived && existing?.LaboratoryId != laboratory.Id))
-            failures.Add(new ValidationFailure("LaboratoryId", LaboratoryMessage));
+        // The test is optional and never chosen for the clinician (decision 191); an archived one only if it already had it.
+        Domain.Lab.LabTest? test = null;
+        if (labTestId is { } testId && testId != Guid.Empty)
+        {
+            test = await repository.GetLabTestAsync(testId, ct);
+            if (test is null || (test.IsArchived && existing?.LabTestId != test.Id))
+                failures.Add(new ValidationFailure("LabTestId", LabTestMessage));
+        }
 
         // Someone already named keeps being allowed (their roles may have changed since), as assignees are.
         if (existing?.RequestingUserId != requestingUserId)
@@ -55,6 +60,6 @@ public static class SpecimenChoices
         if (failures.Count > 0)
             throw new ValidationException(failures);
 
-        return (type!, laboratory!);
+        return (type!, test);
     }
 }

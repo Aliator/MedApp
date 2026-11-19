@@ -184,7 +184,20 @@ public enum NotificationKind
     /// </summary>
     PathwayHandedOver = 44,
 
-    // 45 to 48 are the lab's (MC7, MC15, MC19).
+    // 45 (MonitoredHandoverNotPickedUp) is reserved for MC7's monitoring.
+
+    /// <summary>
+    /// The lab found a sample insufficient and asked for a repeat (MC15): to whoever asked for it and took it. A fixed
+    /// title ("Repeat sample requested"); the message names the test (admin-written) and the stage reopened, never the
+    /// patient or why.
+    /// </summary>
+    RepeatSampleRequested = 46,
+
+    /// <summary>A service alert (MC19): lab cases at risk of missing their due date ("Lab cases at risk").</summary>
+    MonitoredLabCaseAtRisk = 47,
+
+    /// <summary>A service alert (MC19): lab cases past their due date ("Lab cases overdue").</summary>
+    MonitoredLabCaseOverdue = 48,
 
     /// <summary>
     /// Another team sent your team a consult (MC25), to the asked team's members who work pathways. A fixed title

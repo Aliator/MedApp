@@ -45,7 +45,8 @@ public sealed class PathwayRestrictionGuardConventionTests
             or nameof(PathwayRepositoryExtensions.GetForPauseOrThrowAsync)
             or nameof(PathwayRepositoryExtensions.GetForCorrectionOrThrowAsync)
             or nameof(PathwayRepositoryExtensions.GetForStageWorkOrThrowAsync)
-            or nameof(PathwayRepositoryExtensions.GetForNotesOrThrowAsync))
+            or nameof(PathwayRepositoryExtensions.GetForNotesOrThrowAsync)
+            or nameof(PathwayRepositoryExtensions.GetForLabWorkOrThrowAsync))
         .ToArray();
 
     private static readonly MethodInfo EnsureCanChange = typeof(PatientRules).GetMethod(nameof(PatientRules.EnsureCanChange))!;

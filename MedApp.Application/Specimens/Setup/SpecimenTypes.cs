@@ -14,9 +14,11 @@ namespace MedApp.Application.Specimens.Setup;
 /// <summary>Every specimen type by name; archived ones only with <paramref name="IncludeArchived"/>.</summary>
 public sealed record GetSpecimenTypesQuery(bool IncludeArchived) : IRequest<IReadOnlyList<SpecimenTypeResponse>>;
 
-public sealed record CreateSpecimenTypeCommand(string Name, int ExpectedTurnaroundDays) : IRequest<SpecimenTypeResponse>;
+public sealed record CreateSpecimenTypeCommand(string Name, int ExpectedTurnaroundDays, string? SnomedCode = null)
+    : IRequest<SpecimenTypeResponse>;
 
-public sealed record UpdateSpecimenTypeCommand(Guid Id, string Name, int ExpectedTurnaroundDays) : IRequest<SpecimenTypeResponse>;
+public sealed record UpdateSpecimenTypeCommand(Guid Id, string Name, int ExpectedTurnaroundDays, string? SnomedCode = null)
+    : IRequest<SpecimenTypeResponse>;
 
 public sealed record SetSpecimenTypeArchivedCommand(Guid Id, bool IsArchived) : IRequest<SpecimenTypeResponse>;
 
@@ -28,6 +30,7 @@ public sealed class CreateSpecimenTypeValidator : AbstractValidator<CreateSpecim
     {
         RuleFor(x => x.Name).SetupName(SpecimenType.MaxNameLength);
         RuleFor(x => x.ExpectedTurnaroundDays).Turnaround();
+        RuleFor(x => x.SnomedCode).SnomedCode();
     }
 }
 
@@ -37,6 +40,7 @@ public sealed class UpdateSpecimenTypeValidator : AbstractValidator<UpdateSpecim
     {
         RuleFor(x => x.Name).SetupName(SpecimenType.MaxNameLength);
         RuleFor(x => x.ExpectedTurnaroundDays).Turnaround();
+        RuleFor(x => x.SnomedCode).SnomedCode();
     }
 }
 
@@ -47,10 +51,10 @@ public sealed class SpecimenTypeHandlers(ISpecimenRepository repository, TimePro
     IRequestHandler<SetSpecimenTypeArchivedCommand, SpecimenTypeResponse>,
     IRequestHandler<DeleteSpecimenTypeCommand>
 {
-    public static string NameTaken(string name) => $"There's already a specimen type called '{name}'.";
+    public static string NameTaken(string name) => $"There's already a sample type called '{name}'.";
 
     public static string InUse(SpecimenType type) =>
-        $"Specimens of type '{type.Name}' have been recorded, so it can't be deleted. Archive it instead.";
+        $"Samples of type '{type.Name}' have been recorded, so it can't be deleted. Archive it instead.";
 
     public async Task<IReadOnlyList<SpecimenTypeResponse>> Handle(GetSpecimenTypesQuery request, CancellationToken cancellationToken)
     {
@@ -71,6 +75,7 @@ public sealed class SpecimenTypeHandlers(ISpecimenRepository repository, TimePro
             Id = Guid.NewGuid(),
             Name = name,
             ExpectedTurnaroundDays = request.ExpectedTurnaroundDays,
+            SnomedCode = Lab.Tests.LabTestRules.SnomedCode(request.SnomedCode),
             CreatedAt = now,
             LastUpdated = now,
         };
@@ -87,6 +92,7 @@ public sealed class SpecimenTypeHandlers(ISpecimenRepository repository, TimePro
 
         type.Name = name;
         type.ExpectedTurnaroundDays = request.ExpectedTurnaroundDays;
+        type.SnomedCode = Lab.Tests.LabTestRules.SnomedCode(request.SnomedCode);
         type.LastUpdated = timeProvider.GetUtcNow().UtcDateTime;
         await repository.UpdateTypeAsync(type, cancellationToken);
         return await ResponseAsync(type, cancellationToken);
@@ -114,7 +120,7 @@ public sealed class SpecimenTypeHandlers(ISpecimenRepository repository, TimePro
     }
 
     private async Task<SpecimenType> GetOrThrowAsync(Guid id, CancellationToken ct) =>
-        await repository.GetTypeAsync(id, ct) ?? throw new NotFoundException($"Specimen type '{id}' was not found.");
+        await repository.GetTypeAsync(id, ct) ?? throw new NotFoundException($"Sample type '{id}' was not found.");
 
     private async Task<SpecimenTypeResponse> ResponseAsync(SpecimenType type, CancellationToken ct) =>
         SpecimenMapper.ToResponse(type, (await repository.GetTypesInUseAsync([type.Id], ct)).Contains(type.Id));
@@ -130,4 +136,8 @@ public static class SpecimenSetupRules
     public static IRuleBuilderOptions<T, int> Turnaround<T>(this IRuleBuilder<T, int> rule) =>
         rule.InclusiveBetween(SpecimenType.MinTurnaroundDays, SpecimenType.MaxTurnaroundDays)
             .WithMessage($"The expected turnaround must be {SpecimenType.MinTurnaroundDays} to {SpecimenType.MaxTurnaroundDays} days.");
+
+    /// <summary>A SNOMED CT code (MC13): optional, 6 to 18 digits, never looked up.</summary>
+    public static IRuleBuilderOptions<T, string?> SnomedCode<T>(this IRuleBuilder<T, string?> rule) =>
+        rule.Must(Lab.Tests.LabTestRules.IsSnomedCode).WithMessage(Lab.Tests.LabTestRules.SnomedMessage);
 }

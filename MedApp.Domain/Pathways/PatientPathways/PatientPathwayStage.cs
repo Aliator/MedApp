@@ -69,6 +69,12 @@ public sealed class PatientPathwayStage
     public Guid? ResultEnteredByUserId { get; set; }
     public DateTime? ResultEnteredAtUtc { get; set; }
 
+    /// <summary>
+    /// The lab cases that belong to it (MC16: a lab stage has one open case at a time, and keeps the ones before),
+    /// loaded with a pathway read on its own (not in lists).
+    /// </summary>
+    public List<MedApp.Domain.Lab.LabCase> LabCases { get; set; } = [];
+
     /// <summary>The addable branch (MC10) that added it, or null for a stage from the template.</summary>
     public Guid? BranchAdditionId { get; set; }
 

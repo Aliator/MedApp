@@ -13,9 +13,12 @@ public sealed class DeletePatientHandler(
     IActivityLog activityLog,
     IAttachmentRepository attachments,
     MedApp.Application.Results.Repositories.IResultRepository results,
-    MedApp.Application.DataRequests.Repositories.IDataRequestRepository dataRequests)
+    MedApp.Application.DataRequests.Repositories.IDataRequestRepository dataRequests,
+    MedApp.Application.Lab.Repositories.ILabCaseRepository labCases)
     : IRequestHandler<DeletePatientCommand, bool>
 {
+    public const string HasLabCasesMessage = "This patient has lab cases, so they can't be deleted.";
+
     public async Task<bool> Handle(DeletePatientCommand request, CancellationToken cancellationToken)
     {
         var patient = await repository.GetByIdAsync(request.Id, cancellationToken);
@@ -50,6 +53,10 @@ public sealed class DeletePatientHandler(
         if (resultCount > 0)
             throw new ConflictException(
                 $"This patient has {resultCount} result{(resultCount == 1 ? "" : "s")}, so they can't be deleted.");
+
+        // So do lab cases (a hospital's has no pathway: MC18).
+        if (await labCases.AnyForPatientAsync(request.Id, cancellationToken))
+            throw new ConflictException(HasLabCasesMessage);
 
         // So do data requests: the record of how the patient's right of access was answered.
         var dataRequestCount = await dataRequests.CountForPatientAsync(request.Id, cancellationToken);

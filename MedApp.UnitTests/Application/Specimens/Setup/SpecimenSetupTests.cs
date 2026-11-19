@@ -91,68 +91,33 @@ public sealed class SpecimenTypeHandlersTests : SpecimenTestBase
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    [Test]
+    public async Task CreateAndUpdate_KeepTheSnomedCode_Trimmed()
+    {
+        SpecimenType? added = null;
+        Repository.Setup(r => r.AddTypeAsync(It.IsAny<SpecimenType>(), It.IsAny<CancellationToken>()))
+            .Callback((SpecimenType t, CancellationToken _) => added = t);
+
+        var response = await Handlers.Handle(new CreateSpecimenTypeCommand("Urine", 2, " 122575003 "), Cts.Token);
+
+        added!.SnomedCode.Should().Be("122575003");
+        response.SnomedCode.Should().Be("122575003");
+    }
+
+    [TestCase("12345")]
+    [TestCase("abc123456")]
+    [TestCase("1234567890123456789")]
+    public void Validator_ASnomedCodeThatIsNot6To18Digits_IsRefused(string code)
+    {
+        new CreateSpecimenTypeValidator().Validate(new CreateSpecimenTypeCommand("Urine", 2, code)).Errors
+            .Should().ContainSingle(e => e.ErrorMessage == "A SNOMED CT code is 6 to 18 digits.");
+    }
+
     [TestCase(0)]
     [TestCase(91)]
     public void Validator_TurnaroundOutside1To90_IsRefused(int days)
     {
         new CreateSpecimenTypeValidator().Validate(new CreateSpecimenTypeCommand("Urine", days)).IsValid.Should().BeFalse();
         new UpdateSpecimenTypeValidator().Validate(new UpdateSpecimenTypeCommand(Guid.NewGuid(), " ", 5)).IsValid.Should().BeFalse();
-    }
-}
-
-[TestFixture]
-public sealed class LaboratoryHandlersTests : SpecimenTestBase
-{
-    private LaboratoryHandlers Handlers => new(Repository.Object, Clock);
-
-    [Test]
-    public async Task CreateUpdateArchive_Work()
-    {
-        Laboratory? added = null;
-        Repository.Setup(r => r.AddLaboratoryAsync(It.IsAny<Laboratory>(), Cts.Token)).Callback((Laboratory l, CancellationToken _) => added = l);
-        Repository.Setup(r => r.GetLaboratoriesInUseAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new HashSet<Guid>());
-
-        await Handlers.Handle(new CreateLaboratoryCommand(" Partner lab ", false), Cts.Token);
-        added!.Name.Should().Be("Partner lab");
-
-        var updated = await Handlers.Handle(new UpdateLaboratoryCommand(InHouse.Id, "Centre lab", false), Cts.Token);
-        updated.Should().BeEquivalentTo(new { Name = "Centre lab", UsesMedApp = false });
-
-        (await Handlers.Handle(new SetLaboratoryArchivedCommand(InHouse.Id, true), Cts.Token)).IsArchived.Should().BeTrue();
-    }
-
-    [Test]
-    public async Task Create_NameTaken_Throws409()
-    {
-        Repository.Setup(r => r.LaboratoryNameExistsAsync(InHouseLabName, null, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-
-        var act = () => Handlers.Handle(new CreateLaboratoryCommand(InHouseLabName, true), Cts.Token);
-
-        await act.Should().ThrowAsync<ConflictException>();
-    }
-
-    [Test]
-    public async Task Delete_InUse_Throws409()
-    {
-        Repository.Setup(r => r.GetLaboratoriesInUseAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new HashSet<Guid> { InHouse.Id });
-
-        var act = () => Handlers.Handle(new DeleteLaboratoryCommand(InHouse.Id), Cts.Token);
-
-        await act.Should().ThrowAsync<ConflictException>().WithMessage(LaboratoryHandlers.InUse(InHouse));
-    }
-
-    [Test]
-    public async Task Get_ListsThem()
-    {
-        Repository.Setup(r => r.GetLaboratoriesAsync(false, It.IsAny<CancellationToken>())).ReturnsAsync([InHouse]);
-        Repository.Setup(r => r.GetLaboratoriesInUseAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync(new HashSet<Guid>());
-
-        (await Handlers.Handle(new GetLaboratoriesQuery(false), Cts.Token)).Should().ContainSingle(l => l.Name == InHouseLabName);
-    }
-
-    [Test]
-    public void Validator_NameTooLong_IsRefused()
-    {
-        new CreateLaboratoryValidator().Validate(new CreateLaboratoryCommand(new string('x', 201), false)).IsValid.Should().BeFalse();
     }
 }

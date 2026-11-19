@@ -145,7 +145,7 @@ public sealed class ResultMapperAndNotificationTests
 
         var ready = ResultNotifications.Ready(result, SpecimensTestConstants.LabStaff, Now)!;
         ready.Title.Should().Be(ResultNotifications.ReadyTitle);
-        ready.Message.Should().Be($"{OtherUsername} reported a {SpecimensTestConstants.BiopsyName} specimen.");
+        ready.Message.Should().Be($"{OtherUsername} reported a {SpecimensTestConstants.BiopsyName} sample.");
         ready.Message.Should().NotContain(result.Patient.FirstName).And.NotContain(SpecimensTestConstants.Number);
         Notification.HasFixedTitle(ready.Kind).Should().BeTrue();
         Notification.HasFixedTitle(NotificationKind.ResultReassigned).Should().BeTrue();

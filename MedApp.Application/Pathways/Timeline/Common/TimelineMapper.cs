@@ -179,6 +179,13 @@ public static class TimelineMapper
                 Specimen(response, entry.Action, details, isAdmin ? row.Specimen : null);
                 break;
 
+            // A lab case's entries (MC15): its number, and a step's name and outcome (admin-written or fixed words);
+            // never the results or a detail typed, which the details don't hold.
+            case >= LabCaseOpened and <= LabCaseEnteredInError:
+                response.SpecimenNumber = Text(details, "number");
+                response.ToStatus = Text(details, "outcome") ?? Text(details, "step");
+                break;
+
             case >= ResultRecorded and <= ResultEnteredInError:
                 Result(response, entry.Action, details, isAdmin ? row.Result : null);
                 break;

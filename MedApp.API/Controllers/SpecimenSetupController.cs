@@ -1,6 +1,9 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Lab.Tests;
 using MedApp.Application.Specimens.Setup;
+using MedApp.Contracts.Lab.Requests;
+using MedApp.Contracts.Lab.Responses;
 using MedApp.Contracts.Specimens.Requests;
 using MedApp.Contracts.Specimens.Responses;
 using MediatR;
@@ -9,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedApp.API.Controllers;
 
 /// <summary>
-/// Specimen types and labs: organisation-wide setup, which holders of ManageSetup keep and everyone reads (UseApp).
+/// Specimen types and lab tests (MC13; the external labs list was dropped): organisation-wide setup, which holders of ManageSetup keep and everyone reads (UseApp).
 /// One a specimen has used is archived, not deleted (it can't be chosen again, and specimens that name it keep it),
 /// and restored.
 /// </summary>
@@ -19,7 +22,7 @@ namespace MedApp.API.Controllers;
 public sealed class SpecimenSetupController(IMediator mediator) : ControllerBase
 {
     private const string TypesTag = "Specimen types";
-    private const string LabsTag = "Laboratories";
+    private const string LabTestsTag = "Lab tests";
 
     /// <summary>Every specimen type by name; archived ones only with <c>includeArchived</c>.</summary>
     [HttpGet("specimen-types")]
@@ -36,7 +39,7 @@ public sealed class SpecimenSetupController(IMediator mediator) : ControllerBase
     [Tags(TypesTag)]
     public async Task<IActionResult> CreateType([FromBody] SpecimenTypeRequest request, CancellationToken ct)
     {
-        var type = await mediator.Send(new CreateSpecimenTypeCommand(request.Name, request.ExpectedTurnaroundDays), ct);
+        var type = await mediator.Send(new CreateSpecimenTypeCommand(request.Name, request.ExpectedTurnaroundDays, request.SnomedCode), ct);
         return Created($"/api/specimen-types/{type.Id}", type);
     }
 
@@ -48,7 +51,7 @@ public sealed class SpecimenSetupController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [Tags(TypesTag)]
     public async Task<IActionResult> UpdateType(Guid id, [FromBody] SpecimenTypeRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateSpecimenTypeCommand(id, request.Name, request.ExpectedTurnaroundDays), ct));
+        Ok(await mediator.Send(new UpdateSpecimenTypeCommand(id, request.Name, request.ExpectedTurnaroundDays, request.SnomedCode), ct));
 
     [HttpPost("specimen-types/{id:guid}/archive")]
     [RequirePermission(Permission.ManageSetup)]
@@ -79,61 +82,62 @@ public sealed class SpecimenSetupController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Every lab by name; archived ones only with <c>includeArchived</c>.</summary>
-    [HttpGet("laboratories")]
-    [ProducesResponseType(typeof(IReadOnlyList<LaboratoryResponse>), StatusCodes.Status200OK)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> GetLaboratories([FromQuery] bool includeArchived, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetLaboratoriesQuery(includeArchived), ct));
+    /// <summary>Every lab test by name, with its steps; archived ones only with <c>includeArchived</c> (MC13).</summary>
+    [HttpGet("lab-tests")]
+    [ProducesResponseType(typeof(IReadOnlyList<LabTestResponse>), StatusCodes.Status200OK)]
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> GetLabTests([FromQuery] bool includeArchived, CancellationToken ct) =>
+        Ok(await mediator.Send(new GetLabTestsQuery(includeArchived), ct));
 
-    [HttpPost("laboratories")]
+    [HttpPost("lab-tests")]
     [RequirePermission(Permission.ManageSetup)]
-    [ProducesResponseType(typeof(LaboratoryResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(LabTestResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> CreateLaboratory([FromBody] LaboratoryRequest request, CancellationToken ct)
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> CreateLabTest([FromBody] LabTestRequest request, CancellationToken ct)
     {
-        var laboratory = await mediator.Send(new CreateLaboratoryCommand(request.Name, request.UsesMedApp), ct);
-        return Created($"/api/laboratories/{laboratory.Id}", laboratory);
+        var test = await mediator.Send(new CreateLabTestCommand(request), ct);
+        return Created($"/api/lab-tests/{test.Id}", test);
     }
 
-    [HttpPut("laboratories/{id:guid}")]
+    /// <summary>Changes a test: its fields, and its steps by position (a step kept in its place keeps its ID).</summary>
+    [HttpPut("lab-tests/{id:guid}")]
     [RequirePermission(Permission.ManageSetup)]
-    [ProducesResponseType(typeof(LaboratoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LabTestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> UpdateLaboratory(Guid id, [FromBody] LaboratoryRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new UpdateLaboratoryCommand(id, request.Name, request.UsesMedApp), ct));
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> UpdateLabTest(Guid id, [FromBody] LabTestRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new UpdateLabTestCommand(id, request), ct));
 
-    [HttpPost("laboratories/{id:guid}/archive")]
+    [HttpPost("lab-tests/{id:guid}/archive")]
     [RequirePermission(Permission.ManageSetup)]
-    [ProducesResponseType(typeof(LaboratoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LabTestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> ArchiveLaboratory(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetLaboratoryArchivedCommand(id, true), ct));
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> ArchiveLabTest(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetLabTestArchivedCommand(id, true), ct));
 
-    [HttpPost("laboratories/{id:guid}/restore")]
+    [HttpPost("lab-tests/{id:guid}/restore")]
     [RequirePermission(Permission.ManageSetup)]
-    [ProducesResponseType(typeof(LaboratoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LabTestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> RestoreLaboratory(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetLaboratoryArchivedCommand(id, false), ct));
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> RestoreLabTest(Guid id, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetLabTestArchivedCommand(id, false), ct));
 
-    /// <summary>Deletes a lab no specimen was sent to; a used one is a 409 (archive it instead).</summary>
-    [HttpDelete("laboratories/{id:guid}")]
+    /// <summary>Deletes a test no lab case or sample has used; a used one is a 409 (archive it instead).</summary>
+    [HttpDelete("lab-tests/{id:guid}")]
     [RequirePermission(Permission.ManageSetup)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [Tags(LabsTag)]
-    public async Task<IActionResult> DeleteLaboratory(Guid id, CancellationToken ct)
+    [Tags(LabTestsTag)]
+    public async Task<IActionResult> DeleteLabTest(Guid id, CancellationToken ct)
     {
-        await mediator.Send(new DeleteLaboratoryCommand(id), ct);
+        await mediator.Send(new DeleteLabTestCommand(id), ct);
         return NoContent();
     }
 }

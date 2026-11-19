@@ -35,21 +35,39 @@ public sealed class Specimen
     public Guid TeamId { get; set; }
     public Patient Patient { get; set; } = null!;
 
-    /// <summary>The pathway whose stage took it.</summary>
-    public Guid PathwayId { get; init; }
-    public PatientPathway Pathway { get; set; } = null!;
+    /// <summary>Where it came from (MC14): a clinic's pathway, or the hospital (MC18). Stored by number.</summary>
+    public SpecimenSource Source { get; init; }
+
+    /// <summary>The clinic that asked for it (a clinic sample's pathway team); null for the hospital's.</summary>
+    public Guid? RequestingTeamId { get; init; }
+    public MedApp.Domain.Teams.Team? RequestingTeam { get; set; }
+
+    /// <summary>The hospital that sent it and the request it came with (MC18); null for a clinic's. No foreign key yet.</summary>
+    public Guid? HospitalId { get; init; }
+
+    public Guid? HospitalRequestId { get; init; }
+
+    /// <summary>The test asked for, from the lab's catalogue (MC13), if one was chosen (never chosen for the clinician).</summary>
+    public Guid? LabTestId { get; set; }
+    public MedApp.Domain.Lab.LabTest? LabTest { get; set; }
+
+    /// <summary>The lab case it's in (MC15), once the lab has it; null until then, or after its case was entered in error.</summary>
+    public Guid? LabCaseId { get; set; }
+    public MedApp.Domain.Lab.LabCase? LabCase { get; set; }
+
+    /// <summary>The pathway whose stage took it; null for a hospital sample.</summary>
+    public Guid? PathwayId { get; init; }
+    public PatientPathway? Pathway { get; set; }
 
     /// <summary>
-    /// The stage that took it. No foreign key: a pathway's stages go only with the pathway, which can't be deleted while
-    /// it has specimens.
+    /// The stage that took it (null for a hospital sample). No foreign key: a pathway's stages go only with the pathway,
+    /// which can't be deleted while it has specimens.
     /// </summary>
-    public Guid StageId { get; init; }
+    public Guid? StageId { get; init; }
 
     public Guid SpecimenTypeId { get; set; }
     public SpecimenType SpecimenType { get; set; } = null!;
 
-    public Guid LaboratoryId { get; set; }
-    public Laboratory Laboratory { get; set; } = null!;
 
     /// <summary>Where on the patient it was taken from ("left forearm"), if given. Free text.</summary>
     public string? Site { get; set; }

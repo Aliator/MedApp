@@ -21,10 +21,13 @@ public sealed class DeletePatientPathwayHandler(
     ISpecimenRepository specimens,
     MedApp.Application.Results.Repositories.IResultRepository results,
     IConsentRepository consents,
+    MedApp.Application.Lab.Repositories.ILabCaseRepository labCases,
     IPathwayMonitor pathwayMonitor,
     TimeProvider timeProvider)
     : IRequestHandler<DeletePatientPathwayCommand>
 {
+    public const string HasLabCasesMessage = "This pathway has lab cases, so it can't be deleted.";
+
     public async Task Handle(DeletePatientPathwayCommand request, CancellationToken cancellationToken)
     {
         var pathway = await repository.GetForUpdateOrThrowAsync(request.Id, boundary, request.Actor.Teams, cancellationToken);
@@ -49,6 +52,10 @@ public sealed class DeletePatientPathwayHandler(
         if (specimenCount > 0)
             throw new ConflictException(
                 $"This pathway has {specimenCount} specimen{(specimenCount == 1 ? "" : "s")}, so it can't be deleted.");
+
+        // So are its lab cases (MC15), even one still waiting for its sample.
+        if (await labCases.AnyForPathwayAsync(pathway.Id, cancellationToken))
+            throw new ConflictException(HasLabCasesMessage);
 
         var resultCount = await results.CountForPathwayAsync(pathway.Id, cancellationToken);
         if (resultCount > 0)

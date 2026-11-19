@@ -62,6 +62,27 @@ public static class PatientSearch
     }
 
     /// <summary>
+    /// MC18: a patient whose only link is a hospital's lab case is hidden from everyone but the lab and admins
+    /// (<paramref name="hide"/>), until they have a pathway, a referral or an appointment. Four <c>EXISTS</c> in SQL.
+    /// </summary>
+    public static IQueryable<Patient> HospitalOnlyHidden(
+        this IQueryable<Patient> patients,
+        bool hide,
+        IQueryable<PatientPathway> pathways,
+        IQueryable<Referral> referrals,
+        IQueryable<Appointment> appointments,
+        IQueryable<MedApp.Domain.Lab.LabCase> labCases)
+    {
+        if (!hide)
+            return patients;
+
+        return patients.Where(p => !labCases.Any(c => c.PatientId == p.Id && c.Source == MedApp.Domain.Specimens.SpecimenSource.Hospital)
+                                   || pathways.Any(x => x.PatientId == p.Id)
+                                   || referrals.Any(x => x.PatientId == p.Id)
+                                   || appointments.Any(x => x.PatientId == p.Id));
+    }
+
+    /// <summary>
     /// Sorts by name (last, then first; the default), date of birth or email. Ties are broken by ID, so paging
     /// never shows a row twice or skips one.
     /// </summary>
