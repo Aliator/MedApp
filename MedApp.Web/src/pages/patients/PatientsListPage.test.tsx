@@ -42,7 +42,7 @@ describe('PatientsListPage', () => {
     const {fetch} = renderList({page: 2, sort: 'DateOfBirth', asc: false, last: 'Ahmed', dobFrom: '1970-01-01', dobTo: '1979-12-31'});
 
     await screen.findByText('Freya Ahmed');
-    expect(calls(fetch)).toEqual([
+    expect(calls(fetch).filter((c) => c.startsWith('GET /api/patients'))).toEqual([
       'GET /api/patients/search?PageSize=10&Page=2&Sort=dateOfBirth&Ascending=false&LastName=Ahmed&DateOfBirthFrom=1970-01-01&DateOfBirthTo=1979-12-31',
     ]);
     expect(screen.getByText('60 matching patients')).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('PatientsListPage', () => {
     expect(await screen.findByText('999 000 0018')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: 'NHS Number'})).toBeInTheDocument();
     expect(screen.getAllByRole('row')[2]).toHaveTextContent('—');
-    expect(calls(fetch)).toEqual(['GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&NhsNumber=999000']);
+    expect(calls(fetch).filter((c) => c.startsWith('GET /api/patients'))).toEqual(['GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&NhsNumber=999000']);
     expect(searchBar()).toHaveTextContent(/NHS number: contains\s*999 000/);
     expect(screen.getByText('1 matching patient')).toBeInTheDocument();
   });
@@ -132,5 +132,21 @@ describe('PatientsListPage', () => {
     renderWithApp(<PatientsListPage search={{}} onSearchChange={() => {}} />, {user: adminUser});
 
     await findAlert('The patients could not be loaded');
+  });
+
+  it('offers an admin the clinic picker, asking for the patients with something in the clinic picked', async () => {
+    const dermatology = '000000d1-0000-4000-8000-000000000001';
+    const fetch = mockApi({
+      'GET /api/patients/search': () => json(pageOf([freya], 1)),
+      'GET /api/teams': () => json([{id: dermatology, name: 'Dermatology', isArchived: false}]),
+    });
+    const onSearchChange = vi.fn();
+    const {user} = renderWithApp(<PatientsListPage search={{clinic: dermatology}} onSearchChange={onSearchChange} />, {path: '/patients', user: adminUser});
+
+    expect(await screen.findByText('1 patient in Dermatology')).toBeInTheDocument();
+    expect(calls(fetch)).toContain(`GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&TeamId=${dermatology}`);
+    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
+    await user.click(screen.getByRole('option', {name: 'All clinics'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({clinic: undefined, page: undefined});
   });
 });

@@ -14,6 +14,7 @@ import {AvatarCell} from '../../components/tables/AvatarCell';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {dayFromToday, ListFilterBar, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {ageOn, formatShortDate} from '../../utils/dates';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
@@ -42,8 +43,11 @@ export interface PatientsListPageProps {
  * Patients list (replaces Blazor's PatientsTable): one page of patients from the API, sortable, with a power
  * search and links to view, edit and add. The page, sort and filters live in the URL.
  */
-/** The list's page of patients, for its search and page size (the route's loader fetches it too). */
-export function patientsListQuery(search: PatientsListSearch, pageSize: number) {
+/**
+ * The list's page of patients, for its search, page size and the clinic picker's team (patients with a pathway,
+ * referral or appointment there). The route's loader fetches it too.
+ */
+export function patientsListQuery(search: PatientsListSearch, pageSize: number, teamId?: string) {
   return patientSearchQuery({
     Page: search.page ?? 1,
     PageSize: pageSize,
@@ -56,6 +60,7 @@ export function patientsListQuery(search: PatientsListSearch, pageSize: number) 
     DateOfBirthTo: search.dobTo,
     // Spaces mean nothing in an NHS number (the API ignores them too), so they aren't sent.
     NhsNumber: search.nhs ? normaliseNhsNumber(search.nhs) : undefined,
+    TeamId: teamId,
   });
 }
 
@@ -66,14 +71,15 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const page = search.page ?? 1;
   const sortColumn: PatientSortColumn = search.sort ?? 'Patients';
   const ascending = search.asc ?? true;
+  const clinic = useClinicPicker('patients', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
   const isFiltered = hasPatientFilters(search);
 
-  const {data, isPending, isError} = useQuery(patientsListQuery(search, pageSize));
+  const {data, isPending, isError} = useQuery(patientsListQuery(search, pageSize, clinic.teamId));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PatientRow[];
 
-  /** Keeps the sort; any change to the filters goes back to page 1. */
-  const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc});
+  /** Keeps the sort and the clinic; any change to the filters goes back to page 1. */
+  const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc, clinic: search.clinic});
 
   const columns: DataTableColumn<PatientRow>[] = [
     {
@@ -134,9 +140,9 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
     ? 'Loading patients...'
     : isFiltered
       ? `${total} matching ${total === 1 ? 'patient' : 'patients'}`
-      : `${total} ${total === 1 ? 'patient' : 'patients'} registered`;
+      : `${total} ${total === 1 ? 'patient' : 'patients'} ${clinic.teamName ? `in ${clinic.teamName}` : 'registered'}`;
 
-  const noPatientsAtAll = !isPending && !isError && !isFiltered && total === 0;
+  const noPatientsAtAll = !isPending && !isError && !isFiltered && !clinic.teamId && total === 0;
 
   return (
     <Page
@@ -144,7 +150,12 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       subtitle={subtitle}
       fill
       message={isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
-      actions={canAdd && <Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />}>
+      actions={
+        <HStack gap={2} vAlign="center">
+          {clinic.picker}
+          {canAdd && <Button label="Add Patient" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/patients/add" />}
+        </HStack>
+      }>
       {noPatientsAtAll ? (
         <EmptyState
           title="No patients yet"

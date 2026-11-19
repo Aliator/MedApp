@@ -19,9 +19,11 @@ import {
   ensureCanWorkStage,
   grantStageOwner,
   insightsTeams,
+  isPickedTeam,
   labTeamId,
   myScope,
   notYourTeams,
+  pickedTeam,
   refuseAcrossWall,
   stageTeamOf,
   type TeamScope,
@@ -537,11 +539,13 @@ export function registerPathways() {
     const started = flag(query, 'Started');
     const search = query.get('Search');
     const scope = myScope();
+    const picked = pickedTeam(query, scope);
     const view = VIEWS[query.get('View') ?? ''];
     if (query.get('View') && !view) return invalid({View: ['Choose OurTurn, NewForUs, AwaitingLab or BackFromLab.']});
     const items = db().pathways.filter(
       (p) =>
         canSeePathway(p, scope) &&
+        isPickedTeam(p.teamId, picked) &&
         (!view || view(p, scope)) &&
         (includeClosed || isOpen(p)) &&
         (statuses.length === 0 || statuses.includes(p.status)) &&
@@ -897,7 +901,7 @@ export function registerPathways() {
 
   registerSetupOfPathways();
 
-  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('TeamId')));
+  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), pickedTeam(query)));
 }
 
 /**

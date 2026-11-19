@@ -4,11 +4,16 @@ import {PathwaysListPage} from '../../../pages/pathways/PathwaysListPage';
 import {preload} from '../../../api/preload';
 import {listSettingsFor} from '../../../app/listSettings';
 import {pathwaysListQuery} from '../../../pages/pathways/PathwaysListPage';
+import {clinicFor} from '../../../components/teams/ClinicPicker';
 
 export const Route = createFileRoute('/_app/pathways/')({
   validateSearch: parsePathwaysSearch,
   loaderDeps: ({search}) => search,
-  loader: ({context, deps}) => preload(context.queryClient, pathwaysListQuery(deps, listSettingsFor(context.queryClient))),
+  loader: ({context, deps}) =>
+    preload(
+      context.queryClient,
+      pathwaysListQuery(deps, listSettingsFor(context.queryClient), undefined, clinicFor(context.queryClient, 'pathways', deps.clinic)),
+    ),
   component: PathwaysRoute,
 });
 

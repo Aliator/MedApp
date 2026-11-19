@@ -4,6 +4,7 @@ import {listSettingsFor} from '../../../app/listSettings';
 import {requirePermission, whoamiQuery} from '../../../auth/auth';
 import {LettersPage} from '../../../pages/letters/LettersPage';
 import {defaultLetterView, lettersListQuery, parseLettersSearch} from '../../../pages/letters/lettersSearch';
+import {clinicFor} from '../../../components/teams/ClinicPicker';
 
 /** Letters: the views of letters to write, approve and send, for anyone who can view patients. */
 export const Route = createFileRoute('/_app/letters/')({
@@ -13,7 +14,8 @@ export const Route = createFileRoute('/_app/letters/')({
   loader: ({context, deps}) => {
     const permissions = context.queryClient.getQueryData(whoamiQuery.queryKey)?.permissions ?? [];
     const view = deps.view ?? defaultLetterView(permissions);
-    return preload(context.queryClient, lettersListQuery(view, deps, listSettingsFor(context.queryClient).pageSize));
+    const teamId = clinicFor(context.queryClient, 'letters', deps.clinic);
+    return preload(context.queryClient, lettersListQuery(view, deps, listSettingsFor(context.queryClient).pageSize, teamId));
   },
   component: function LettersRoute() {
     const navigate = Route.useNavigate();

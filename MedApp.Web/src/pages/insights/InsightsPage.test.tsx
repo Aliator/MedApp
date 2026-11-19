@@ -175,7 +175,7 @@ describe('InsightsPage', () => {
   });
 
   it('on a team, asks for its insights, names it, links to its pathways and offers only its templates', async () => {
-    const {fetch, user} = renderInsights({team: TEAM_ID});
+    const {fetch, user} = renderInsights({clinic: TEAM_ID});
 
     expect(await screen.findByText('31 Aug 2026 to 16 Nov 2026, Biomechanics, all templates')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12&TeamId=${TEAM_ID}`);
@@ -189,18 +189,21 @@ describe('InsightsPage', () => {
     const {user, onSearchChange} = renderInsights({template: TEMPLATE_ID});
 
     await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review');
-    await user.click(screen.getByRole('combobox', {name: /Team/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Allergy (archived)', 'Biomechanics']);
+    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All clinics', 'Allergy (archived)', 'Biomechanics']);
     await user.click(screen.getByRole('option', {name: 'Biomechanics'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, team: TEAM_ID});
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, clinic: TEAM_ID});
+    // Remembered for the page, with the account.
+    expect(localStorage.getItem('medapp.clinicPicker.insights')).toBe(TEAM_ID);
 
-    await user.click(screen.getByRole('combobox', {name: /Team/}));
+    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
     await user.click(screen.getByRole('option', {name: 'Allergy (archived)'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: undefined, team: OTHER_TEAM_ID});
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: undefined, clinic: OTHER_TEAM_ID});
 
-    await user.click(screen.getByRole('combobox', {name: /Team/}));
-    await user.click(screen.getByRole('option', {name: 'All teams'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, team: undefined});
+    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
+    await user.click(screen.getByRole('option', {name: 'All clinics'}));
+    expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, clinic: undefined});
+    expect(localStorage.getItem('medapp.clinicPicker.insights')).toBeNull();
   });
 
   it("gives each template's stages a chart of their own when there are several", async () => {

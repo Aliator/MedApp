@@ -7,7 +7,7 @@ import {db} from '../store';
 import {daysFrom, nowUtc, today, ukDateOf} from '../time';
 import {can, contains, me, NO_FLAGS, paged, pathwayPatient, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {pathwayToChange} from './pathways';
-import {canSeeRecord, myScope, seeRecord} from './teamWalls';
+import {canSeeRecord, isPickedTeam, myScope, pickedTeam, seeRecord} from './teamWalls';
 
 /**
  * Letter templates and letters, with simplified rules from the API's `LetterWorkflow`: a draft is its author's alone,
@@ -505,9 +505,11 @@ export function registerLetters() {
     const search = query.get('Search')?.trim() ?? '';
     if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
     const scope = myScope();
+    const picked = pickedTeam(query, scope);
     let letters = db().letters.filter(
       (l) =>
         canSeeRecord(l, scope) &&
+        isPickedTeam(l.teamId, picked) &&
         (!patientId || l.patientId === patientId) &&
         (!pathwayId || l.pathwayId === pathwayId) &&
         (!referralId || l.referralId === referralId) &&
