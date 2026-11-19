@@ -1194,7 +1194,7 @@ function noteDeletionRequestResponse(request: DemoNoteDeletionRequest): Schemas[
 }
 
 const VISITS = ['None', 'Suggested', 'Required'];
-const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other'];
+const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other', 'OnwardReferral'];
 
 /** A stage definition as the stage library shows it, with how many templates use it. */
 function definitionResponse(definition: DemoStageDefinition): Schemas['PatientPathwayStageDefinitionResponse'] {

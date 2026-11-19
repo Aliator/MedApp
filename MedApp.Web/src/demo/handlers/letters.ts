@@ -17,10 +17,10 @@ import {canSeeRecord, isPickedTeam, myScope, pickedTeam, seeRecord} from './team
  * made. Merge fields are the API's fixed list, identity and administrative only, never a clinical value.
  */
 
-const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other'];
+const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralResponse', 'InformationRequest', 'AppointmentLetter', 'Other', 'OnwardReferral'];
 const REFERRAL_KINDS = ['ReferralResponse', 'InformationRequest'];
 const RECORDED_METHODS = ['Post', 'HandedToPatient', 'EmailOutsideMedApp', 'Other'];
-const RECIPIENT_KINDS: DemoLetterRecipient['kind'][] = ['GpPractice', 'Patient', 'Referrer', 'Other'];
+const RECIPIENT_KINDS: DemoLetterRecipient['kind'][] = ['GpPractice', 'Patient', 'Referrer', 'Other', 'Hospital'];
 const MAX_RECIPIENTS = 10;
 const MAX_BODY = 20000;
 const MAX_PLAIN = 1000;
@@ -91,6 +91,7 @@ const KIND_WORDS: Record<string, string> = {
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
+  OnwardReferral: 'Onward referral',
 };
 
 /** A letter kind in a message, starting lower case: "discharge summary" (`LetterWorkflow.KindInMessage`). */
@@ -393,8 +394,10 @@ function recipientsFrom(letter: DemoLetter, requests: Schemas['LetterRecipientRe
       }
       default: {
         const errors: Record<string, string[]> = {};
-        if (!request.name?.trim()) errors.name = ['Name is required for another recipient.'];
-        if (!request.addressLines?.trim()) errors.addressLines = ['Address is required for another recipient.'];
+        // A hospital (MC28) is typed in, as someone else is.
+        const who = kind === 'Hospital' ? 'a hospital' : 'another recipient';
+        if (!request.name?.trim()) errors.name = [`Name is required for ${who}.`];
+        if (!request.addressLines?.trim()) errors.addressLines = [`Address is required for ${who}.`];
         if (Object.keys(errors).length > 0) refuse(invalid(errors));
         return blankRecipient({
           kind,

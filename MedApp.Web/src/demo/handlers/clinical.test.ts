@@ -75,15 +75,17 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect((await call('GET', '/api/letters/count')).body.toSend).toBe(0);
   });
 
-  it('keeps the referral stage unfinished until its letter is approved and sent to everyone', async () => {
+  it('keeps the referral stage unfinished until its onward referral is approved and sent to everyone', async () => {
     startLightDemo(STAFF);
     const pathway = pathwayOf(PATHWAYS.referredToHospital);
     const stage = stageNamed(PATHWAYS.referredToHospital, 'Refer to hospital');
-    expect(clinicalGate(pathway, stage)).toMatch(/needs a clinic letter.*None has been written yet/);
-    const created = await call('POST', '/api/letters', {templateId: LETTER_TEMPLATES.clinicLetter, pathwayId: pathway.id});
-    expect(created.status).toBe(201);
-    expect(clinicalGate(pathway, stage)).toMatch(/still a draft/);
-    const approved = (await call('POST', `/api/letters/${created.body.id}/approve`, {expectedVersion: 1})).body;
+    // Harriet Quill's onward referral to the hospital is seeded as n.thornbury's draft (MC28); a clinic letter doesn't count.
+    expect(clinicalGate(pathway, stage)).toMatch(/needs an onward referral.*still a draft/);
+    expect((await call('POST', '/api/letters', {templateId: LETTER_TEMPLATES.clinicLetter, pathwayId: pathway.id})).status).toBe(201);
+    const draft = (await call('GET', `/api/letters/${LETTERS.onwardReferral}`)).body;
+    expect(draft).toMatchObject({kind: 'OnwardReferral', templateName: 'Onward referral to hospital', status: 'Draft'});
+    expect(draft.recipients.map((r: {kind: string}) => r.kind)).toEqual(['Hospital', 'GpPractice']);
+    const approved = (await call('POST', `/api/letters/${draft.id}/approve`, {expectedVersion: draft.version})).body;
     expect(clinicalGate(pathway, stage)).toMatch(/not yet sent to every recipient/);
     let version = approved.version;
     for (const recipient of approved.recipients)
@@ -120,7 +122,26 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect((await call('DELETE', `/api/consent-forms/${CONSENT.adultForm}`)).status).toBe(409);
     expect((await call('DELETE', `/api/consent-forms/${CONSENT.bestInterestsForm}`)).status).toBe(204);
     expect((await call('POST', `/api/consent-forms/${CONSENT.adultForm}/archive`)).body.isArchived).toBe(true);
-    expect((await call('GET', '/api/consent-forms')).body).toHaveLength(0);
+    // The photo consent form (MC27) is left.
+    expect((await call('GET', '/api/consent-forms')).body.map((f: {id: string}) => f.id)).toEqual([CONSENT.photographyForm]);
+  });
+
+  it('keeps a photographs stage unfinished until the patient’s consent to clinical photography is valid (MC27)', async () => {
+    startLightDemo(STAFF);
+    const pathway = pathwayOf(PATHWAYS.biopsyToBook);
+    const biopsy = stageNamed(PATHWAYS.biopsyToBook, 'Take biopsy');
+    // A photographs stage (the Mole check template's Take photographs), as the gate sees it.
+    const photographs = {...biopsy, name: 'Take photographs'};
+    const records = `/api/pathways/${pathway.id}/consent-records`;
+    const base = {stageId: biopsy.id, signedOn: today(), signedBy: 'Patient'};
+    expect((await call('POST', records, {...base, consentFormId: CONSENT.adultForm})).status).toBe(201);
+    expect(clinicalGate(pathway, biopsy)).toBeNull();
+    expect(clinicalGate(pathway, photographs)).toMatch(/needs the patient's consent to clinical photography.*Clinical photography form/);
+    const photo = await call('POST', records, {...base, consentFormId: CONSENT.photographyForm});
+    expect(photo.status).toBe(201);
+    expect(clinicalGate(pathway, photographs)).toBeNull();
+    await call('POST', `/api/consent-records/${photo.body.id}/withdraw`, {withdrawnOn: today(), detail: 'Changed their mind.', expectedVersion: 1});
+    expect(clinicalGate(pathway, photographs)).toMatch(/photo consent recorded has been withdrawn/);
   });
 
   it('records an MDT outcome once the meeting has started, and tells the pathway’s assignees', async () => {

@@ -24,6 +24,7 @@ import {
   attachmentTargetKey,
   attachmentThumbnailUrl,
   useDeleteAttachment,
+  useSetClinicalPhoto,
   type Attachment,
   type AttachmentKind,
   type AttachmentTarget,
@@ -95,7 +96,9 @@ export interface AttachmentsProps {
  * (pictures) or its type's icon, its name, type, size, who attached it and when, and whether it was scanned, with
  * Download and (where allowed) Delete. Holders of CorrectRecords can show deleted files too; the add area is only
  * for holders of AttachFiles. Holders of WorkPathways can record a live file on the patient, a pathway or a stage as a
- * result from elsewhere (Record as Result, `RecordResultDialog`), unless the record is locked.
+ * result from elsewhere (Record as Result, `RecordResultDialog`), unless the record is locked. A picture on a pathway can
+ * be marked as a clinical photo (MC27) where the API allows it, only with a valid photo consent; it's still shown as a
+ * thumbnail and a download.
  *
  * Files are never shown inline: Download always downloads, and only the server's small re-encoded thumbnails are
  * shown as images. Use it in a card's section, padded by its container (it lays out no padding of its own).
@@ -110,6 +113,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
   const remove = useDeleteAttachment();
+  const setPhoto = useSetClinicalPhoto();
   const targetKey = attachmentTargetKey(target);
   const targetKind = attachedToOf(target);
   const isShowingAll = canCorrectRecords && isShowingDeleted(targetKey);
@@ -120,7 +124,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
   const mine = uploads.filter((upload) => upload.targetKey === targetKey);
   const failed = mine.filter((upload) => upload.state === 'failed');
   const [toDelete, setToDelete] = useState<Attachment | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
   const [toRecord, setToRecord] = useState<Attachment | null>(null);
 
   /** A live file on the patient, a pathway or a stage can be recorded as a result from elsewhere (not a referral's letter). */
@@ -137,6 +141,25 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
     !attachment.isDeleted &&
     (canCorrectRecords || (canChange && attachment.attachedTo === targetKind));
 
+  /** A picture on a pathway can be marked as a clinical photo (the API says, `canMarkClinicalPhoto`), or unmarked. */
+  const canMarkPhoto = (attachment: Attachment) => !isLocked && !attachment.isDeleted && (attachment.canMarkClinicalPhoto ?? false);
+
+  const togglePhoto = (attachment: Attachment) => {
+    const isClinicalPhoto = !attachment.isClinicalPhoto;
+    setRowError(null);
+    setPhoto.mutate(
+      {id: attachment.id ?? '', isClinicalPhoto},
+      {
+        onSuccess: () => announce(`${attachment.fileName} ${isClinicalPhoto ? 'marked as a clinical photo' : 'no longer marked as a clinical photo'}`),
+        onError: (error) => {
+          const message = `${attachment.fileName} could not be ${isClinicalPhoto ? 'marked' : 'unmarked'}. ${problemMessage(error, 'Please try again.')}`;
+          setRowError(message);
+          announce(message);
+        },
+      },
+    );
+  };
+
   const confirmDelete = (attachment: Attachment) =>
     remove.mutate(attachment.id ?? '', {
       onSuccess: () => {
@@ -145,7 +168,7 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
       },
       onError: (error) => {
         const message = `${attachment.fileName} could not be deleted. ${problemMessage(error, 'Please try again.')}`;
-        setDeleteError(message);
+        setRowError(message);
         announce(message);
         setToDelete(null);
       },
@@ -183,10 +206,10 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
           <Button label="Dismiss" variant="ghost" size="sm" onClick={() => dismissFailed(targetKey)} />
         </VStack>
       )}
-      {deleteError && (
+      {rowError && (
         <VStack gap={2} hAlign="start">
-          <AlertMessage message={deleteError} />
-          <Button label="Dismiss" variant="ghost" size="sm" onClick={() => setDeleteError(null)} />
+          <AlertMessage message={rowError} />
+          <Button label="Dismiss" variant="ghost" size="sm" onClick={() => setRowError(null)} />
         </VStack>
       )}
       {canCorrectRecords && (
@@ -224,8 +247,9 @@ export function Attachments({target, canChange, isLocked = false, state, emptyTe
                 showsAttachedTo={targetKind === 'Patient'}
                 canDelete={canDelete(attachment)}
                 onRecordResult={canRecordAsResult(attachment) ? () => setToRecord(attachment) : undefined}
+                onTogglePhoto={canMarkPhoto(attachment) ? () => togglePhoto(attachment) : undefined}
                 onDelete={() => {
-                  setDeleteError(null);
+                  setRowError(null);
                   setToDelete(attachment);
                 }}
               />
@@ -341,13 +365,15 @@ export interface AttachmentRowProps {
   onDelete?: () => void;
   /** Record as Result, where it's offered (holders of WorkPathways, a live file); left out elsewhere. */
   onRecordResult?: () => void;
+  /** Mark or unmark it as a clinical photo (MC27), where the API allows it; left out elsewhere. */
+  onTogglePhoto?: () => void;
 }
 
 /**
  * One file: its preview, name, details and scan state, with Download and Delete. Used inside a `List`; a specimen's page
  * shows its report with it too.
  */
-export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete, onRecordResult}: AttachmentRowProps) {
+export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete, onDelete, onRecordResult, onTogglePhoto}: AttachmentRowProps) {
   const name = attachment.fileName ?? '';
   const actions = (
     <HStack gap={1} vAlign="center">
@@ -368,6 +394,15 @@ export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete,
           icon={<Icon icon={AppIcon.Results} />}
           variant="ghost"
           onClick={onRecordResult}
+        />
+      )}
+      {onTogglePhoto && (
+        <IconButton
+          label={attachment.isClinicalPhoto ? `Unmark ${name} as a clinical photo` : `Mark ${name} as a clinical photo`}
+          tooltip={attachment.isClinicalPhoto ? 'Unmark Clinical Photo' : 'Mark as Clinical Photo'}
+          icon={<Icon icon={AppIcon.FileImage} />}
+          variant="ghost"
+          onClick={onTogglePhoto}
         />
       )}
       {canDelete && (
@@ -400,6 +435,9 @@ export function AttachmentRow({attachment, isNarrow, showsAttachedTo, canDelete,
           )}
           <HStack gap={2} vAlign="center" wrap="wrap">
             {attachment.isDeleted ? <Token size="sm" label="Deleted" color="gray" /> : <ScanToken status={attachment.scanStatus} />}
+            {attachment.isClinicalPhoto && (
+              <Token size="sm" label="Clinical photo" color="purple" description="Taken with the patient's consent to clinical photography." />
+            )}
           </HStack>
           {isNarrow && actions}
         </VStack>

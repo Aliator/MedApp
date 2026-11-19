@@ -144,6 +144,20 @@ export function useDeleteAttachment() {
   });
 }
 
+/**
+ * Marks a picture on a pathway as a clinical photo, or unmarks it (`PUT api/attachments/{id}/clinical-photo`, MC27).
+ * Marking needs a valid "Clinical photography" consent on the pathway: the API refuses with a 409 saying so. A clinical
+ * photo is shown as any file is (its thumbnail, or a download), never inline at full size.
+ */
+export function useSetClinicalPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({id, isClinicalPhoto}: {id: string; isClinicalPhoto: boolean}) =>
+      unwrap(api.PUT('/api/attachments/{id}/clinical-photo', {params: {path: {id}}, body: {isClinicalPhoto}})),
+    onSuccess: () => refreshAfterAttachmentChange(queryClient),
+  });
+}
+
 /** What a failed upload says, when the server didn't say (or the browser couldn't read what it said). */
 const UPLOAD_MESSAGES: Record<number, string> = {
   0: "The file couldn't be sent. Check the connection, and that the file isn't too large, then try again.",

@@ -314,10 +314,12 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Migration** `AddedClinicalPhotoFlag`.
 - **Governance:** DPIA 48, H-76.
 - **Light demo:** files aren't in the light demo; the consent form is seeded and the reason listed.
+- **Built (demo first, 19 Nov):** `PUT api/attachments/{id}/clinical-photo` (`{isClinicalPhoto}`, 409 without a valid photo consent; `AttachmentResponse.isClinicalPhoto` and `canMarkClinicalPhoto`). Decisions: photo consent is a Valid record on the pathway on a form named "Clinical photography" (any version); a photographs stage's consent gate needs it.
 
 **MC28. Letters to the GP and the hospital** (S). ∥.
 - **Scope:** Dermatology letter templates (seeded), `LetterKind.OnwardReferral = 7` (a referral to hospital surgery), the hospital as a recipient (MC20's `Hospital = 4`).
 - **Light demo:** the templates and an onward referral letter (no PDF).
+- **Built (demo first, 19 Nov):** a stage needing a "referral letter to hospital" needs an `OnwardReferral`; a `Hospital` recipient is typed in (name and address) as Other is; Harriet Quill's onward referral seeded as a draft.
 
 **MC29. Phase 3 demo data** (M). Last.
 - **Full demo:** Dermatology patients on every route, one going to the lab and back, one at a cross-clinic MDT, one consult, photos with consent.
