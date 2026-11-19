@@ -58,6 +58,8 @@ public sealed class DeletePatientHandlerTests
         // No data requests, unless a test says otherwise.
         _dataRequests = new Mock<MedApp.Application.DataRequests.Repositories.IDataRequestRepository>();
         _fixture.Inject(_dataRequests.Object);
+        // No lab cases (MC15): a hospital-only patient's would stop the deletion.
+        _fixture.Inject(new Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository>().Object);
 
         _handler = _fixture.Create<DeletePatientHandler>();
     }

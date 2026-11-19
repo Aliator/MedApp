@@ -60,7 +60,7 @@ public sealed class MarkSpecimenReceivedHandler(
         var at = SpecimenRules.StepTime(request.AtUtc, specimen.SentAtUtc, now, "received", nameof(request.AtUtc));
 
         // The pathway with its links and lab stages' cases (tracked: the same instance the specimen holds).
-        var pathway = specimen.PathwayId is { } pathwayId ? await pathways.GetForUpdateAsync(pathwayId, cancellationToken) : null;
+        var pathway = specimen.PathwayId is { } pathwayId ? await pathways.GetForLabWorkOrThrowAsync(pathwayId, cancellationToken) : null;
         var change = new SpecimenChange(specimen, pathway, request.Actor, now);
         change.Receive(at, SpecimenRules.Optional(request.LabReference));
 

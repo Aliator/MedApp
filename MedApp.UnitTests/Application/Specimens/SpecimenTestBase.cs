@@ -189,6 +189,8 @@ public abstract class SpecimenTestBase
         Repository.Setup(r => r.GetForUpdateAsync(specimen.Id, It.IsAny<CancellationToken>())).ReturnsAsync(specimen);
         Repository.Setup(r => r.GetByIdAsync(specimen.Id, It.IsAny<CancellationToken>())).ReturnsAsync(specimen);
         Repository.Setup(r => r.GetByNumberAsync(specimen.Number, It.IsAny<CancellationToken>())).ReturnsAsync(specimen);
+        if (specimen.Pathway is { } pathway)
+            Pathways.Setup(p => p.GetForUpdateAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
         return specimen;
     }
 

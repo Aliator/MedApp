@@ -109,7 +109,7 @@ public sealed class OpenLabCaseHandler(
             throw LabCaseValidation.Invalid(nameof(request.LabTestId), TestMessage);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var pathway = sample.PathwayId is { } pathwayId ? await pathways.GetForUpdateAsync(pathwayId, cancellationToken) : null;
+        var pathway = sample.PathwayId is { } pathwayId ? await pathways.GetForLabWorkOrThrowAsync(pathwayId, cancellationToken) : null;
         var fromSameStage = sample.StageId is { } stageId
             ? await specimens.GetReceivedWithoutCaseAsync(stageId, sample.Id, cancellationToken)
             : [];
@@ -184,7 +184,7 @@ public sealed class AuthoriseLabReportHandler(
 
         var results = request.Results!.Trim();
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var pathway = labCase.PathwayId is { } pathwayId ? await pathways.GetForUpdateAsync(pathwayId, cancellationToken) : null;
+        var pathway = labCase.PathwayId is { } pathwayId ? await pathways.GetForLabWorkOrThrowAsync(pathwayId, cancellationToken) : null;
 
         var samples = labCase.Specimens.OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Number).ToList();
         foreach (var sample in samples.Where(s => s.Status == SpecimenStatus.Received))

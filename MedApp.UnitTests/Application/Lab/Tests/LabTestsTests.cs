@@ -9,7 +9,7 @@ using Moq;
 using static MedApp.UnitTests.Common.Constants.PathwaysTestConstants;
 using static MedApp.UnitTests.Common.Constants.SpecimensTestConstants;
 
-namespace MedApp.UnitTests.Application.Lab.Tests;
+namespace MedApp.UnitTests.Application.TheLab.Tests;
 
 [TestFixture]
 public sealed class LabTestHandlersTests

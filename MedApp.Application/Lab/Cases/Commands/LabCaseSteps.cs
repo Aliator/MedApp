@@ -144,7 +144,7 @@ public sealed class RecordLabOutcomeHandler(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         // The pathway with its links (tracked: the same instance the case holds), for reopening the sample's stage.
-        var pathway = labCase.PathwayId is { } pathwayId ? await pathways.GetForUpdateAsync(pathwayId, cancellationToken) : null;
+        var pathway = labCase.PathwayId is { } pathwayId ? await pathways.GetForLabWorkOrThrowAsync(pathwayId, cancellationToken) : null;
         var change = new LabCaseChange(labCase, pathway, request.Actor, now);
         change.RecordOutcome(choice, outcome, detail);
         repository.Track(change, isNew: false);

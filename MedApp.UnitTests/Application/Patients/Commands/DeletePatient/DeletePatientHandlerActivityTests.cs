@@ -31,6 +31,7 @@ public sealed class DeletePatientHandlerActivityTests
         _fixture.Inject(new Mock<IAttachmentRepository>().Object);
         _fixture.Inject(new Mock<MedApp.Application.Results.Repositories.IResultRepository>().Object);
         _fixture.Inject(new Mock<MedApp.Application.DataRequests.Repositories.IDataRequestRepository>().Object);
+        _fixture.Inject(new Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository>().Object);
     }
 
     [Test]

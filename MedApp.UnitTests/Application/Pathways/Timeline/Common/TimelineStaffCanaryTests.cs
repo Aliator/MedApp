@@ -258,7 +258,28 @@ public sealed class TimelineStaffCanaryTests
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(relayChange.AuditEntries)
             .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
             .Concat(ResultEntriesHoldingTheCanary())
-            .Concat(ConsentEntriesHoldingTheCanary()).Concat(ConsultEntriesHoldingTheCanary()).ToList();
+            .Concat(ConsentEntriesHoldingTheCanary()).Concat(ConsultEntriesHoldingTheCanary())
+            .Concat(LabCaseEntriesHoldingTheCanary()).ToList();
+    }
+
+    /// <summary>
+    /// As the lab case handlers (MC15): opened, steps and outcomes, a step and the case entered in error, the report
+    /// authorised and a repeat asked for, with the canary as the results, every detail typed and the pathway's title.
+    /// </summary>
+    private static IEnumerable<PatientPathwayAuditEntry> LabCaseEntriesHoldingTheCanary()
+    {
+        var pathway = CreatePathway(Status.InProgress, title: Canary);
+        var opened = MedApp.Application.Lab.Common.LabCaseChange.Open(
+            "MA26-000999", null, SpecimensTestConstants.Histology(), pathway.PatientId, Guid.NewGuid(), SpecimenSource.Clinic,
+            pathway.TeamId, null, null, pathway, pathway.StageAt(2).Id, [], Staff, Now);
+        var labCase = opened.Case;
+        var work = new MedApp.Application.Lab.Common.LabCaseChange(labCase, pathway, Staff, Now);
+        var step = work.RecordStep(null, Canary, Now);
+        work.MarkStepEnteredInError(step, Canary);
+        work.RecordOutcome(MedApp.Domain.Lab.LabChoice.SampleAdequate, MedApp.Domain.Lab.LabOutcome.Insufficient, Canary);
+        work.Authorise(Canary, Guid.NewGuid());
+        work.MarkEnteredInError(Canary, []);
+        return opened.AuditEntries.Concat(work.AuditEntries);
     }
 
     /// <summary>
