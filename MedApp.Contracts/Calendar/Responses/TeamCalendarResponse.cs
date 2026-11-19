@@ -1,19 +1,21 @@
 namespace MedApp.Contracts.Calendar.Responses;
 
-/// <summary>
-/// One UK date of several members of staff's calendars, side by side, and the times they're all free then (after now,
-/// inside the working day).
-/// </summary>
+/// <summary>A team's calendar for one UK date (MC11): its members side by side, and when they're all free.</summary>
 public sealed class TeamCalendarResponse
 {
     public DateOnly Date { get; set; }
 
-    /// <summary>The date itself: whether it's worked, past or today, and its working day in UTC.</summary>
+    /// <summary>The team shown: the one asked for, else the viewer's first (by name), else the first team; none if there are none.</summary>
+    public Guid? TeamId { get; set; }
+
+    public string? TeamName { get; set; }
+
     public CalendarDayResponse Day { get; set; } = new();
 
-    /// <summary>Each person's calendar for the date, by username.</summary>
     public List<CalendarResponse> Members { get; set; } = [];
 
-    /// <summary>When everyone shown is free, by start time.</summary>
     public List<TimeRangeResponse> EveryoneFree { get; set; } = [];
+
+    /// <summary>Everyone in the team (for choosing whose calendars to show), by username.</summary>
+    public List<StaffMemberResponse> TeamMembers { get; set; } = [];
 }

@@ -42,6 +42,12 @@ public abstract class AppointmentHandlerTestBase
     /// <summary>The calendar each member of staff's data is read from; empty (just the working week) by default.</summary>
     protected CalendarData CalendarData { get; set; } = null!;
 
+    /// <summary>
+    /// The teams of members of staff named here; anyone else is in the test appointments' and pathways' team
+    /// (<see cref="PathwaysTestConstants.TeamId"/>), so the booking rule holds unless a test says otherwise.
+    /// </summary>
+    protected Dictionary<Guid, IReadOnlySet<Guid>> StaffTeams { get; } = [];
+
     [SetUp]
     public void SetUpAppointmentMocks()
     {
@@ -55,6 +61,7 @@ public abstract class AppointmentHandlerTestBase
         Added.Clear();
         SaveTokens.Clear();
         Sent.Clear();
+        StaffTeams.Clear();
         CalendarData = CreateData(NextMonday);
 
         Identity
@@ -88,6 +95,13 @@ public abstract class AppointmentHandlerTestBase
         Calendar
             .Setup(c => c.GetCalendarDataAsync(It.IsAny<Guid>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => CalendarData);
+
+        Calendar
+            .Setup(c => c.GetTeamsOfStaffAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, CancellationToken _) =>
+                (IReadOnlyDictionary<Guid, IReadOnlySet<Guid>>)ids.Distinct().ToDictionary(
+                    id => id,
+                    id => StaffTeams.GetValueOrDefault(id) ?? new HashSet<Guid> { PathwaysTestConstants.TeamId }));
 
         Notifications
             .Setup(n => n.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))

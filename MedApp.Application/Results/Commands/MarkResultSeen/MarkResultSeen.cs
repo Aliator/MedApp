@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Common;
 using MedApp.Application.Results.Repositories;
@@ -26,8 +27,13 @@ public sealed class MarkResultSeenValidator : AbstractValidator<MarkResultSeenCo
 /// and isn't already seen, if the record is anonymised, or if it's changed since the caller's version (allowed while
 /// restricted: a result must never be stuck).
 /// </summary>
+/// <remarks>
+/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; only
+/// its own team moves it on (a 409 for an admin or the lab, who read it).
+/// </remarks>
 public sealed class MarkResultSeenHandler(
     IResultRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     IPermissionHolders permissionHolders,
     TimeProvider timeProvider)
@@ -36,6 +42,8 @@ public sealed class MarkResultSeenHandler(
     public async Task<ResultResponse> Handle(MarkResultSeenCommand request, CancellationToken cancellationToken)
     {
         var result = await repository.GetForUpdateOrThrowAsync(request.ResultId, cancellationToken);
+        // Behind the viewer's team wall: a 404, as for one that isn't there (recorded).
+        await boundary.EnsureCanChangeResultAsync(result, request.Actor.Teams, cancellationToken);
         if (ResultWorkflow.WhyCantMarkSeen(result) is { } why)
             throw new ConflictException(why);
         ResultWorkflow.EnsureVersion(result, request.ExpectedVersion);

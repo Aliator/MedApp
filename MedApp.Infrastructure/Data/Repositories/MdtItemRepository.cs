@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
 using MedApp.Domain.Calendar;
@@ -16,14 +17,14 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
     public async Task<MdtItem?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
         await WithDetails(context.MdtItems).FirstOrDefaultAsync(i => i.Id == id, ct);
 
-    public async Task<IReadOnlyList<MdtItem>> GetForMeetingAsync(Guid meetingId, CancellationToken ct) =>
-        await WithDetails(context.MdtItems.AsNoTracking())
+    public async Task<IReadOnlyList<MdtItem>> GetForMeetingAsync(Guid meetingId, TeamScope scope, CancellationToken ct) =>
+        await WithDetails(context.MdtItems.AsNoTracking().Visible(scope, context.PathwayAccess))
             .Where(i => i.MeetingId == meetingId)
             .OrderBy(i => i.ListedAtUtc).ThenBy(i => i.Id)
             .ToListAsync(ct);
 
-    public async Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? teamId, CancellationToken ct) =>
-        await WithDetails(context.MdtItems.AsNoTracking())
+    public async Task<IReadOnlyList<MdtItem>> GetAwaitingMeetingAsync(Guid? teamId, TeamScope scope, CancellationToken ct) =>
+        await WithDetails(context.MdtItems.AsNoTracking().Visible(scope, context.PathwayAccess))
             .Where(i => i.MeetingId == null
                         && (i.Status == MdtItemStatus.Listed || i.Status == MdtItemStatus.Deferred)
                         && (teamId == null || i.TeamId == teamId))
@@ -46,7 +47,7 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
         await context.Meetings.Include(m => m.Attendees).FirstOrDefaultAsync(m => m.Id == meetingId, ct);
 
     public async Task<IReadOnlyList<MdtMeetingRow>> GetMeetingsAsync(
-        Guid? teamId, DateTime fromUtc, DateTime toUtc, CancellationToken ct)
+        Guid? teamId, DateTime fromUtc, DateTime toUtc, TeamScope scope, CancellationToken ct)
     {
         var meetings = await context.Meetings.AsNoTracking()
             .Include(m => m.Attendees)
@@ -55,15 +56,15 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
                         && m.StartUtc >= fromUtc && m.StartUtc < toUtc)
             .OrderBy(m => m.StartUtc).ThenBy(m => m.Id)
             .ToListAsync(ct);
-        return await RowsAsync(meetings, ct);
+        return await RowsAsync(meetings, scope, ct);
     }
 
-    public async Task<MdtMeetingRow?> GetMeetingRowAsync(Guid meetingId, CancellationToken ct)
+    public async Task<MdtMeetingRow?> GetMeetingRowAsync(Guid meetingId, TeamScope scope, CancellationToken ct)
     {
         var meeting = await context.Meetings.AsNoTracking()
             .Include(m => m.Attendees)
             .FirstOrDefaultAsync(m => m.Id == meetingId && m.IsMdt && m.TeamId != null, ct);
-        return meeting is null ? null : (await RowsAsync([meeting], ct))[0];
+        return meeting is null ? null : (await RowsAsync([meeting], scope, ct))[0];
     }
 
     public async Task<(int Open, int Discussed)> CountOnMeetingAsync(Guid meetingId, CancellationToken ct)
@@ -102,7 +103,8 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
             .Include(i => i.Attendees)
             .AsSplitQuery();
 
-    private async Task<IReadOnlyList<MdtMeetingRow>> RowsAsync(IReadOnlyList<Meeting> meetings, CancellationToken ct)
+    /// <summary>The meetings with their team's names and counts of the items the viewer may see.</summary>
+    private async Task<IReadOnlyList<MdtMeetingRow>> RowsAsync(IReadOnlyList<Meeting> meetings, TeamScope scope, CancellationToken ct)
     {
         var ids = meetings.Select(m => m.Id).ToList();
         var teamIds = meetings.Select(m => m.TeamId!.Value).Distinct().ToList();
@@ -110,6 +112,7 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
             .Where(s => teamIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id, s => s.Name, ct);
         var counts = await context.MdtItems
+            .Visible(scope, context.PathwayAccess)
             .Where(i => i.MeetingId != null && ids.Contains(i.MeetingId.Value))
             .GroupBy(i => i.MeetingId!.Value)
             .Select(g => new

@@ -23,6 +23,10 @@ public static class CalendarMapper
     /// <param name="usernames">The usernames the appointments and meetings name (<see cref="UserIds"/>).</param>
     /// <param name="viewer">The signed-in user: admins can change meetings, and attendees reply to theirs. None: neither.</param>
     /// <param name="window">The grid shown on each day (a team's, shared by everyone in it); by default, this calendar's own.</param>
+    /// <param name="walls">
+    /// What the viewer sees in full (<see cref="CalendarWalls"/>); the rest is busy time only, in
+    /// <see cref="CalendarResponse.OtherTeamsBusy"/>. None: everything (the system's view).
+    /// </param>
     public static CalendarResponse ToResponse(
         CalendarData data,
         string staffUsername,
@@ -32,9 +36,11 @@ public static class CalendarMapper
         IReadOnlyDictionary<Guid, string> usernames,
         DateTime nowUtc,
         CalendarActor? viewer = null,
-        GridWindow? window = null)
+        GridWindow? window = null,
+        CalendarWalls? walls = null)
     {
         window ??= GridWindow.Of([data]);
+        walls ??= CalendarWalls.None;
         var appointments = data.Appointments
             .Where(a => AppointmentWorkflow.IsOnCalendar(a.Status) && a.StartUtc is not null && a.EndUtc is not null)
             .OrderBy(a => a.StartUtc)
@@ -59,8 +65,12 @@ public static class CalendarMapper
             DefaultWeekTemplateName = defaultWeek?.WeekTemplate?.Name,
             Days = CalendarProjection.Days(data, today, window).Select(ToResponse).ToList(),
             Blocks = stored.Concat(projected).OrderBy(b => b.StartUtc).ThenBy(b => b.EndUtc).ToList(),
-            Appointments = appointments.Select(a => AppointmentMapper.ToResponse(a, usernames, nowUtc)).ToList(),
+            Appointments = appointments
+                .Where(walls.SeesAppointment)
+                .Select(a => AppointmentMapper.ToResponse(a, usernames, nowUtc, viewer?.Teams))
+                .ToList(),
             Meetings = data.Meetings
+                .Where(walls.SeesMeeting)
                 .OrderBy(m => m.StartUtc)
                 .ThenBy(m => m.Id)
                 .Select(m =>
@@ -80,7 +90,38 @@ public static class CalendarMapper
                     appointments.Where(a => a.ClinicSessionId == c.Id).Select(a => a.StartUtc!.Value),
                     nowUtc,
                     viewer?.CanManageClinics == true))
-                .ToList()
+                .ToList(),
+            OtherTeamsBusy = OtherTeamsBusy(data, staffUsername, appointments, walls)
+        };
+    }
+
+    /// <summary>
+    /// What the viewer can't see on a calendar, as busy time only (MC5, MC11): another team's appointments ("Busy") and
+    /// meetings that aren't theirs ("Meeting", except one the calendar's owner declined, which isn't busy time), with
+    /// nothing about them but who and when.
+    /// </summary>
+    private static List<BusyTimeResponse> OtherTeamsBusy(
+        CalendarData data, string staffUsername, IEnumerable<Appointment> appointments, CalendarWalls walls)
+    {
+        var hiddenAppointments = appointments
+            .Where(a => !walls.SeesAppointment(a))
+            .Select(a => Busy(a.StartUtc!.Value, a.EndUtc!.Value, CalendarWalls.AppointmentBusy));
+        var hiddenMeetings = data.Meetings
+            .Where(m => !walls.SeesMeeting(m) && !MeetingReplies.HasDeclined(m, data.StaffUserId))
+            .Select(m => Busy(m.StartUtc, m.EndUtc, CalendarWalls.MeetingBusy));
+
+        return hiddenAppointments.Concat(hiddenMeetings)
+            .OrderBy(b => b.StartUtc)
+            .ThenBy(b => b.EndUtc)
+            .ToList();
+
+        BusyTimeResponse Busy(DateTime startUtc, DateTime endUtc, string what) => new()
+        {
+            StaffUserId = data.StaffUserId,
+            Username = staffUsername,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+            What = what
         };
     }
 

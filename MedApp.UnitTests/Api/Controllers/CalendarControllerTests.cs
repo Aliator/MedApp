@@ -199,13 +199,13 @@ public sealed class CalendarControllerTests
     }
 
     [Test]
-    public async Task GetTeamCalendar_SendsTheDatePeopleAndWhoIsAsking()
+    public async Task GetTeamCalendar_SendsTheDateTeamPeopleAndWhoIsAsking()
     {
         var request = _fixture.Create<GetTeamCalendarRequest>();
 
         await ExpectOk(_fixture.Create<TeamCalendarResponse>(),
-            new GetTeamCalendarQuery(request.Date, request.StaffUserIds!, AdminActor),
-            c => c.GetTeamCalendar(request, _cts.Token), "Admin");
+            new GetTeamCalendarQuery(request.Date, request.StaffUserIds!, StaffActor, request.TeamId),
+            c => c.GetTeamCalendar(request, _cts.Token));
     }
 
     [Test]
@@ -229,7 +229,8 @@ public sealed class CalendarControllerTests
         var request = _fixture.Create<GetAvailabilityRequest>();
 
         await ExpectOk(_fixture.Create<AvailabilityResponse>(),
-            new GetAvailabilityQuery(request.StaffUserIds, request.From, request.To, request.DurationMinutes, request.ExceptMeetingId),
+            new GetAvailabilityQuery(request.StaffUserIds, request.From, request.To, request.DurationMinutes, request.ExceptMeetingId,
+                AdminActor.Scope),
             c => c.GetAvailability(request, _cts.Token), "Admin");
     }
 
@@ -268,8 +269,8 @@ public sealed class CalendarControllerTests
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(response);
     }
 
-    private static readonly string[] AdminOnlyActions =
-        [nameof(CalendarController.GetTeamCalendar), nameof(CalendarController.GetAvailability)];
+    /// <summary>Suggested times are for arranging meetings; a team's calendar is anyone's (MC11).</summary>
+    private static readonly string[] AdminOnlyActions = [nameof(CalendarController.GetAvailability)];
 
     [TestCase("User", true)]
     [TestCase("Admin", true)]

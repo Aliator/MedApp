@@ -49,7 +49,7 @@ public sealed class ApproveLetterHandler(
 
     public async Task<LetterResponse> Handle(ApproveLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         EnsureMayApprove(letter, request.Actor);
         LetterWorkflow.EnsureVersion(letter, request.ExpectedVersion);

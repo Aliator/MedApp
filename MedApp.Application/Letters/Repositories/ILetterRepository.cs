@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Queries.SearchLetters;
 using MedApp.Domain.Attachments;
@@ -41,11 +42,17 @@ public interface ILetterRepository
     /// </summary>
     Task SaveApprovalAsync(Attachment pdf, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct);
 
-    /// <summary>A page of letters for a view (see <see cref="LetterSearch"/>), with their patients' names and pathways' titles.</summary>
+    /// <summary>
+    /// A page of letters for a view that the query's viewer may see (its scope, the team walls; see
+    /// <see cref="LetterSearch"/>), with their patients' names and pathways' titles.
+    /// </summary>
     Task<PagedResult<LetterRow>> SearchAsync(SearchLettersQuery query, CancellationToken ct);
 
-    /// <summary>The viewer's letters awaiting their approval, and every approved letter not yet sent to everyone.</summary>
-    Task<(int ToApprove, int ToSend)> CountAsync(Guid viewerId, CancellationToken ct);
+    /// <summary>
+    /// The viewer's letters awaiting their approval, and every approved letter not yet sent to everyone, of those the
+    /// viewer may see (<paramref name="scope"/>, the team walls: <see cref="LetterSearch.Visible"/>).
+    /// </summary>
+    Task<(int ToApprove, int ToSend)> CountAsync(Guid viewerId, TeamScope scope, CancellationToken ct);
 
     /// <summary>A pathway's letters, in any status, with their recipients: the stage gate.</summary>
     Task<IReadOnlyList<Letter>> GetForPathwayAsync(Guid pathwayId, CancellationToken ct);

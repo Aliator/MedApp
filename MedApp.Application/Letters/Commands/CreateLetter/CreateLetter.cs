@@ -30,7 +30,8 @@ public sealed class CreateLetterValidator : AbstractValidator<CreateLetterComman
 }
 
 /// <summary>
-/// Starts a draft (decision 100): the template must exist (404), not be archived (409), be the pathway's or referral's
+/// Starts a draft (decision 100): the pathway or referral must be the writer's team's (the team walls: 404 behind
+/// their wall, recorded; 409 if it's another team's); the template must exist (404), not be archived (409), be the pathway's or referral's
 /// team's or for every team (400), and from a referral be a referral response or a request for more
 /// information (400). The record must allow letters (409). It copies the template's text; its recipients start as
 /// the patient's registered practice and the patient, or for a referral the referrer (and the patient, for a reply).
@@ -48,13 +49,14 @@ public sealed class CreateLetterHandler(
         if (template.IsArchived)
             throw new ConflictException($"The '{template.Name}' template is archived, so letters can't be started from it. Choose another.");
 
+        // The team walls: only the pathway's or referral's own team writes about it (404 behind the wall, 409 if it's
+        // another team's).
+        var scope = request.Actor.Teams;
         var pathway = request.PathwayId is { } pathwayId
-            ? await records.GetPathwayAsync(pathwayId, cancellationToken)
-              ?? throw new NotFoundException($"Pathway '{pathwayId}' was not found.")
+            ? await records.GetPathwayToWriteAboutAsync(pathwayId, scope, cancellationToken)
             : null;
         var referral = request.ReferralId is { } referralId
-            ? await records.GetReferralAsync(referralId, cancellationToken)
-              ?? throw new NotFoundException($"Referral '{referralId}' was not found.")
+            ? await records.GetReferralToWriteAboutAsync(referralId, scope, cancellationToken)
             : null;
 
         var teamId = pathway?.TeamId ?? referral!.TeamId;

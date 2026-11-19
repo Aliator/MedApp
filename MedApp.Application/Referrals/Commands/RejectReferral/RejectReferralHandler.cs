@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
@@ -10,20 +11,21 @@ using MediatR;
 namespace MedApp.Application.Referrals.Commands.RejectReferral;
 
 /// <summary>
-/// Rejects a referral (403 without <c>TriageReferrals</c> or membership of its team; 409 once triaged, on a
+/// Rejects a referral (404 behind the viewer's team wall, recorded; 403 without <c>TriageReferrals</c> or membership of its team; 409 once triaged, on a
 /// restricted or anonymised record, or if it changed since the caller's version), recorded in its history in the same
 /// save. Whoever registered it is told.
 /// </summary>
 public sealed class RejectReferralHandler(
     IReferralRepository repository,
     INotificationSender notificationSender,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<RejectReferralCommand, ReferralResponse>
 {
     public async Task<ReferralResponse> Handle(RejectReferralCommand request, CancellationToken cancellationToken)
     {
         var referral = await repository.GetForTriageOrThrowAsync(
-            request.ReferralId, request.Actor, request.ExpectedVersion, cancellationToken);
+            request.ReferralId, request.Actor, request.ExpectedVersion, boundary, cancellationToken);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new ReferralChange(referral, request.Actor, now);

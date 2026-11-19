@@ -37,6 +37,16 @@ public abstract class MeetingHandlerTestBase
     /// <summary>Meetings passed to AddAsync.</summary>
     protected List<Meeting> Added { get; } = [];
 
+    /// <summary>
+    /// The teams of members of staff named here (the team walls); anyone else is in
+    /// <see cref="MedApp.UnitTests.Common.Constants.PathwaysTestConstants.TeamId"/>.
+    /// </summary>
+    protected Dictionary<Guid, IReadOnlySet<Guid>> StaffTeams { get; } = [];
+
+    /// <summary>The teams of a member of staff, as the calendar repository gives them.</summary>
+    protected IReadOnlySet<Guid> TeamsOf(Guid staffUserId) =>
+        StaffTeams.GetValueOrDefault(staffUserId) ?? new HashSet<Guid> { MedApp.UnitTests.Common.Constants.PathwaysTestConstants.TeamId };
+
     /// <summary>Each read of several calendars: whose, the dates, and the token.</summary>
     protected List<(List<Guid> StaffUserIds, DateOnly From, DateOnly To, CancellationToken Token)> CalendarReads { get; } = [];
 
@@ -53,6 +63,7 @@ public abstract class MeetingHandlerTestBase
         Added.Clear();
         CalendarReads.Clear();
         _calendars.Clear();
+        StaffTeams.Clear();
 
         Identity.Setup(i => i.GetStaffAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Staff);
         Identity
@@ -69,6 +80,18 @@ public abstract class MeetingHandlerTestBase
                     .Select(id => _calendars.GetValueOrDefault(id) ?? CalendarOf(id, from, to))
                     .ToList();
             });
+
+        Calendars
+            .Setup(r => r.GetTeamsOfStaffAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<Guid> ids, CancellationToken _) =>
+                (IReadOnlyDictionary<Guid, IReadOnlySet<Guid>>)ids.Distinct().ToDictionary(id => id, TeamsOf));
+        Calendars
+            .Setup(r => r.GetTeamMemberIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid teamId, CancellationToken _) =>
+                (IReadOnlyList<Guid>)Staff.Select(s => s.UserId).Where(id => TeamsOf(id).Contains(teamId)).ToList());
+        Calendars
+            .Setup(r => r.GetStaffWeekTemplatesOnAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
 
         Meetings
             .Setup(r => r.AddAsync(It.IsAny<Meeting>(), It.IsAny<CancellationToken>()))

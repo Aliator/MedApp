@@ -5,9 +5,11 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.PatientMessages.Common;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Notifications;
@@ -24,6 +26,8 @@ public sealed class BookAppointmentHandler(
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     IPatientMessageOutbox patientMessages,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<BookAppointmentCommand, AppointmentResponse>
 {
@@ -44,7 +48,8 @@ public sealed class BookAppointmentHandler(
         var locks = AppointmentPlaces.Locks(request.StaffUserId, request.ClinicSessionId, request.RoomId);
         var result = await calendarLock.RunAsync(locks, async ct =>
         {
-            var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, ct);
+            // Only the appointment's own team books or moves it (the team walls).
+            var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, boundary, request.Actor.Teams, ct);
 
             if (!AppointmentWorkflow.CanBook(appointment) && !AppointmentWorkflow.CanReschedule(appointment))
                 throw new ConflictException(
@@ -55,6 +60,10 @@ public sealed class BookAppointmentHandler(
                 throw new ConflictException(expected == AppointmentStatus.Requested
                     ? AppointmentWorkflow.BookedMeanwhileMessage
                     : AppointmentWorkflow.ChangedMeanwhileMessage);
+
+            // The booking rule (MC5): the clinician must be in the appointment's team, so they can see its patient.
+            await AppointmentWalls.EnsureStaffInTeamAsync(
+                appointment.TeamId, request.StaffUserId, staffUsername, calendarRepository, teams, ct);
 
             var before = new Before(appointment.Status, appointment.StaffUserId, appointment.StartUtc, appointment.RoomId);
 
@@ -86,7 +95,7 @@ public sealed class BookAppointmentHandler(
         foreach (var notification in Notifications(result.Appointment, result.Before, request, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        return await AppointmentMapper.ToResponseAsync(result.Appointment, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(result.Appointment, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 
     private static IReadOnlyList<Notification> Notifications(

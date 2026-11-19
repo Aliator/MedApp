@@ -86,7 +86,7 @@ public sealed class LetterQueriesTests : LetterHandlerTestBase
     [Test]
     public async Task Count_GivesTheRepositorysCounts()
     {
-        Letters.Setup(l => l.CountAsync(Approver.UserId, _cts.Token)).ReturnsAsync((2, 5));
+        Letters.Setup(l => l.CountAsync(Approver.UserId, MedApp.Application.Common.Teams.TeamScope.System, _cts.Token)).ReturnsAsync((2, 5));
 
         var count = await Fixture.Create<CountLettersHandler>().Handle(new CountLettersQuery(Approver.UserId), _cts.Token);
 

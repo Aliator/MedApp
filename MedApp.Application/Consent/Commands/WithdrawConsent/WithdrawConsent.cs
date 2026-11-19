@@ -2,6 +2,7 @@ using FluentValidation;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -34,16 +35,20 @@ public sealed class WithdrawConsentValidator : AbstractValidator<WithdrawConsent
 /// caller's version; allowed while the record is restricted and in any pathway status (it protects the patient). A
 /// withdrawal after the stage finished is flagged on the pathway; nothing else changes by itself, and the scan stays
 /// (it's what was signed).
+/// <para>Only the pathway's own team changes its consent: another team's is a 404 (behind the viewer's wall,
+/// recorded) or a 409 (seen, as an admin or the lab do: <see cref="ConsentRecords.GetForChangeOrThrowAsync"/>).</para>
 /// </summary>
 public sealed class WithdrawConsentHandler(
     IConsentRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     TimeProvider timeProvider)
     : IRequestHandler<WithdrawConsentCommand, ConsentRecordResponse>
 {
     public async Task<ConsentRecordResponse> Handle(WithdrawConsentCommand request, CancellationToken cancellationToken)
     {
-        var record = await repository.GetForUpdateOrThrowAsync(request.ConsentRecordId, cancellationToken);
+        var record = await repository.GetForChangeOrThrowAsync(
+            request.ConsentRecordId, boundary, request.Actor.Teams, cancellationToken);
         if (ConsentWorkflow.WhyCantWithdraw(record) is { } why)
             throw new ConflictException(why);
         ConsentWorkflow.EnsureVersion(record, request.ExpectedVersion);

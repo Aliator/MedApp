@@ -1,6 +1,7 @@
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
@@ -14,6 +15,7 @@ namespace MedApp.Application.Mdt.Commands.RecordMdtOutcome;
 
 public sealed class RecordMdtOutcomeHandler(
     IMdtItemRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     TimeProvider timeProvider)
@@ -22,7 +24,9 @@ public sealed class RecordMdtOutcomeHandler(
     public async Task<MdtItemResponse> Handle(RecordMdtOutcomeCommand request, CancellationToken cancellationToken)
     {
         var item = await repository.GetForUpdateAsync(request.ItemId, cancellationToken)
-                   ?? throw new NotFoundException($"MDT item '{request.ItemId}' was not found.");
+                   ?? throw new NotFoundException(MdtWalls.NotFoundMessage(request.ItemId));
+        // Whoever sees it may record its outcome (by RecordMdtOutcomes): behind the wall a 404 (recorded).
+        await boundary.EnsureVisibleAsync(item, request.Actor.Teams, cancellationToken);
 
         PatientRules.EnsureCanPause(item.Patient);
         MdtRules.EnsureVersion(item, request.ExpectedVersion);

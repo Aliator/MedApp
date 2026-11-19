@@ -35,7 +35,7 @@ public sealed class ReturnLetterHandler(LetterRecords records, INotificationSend
 {
     public async Task<LetterResponse> Handle(ReturnLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         if (letter.Status != LetterStatus.AwaitingApproval)
             throw new ConflictException(LetterWorkflow.NotInStatusMessage(letter, "returned"));

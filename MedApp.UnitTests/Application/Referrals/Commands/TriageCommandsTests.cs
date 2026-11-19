@@ -118,7 +118,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
 
     private AcceptReferralHandler Handler => new(
         Repository.Object, _pathways.Object, _stages.Object, _identity.Object, _holders.Object,
-        Notifications.Object, _monitor.Object, Clock);
+        Notifications.Object, _monitor.Object, Boundary, Clock);
 
     private AcceptReferralCommand Command(Referral referral, PathwayActor? actor = null, Guid? assignee = null, string? notes = null) =>
         new(referral.Id, _template.Id, "Urgent", null, assignee, notes, referral.Version, actor ?? Triager);
@@ -391,7 +391,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
 [TestFixture]
 public sealed class RejectReferralHandlerTests : TriageCommandTestBase
 {
-    private RejectReferralHandler Handler => new(Repository.Object, Notifications.Object, Clock);
+    private RejectReferralHandler Handler => new(Repository.Object, Notifications.Object, Boundary, Clock);
 
     [Test]
     public async Task Handle_Valid_RejectsItWithTheReasonAndDetailAndTellsTheRegistrar()
@@ -465,7 +465,7 @@ public sealed class RedirectReferralHandlerTests : TriageCommandTestBase
         Teams.Setup(s => s.GetAsync(_urology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_urology);
     }
 
-    private RedirectReferralHandler Handler => new(Repository.Object, Teams.Object, Notifications.Object, Clock);
+    private RedirectReferralHandler Handler => new(Repository.Object, Teams.Object, Notifications.Object, Boundary, Clock);
 
     [Test]
     public async Task Handle_ToAnotherTeam_KeepsItAwaitingTriageThere()

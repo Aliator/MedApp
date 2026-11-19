@@ -31,4 +31,10 @@ public sealed record SearchPatientsRequest
 
     /// <summary>Matches NHS numbers containing these digits (spaces are ignored).</summary>
     public string? NhsNumber { get; init; }
+
+    /// <summary>
+    /// The clinic picker: only patients with a pathway, referral or appointment in this team (none: every patient, as
+    /// patients are centre-wide). Anyone but an admin may pick only one of their own teams (400 otherwise).
+    /// </summary>
+    public Guid? TeamId { get; init; }
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Common;
 using MedApp.Application.Results.Repositories;
@@ -9,6 +10,7 @@ using MedApp.Contracts.Common;
 using MedApp.Contracts.Results.Responses;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Results;
+using MedApp.Domain.Teams;
 using MediatR;
 using static MedApp.Domain.Results.ResultStatus;
 
@@ -34,9 +36,10 @@ public enum ResultView
 }
 
 /// <summary>
-/// A page of results: one view, optionally narrowed to a team, a pathway, a patient, or a patient's name
-/// (<see cref="Search"/>). <see cref="Sort"/> names a column (<see cref="ResultSearch.SortColumns"/>); without one, the
-/// view's own order.
+/// A page of results: one view, optionally narrowed to a team (the clinic picker: the result's own team, one of the
+/// viewer's unless they see every team, else a 400), a pathway, a patient, or a patient's name (<see cref="Search"/>).
+/// <see cref="Sort"/> names a column (<see cref="ResultSearch.SortColumns"/>); without one, the view's own order. Only
+/// results the viewer's teams may see (<see cref="Scope"/>: a result follows its pathway, or its own team).
 /// </summary>
 public sealed record SearchResultsQuery(
     int Page,
@@ -48,14 +51,25 @@ public sealed record SearchResultsQuery(
     Guid ViewerId,
     string? Search = null,
     string? Sort = null,
-    bool Ascending = true)
+    bool Ascending = true,
+    TeamScope? Scope = null)
     : IRequest<PagedResponse<ResultSummaryResponse>>
 {
+    /// <summary>The viewer's team walls (null only outside a request: the system's).</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
+
     public ResultView ParsedView => PathwayEnums.TryParse<ResultView>(View, out var view) ? view : ResultView.All;
 }
 
-/// <summary>The side nav's count of results awaiting the caller's sign-off. Records nothing (no patient is named).</summary>
-public sealed record CountResultsQuery(Guid ViewerId) : IRequest<ResultCountResponse>;
+/// <summary>
+/// The side nav's count of results awaiting the caller's sign-off, of those their teams may see. Records nothing (no
+/// patient is named).
+/// </summary>
+public sealed record CountResultsQuery(Guid ViewerId, TeamScope? Scope = null) : IRequest<ResultCountResponse>
+{
+    /// <summary>The viewer's team walls (null only outside a request: the system's).</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
+}
 
 public sealed class SearchResultsValidator : AbstractValidator<SearchResultsQuery>
 {
@@ -96,9 +110,19 @@ public static class ResultSearch
     public static readonly IReadOnlyList<string> SortColumns =
         [SortByPatient, SortByTitle, SortByPathway, SortByReported, SortByStatus];
 
+    /// <summary>
+    /// The view's results the viewer may see: their teams' own, or on a pathway they see in full
+    /// (<see cref="TeamAccess.ByPathway{T}"/>; <paramref name="grants"/> is the grants table, needed unless the viewer sees
+    /// every team).
+    /// </summary>
     public static IQueryable<Result> Filter(
-        this IQueryable<Result> results, SearchResultsQuery query, IReadOnlyCollection<Guid> signOffHolders)
+        this IQueryable<Result> results,
+        SearchResultsQuery query,
+        IReadOnlyCollection<Guid> signOffHolders,
+        IQueryable<PathwayAccess>? grants = null)
     {
+        results = results.Visible(query.Teams, grants);
+
         // The patient's name only: a result's title can hold a specimen number, which stays out of URLs.
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -106,8 +130,9 @@ public static class ResultSearch
             results = results.Where(r => (r.Patient.FirstName + " " + r.Patient.LastName).ToLower().Contains(term));
         }
 
+        // The clinic picker: the result's own team (its pathway's, copied when it was made).
         if (query.TeamId is { } teamId)
-            results = results.Where(r => r.Pathway != null && r.Pathway.TeamId == teamId);
+            results = results.Where(r => r.TeamId == teamId);
         if (query.PathwayId is { } pathwayId)
             results = results.Where(r => r.PathwayId == pathwayId);
         if (query.PatientId is { } patientId)
@@ -125,6 +150,14 @@ public static class ResultSearch
             _ => results
         };
     }
+
+    /// <summary>Only results the viewer may see (see <see cref="Filter"/>).</summary>
+    public static IQueryable<Result> Visible(
+        this IQueryable<Result> results, TeamScope scope, IQueryable<PathwayAccess>? grants = null) =>
+        scope.SeesAllTeams
+            ? results
+            : results.Where(TeamAccess.ByPathway<Result>(
+                scope, grants ?? throw new ArgumentNullException(nameof(grants)), r => r.PathwayId, r => r.TeamId));
 
     /// <summary>
     /// The column named (<see cref="SortColumns"/>) in either direction, or without one the view's own order; either way
@@ -156,7 +189,10 @@ public static class ResultSearch
     };
 }
 
-/// <summary>A page of results. Each patient on the page is recorded as listed (once per person every few minutes).</summary>
+/// <summary>
+/// A page of results, of those the viewer's teams may see. Each patient on the page is recorded as listed (once per
+/// person every few minutes; an admin's with <c>access</c> and the team picked, <see cref="TeamPicker.ListDetails"/>).
+/// </summary>
 public sealed class SearchResultsHandler(
     IResultRepository repository,
     IPermissionHolders permissionHolders,
@@ -168,12 +204,15 @@ public sealed class SearchResultsHandler(
 {
     public async Task<PagedResponse<ResultSummaryResponse>> Handle(SearchResultsQuery request, CancellationToken cancellationToken)
     {
+        TeamPicker.EnsureCanPick(request.TeamId, request.Teams);
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var holders = (await permissionHolders.GetUserIdsAsync(Permission.SignOffResults, cancellationToken)).ToHashSet();
         var result = await repository.SearchAsync(request, holders, cancellationToken);
 
         await activityLog.RecordViewsAsync(
-            ActivityAction.PatientListed, result.Items.Select(r => r.PatientId).Distinct(), cancellationToken);
+            ActivityAction.PatientListed, result.Items.Select(r => r.PatientId).Distinct(), cancellationToken,
+            details: TeamPicker.ListDetails(request.TeamId, request.Teams));
 
         var usernames = await identity.GetUsernamesByIdAsync(
             result.Items.SelectMany(r => new[] { r.ResponsibleUserId, r.SignedOffByUserId }).OfType<Guid>().Distinct(),
@@ -184,5 +223,5 @@ public sealed class SearchResultsHandler(
     }
 
     public async Task<ResultCountResponse> Handle(CountResultsQuery request, CancellationToken cancellationToken) =>
-        new() { AwaitingMine = await repository.CountAwaitingForAsync(request.ViewerId, cancellationToken) };
+        new() { AwaitingMine = await repository.CountAwaitingForAsync(request.ViewerId, request.Teams, cancellationToken) };
 }

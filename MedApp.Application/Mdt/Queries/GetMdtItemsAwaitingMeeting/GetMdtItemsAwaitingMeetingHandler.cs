@@ -1,4 +1,5 @@
 using MedApp.Application.Activity.Common;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Repositories;
 using MedApp.Contracts.Mdt.Responses;
@@ -15,8 +16,11 @@ public sealed class GetMdtItemsAwaitingMeetingHandler(
 {
     public async Task<IReadOnlyList<MdtItemResponse>> Handle(GetMdtItemsAwaitingMeetingQuery request, CancellationToken cancellationToken)
     {
-        var items = await repository.GetAwaitingMeetingAsync(request.TeamId, cancellationToken);
-        await activityLog.RecordViewsAsync(ActivityAction.PatientListed, items.Select(i => i.PatientId).Distinct(), cancellationToken);
+        var scope = request.Viewer.Teams;
+        var items = await repository.GetAwaitingMeetingAsync(request.TeamId, scope, cancellationToken);
+        await activityLog.RecordViewsAsync(
+            ActivityAction.PatientListed, items.Select(i => i.PatientId).Distinct(), cancellationToken,
+            details: TeamPicker.ListDetails(request.TeamId, scope));
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         return items.Select(i => MdtMapper.ToResponse(i, request.Viewer, now)).ToList();

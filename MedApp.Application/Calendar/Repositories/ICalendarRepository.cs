@@ -64,4 +64,14 @@ public interface ICalendarRepository
 
     /// <summary>Saves changes to blocks and day overrides loaded for update.</summary>
     Task SaveAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The teams each of these members of staff belongs to (the team walls on calendars, MC5 and MC11: whose meetings
+    /// a viewer sees, the meeting rule, the booking rule). Everyone asked about is in the result, with none for someone
+    /// in no team.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlySet<Guid>>> GetTeamsOfStaffAsync(IReadOnlyCollection<Guid> staffUserIds, CancellationToken ct);
+
+    /// <summary>Everyone who belongs to a team (a team's calendar, MC11), whatever their role in it.</summary>
+    Task<IReadOnlyList<Guid>> GetTeamMemberIdsAsync(Guid teamId, CancellationToken ct);
 }

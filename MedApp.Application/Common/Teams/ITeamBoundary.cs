@@ -45,6 +45,15 @@ public interface ITeamBoundary
     Task EnsureTeamVisibleAsync(
         string targetKind, Guid targetId, Guid teamId, TeamScope scope, string notFoundMessage, CancellationToken ct);
 
+    /// <summary>
+    /// For a record that follows its pathway, or its own team when it has none (<see cref="TeamAccess.ByPathway{T}"/> at
+    /// one record: MC5's letters, results, consent, MDT items, an accepted referral): why the viewer sees it (its team
+    /// theirs: <see cref="TeamAccessKind.Owner"/>; else its pathway's access; else an admin's), or a 404
+    /// (<paramref name="notFoundMessage"/>), recorded.
+    /// </summary>
+    Task<TeamAccessKind> EnsureRecordVisibleAsync(
+        string targetKind, Guid targetId, Guid teamId, Guid? pathwayId, TeamScope scope, string notFoundMessage, CancellationToken ct);
+
     /// <summary>For a change to a record with no pathway: its team the viewer's, else a 409 naming whose it is.</summary>
     Task EnsureCanChangeTeamAsync(Guid teamId, TeamScope scope, string what, CancellationToken ct);
 

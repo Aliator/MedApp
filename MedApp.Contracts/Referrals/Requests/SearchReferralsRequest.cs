@@ -38,4 +38,10 @@ public sealed class SearchReferralsRequest
 
     /// <summary>True: only stopped clocks; false: only clocks still running or paused.</summary>
     public bool? ClockStopped { get; set; }
+
+    /// <summary>
+    /// The clinic picker: only this team's referrals (none: all the caller's). Anyone but an admin may pick only one of
+    /// their own teams (400 otherwise).
+    /// </summary>
+    public Guid? TeamId { get; set; }
 }

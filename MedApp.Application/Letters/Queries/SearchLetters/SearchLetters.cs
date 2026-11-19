@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -9,6 +10,7 @@ using MedApp.Contracts.Letters.Responses;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Patients;
+using MedApp.Domain.Teams;
 using MediatR;
 
 namespace MedApp.Application.Letters.Queries.SearchLetters;
@@ -39,7 +41,12 @@ public enum LetterView
 /// One page of letters: a view (<see cref="LetterView"/>) or, without one, every letter of a patient, pathway or
 /// referral, newest first, optionally narrowed to a patient's name (<see cref="Search"/>). <see cref="Sort"/> names a
 /// column (<see cref="LetterSearch.SortColumns"/>); without one, the view's own order. Each patient shown is recorded
-/// as listed.
+/// as listed (an admin's list with <c>access</c> and <c>teamFilter</c>, decision 207).
+/// <para>
+/// The team walls (MC5): only letters the viewer may see (<see cref="Scope"/>: their pathway's, or their own team's
+/// when they have none; admins every team's). <see cref="TeamId"/> is the clinic picker (MC6): only that team's letters
+/// (none: all the viewer may see); anyone but an admin may pick only one of their own (400).
+/// </para>
 /// </summary>
 public sealed record SearchLettersQuery(
     int Page,
@@ -51,7 +58,13 @@ public sealed record SearchLettersQuery(
     Guid ViewerId,
     string? Search = null,
     string? Sort = null,
-    bool Ascending = true) : IRequest<PagedResponse<LetterSummaryResponse>>;
+    bool Ascending = true,
+    Guid? TeamId = null,
+    TeamScope? Scope = null) : IRequest<PagedResponse<LetterSummaryResponse>>
+{
+    /// <summary>The viewer's team walls (the system's outside a request).</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
+}
 
 public sealed class SearchLettersValidator : AbstractValidator<SearchLettersQuery>
 {
@@ -102,12 +115,31 @@ public static class LetterSearch
     public static readonly IReadOnlyList<string> SortColumns = [SortByPatient, SortByLetter, SortByStatus, SortByLatest];
 
     /// <summary>
-    /// The query's letters in its order. <paramref name="patients"/> (letters hold only the patient's ID) is what the
-    /// patient's name is searched and sorted by; without it, those are left out.
+    /// The letters a viewer may see (the team walls, MC5; the light demo's <c>canSeeRecord</c>): their pathway is seen in
+    /// full, or (with or without one) their team is one of the viewer's; every one for an admin or the system.
+    /// <paramref name="grants"/> is the grants table, needed unless the scope sees every team.
+    /// </summary>
+    public static IQueryable<Letter> Visible(IQueryable<Letter> letters, TeamScope scope, IQueryable<PathwayAccess>? grants) =>
+        scope.SeesAllTeams
+            ? letters
+            : letters.Where(TeamAccess.ByPathway<Letter>(
+                scope, grants ?? throw new ArgumentNullException(nameof(grants)), l => l.PathwayId, l => l.TeamId));
+
+    /// <summary>
+    /// The query's letters the viewer may see (<see cref="Visible"/>; the picker's team only, if one is picked), in its
+    /// order. <paramref name="patients"/> (letters hold only the patient's ID) is what the patient's name is searched and
+    /// sorted by; without it, those are left out. <paramref name="grants"/> is the grants table, needed unless the viewer
+    /// sees every team.
     /// </summary>
     public static IQueryable<Letter> Apply(
-        IQueryable<Letter> letters, SearchLettersQuery query, IQueryable<Patient>? patients = null)
+        IQueryable<Letter> letters,
+        SearchLettersQuery query,
+        IQueryable<Patient>? patients = null,
+        IQueryable<PathwayAccess>? grants = null)
     {
+        letters = Visible(letters, query.Teams, grants);
+        if (query.TeamId is { } picked)
+            letters = letters.Where(l => l.TeamId == picked);
         if (query.PatientId is { } patientId)
             letters = letters.Where(l => l.PatientId == patientId);
         if (query.PathwayId is { } pathwayId)
@@ -183,10 +215,14 @@ public sealed class SearchLettersHandler(
 {
     public async Task<PagedResponse<LetterSummaryResponse>> Handle(SearchLettersQuery request, CancellationToken cancellationToken)
     {
+        TeamPicker.EnsureCanPick(request.TeamId, request.Teams);
         var result = await repository.SearchAsync(request, cancellationToken);
 
         await activityLog.RecordViewsAsync(
-            ActivityAction.PatientListed, result.Items.Select(row => row.Letter.PatientId), cancellationToken);
+            ActivityAction.PatientListed,
+            result.Items.Select(row => row.Letter.PatientId),
+            cancellationToken,
+            details: TeamPicker.ListDetails(request.TeamId, request.Teams));
 
         var usernames = await identity.GetUsernamesByIdAsync(
             result.Items.SelectMany(row => LetterMapper.PeopleIn(row.Letter)), cancellationToken);

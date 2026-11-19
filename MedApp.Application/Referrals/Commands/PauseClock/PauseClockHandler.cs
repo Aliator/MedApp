@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.Repositories;
@@ -11,7 +12,9 @@ using MediatR;
 namespace MedApp.Application.Referrals.Commands.PauseClock;
 
 /// <summary>
-/// Pauses a referral's waiting-time clock. In order: 404 for an unknown referral; 409 unless it was accepted and its
+/// Pauses a referral's waiting-time clock, by its own team. In order: 404 for an unknown referral, or one behind the
+/// viewer's team wall (recorded); 409 for another team's (<see cref="ReferralRepositoryExtensions.GetForChangeOrThrowAsync"/>,
+/// then its pathway's walls); 409 unless it was accepted and its
 /// clock runs (<see cref="WaitingClock.WhyCantPause"/>), for an anonymised record, or if the referral changed since the
 /// caller's version. The pause, the referral's <c>ClockPaused</c> entry and the pathway's target date moved to the
 /// review date (a <c>DetailsUpdated</c> entry with <c>"source":"clock"</c>) are saved together, through the pathway's
@@ -21,13 +24,14 @@ public sealed class PauseClockHandler(
     IReferralRepository referrals,
     IPatientPathwayRepository pathways,
     IPathwayMonitor pathwayMonitor,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<PauseClockCommand, PathwayReferralResponse>
 {
     public async Task<PathwayReferralResponse> Handle(PauseClockCommand request, CancellationToken cancellationToken)
     {
-        var referral = await referrals.GetForUpdateAsync(request.ReferralId, cancellationToken)
-                       ?? throw new NotFoundException($"Referral '{request.ReferralId}' was not found.");
+        var teams = request.Actor.Teams;
+        var referral = await referrals.GetForChangeOrThrowAsync(request.ReferralId, boundary, teams, cancellationToken);
 
         if (WaitingClock.WhyCantPause(referral) is { } why)
             throw new ConflictException(why);
@@ -36,7 +40,7 @@ public sealed class PauseClockHandler(
 
         // Pausing stays allowed while the record is restricted, so care can be paused safely (as putting a pathway on
         // hold is); never once it's anonymised.
-        var pathway = await pathways.GetForPauseOrThrowAsync(pathwayId, cancellationToken);
+        var pathway = await pathways.GetForPauseOrThrowAsync(pathwayId, boundary, teams, cancellationToken);
         ReferralWorkflow.EnsureVersion(referral, request.ExpectedVersion);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
