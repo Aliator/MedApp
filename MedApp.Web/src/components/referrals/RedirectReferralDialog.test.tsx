@@ -41,7 +41,7 @@ describe('RedirectReferralDialog', () => {
 
     await user.click(dialog().getByRole('radio', {name: /Another clinic here/}));
     const team = dialog().getByRole('combobox', {name: /Clinic/});
-    expect(team).toHaveTextContent('Choose a team');
+    expect(team).toHaveTextContent('Choose a clinic');
     await waitFor(() => expect(isDisabled(team)).toBe(false));
     await user.click(team);
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['cardiology', 'Urology']);

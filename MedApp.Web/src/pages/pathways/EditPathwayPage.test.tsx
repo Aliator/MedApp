@@ -76,7 +76,7 @@ describe('EditPathwayPage', () => {
     const referral = {id: 'referral-1', clock: {state: 'Paused', targetDays: 28, daysWaited: 5}};
     const {fetch, user, router} = renderEdit(pathway({referral}), {[`PATCH ${PATH}`]: () => json(pathway({referral}))});
 
-    const target = await screen.findByRole('textbox', {name: /Target Date/});
+    const target = await screen.findByRole('textbox', {name: /Target date/});
     expect(target).toHaveValue('1 December 2099');
     expect(target).toHaveAttribute('readonly');
     expect(screen.getByText(DUE_DATE_FROM_CLOCK)).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('EditPathwayPage', () => {
   it('edits the target date by hand again once the clock has stopped', async () => {
     renderEdit(pathway({referral: {id: 'referral-1', clock: {state: 'Stopped', stopReason: 'StopStageFinished'}}}));
 
-    expect(await screen.findByRole('combobox', {name: /Target Date/})).toBeInTheDocument();
+    expect(await screen.findByRole('combobox', {name: /Target date/})).toBeInTheDocument();
     expect(screen.queryByText(DUE_DATE_FROM_CLOCK)).not.toBeInTheDocument();
   });
 
@@ -142,7 +142,7 @@ describe('EditPathwayPage', () => {
   it('says when the pathway could not be loaded', async () => {
     renderEdit(pathway(), {[`GET ${PATH}`]: () => json({title: 'Server error'}, 500)});
 
-    expect(await findAlert('The pathway could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Pathway not loaded')).toBeInTheDocument();
   });
 
   it("says a cancelled pathway's details can't be edited", async () => {

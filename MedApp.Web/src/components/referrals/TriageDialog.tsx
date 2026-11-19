@@ -101,7 +101,7 @@ export function TriageDialog({
           </Text>
         )}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
+          <MetadataListItem label="Clinic">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           {isChecking && summary}
         </MetadataList>

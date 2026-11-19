@@ -14,7 +14,7 @@ describe('ConsultList', () => {
     });
     renderWithApp(<ConsultList consults={[replied]} emptyText="None." />);
 
-    expect(await screen.findByText('Dermatology asked Lab')).toBeInTheDocument();
+    expect(await screen.findByText('From Dermatology to Lab')).toBeInTheDocument();
     expect(screen.getByText('Question: Synthetic question for the lab.')).toBeInTheDocument();
     expect(screen.getByText('Reply: Synthetic reply.')).toBeInTheDocument();
     expect(screen.getByText(/^Replied by r.aldous/)).toBeInTheDocument();
@@ -30,8 +30,8 @@ describe('ConsultList', () => {
   });
 
   it('says when there is nothing', async () => {
-    renderWithApp(<ConsultList consults={[]} emptyText="No consults asked." />);
-    expect(await screen.findByText('No consults asked.')).toBeInTheDocument();
+    renderWithApp(<ConsultList consults={[]} emptyText="No consults sent." />);
+    expect(await screen.findByText('No consults sent.')).toBeInTheDocument();
   });
 
   it('replies from the version shown', async () => {

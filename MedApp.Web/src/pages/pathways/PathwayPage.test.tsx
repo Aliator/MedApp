@@ -108,8 +108,8 @@ describe('PathwayPage', () => {
     });
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByRole('link', {name: 'Discharge summary: Discharge'})).toHaveAttribute('href', '/letters/l1');
-    expect(screen.getAllByText('Needs a discharge summary, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
+    expect(await screen.findByRole('link', {name: 'End of care letter: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(screen.getAllByText('Needs an end of care letter, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
     expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
   });
 
@@ -303,7 +303,7 @@ describe('PathwayPage', () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({title: 'Server error'}, 500)});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await findAlert('The pathway could not be loaded. Please try again.');
+    await findAlert('Pathway not loaded');
   });
 });
 
@@ -883,8 +883,8 @@ describe('PathwayPage: visits and appointments', () => {
   it("says when the appointments, and so the stage's visit, could not be loaded", async () => {
     renderVisit(visiting(), [], staffUser, {[`GET ${APPOINTMENTS}`]: () => json({title: 'Down'}, 500)});
 
-    expect(await findAlert('The appointments could not be loaded. Please try again.')).toBeInTheDocument();
-    expect(await findAlert("The stage's visit could not be loaded. Please try again.")).toBeInTheDocument();
+    expect(await findAlert('Appointments not loaded')).toBeInTheDocument();
+    expect(await findAlert('Visit not loaded')).toBeInTheDocument();
   });
 
   it('shows each stage’s visit in the stage list', async () => {
@@ -938,9 +938,9 @@ describe('PathwayPage: visits and appointments', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
     const dialog = within(openDialog()!);
-    expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
+    expect(dialog.getByText('Finish Without a Visit?')).toBeInTheDocument();
     expect(dialog.getByText(/Procedure requires a visit, and none is marked Attended/)).toBeInTheDocument();
-    expect(dialog.getByText('Its visit comes off Requires Appointment.')).toBeInTheDocument();
+    expect(dialog.getByText('Its appointment request is removed from the Requires Appointment list.')).toBeInTheDocument();
     expect(dialog.getByRole('button', {name: 'Finish Without Visit'})).toHaveAttribute('aria-disabled', 'true');
     await user.type(dialog.getByRole('textbox', {name: /Reason/}), ' Seen at another clinic ');
     await user.click(dialog.getByRole('button', {name: 'Finish Without Visit'}));
@@ -1252,7 +1252,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
     const dialog = within(openDialog()!);
-    expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
+    expect(dialog.getByText('Finish Without a Visit?')).toBeInTheDocument();
     const finish = dialog.getByRole('button', {name: 'Finish Without Visit'});
     expect(isDisabled(finish)).toBe(true);
     await user.click(dialog.getByRole('radio', {name: /Malignant/}));
@@ -1285,7 +1285,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
 
     const finish = await screen.findByRole('button', {name: 'Finish Stage'});
     expect(isDisabled(finish)).toBe(true);
-    expect(screen.getAllByText(/Lab case MA26-000201 is open: authorise its report first, then finish this stage\./).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Lab case MA26-000201 is still open\. This stage can be finished once the lab authorises its report\./).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', {name: 'MA26-000201'})[0]).toHaveAttribute('href', '/lab/cases/case-1');
   });
 

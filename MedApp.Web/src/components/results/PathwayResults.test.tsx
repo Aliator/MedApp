@@ -37,6 +37,6 @@ describe('PathwayResults', () => {
   it('says when they could not be loaded', async () => {
     mockApi({'GET /api/results/search': () => json({}, 500)});
     renderWithApp(<PathwayResults pathwayId={RESULT_PATHWAY_ID} />, {user: staffUser});
-    expect(await screen.findByText('The results could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Results not loaded')).toBeInTheDocument();
   });
 });

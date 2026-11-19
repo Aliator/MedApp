@@ -11,7 +11,7 @@ export type LabClock = Schemas['LabClockResponse'];
 const STATE_LABELS: Record<string, string> = {
   OnTime: 'On time',
   AtRisk: 'At risk',
-  Breached: 'Overdue',
+  Breached: 'Breached',
   ReportedOnTime: 'Reported on time',
   ReportedLate: 'Reported late',
   Stopped: 'Clock stopped',
@@ -25,12 +25,12 @@ export const isLabClockRunning = (clock: LabClock | null | undefined) =>
 
 const days = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`;
 
-/** The countdown: "Due in 3 days", "Due tomorrow", "Due today", "2 days overdue"; a stopped clock's state. */
+/** The countdown: "Due in 3 days", "Due tomorrow", "Due today", "2 days past due"; a stopped clock's state. */
 export function labClockCountdown(clock: LabClock | null | undefined): string {
   if (!clock) return 'No clock yet';
   if (!isLabClockRunning(clock)) return labClockStateLabel(clock.state);
   const left = clock.daysLeft ?? 0;
-  if (clock.state === 'Breached') return `${days(Math.max(1, -left))} overdue`;
+  if (clock.state === 'Breached') return `${days(Math.max(1, -left))} past due`;
   return left === 0 ? 'Due today' : left === 1 ? 'Due tomorrow' : `Due in ${days(left)}`;
 }
 
@@ -39,7 +39,7 @@ export const labClockSetBy = (clock: LabClock) => (clock.setBy === 'Hospital' ? 
 
 const BASIS: Record<string, string> = {
   ReportNeededBy: 'as the request gave it',
-  CancerPathway: 'a cancer pathway with no date: collection + 10 days',
+  CancerPathway: "the hospital's urgent cancer pathway, with no date: collection + 10 days",
   HospitalDefault: "no date given: the hospital's default days from receipt",
 };
 

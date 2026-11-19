@@ -109,7 +109,7 @@ export function HospitalRequestsPage({search, onSearchChange}: HospitalRequestsP
           <LabRequestPriorityToken priority={r.priority} />
           {r.isCancerPathway && (
             <Text type="supporting" color="secondary">
-              Cancer pathway
+              Hospital's urgent cancer pathway
             </Text>
           )}
         </VStack>
@@ -132,7 +132,7 @@ export function HospitalRequestsPage({search, onSearchChange}: HospitalRequestsP
       title="Hospital Requests"
       subtitle={isPending ? 'Loading requests...' : `${total} ${noun}${hospitalName ? ` from ${hospitalName}` : ''}`}
       fill
-      message={isError && <AlertMessage label="Hospital requests not loaded" message="The hospital requests could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Hospital requests not loaded" />}
       actions={
         <HStack gap={2} vAlign="center">
           <AnchoredSelector

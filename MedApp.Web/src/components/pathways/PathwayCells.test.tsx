@@ -74,10 +74,10 @@ describe('PathwayCells', () => {
     expect(await screen.findByText('3 of 7 stages done, 1 skipped')).toBeInTheDocument();
   });
 
-  it('says Completed when every stage is finished, on one line', async () => {
+  it('says All stages finished when every stage is finished, on one line', async () => {
     renderWithApp(<StageProgressCell completed={4} total={4} currentStageName={null} />);
 
-    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(await screen.findByText('All stages finished')).toBeInTheDocument();
     expect(screen.queryByText('Awaiting review')).not.toBeInTheDocument();
   });
 

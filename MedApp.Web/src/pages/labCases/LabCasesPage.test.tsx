@@ -19,7 +19,7 @@ describe('LabCasesPage', () => {
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
     expect(screen.getByText('Needs more work?')).toBeInTheDocument();
     // Its clock (MC19): the countdown and the due date.
-    expect(screen.getByText('2 days overdue')).toBeInTheDocument();
+    expect(screen.getByText('2 days past due')).toBeInTheDocument();
     expect(screen.getByText('Due 7 Nov 2026')).toBeInTheDocument();
     const body = await (fetch.mock.calls[0][0] as Request).clone().json();
     expect(body).toMatchObject({view: 'ToReport', page: 1});

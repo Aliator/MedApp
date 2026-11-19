@@ -30,7 +30,7 @@ describe('PathwayConsults', () => {
     expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Lab']);
     await user.click(screen.getByRole('option', {name: 'Lab'}));
     await user.type(dialog.getByRole('textbox', {name: /Question/}), 'Punch or excision?');
-    await user.click(dialog.getByRole('button', {name: 'Ask'}));
+    await user.click(dialog.getByRole('button', {name: 'Send Consult'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/consults'));
     const post = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST')!;
@@ -40,7 +40,7 @@ describe('PathwayConsults', () => {
   it('offers no asking when the API says the viewer may not', async () => {
     mockApi({'GET /api/consults/pathways/proc-1': () => json({canRequest: false, consults: []})});
     renderWithApp(<PathwayConsults pathway={pathway} />, {user: staffUser});
-    expect(await screen.findByText('No consults asked.')).toBeInTheDocument();
+    expect(await screen.findByText('No consults sent.')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'Ask Another Team'})).not.toBeInTheDocument();
   });
 });

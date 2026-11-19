@@ -27,7 +27,7 @@ export function IncomingConsults({title, teamId}: IncomingConsultsProps) {
       <PanelHeader title={title} summary={consults.data ? <Text type="supporting" color="secondary">{`${items.length}`}</Text> : null} />
       <Section variant="transparent" padding={6}>
         {consults.isError ? (
-          <AlertMessage label={`${title} not loaded`} message={`${title} could not be loaded. Please try again.`} />
+          <AlertMessage label={`${title} not loaded`} />
         ) : consults.isPending ? (
           <Text type="body" color="secondary">Loading...</Text>
         ) : (

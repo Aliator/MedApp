@@ -23,8 +23,8 @@ export interface ConsultListProps {
 
 type Asking = {consult: Consult; kind: 'reply' | 'close' | 'withdraw'};
 
-/** Who asked whom: "Dermatology asked the Lab". */
-export const consultHeading = (consult: Consult) => `${consult.askingTeamName ?? 'A team'} asked ${consult.askedTeamName ?? 'a team'}`;
+/** Who sent it to whom: "From Dermatology to Lab". */
+export const consultHeading = (consult: Consult) => `From ${consult.askingTeamName ?? 'a team'} to ${consult.askedTeamName ?? 'a team'}`;
 
 /**
  * Consults, in the order given (the API's: newest asked first on a pathway, oldest first in a team's incoming list):
@@ -66,7 +66,7 @@ export function ConsultList({consults, showsPathway, emptyText}: ConsultListProp
                 {showsPathway && <Text type="supporting">{consultHeading(consult)}</Text>}
                 <Text type="body">{`Question: ${consult.question ?? ''}`}</Text>
                 <Text type="supporting" color="secondary">
-                  {`Asked by ${consult.requestedByUsername ?? ''}, ${formatDateTime(consult.requestedAtUtc ?? '')}`}
+                  {`Sent by ${consult.requestedByUsername ?? ''}, ${formatDateTime(consult.requestedAtUtc ?? '')}`}
                 </Text>
                 {consult.reply && (
                   <>

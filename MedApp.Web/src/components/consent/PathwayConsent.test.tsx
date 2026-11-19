@@ -69,7 +69,7 @@ describe('PathwayConsent', () => {
   it("says when the records couldn't be loaded", async () => {
     mockApi({[`GET /api/pathways/${CONSENT_PATHWAY_ID}/consent-records`]: () => json({}, 500)});
     renderWithApp(<PathwayConsent pathway={consentPathway()} />, {user: nurseUser});
-    expect(await screen.findByText('The consent records could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Consent records not loaded')).toBeInTheDocument();
   });
 });
 
@@ -81,7 +81,7 @@ describe('PathwayConsent, more', () => {
     expect(await screen.findByText('Entered in error: Synthetic: wrong stage.')).toBeInTheDocument();
     expect(screen.getByText(/recorded by Deleted user/)).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Download the scanned form'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Mark Entered in Error'})).not.toBeInTheDocument();
     expect(screen.queryByText('No scan')).not.toBeInTheDocument();
   });
 
@@ -93,7 +93,7 @@ describe('PathwayConsent, more', () => {
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
-    await user.click(screen.getByRole('button', {name: 'Entered in Error'}));
+    await user.click(screen.getByRole('button', {name: 'Mark Entered in Error'}));
     dialog = within(await waitFor(() => openDialog()!));
     expect(dialog.getByRole('textbox', {name: /What was wrong/})).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));

@@ -25,7 +25,7 @@ describe('AskConsultDialog', () => {
 
     const dialog = await shownDialog();
     expect(dialog.getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
-    const ask = dialog.getByRole('button', {name: 'Ask'});
+    const ask = dialog.getByRole('button', {name: 'Send Consult'});
     expect(isDisabled(ask)).toBe(true);
     expect(dialog.getByRole('textbox', {name: /Question/})).toHaveValue('');
 

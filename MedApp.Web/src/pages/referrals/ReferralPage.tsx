@@ -58,7 +58,7 @@ export function triageWords(referral: Pick<Referral, 'isOpen' | 'status' | 'canT
     const status = referralStatusLabel(referral.status).toLowerCase();
     return TRIAGED.includes(referral.status ?? '')
       ? `This referral has been triaged: ${status}. A referral isn't triaged again.`
-      : `This referral is ${status}, so it isn't triaged.`;
+      : `This referral is ${status}, so it can't be triaged.`;
   }
   if (referral.canTriage)
     return referral.status === 'InformationRequested'
@@ -168,7 +168,7 @@ export function ReferralPage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Referral not found" message="Referral not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage label="Referral not loaded" message="The referral could not be loaded. Please try again." />
+          <AlertMessage label="Referral not loaded" />
         ) : actionError ? (
           <VStack gap={2} hAlign="stretch">
             <AlertMessage label="Referral not changed" message={actionError} onDismiss={() => setActionError(null)} />
@@ -419,7 +419,7 @@ function Actions({referral, isBusy, onClose}: {referral: Referral; isBusy: boole
     {id: 'withdraw', label: 'Withdraw', description: 'The referrer or the patient withdrew it', icon: AppIcon.Withdraw, onClick: () => onClose('withdraw')},
     {
       id: 'enteredInError',
-      label: 'Entered in Error',
+      label: 'Mark Entered in Error',
       description: 'On the wrong patient, or registered twice',
       icon: AppIcon.EnteredInError,
       variant: 'destructive',
@@ -456,7 +456,7 @@ function ReferralDetails({referral}: {referral: Referral}) {
         <MetadataListItem label="Priority asked for">
           <PriorityToken priority={referral.requestedPriority ?? ''} />
         </MetadataListItem>
-        <MetadataListItem label="Team">{shown(referral.teamName)}</MetadataListItem>
+        <MetadataListItem label="Clinic">{shown(referral.teamName)}</MetadataListItem>
         <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
         {/* "(from the directory)" when staff chose it from the GP practice directory, not only typed it. */}
         <MetadataListItem label="Practice">
@@ -480,7 +480,7 @@ function ReferralDetails({referral}: {referral: Referral}) {
       {referral.redirectDetail?.trim() && (
         <VStack gap={1} hAlign="stretch">
           <Text type="body" weight="semibold">
-            {`Redirected from ${redirectedFrom ?? 'another team'}`}
+            {`Redirected from ${redirectedFrom ?? 'another clinic'}`}
           </Text>
           <Text type="body" style={PRESERVE_LINES}>
             {referral.redirectDetail}

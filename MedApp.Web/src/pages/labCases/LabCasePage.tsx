@@ -73,7 +73,7 @@ export function LabCasePage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Lab case not found" message="Lab case not found. It may have been deleted, or it's another team's." />
         ) : error ? (
-          <AlertMessage label="Lab case not loaded" message="The lab case could not be loaded. Please try again." />
+          <AlertMessage label="Lab case not loaded" />
         ) : labCase?.patientFlags && hasPatientFlags(labCase.patientFlags) ? (
           <PatientFlagBanners patient={labCase.patientFlags} />
         ) : (
@@ -90,7 +90,7 @@ export function LabCasePage({id}: {id: string}) {
             items={[
               {
                 id: 'enteredInError',
-                label: 'Entered in Error',
+                label: 'Mark Entered in Error',
                 description: 'Opened by mistake, or with the wrong test',
                 icon: AppIcon.EnteredInError,
                 variant: 'destructive' as const,
@@ -138,7 +138,7 @@ export function LabCasePage({id}: {id: string}) {
   }
 
   function next(c: LabCase) {
-    return section('next', "What's Next", <NextWork labCase={c} canWork={canWork} onOpen={setDialog} />);
+    return section('next', "What's next", <NextWork labCase={c} canWork={canWork} onOpen={setDialog} />);
   }
   function clock(c: LabCase) {
     return section('clock', 'Clock', <LabClockDetails clock={c.clock} />);
@@ -157,7 +157,7 @@ export function LabCasePage({id}: {id: string}) {
   }
   /** A hospital case's surgery details (MC20); none for a clinic's. */
   function surgery(c: LabCase) {
-    return c.source === 'Hospital' ? [section('surgery', 'Surgery Details', <SurgeryDetails labCase={c} />)] : [];
+    return c.source === 'Hospital' ? [section('surgery', 'Surgery details', <SurgeryDetails labCase={c} />)] : [];
   }
 }
 
@@ -170,7 +170,7 @@ function NextWork({labCase, canWork, onOpen}: {labCase: LabCase; canWork: boolea
         {labCase.status === 'Reported'
           ? 'Nothing: the report has been authorised.'
           : labCase.status === 'AwaitingSurgeryDetails'
-            ? 'The report has gone back to the hospital. Add the surgery details when the hospital sends them: they close the case.'
+            ? 'The report has gone back to the hospital. The case stays open until the hospital confirms what surgery was done, or that none is expected. Adding those details closes it.'
           : labCase.status === 'RepeatRequested'
             ? 'Nothing here: a repeat sample was asked for. A new sample opens a new case.'
             : `Nothing: the case is ${labCaseStatusLabel(labCase.status).toLowerCase()}.`}
@@ -189,9 +189,6 @@ function NextWork({labCase, canWork, onOpen}: {labCase: LabCase; canWork: boolea
         <Text type="body" weight="semibold">
           {next.choice?.question}
         </Text>
-        <Text type="supporting" color="secondary">
-          Record the outcome you decided. Nothing is chosen for you.
-        </Text>
         {canWork && labCase.canRecord ? (
           <HStack gap={2} wrap="wrap">
             {(next.choice?.outcomes ?? []).map((outcome) => (
@@ -208,7 +205,11 @@ function NextWork({labCase, canWork, onOpen}: {labCase: LabCase; canWork: boolea
   if (next.kind === 'Report')
     return (
       <VStack gap={3} hAlign="start">
-        <Text type="body">Every step is done. The results are entered and the report authorised by a holder of the permission to authorise lab reports.</Text>
+        <Text type="body">
+          {labCase.canAuthorise
+            ? 'Every step is done. Enter the results and authorise the report.'
+            : 'Every step is done. Someone allowed to authorise lab reports enters the results and authorises the report.'}
+        </Text>
         {labCase.canAuthorise && (
           <Button label="Enter Results and Authorise" variant="primary" icon={<Icon icon={AppIcon.SignOff} />} onClick={() => onOpen({kind: 'report'})} />
         )}
@@ -296,7 +297,7 @@ function CaseSteps({labCase, onOpen}: {labCase: LabCase; onOpen: (dialog: LabCas
           }
           endContent={
             step.canMarkEnteredInError && (
-              <Button label="Entered in Error" variant="ghost" size="sm" onClick={() => onOpen({kind: 'stepError', step})} />
+              <Button label="Mark Entered in Error" variant="ghost" size="sm" onClick={() => onOpen({kind: 'stepError', step})} />
             )
           }
         />
@@ -395,7 +396,7 @@ function SurgeryDetails({labCase}: {labCase: LabCase}) {
     <VStack gap={3} hAlign="stretch">
       {details.length === 0 ? (
         <Text type="body" color="secondary">
-          {labCase.status === 'AwaitingSurgeryDetails' ? 'Awaiting the hospital’s surgery details.' : 'None from the hospital yet.'}
+          {labCase.status === 'AwaitingSurgeryDetails' ? 'Waiting for the hospital to confirm what surgery was done.' : 'None from the hospital yet.'}
         </Text>
       ) : (
         <List edge="flush" hasDividers aria-label="Surgery details">

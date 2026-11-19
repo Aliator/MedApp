@@ -103,11 +103,11 @@ export function WriteLetterDialog({about, teamId, patient, onCancel, onCreated}:
         {templates.isSuccess && choices.length === 0 && (
           <Text type="body" color="secondary">
             {about.referralId
-              ? 'There are no templates for replies to referrals in this team. An administrator adds them in Letter Templates.'
-              : 'There are no letter templates for this team. An administrator adds them in Letter Templates.'}
+              ? 'There are no templates for replies to referrals in this team. An admin adds them in Letter Templates.'
+              : 'There are no letter templates for this team. An admin adds them in Letter Templates.'}
           </Text>
         )}
-        {templates.isError && <AlertMessage label="Templates not loaded" message="The templates could not be loaded. Please try again." />}
+        {templates.isError && <AlertMessage label="Templates not loaded" />}
         {error && <AlertMessage label="Letter not started" message={error} />}
       </VStack>
     </ConfirmDialog>

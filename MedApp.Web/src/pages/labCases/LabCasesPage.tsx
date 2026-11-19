@@ -34,7 +34,7 @@ const FAVOURITES: ListFilterFavourite[] = LAB_CASE_VIEWS.map((v) => ({label: lab
 const EMPTY: Record<LabCaseView, string> = {
   Open: 'No open cases',
   AtRisk: 'No case is at risk',
-  Overdue: 'No case is overdue',
+  Overdue: 'No breached cases',
   ToReport: 'Nothing to report',
   Reported: 'No reported cases',
   AwaitingSurgeryDetails: 'Nothing awaiting surgery details',
@@ -141,7 +141,7 @@ export function LabCasesPage({search, onSearchChange}: LabCasesPageProps) {
       title="Lab Cases"
       subtitle={isPending ? 'Loading lab cases...' : `${labCaseViewLabel(view)}: ${total} ${text || search.source ? `matching ${noun}` : noun}`}
       fill
-      message={isError && <AlertMessage label="Lab cases not loaded" message="The lab cases could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Lab cases not loaded" />}>
       <DataTable
         data={(data?.items ?? []) as Row[]}
         columns={columns}

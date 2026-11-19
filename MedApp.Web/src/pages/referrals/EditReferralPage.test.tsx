@@ -107,7 +107,7 @@ describe('EditReferralPage', () => {
     unmount();
 
     const failed = renderPage(() => json({title: 'Down'}, 500));
-    expect(await findAlert('The referral could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Referral not loaded')).toBeInTheDocument();
     failed.unmount();
 
     const {user, router} = renderPage();

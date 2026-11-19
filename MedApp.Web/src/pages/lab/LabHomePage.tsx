@@ -74,7 +74,7 @@ export function WorkCard<T>({
       <PanelHeader title={title} summary={query.data ? <Text type="supporting" color="secondary">{`${total}`}</Text> : null} />
       {query.isError ? (
         <Section variant="transparent" padding={6}>
-          <AlertMessage label={`${title} not loaded`} message={`${title} could not be loaded. Please try again.`} />
+          <AlertMessage label={`${title} not loaded`} />
         </Section>
       ) : items.length === 0 ? (
         <Section variant="transparent" padding={6}>
@@ -114,7 +114,7 @@ const caseRow = (c: LabCaseSummary) => ({
   detail: [c.labTestName, c.patientName, c.sourceName].filter(Boolean).join(' · '),
 });
 
-/** A case with its clock (MC19): "Due tomorrow (at risk), 21 Nov 2026", "2 days overdue, due 17 Nov 2026". */
+/** A case with its clock (MC19): "Due tomorrow (at risk), 21 Nov 2026", "2 days past due, due 17 Nov 2026". */
 const clockRow = (c: LabCaseSummary) => {
   const row = caseRow(c);
   return {...row, detail: [row.detail, labClockLine(c.clock)].filter(Boolean).join(' · ')};
@@ -185,7 +185,7 @@ export function LabHomePage() {
           row={pathwayRow}
         />
         <WorkCard
-          title="To receive"
+          title="On its way"
           description="Samples sent to the lab, not yet received."
           empty="Nothing on its way"
           query={toReceive}
@@ -217,9 +217,9 @@ export function LabHomePage() {
           row={clockRow}
         />
         <WorkCard
-          title="Overdue"
+          title="Breached"
           description="Lab cases past their due date, not yet reported."
-          empty="Nothing overdue"
+          empty="Nothing breached"
           query={overdue}
           href="/lab/cases?view=Overdue"
           row={clockRow}
@@ -242,7 +242,7 @@ export function LabHomePage() {
         />
         <WorkCard
           title="Awaiting surgery details"
-          description="Hospital cases whose report has gone back, waiting for the hospital's surgery details."
+          description="Hospital cases whose report has gone back, open until the hospital confirms what surgery was done."
           empty="Nothing awaiting surgery details"
           query={awaitingSurgery}
           href="/lab/cases?view=AwaitingSurgeryDetails"

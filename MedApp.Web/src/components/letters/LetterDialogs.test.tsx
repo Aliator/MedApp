@@ -46,7 +46,7 @@ describe('letter dialogs', () => {
 
     const dialog = within(await dialogOpen());
     expect(dialog.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
-    expect(dialog.getByText('Discharge summary')).toBeInTheDocument();
+    expect(dialog.getByText('End of care letter')).toBeInTheDocument();
     expect(isDisabled(dialog.getByRole('button', {name: 'Submit'}))).toBe(true);
     await waitFor(() => expect(isDisabled(dialog.getByRole('combobox', {name: /Approver/}))).toBe(false));
     await user.click(dialog.getByRole('combobox', {name: /Approver/}));

@@ -28,13 +28,13 @@ function RequestDetails({request}: {request: HospitalRequest}) {
         {request.hospitalName}
         {request.hospitalOdsCode ? ` (${request.hospitalOdsCode})` : ''}
       </MetadataListItem>
-      <MetadataListItem label="Hospital's patient number">{request.hospitalPatientNumber}</MetadataListItem>
+      <MetadataListItem label="Hospital number">{request.hospitalPatientNumber}</MetadataListItem>
       <MetadataListItem label="NHS number on the request">{request.nhsNumber ? formatNhsNumber(request.nhsNumber) : 'Not given'}</MetadataListItem>
       <MetadataListItem label="Surgeon">{request.surgeonName}</MetadataListItem>
       <MetadataListItem label="Priority">
         <LabRequestPriorityToken priority={request.priority} />
       </MetadataListItem>
-      <MetadataListItem label="Cancer pathway">{request.isCancerPathway ? 'Yes, the request says so' : 'No'}</MetadataListItem>
+      <MetadataListItem label="Hospital's urgent cancer pathway">{request.isCancerPathway ? 'Yes, the request says so' : 'No'}</MetadataListItem>
       <MetadataListItem label="Request made">{formatDateTime(request.authoredOn ?? '')}</MetadataListItem>
       <MetadataListItem label="Report needed by">{request.reportNeededBy ? formatDate(request.reportNeededBy) : "No date given: the lab's limit applies"}</MetadataListItem>
     </MetadataList>
@@ -80,7 +80,7 @@ export function HospitalRequestPage({id}: {id: string}) {
 
   return (
     <Page
-      title={request ? `Lab Case ${request.labCaseNumber}` : 'Hospital Request'}
+      title={request ? `Hospital Request ${request.labCaseNumber}` : 'Hospital Request'}
       subtitle={request ? `From ${request.hospitalName}, hospital number ${request.hospitalPatientNumber}` : undefined}
       backHref="/hospital-requests"
       backLabel="Back to hospital requests"
@@ -92,7 +92,7 @@ export function HospitalRequestPage({id}: {id: string}) {
         isMissing ? (
           <AlertMessage label="Hospital request not found" message="Hospital request not found. It may have been deleted, or it's another team's." />
         ) : error ? (
-          <AlertMessage label="Hospital request not loaded" message="The hospital request could not be loaded. Please try again." />
+          <AlertMessage label="Hospital request not loaded" />
         ) : request?.nhsNumbersDiffer ? (
           <AlertMessage status="warning" label="NHS numbers differ" message={NHS_NUMBERS_DIFFER} />
         ) : (
@@ -107,7 +107,7 @@ export function HospitalRequestPage({id}: {id: string}) {
                 patientDetailsSection({patientId: request.patientId, patient: request.patient}),
                 {
                   key: 'request',
-                  title: 'The Request',
+                  title: 'The request',
                   isOpen: true,
                   canFold: false,
                   onToggle: () => {},
@@ -122,7 +122,7 @@ export function HospitalRequestPage({id}: {id: string}) {
           }
           end={
             <VStack gap={4} hAlign="stretch">
-              <PanelCard title="The Sample and Lab Case">
+              <PanelCard title="The sample and lab case">
                 <Section variant="transparent">
                   <CaseDetails request={request} />
                 </Section>
