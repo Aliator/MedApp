@@ -184,7 +184,17 @@ public enum PatientPathwayAuditAction
     /// <summary>The case was marked entered in error, freeing its samples: <c>{labCaseId, number}</c>.</summary>
     LabCaseEnteredInError = 55,
 
-    // 56 to 58 are the hospital report's and surgery details' (MC20).
+    /// <summary>
+    /// A hospital case's authorised report was sent back to its hospital (MC20), recorded as sent: <c>{labCaseId,
+    /// number, hospitalId, hospital, letterKind, recipientKind, method}</c>. Never the surgeon's name or the results.
+    /// </summary>
+    LabReportSent = 56,
+
+    /// <summary>The hospital's surgery details were added (MC20): <c>{labCaseId, number, surgeryDetailsId, noSurgeryExpected}</c>; never the text.</summary>
+    SurgeryDetailsAdded = 57,
+
+    /// <summary>A hospital case closed, its surgery details added after its report was sent (MC20): <c>{labCaseId, number}</c>.</summary>
+    LabCaseClosed = 58,
 
     /// <summary>
     /// A consult was sent to another team (MC25). Consult entries (59 to 62) hold <c>{consultId, askingTeamId,

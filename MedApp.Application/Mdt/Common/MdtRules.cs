@@ -29,6 +29,7 @@ public static class MdtRules
     public const string NotLaterMessage = "Choose a later MDT than the one it's on.";
     public const string NotPresentMessage = "Choose who was present from the meeting's attendees.";
     public const string HasOutcomesMessage = "Outcomes are recorded on this MDT, so it can't be cancelled.";
+    public const string PresenterNotAttendingMessage = "Choose the presenter from the MDT's attendees.";
     public const string HasItemsMessage =
         "Patients are listed for this MDT: move or withdraw them before changing its team or making it an ordinary meeting.";
 
@@ -92,6 +93,37 @@ public static class MdtRules
     public static bool CanDefer(MdtItem item, PathwayActor viewer) =>
         viewer.Has(Permission.WorkPathways) && TeamAccess.CanChangeTeam(item.TeamId, viewer.Teams)
         && item.IsOpen && PatientRules.CanChange(item.Patient);
+
+    /// <summary>
+    /// Whether the viewer can choose its presenter (MC21): they work on pathways, it's their team's MDT's, it's open, on a
+    /// meeting, and the record can change.
+    /// </summary>
+    public static bool CanChoosePresenter(MdtItem item, PathwayActor viewer) =>
+        viewer.Has(Permission.WorkPathways) && TeamAccess.CanChangeTeam(item.TeamId, viewer.Teams)
+        && item.IsOpen && item.MeetingId is not null && PatientRules.CanChange(item.Patient);
+
+    /// <summary>
+    /// Why an MDT's attendee from another team (MC26) reads an item but can't change it; null for its own team and admins.
+    /// </summary>
+    public static string? AttendeeReadOnly(MdtItem item, TeamScope scope) =>
+        scope.SeesAllTeams || scope.IsMember(item.TeamId)
+            ? null
+            : $"{(string.IsNullOrEmpty(item.Team?.Name) ? "Another team" : item.Team.Name)}\u2019s case: you attend its MDT, so you read it until it\u2019s discussed or withdrawn. Only its team changes it.";
+
+    /// <summary>
+    /// Why the viewer sees only part of an MDT's list, or none of it (MC26): an attendee from another team reads the
+    /// cases listed, read only, while their grant lasts; anyone else from another team sees none. Null for the MDT's own
+    /// team and admins.
+    /// </summary>
+    public static string? ListReadOnlyReason(Meeting meeting, string? teamName, TeamScope scope)
+    {
+        if (scope.SeesAllTeams || (meeting.TeamId is { } teamId && scope.IsMember(teamId)))
+            return null;
+        var team = string.IsNullOrEmpty(teamName) ? "another team" : teamName;
+        return meeting.Attendees.Any(a => a.StaffUserId == scope.UserId)
+            ? $"You attend {team}\u2019s MDT, so you can read the cases listed on it (not change them) until each is discussed or withdrawn and the meeting has ended."
+            : $"This is {team}\u2019s MDT and you aren\u2019t invited: only its team and its attendees see the cases listed on it.";
+    }
 
     /// <summary>Whether the viewer can record its outcome: they hold RecordMdtOutcomes, and it can be recorded now.</summary>
     public static bool CanRecordOutcome(MdtItem item, PathwayActor viewer, DateTime nowUtc) =>

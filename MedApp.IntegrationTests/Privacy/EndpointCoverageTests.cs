@@ -72,6 +72,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/specimens/{id:guid}"] = Records("SpecimenViewed"), // its page, label and request sheet; the specimen's ID in the details
         ["api/specimens/search"] = Records("PatientListed"),
         ["api/lab-cases/{id:guid}"] = Records("LabCaseViewed"), // the case's page; its ID and the viewer's access in the details
+        ["api/hospital-requests/{id:guid}"] = Records("LabCaseViewed"), // a hospital request (MC18): its case's ID and the access
         ["api/results/{id:guid}"] = Records("ResultViewed"), // the result's ID in the details
         ["api/results/search"] = Records("PatientListed"),
         ["api/results/count"] = Nothing("a count for the side nav: names no patients"),
@@ -148,6 +149,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/specimen-types"] = Nothing("specimen types: configuration"),
         ["api/consent-forms"] = Nothing("consent forms: configuration"),
         ["api/lab-tests"] = Nothing("the lab's test catalogue: configuration"),
+        ["api/hospitals"] = Nothing("hospitals (MC18): configuration"),
         ["api/calendar/closed-days/bookings"] = Nothing("how many appointments, blocks and meetings each member of staff has on a day: counts, never patients"),
         ["api/calendar/staff/{userId:guid}/day-templates"] = Nothing("a member of staff's day templates: configuration"),
         ["api/calendar/day-templates/{id:guid}"] = Nothing("calendar day templates: configuration"),

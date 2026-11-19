@@ -1,5 +1,6 @@
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Mdt.Commands.ChooseMdtPresenter;
 using MedApp.Application.Mdt.Commands.DeferMdtItem;
 using MedApp.Application.Mdt.Commands.ListForMdt;
 using MedApp.Application.Mdt.Commands.RecordMdtOutcome;
@@ -89,6 +90,18 @@ public sealed class MdtController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Defer(Guid id, [FromBody] DeferMdtItemRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new DeferMdtItemCommand(id, request.MeetingId, request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>
+    /// Chooses who presents an item at its MDT (MC21), from the meeting's attendees, or nobody. Only the item's own team.
+    /// </summary>
+    [HttpPost("items/{id:guid}/presenter")]
+    [RequirePermission(Permission.WorkPathways)]
+    [ProducesResponseType(typeof(MdtItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ChoosePresenter(Guid id, [FromBody] ChooseMdtPresenterRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new ChooseMdtPresenterCommand(id, request.PresenterUserId, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>
     /// Records the team's outcome as written, and who was present, once its meeting has started. The pathway's

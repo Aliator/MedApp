@@ -150,7 +150,8 @@ public static class SpecimenSearch
                 || (s.Patient.NhsNumber != null && s.Patient.NhsNumber.Contains(compact))
                 || s.SpecimenType.Name.ToLower().Contains(term)
                 || (s.LabTest != null && s.LabTest.Name.ToLower().Contains(term))
-                || (s.RequestingTeam != null && s.RequestingTeam.Name.ToLower().Contains(term)));
+                || (s.RequestingTeam != null && s.RequestingTeam.Name.ToLower().Contains(term))
+                || (s.Hospital != null && s.Hospital.Name.ToLower().Contains(term)));
         }
 
         if (query.PathwayId is { } pathwayId)
@@ -198,7 +199,8 @@ public static class SpecimenSearch
             SortByPatient => specimens.OrderByDirection(s => s.Patient.LastName, ascending)
                 .ThenByDirection(s => s.Patient.FirstName, ascending),
             SortByStatus => specimens.OrderByDirection(s => s.Status, ascending),
-            SortBySource => specimens.OrderByDirection(s => s.RequestingTeam != null ? s.RequestingTeam.Name : "", ascending),
+            SortBySource => specimens.OrderByDirection(
+                s => s.RequestingTeam != null ? s.RequestingTeam.Name : s.Hospital != null ? s.Hospital.Name : "", ascending),
             SortByTest => specimens.OrderByDirection(s => s.LabTest != null ? s.LabTest.Name : "", ascending),
             SortByTime => view switch
             {
@@ -251,7 +253,7 @@ public static class SpecimenSearch
             SortByNumber => By(ordered, s => s.Number, ascending),
             SortByPatient => By(ordered, s => (s.Patient?.LastName ?? "") + "\u0000" + (s.Patient?.FirstName ?? ""), ascending),
             SortByStatus => By(ordered, s => (int)s.Status, ascending),
-            SortBySource => By(ordered, s => s.RequestingTeam?.Name ?? "", ascending),
+            SortBySource => By(ordered, s => s.RequestingTeam?.Name ?? s.Hospital?.Name ?? "", ascending),
             SortByTest => By(ordered, s => s.LabTest?.Name ?? "", ascending),
             SortByDue => By(ordered, s => SpecimenWorkflow.ExpectedBy(s, nowUtc), ascending),
             SortByTime => view == SpecimenView.Overdue

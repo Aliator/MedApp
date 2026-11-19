@@ -1,12 +1,13 @@
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Domain.Calendar;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
 
 /// <summary>Meetings. Changes run inside <c>CalendarLock</c>'s transaction, which these join (the request's DbContext).</summary>
-public sealed class MeetingRepository(MedAppDbContext context) : IMeetingRepository
+public sealed class MeetingRepository(MedAppDbContext context, TimeProvider timeProvider) : IMeetingRepository
 {
     public async Task<Meeting?> GetAsync(Guid id, CancellationToken ct) =>
         await context.Meetings.AsNoTracking().Include(m => m.Attendees).FirstOrDefaultAsync(m => m.Id == id, ct);
@@ -68,5 +69,15 @@ public sealed class MeetingRepository(MedAppDbContext context) : IMeetingReposit
             item.MeetingCancelledStartUtc = starts[item.MeetingId!.Value];
             item.MeetingId = null;
         }
+
+        // Its attendees' reading of the cases listed ends with it (MC26), in the same save.
+        var itemIds = items.Select(i => i.Id).ToList();
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var grants = await context.PathwayAccess
+            .Where(a => a.Reason == PathwayAccessReason.Mdt && a.EndedAtUtc == null
+                        && a.MdtItemId != null && itemIds.Contains(a.MdtItemId.Value))
+            .ToListAsync(ct);
+        foreach (var grant in grants)
+            grant.EndedAtUtc = now;
     }
 }

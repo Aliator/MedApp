@@ -33,6 +33,13 @@ public sealed class MdtPersonResponse
 public sealed class MdtMeetingListResponse
 {
     public MdtMeetingResponse Meeting { get; set; } = new();
+
+    /// <summary>
+    /// Why the viewer sees only part of the list, or none of it (MC26): another team's MDT they attend (the cases listed,
+    /// read only), or one they aren't invited to; null for the MDT's own team and admins.
+    /// </summary>
+    public string? ReadOnlyReason { get; set; }
+
     public List<MdtItemResponse> Items { get; set; } = [];
 }
 
@@ -89,6 +96,36 @@ public sealed class MdtItemResponse
     /// <summary>Whether the viewer can record its outcome now (its meeting has started).</summary>
     public bool CanRecordOutcome { get; set; }
 
-    /// <summary>Why it can't change now (the record is restricted or anonymised), or null.</summary>
+    /// <summary>
+    /// Why it can't change now (the record is restricted or anonymised, or it's another team's item the viewer reads as
+    /// an attendee of its MDT), or null.
+    /// </summary>
     public string? ReadOnlyReason { get; set; }
+
+    /// <summary>Who presents it (MC21), from its meeting's attendees; null for nobody.</summary>
+    public Guid? PresenterUserId { get; set; }
+    public string? PresenterUsername { get; set; }
+
+    /// <summary>Whether the viewer can choose its presenter now (its team's, open, on a meeting).</summary>
+    public bool CanChoosePresenter { get; set; }
+
+    /// <summary>The lab's work on its pathway (MC21): the samples, oldest taken first, with their reports' results.</summary>
+    public List<MdtLabWorkResponse> LabWork { get; set; } = [];
+}
+
+/// <summary>A sample on an MDT item's pathway, with its result once reported (MC21).</summary>
+public sealed class MdtLabWorkResponse
+{
+    public Guid SpecimenId { get; set; }
+
+    public string Number { get; set; } = string.Empty;
+
+    public string? TypeName { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTime? ReportedAtUtc { get; set; }
+
+    /// <summary>The result its report made, for the sign-off page; null until reported.</summary>
+    public Guid? ResultId { get; set; }
 }

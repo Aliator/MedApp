@@ -135,6 +135,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         // Lab cases (MC15), with their steps and tests: the results and every detail typed are free text.
         var labCases = await Tracking(context.LabCases, forUpdate)
             .Include(c => c.Steps)
+            .Include(c => c.SurgeryDetails)
+            .Include(c => c.Hospital)
             .Include(c => c.LabTest!).ThenInclude(t => t.Steps)
             .Where(c => c.PatientId == patientId)
             .OrderBy(c => c.OpenedAtUtc).ThenBy(c => c.Id)
@@ -144,6 +146,17 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             labCase.Patient = patient;
         foreach (var specimen in specimens)
             specimen.LabCase ??= labCases.FirstOrDefault(c => c.Id == specimen.LabCaseId);
+
+        // Hospital requests (MC18): the hospital's patient number, the NHS number as given and the surgeon's name.
+        var hospitalRequests = await Tracking(context.HospitalRequests, forUpdate)
+            .Include(r => r.Hospital)
+            .Include(r => r.SpecimenType)
+            .Include(r => r.LabTest)
+            .Where(r => r.PatientId == patientId)
+            .OrderBy(r => r.RegisteredAtUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        foreach (var hospitalRequest in hospitalRequests)
+            hospitalRequest.Patient = patient;
 
         // Results; their history is in the audit entries above, their reports among the files.
         var results = await Tracking(context.Results, forUpdate)
@@ -213,6 +226,7 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Letters = letters,
             Specimens = specimens,
             LabCases = labCases,
+            HospitalRequests = hospitalRequests,
             Results = results,
             MdtItems = mdtItems,
             ConsentRecords = consentRecords,

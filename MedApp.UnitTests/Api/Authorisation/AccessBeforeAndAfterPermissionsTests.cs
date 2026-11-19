@@ -185,8 +185,19 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         FhirController.Metadata 11111
         FhirController.ReadPatient 00011
         FhirController.SearchPatients 00011
+        HospitalRequestsController.Get 00011
+        HospitalRequestsController.PatientMatches 00000
+        HospitalRequestsController.Register 00000
+        HospitalRequestsController.Search 00011
+        HospitalsController.Archive 00001
+        HospitalsController.Create 00001
+        HospitalsController.Delete 00001
+        HospitalsController.GetAll 00011
+        HospitalsController.Restore 00001
+        HospitalsController.Update 00001
         JobsController.GetJobs 00001
         JobsController.RunJob 00001
+        LabCasesController.AddSurgeryDetails 00000
         LabCasesController.Authorise 00000
         LabCasesController.Get 00011
         LabCasesController.MarkEnteredInError 00011
@@ -195,6 +206,15 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LabCasesController.RecordOutcome 00000
         LabCasesController.RecordStep 00000
         LabCasesController.Search 00011
+        LetterTemplatesController.ArchiveLetterTemplate 00001
+        LetterTemplatesController.CreateLetterTemplate 00001
+        LetterTemplatesController.DeleteLetterTemplate 00001
+        LetterTemplatesController.GetLetterTemplate 00011
+        LetterTemplatesController.GetLetterTemplates 00011
+        LetterTemplatesController.GetMergeFields 00011
+        LetterTemplatesController.PreviewLetterTemplate 00001
+        LetterTemplatesController.RestoreLetterTemplate 00001
+        LetterTemplatesController.UpdateLetterTemplate 00001
         LettersController.ApproveLetter 00000
         LettersController.CountLetters 00011
         LettersController.CreateLetter 00000
@@ -209,15 +229,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         LettersController.UpdateLetter 00000
         LettersController.WithdrawLetter 00011
         LettersController.WriteCorrection 00000
-        LetterTemplatesController.ArchiveLetterTemplate 00001
-        LetterTemplatesController.DeleteLetterTemplate 00001
-        LetterTemplatesController.CreateLetterTemplate 00001
-        LetterTemplatesController.GetLetterTemplate 00011
-        LetterTemplatesController.GetLetterTemplates 00011
-        LetterTemplatesController.GetMergeFields 00011
-        LetterTemplatesController.PreviewLetterTemplate 00001
-        LetterTemplatesController.RestoreLetterTemplate 00001
-        LetterTemplatesController.UpdateLetterTemplate 00001
+        MdtController.ChoosePresenter 00011
         MdtController.Defer 00011
         MdtController.GetAwaitingMeeting 00011
         MdtController.GetMeetingList 00011
@@ -377,8 +389,8 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         TeamsController.ArchiveTeam 00001
         TeamsController.CreateTeam 00001
         TeamsController.DeleteTeam 00001
-        TeamsController.GetTeams 00011
         TeamsController.GetTeam 00011
+        TeamsController.GetTeams 00011
         TeamsController.RestoreTeam 00001
         TeamsController.UpdateTeam 00001
         """;

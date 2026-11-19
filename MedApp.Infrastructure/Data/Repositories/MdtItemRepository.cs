@@ -4,6 +4,9 @@ using MedApp.Application.Mdt.Repositories;
 using MedApp.Domain.Calendar;
 using MedApp.Domain.Mdt;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Results;
+using MedApp.Domain.Specimens;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -93,6 +96,65 @@ public sealed class MdtItemRepository(MedAppDbContext context) : IMdtItemReposit
         context.PatientPathwayAuditEntries.Add(audit);
         await context.SaveChangesOrConflictAsync(MdtRules.ChangedMeanwhileMessage, ct);
     }
+
+    public Task SaveAsync(CancellationToken ct) => context.SaveChangesOrConflictAsync(MdtRules.ChangedMeanwhileMessage, ct);
+
+    public async Task<IReadOnlyList<MdtLabWork>> GetLabWorkAsync(IReadOnlyCollection<Guid> pathwayIds, CancellationToken ct)
+    {
+        var ids = pathwayIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return [];
+
+        return await context.Specimens.AsNoTracking()
+            .Where(s => s.PathwayId != null && ids.Contains(s.PathwayId.Value) && s.Status != SpecimenStatus.EnteredInError)
+            .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Id)
+            .Select(s => new MdtLabWork(
+                s.PathwayId!.Value,
+                s.Id,
+                s.Number,
+                s.SpecimenType.Name,
+                s.Status,
+                s.ReportedAtUtc,
+                context.Results
+                    .Where(r => r.SpecimenId == s.Id && r.Status != ResultStatus.EnteredInError)
+                    .OrderBy(r => r.ReportedAtUtc).ThenBy(r => r.Id)
+                    .Select(r => (Guid?)r.Id)
+                    .FirstOrDefault()))
+            .ToListAsync(ct);
+    }
+
+    public async Task SyncGrantsAsync(IReadOnlyCollection<MdtItem> items, DateTime nowUtc, CancellationToken ct)
+    {
+        var ids = items.Select(i => i.Id).ToList();
+        if (ids.Count == 0)
+            return;
+
+        var live = await context.PathwayAccess
+            .Where(a => a.Reason == PathwayAccessReason.Mdt && a.EndedAtUtc == null
+                        && a.MdtItemId != null && ids.Contains(a.MdtItemId.Value))
+            .ToListAsync(ct);
+        foreach (var item in items)
+            context.PathwayAccess.AddRange(MdtGrants.Sync(item, live, nowUtc));
+    }
+
+    public async Task SyncMeetingGrantsAsync(Meeting meeting, DateTime nowUtc, CancellationToken ct)
+    {
+        var items = await context.MdtItems.Where(i => i.MeetingId == meeting.Id).ToListAsync(ct);
+        foreach (var item in items)
+            item.Meeting = meeting;
+        await SyncGrantsAsync(items, nowUtc, ct);
+    }
+
+    public Task<int> EndLapsedGrantsAsync(DateTime nowUtc, CancellationToken ct) =>
+        context.PathwayAccess
+            .Where(a => a.Reason == PathwayAccessReason.Mdt && a.EndedAtUtc == null)
+            .Where(a => !context.MdtItems.Any(i =>
+                i.Id == a.MdtItemId
+                && i.MeetingId != null
+                && i.Meeting!.IsMdt
+                && i.Meeting.Attendees.Any(m => m.StaffUserId == a.UserId)
+                && (i.Status == MdtItemStatus.Listed || i.Status == MdtItemStatus.Deferred || i.Meeting.EndUtc > nowUtc)))
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.EndedAtUtc, nowUtc), ct);
 
     private static IQueryable<MdtItem> WithDetails(IQueryable<MdtItem> items) =>
         items

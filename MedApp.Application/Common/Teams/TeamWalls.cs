@@ -17,6 +17,10 @@ public static class TeamWalls
     public static string ConsultReadOnly(string? teamName) =>
         $"Your team was asked a consult by {teamName ?? "another team"}: you can read this pathway until they close it, and reply in Consults.";
 
+    /// <summary>Why an MDT's attendee from another team (MC26) reads a pathway but can't change it.</summary>
+    public static string MdtReadOnly(string? teamName) =>
+        $"You attend {teamName ?? "another team"}\u2019s MDT, so you can read this pathway (not change it) until it\u2019s discussed or withdrawn and the meeting has ended.";
+
     /// <summary>Why the viewer's team can't work a stage another team works (MC7, the relay: a 409).</summary>
     public static string StageNotYours(string stageName, string? teamName) =>
         $"The '{stageName}' stage is {teamName ?? "another team"}’s to work: it comes back when they finish it.";

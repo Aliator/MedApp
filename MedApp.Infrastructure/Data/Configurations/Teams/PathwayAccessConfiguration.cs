@@ -30,5 +30,7 @@ public sealed class PathwayAccessConfiguration : IEntityTypeConfiguration<Pathwa
         // A team's or a person's live grants, for their lists.
         builder.HasIndex(x => new { x.TeamId, x.EndedAtUtc });
         builder.HasIndex(x => x.PatientId);
+        // An MDT item's attendee grants (MC26), to sync and end them.
+        builder.HasIndex(x => x.MdtItemId).HasFilter("[MdtItemId] IS NOT NULL");
     }
 }

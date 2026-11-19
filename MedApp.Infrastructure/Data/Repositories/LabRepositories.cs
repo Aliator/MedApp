@@ -121,6 +121,9 @@ public sealed class LabCaseRepository(MedAppDbContext context) : ILabCaseReposit
         foreach (var step in change.NewSteps)
             if (context.Entry(step).State != EntityState.Added)
                 context.LabCaseSteps.Add(step);
+        foreach (var details in change.NewSurgeryDetails)
+            if (context.Entry(details).State != EntityState.Added)
+                context.LabCaseSurgeryDetails.Add(details);
         context.PatientPathwayAuditEntries.AddRange(change.AuditEntries);
     }
 
@@ -146,6 +149,8 @@ public sealed class LabCaseRepository(MedAppDbContext context) : ILabCaseReposit
         cases
             .Include(c => c.Patient)
             .Include(c => c.RequestingTeam)
+            .Include(c => c.Hospital)
+            .Include(c => c.HospitalRequest!).ThenInclude(r => r.Hospital)
             .Include(c => c.LabTest!).ThenInclude(t => t.Steps)
             .Include(c => c.Steps)
             .AsSplitQuery();
@@ -154,6 +159,9 @@ public sealed class LabCaseRepository(MedAppDbContext context) : ILabCaseReposit
         cases
             .Include(c => c.Patient)
             .Include(c => c.RequestingTeam)
+            .Include(c => c.Hospital)
+            .Include(c => c.HospitalRequest!).ThenInclude(r => r.Hospital)
+            .Include(c => c.SurgeryDetails)
             .Include(c => c.LabTest!).ThenInclude(t => t.Steps)
             .Include(c => c.Steps)
             .Include(c => c.Pathway!).ThenInclude(p => p.Stages)
@@ -161,5 +169,7 @@ public sealed class LabCaseRepository(MedAppDbContext context) : ILabCaseReposit
             .Include(c => c.Specimens).ThenInclude(s => s.Patient)
             .Include(c => c.Specimens).ThenInclude(s => s.LabTest)
             .Include(c => c.Specimens).ThenInclude(s => s.RequestingTeam)
+            .Include(c => c.Specimens).ThenInclude(s => s.Hospital)
+            .Include(c => c.Specimens).ThenInclude(s => s.HospitalRequest)
             .AsSplitQuery();
 }

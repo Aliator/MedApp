@@ -97,6 +97,9 @@ public sealed class PatientExportResponse
     /// </summary>
     public List<ExportedLabCaseResponse> LabCases { get; set; } = [];
 
+    /// <summary>The hospital requests that brought the patient's samples (MC18), oldest registered first.</summary>
+    public List<ExportedHospitalRequestResponse> HospitalRequests { get; set; } = [];
+
     /// <summary>
     /// The patient's consent records, oldest recorded first: the stage, the form, when and by whom it was signed, and
     /// any withdrawal or correction. Their history is in <c>PathwayHistory</c>; their scans are among <c>Attachments</c>.
@@ -797,6 +800,47 @@ public sealed class ExportedLabCaseResponse
     public string? ErrorDetail { get; set; }
     public DateTime? EnteredInErrorAtUtc { get; set; }
     public string? EnteredInErrorBy { get; set; }
+
+    /// <summary>A hospital case's hospital, and its report as it went back (MC20).</summary>
+    public string? HospitalName { get; set; }
+    public DateTime? ReportSentAtUtc { get; set; }
+    public string? ReportAddressedTo { get; set; }
+    public string? ReportDeliveryMethod { get; set; }
+
+    /// <summary>The hospital's surgery details, as written (MC20).</summary>
+    public List<ExportedSurgeryDetailsResponse> SurgeryDetails { get; set; } = [];
+    public DateTime? ClosedAtUtc { get; set; }
+}
+
+/// <summary>A hospital's surgery details on a lab case, as the export gives them (MC20).</summary>
+public sealed class ExportedSurgeryDetailsResponse
+{
+    public DateOnly? SurgeryOn { get; set; }
+    public string? Procedure { get; set; }
+    public string? Outcome { get; set; }
+    public bool NoSurgeryExpected { get; set; }
+    public string? Detail { get; set; }
+    public DateTime AddedAtUtc { get; set; }
+    public string? AddedBy { get; set; }
+}
+
+/// <summary>A hospital request for the patient (MC18), as the export gives it.</summary>
+public sealed class ExportedHospitalRequestResponse
+{
+    public Guid Id { get; set; }
+    public string? HospitalName { get; set; }
+    public string HospitalPatientNumber { get; set; } = string.Empty;
+    public string? NhsNumber { get; set; }
+    public string SurgeonName { get; set; } = string.Empty;
+    public string Priority { get; set; } = string.Empty;
+    public bool IsCancerPathway { get; set; }
+    public DateTime AuthoredOnUtc { get; set; }
+    public DateOnly? ReportNeededBy { get; set; }
+    public DateTime? CollectedAtUtc { get; set; }
+    public string? SpecimenTypeName { get; set; }
+    public string? LabTestName { get; set; }
+    public string LabCaseNumber { get; set; } = string.Empty;
+    public DateTime RegisteredAtUtc { get; set; }
 }
 
 /// <summary>One recorded step of a lab case, as the export gives it.</summary>

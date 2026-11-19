@@ -41,10 +41,12 @@ public sealed class LabCase
     public Guid? RequestingTeamId { get; init; }
     public MedApp.Domain.Teams.Team? RequestingTeam { get; set; }
 
-    /// <summary>The hospital and its request (MC18); null for a clinic case. No foreign keys yet.</summary>
+    /// <summary>The hospital and its request (MC18); null for a clinic case.</summary>
     public Guid? HospitalId { get; init; }
+    public MedApp.Domain.Hospitals.Hospital? Hospital { get; set; }
 
     public Guid? HospitalRequestId { get; set; }
+    public MedApp.Domain.Hospitals.HospitalRequest? HospitalRequest { get; set; }
 
     public Guid? PathwayId { get; init; }
     public PatientPathway? Pathway { get; set; }
@@ -85,9 +87,55 @@ public sealed class LabCase
     public DateTime? EnteredInErrorAtUtc { get; set; }
     public Guid? EnteredInErrorByUserId { get; set; }
 
+    /// <summary>
+    /// A hospital case's report sent back to its hospital (MC20), in the same change as its authorising: when, by whom,
+    /// to whom (the request's surgeon, as written: never chosen, H-72) and how (the hospital's delivery method).
+    /// Recorded as sent; the <c>LabReport</c> letter's PDF and secure delivery come later.
+    /// </summary>
+    public DateTime? ReportSentAtUtc { get; set; }
+    public Guid? ReportSentByUserId { get; set; }
+    public string? ReportAddressedTo { get; set; }
+    public MedApp.Domain.Letters.LetterDispatchMethod? ReportDeliveryMethod { get; set; }
+
+    /// <summary>The hospital's surgery details, as the lab typed them (MC20): free text, nothing worked out from them.</summary>
+    public List<LabCaseSurgeryDetails> SurgeryDetails { get; set; } = [];
+
+    /// <summary>When the case closed: surgery details (or "no surgery expected") added after its report was sent.</summary>
+    public DateTime? ClosedAtUtc { get; set; }
+    public Guid? ClosedByUserId { get; set; }
+
     public int Version { get; set; }
 
     public byte[] RowVersion { get; set; } = [];
+}
+
+/// <summary>
+/// What a hospital sent back after its request (MC20): the surgery's date, the procedure, the outcome and any other
+/// details, as written, or "no surgery expected" with why. Free text (clinical), shown on the case's page only, never in
+/// the audit log (<c>SurgeryDetailsAdded</c> holds its ID only), a notification or a staff timeline.
+/// </summary>
+public sealed class LabCaseSurgeryDetails
+{
+    public const int MaxProcedureLength = 200;
+    public const int MaxTextLength = 500;
+
+    public Guid Id { get; init; }
+
+    public Guid LabCaseId { get; init; }
+
+    public DateOnly? SurgeryOn { get; init; }
+
+    public string? Procedure { get; set; }
+
+    public string? Outcome { get; set; }
+
+    public bool NoSurgeryExpected { get; init; }
+
+    public string? Detail { get; set; }
+
+    public DateTime AddedAtUtc { get; init; }
+
+    public Guid AddedByUserId { get; init; }
 }
 
 /// <summary>

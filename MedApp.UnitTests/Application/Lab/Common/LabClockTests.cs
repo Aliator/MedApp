@@ -75,4 +75,23 @@ public sealed class LabClockTests
         var cancer = LabClock.Of(Input(hospital: new LabClockHospital(null, true, Received.AddDays(-5), 10)), Received)!;
         cancer.Should().BeEquivalentTo(new { HospitalDueBasis = "CancerPathway", HospitalDueOn = new DateOnly(2026, 6, 6), SetBy = "Hospital" });
     }
+
+    [Test]
+    public void AHospitalCase_TakesItsSideFromItsRequest_AndItsHospitalsDefault()
+    {
+        var patient = new MedApp.Domain.Patients.Patient { Id = Guid.NewGuid(), FirstName = "Synthetic", LastName = "Patient" };
+        var hospital = MedApp.UnitTests.Common.Constants.HospitalsTestConstants.Hospital(defaultDeadlineDays: 3);
+        var request = MedApp.UnitTests.Common.Constants.HospitalsTestConstants.Request(hospital, patient, Histology(), Biopsy());
+        var labCase = MedApp.UnitTests.Common.Constants.HospitalsTestConstants.Case(request);
+        labCase.ReceivedAtUtc = Received;
+
+        LabClock.HospitalOf(labCase).Should().Be(new LabClockHospital(null, false, request.CollectedAtUtc, 3));
+        LabClock.Of(labCase, Received)!.Should().BeEquivalentTo(new
+        {
+            HospitalDueBasis = "HospitalDefault", HospitalDueOn = new DateOnly(2026, 6, 4), DueOn = new DateOnly(2026, 6, 4), SetBy = "Hospital"
+        });
+
+        labCase.HospitalRequest = null;
+        LabClock.HospitalOf(labCase).Should().BeNull("a clinic case has no hospital side");
+    }
 }
