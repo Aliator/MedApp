@@ -279,7 +279,20 @@ public sealed class TimelineStaffCanaryTests
         work.RecordOutcome(MedApp.Domain.Lab.LabChoice.SampleAdequate, MedApp.Domain.Lab.LabOutcome.Insufficient, Canary);
         work.Authorise(Canary, Guid.NewGuid());
         work.MarkEnteredInError(Canary, []);
-        return opened.AuditEntries.Concat(work.AuditEntries);
+
+        // MC20: a hospital case's report sent back (to the surgeon as written) and the surgery details, as typed.
+        var hospital = new MedApp.Domain.Hospitals.Hospital { Id = Guid.NewGuid(), Name = "Riverside General (test)" };
+        var request = new MedApp.Domain.Hospitals.HospitalRequest
+        {
+            Id = Guid.NewGuid(), HospitalId = hospital.Id, Hospital = hospital, SurgeonName = Canary, HospitalPatientNumber = Canary
+        };
+        var hospitalCase = MedApp.Application.Lab.Common.LabCaseChange.Open(
+            "MA26-000998", null, SpecimensTestConstants.Histology(), pathway.PatientId, Guid.NewGuid(), SpecimenSource.Hospital,
+            null, hospital.Id, request.Id, null, null, [], Staff, Now);
+        var sent = new MedApp.Application.Lab.Common.LabCaseChange(hospitalCase.Case, null, Staff, Now);
+        sent.SendReportToHospital(hospital, request);
+        sent.AddSurgeryDetails(new DateOnly(2026, 11, 1), Canary, Canary, false, Canary);
+        return opened.AuditEntries.Concat(work.AuditEntries).Concat(hospitalCase.AuditEntries).Concat(sent.AuditEntries);
     }
 
     /// <summary>
