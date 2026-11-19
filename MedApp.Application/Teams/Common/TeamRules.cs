@@ -12,6 +12,33 @@ public static class TeamRules
 
     public static string NameTakenMessage(string name) => $"A team called '{name}' already exists.";
 
+    /// <summary>
+    /// An admin is in no team, and a team member isn't an admin (decision 209 of <c>docs/multi-clinic-plan.md</c>): a 409
+    /// either way. Someone who is both has two accounts.
+    /// </summary>
+    public static string AdminHasNoTeam(string username) =>
+        $"{username} is an admin, and an admin is in no team. Someone who does clinical work too has a staff account as well.";
+
+    /// <summary>Why someone in a team can't be given the Admin role (decision 209).</summary>
+    public static string TeamMemberIsNoAdmin(string username) =>
+        $"{username} is in a team, and an admin is in no team. Someone who does clinical work too has a staff account as well.";
+
+    /// <summary>The lab has members only (a 409).</summary>
+    public const string LabHasNoClinicAdmin = "The lab has no clinic admin: choose Member for it.";
+
+    /// <summary>A membership's role was neither Member nor ClinicAdmin (a 400).</summary>
+    public const string ChooseRoleMessage = "Choose Member or Clinic admin.";
+
+    /// <summary>A membership without a team (a 400).</summary>
+    public const string ChooseTeamMessage = "Choose a team for each membership.";
+
+    /// <summary>A membership's role by name (<c>Member</c> when none is given), or null when it isn't one.</summary>
+    public static TeamMemberRole? ParseRole(string? role) =>
+        string.IsNullOrWhiteSpace(role) ? TeamMemberRole.Member
+        : Enum.TryParse<TeamMemberRole>(role.Trim(), ignoreCase: false, out var parsed)
+          && Enum.IsDefined(parsed) && !int.TryParse(role, out _) ? parsed
+        : null;
+
     public static string InUseMessage(Team team, TeamUsage usage) =>
         $"The '{team.Name}' team has {Describe(usage)}, so it can't be deleted. Archive it instead.";
 

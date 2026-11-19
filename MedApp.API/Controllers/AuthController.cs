@@ -16,6 +16,8 @@ using MedApp.Application.Authentication.Users.Commands.DeleteUser;
 using MedApp.Application.Authentication.Users.Commands.ResetUserPassword;
 using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Authentication.Users.Commands.SetUserTeams;
+using MedApp.Application.Common.Teams;
+using MedApp.Domain.Teams;
 using MedApp.Application.Authentication.Users.Commands.UpdateUserPassword;
 using MedApp.Application.Authentication.Users.Queries.GetAllUsers;
 using MedApp.Application.Authentication.Users.Queries.GetMyTeams;
@@ -361,8 +363,9 @@ public sealed class AuthController(
         Ok(await mediator.Send(new GetUserTeamsQuery(username), ct));
 
     /// <summary>
-    /// Sets the teams a member of staff belongs to, exactly: any others are removed. An unknown team is a
-    /// 404; an archived one can be kept but not newly given (409). Returns them as they are now.
+    /// Sets the teams a member of staff belongs to, exactly, each with their role in it (<c>Member</c> or
+    /// <c>ClinicAdmin</c>): any others are removed. An unknown team is a 404; an archived one can be kept but not newly
+    /// given (409); an admin is in no team (409); the lab has no clinic admin (409). Returns them as they are now.
     /// </summary>
     [HttpPut("users/{username}/teams")]
     [RequirePermission(Permission.ManageUsers)]
@@ -372,7 +375,9 @@ public sealed class AuthController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SetUserTeams(string username, SetUserTeamsRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new SetUserTeamsCommand(username, request.TeamIds ?? []), ct));
+        Ok(await mediator.Send(new SetUserTeamsCommand(
+            username,
+            (request.Teams ?? []).Select(t => new TeamChoice(t.TeamId, t.Role)).ToList()), ct));
 
     /// <summary>The signed-in user's app settings (a JSON object), or null for none saved yet.</summary>
     [HttpGet("me/settings")]
@@ -440,20 +445,30 @@ public sealed class AuthController(
     [Tags("Login")]
     [ProducesResponseType(typeof(WhoAmIResponse), StatusCodes.Status200OK)]
     [AllowAnonymous]
-    public IActionResult WhoAmI()
+    public async Task<IActionResult> WhoAmI(CancellationToken ct)
     {
         var roles = User.Claims
             .Where(claim => claim.Type == ClaimTypes.Role)
             .Select(claim => claim.Value)
             .ToArray();
-        
+        var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+
+        // Their teams, with each one's kind and their role in it, and the account type they add up to.
+        IReadOnlyList<TeamMembershipResponse> teams = isAuthenticated
+            ? await mediator.Send(new GetMyTeamsQuery(User.GetUserId()), ct) ?? []
+            : [];
+
         return Ok(new WhoAmIResponse(
-            User.Identity?.IsAuthenticated ?? false,
+            isAuthenticated,
             User.Identity?.Name,
             roles,
             User.MustChangePassword(),
             User.MustSetUpTwoFactor(),
-            User.GetPermissions().Select(permission => permission.ToString()).Order(StringComparer.Ordinal).ToArray()));
+            User.GetPermissions().Select(permission => permission.ToString()).Order(StringComparer.Ordinal).ToArray(),
+            isAuthenticated
+                ? AccountTypes.Of(roles, teams.Select(t => Enum.TryParse<TeamMemberRole>(t.Role, out var role) ? role : TeamMemberRole.Member))
+                : null,
+            teams));
     }
 
     /// <summary>
