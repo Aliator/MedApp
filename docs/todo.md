@@ -93,6 +93,17 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
   - **Put the safety gates back:** Testing, "Before first live use, make CI strict again".
   - **Background jobs and file scanning:** Privacy, "Turn the operational purge on", and Attachments, "A real malware scanner".
 
+## Backend wording to match the web (text review, 19 November 2026)
+
+The web and light demo were reworded (PRs #261 to #265); the API's own texts follow at the backend catch-up:
+- **No "discharge" in visible text** (the owner): `Permissions.cs` WorkPathways (then `permissions.ts`), `LetterKinds.cs` and `LetterWorkflow.cs` ("End of care letter"), `DataRequests/Common/Words.cs`, `MdtRules.cs`, `MonitoringNotifications.cs`, `PathwayWorkflow.cs`, `ChangePatientPathwayStatusHandler.cs`, `AnonymisePatientHandler.cs`.
+- **Admins are read-only:** "After that, ask an admin" becomes "ask someone who can correct records" (`ConsentWorkflow.cs`, `ResultWorkflow.cs`, `SpecimenWorkflow.cs`).
+- **Permission descriptions:** `ManageSetup` lists every setup list; `ViewInsights` "See Insights."; "samples", not "specimens"; the 403 text (`ApiAuthorizationResultHandler.cs`) in plain words.
+- **The role "All staff (before roles)"** (`AppRoles.cs`, `StandardRoles.cs`): rename or retire it.
+- **Consults are "sent"**, not "asked".
+- **Priorities:** whether High, Medium and Low become NHS terms (Urgent suspected cancer, Urgent, Routine) is the owner's call.
+- **Names, not usernames,** across lists and labels (needs the API to send display names).
+
 ## Dermatology pathways: gaps
 
 What the reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, in the light demo since `feature/dermatology-templates`) need that the model lacks:
