@@ -32,6 +32,6 @@ public sealed class GetPathwayMdtItemsHandler(
             ActivityAction.PathwayViewed, [pathway.PatientId], cancellationToken, pathway.Id, new { access = access.ToString() });
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        return items.Select(i => MdtMapper.ToResponse(i, request.Viewer, now)).ToList();
+        return await repository.ToResponsesAsync(items, request.Viewer, now, cancellationToken);
     }
 }

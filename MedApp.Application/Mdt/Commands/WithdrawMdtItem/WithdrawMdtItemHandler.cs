@@ -31,7 +31,9 @@ public sealed class WithdrawMdtItemHandler(
         item.WithdrawnAtUtc = now;
         item.Version++;
 
+        // Its attendees keep reading it until the meeting ends (MC26); after that, their grants end now.
+        await repository.SyncGrantsAsync([item], now, cancellationToken);
         await repository.SaveAsync(MdtAudit.Withdrawn(item, item.Team?.Name ?? string.Empty, request.Actor, now), cancellationToken);
-        return MdtMapper.ToResponse(item, request.Actor, now);
+        return await repository.ToResponseAsync(item, request.Actor, now, cancellationToken);
     }
 }

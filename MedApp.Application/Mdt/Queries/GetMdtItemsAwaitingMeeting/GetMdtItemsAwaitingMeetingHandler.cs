@@ -23,6 +23,6 @@ public sealed class GetMdtItemsAwaitingMeetingHandler(
             details: TeamPicker.ListDetails(request.TeamId, scope));
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        return items.Select(i => MdtMapper.ToResponse(i, request.Viewer, now)).ToList();
+        return await repository.ToResponsesAsync(items, request.Viewer, now, cancellationToken);
     }
 }

@@ -181,7 +181,7 @@ public static class TimelineMapper
 
             // A lab case's entries (MC15): its number, and a step's name and outcome (admin-written or fixed words);
             // never the results or a detail typed, which the details don't hold.
-            case >= LabCaseOpened and <= LabCaseEnteredInError:
+            case >= LabCaseOpened and <= LabCaseClosed:
                 response.SpecimenNumber = Text(details, "number");
                 response.ToStatus = Text(details, "outcome") ?? Text(details, "step");
                 break;

@@ -23,6 +23,7 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
 
     private readonly List<PatientPathwayAuditEntry> _auditEntries = [];
     private readonly List<LabCaseStep> _newSteps = [];
+    private readonly List<LabCaseSurgeryDetails> _newSurgeryDetails = [];
     private bool _moved;
 
     public LabCase Case => labCase;
@@ -31,6 +32,9 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
 
     /// <summary>Steps it recorded, to add explicitly (their keys are set, so EF would take them for existing rows).</summary>
     public IReadOnlyList<LabCaseStep> NewSteps => _newSteps;
+
+    /// <summary>Surgery details it added (MC20), to add explicitly as steps are.</summary>
+    public IReadOnlyList<LabCaseSurgeryDetails> NewSurgeryDetails => _newSurgeryDetails;
 
     /// <summary>
     /// A new case (its version is 1), numbered from the one sequence (H-73): the lab's, for these samples or (a lab
@@ -207,6 +211,64 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
         labCase.ReportedByUserId = actor.UserId;
         labCase.ResultId = resultId;
         Record(PatientPathwayAuditAction.LabReportAuthorised, new { resultId });
+    }
+
+    /// <summary>
+    /// A hospital case's authorised report sent back to its hospital, in the same change (MC20): addressed to the
+    /// request's surgeon (never chosen, H-72), by the hospital's delivery method, recorded as sent; the case then awaits
+    /// the hospital's surgery details. Audited (<c>LabReportSent</c>: the hospital, the letter's kind and the method).
+    /// </summary>
+    public void SendReportToHospital(MedApp.Domain.Hospitals.Hospital? hospital, MedApp.Domain.Hospitals.HospitalRequest? request)
+    {
+        var method = hospital?.ReportDeliveryMethod ?? MedApp.Domain.Letters.LetterDispatchMethod.Post;
+        labCase.ReportSentAtUtc = nowUtc;
+        labCase.ReportSentByUserId = actor.UserId;
+        labCase.ReportAddressedTo = request?.SurgeonName ?? LabCaseRules.UnknownSurgeon;
+        labCase.ReportDeliveryMethod = method;
+        labCase.Status = LabCaseStatus.AwaitingSurgeryDetails;
+        Record(PatientPathwayAuditAction.LabReportSent, new
+        {
+            hospitalId = hospital?.Id ?? labCase.HospitalId,
+            hospital = hospital?.Name,
+            letterKind = LabCaseRules.LabReportLetterKind,
+            recipientKind = nameof(MedApp.Domain.Letters.LetterRecipientKind.Hospital),
+            method = method.ToString()
+        });
+    }
+
+    /// <summary>
+    /// The hospital's surgery details, as the lab typed them (MC20). Added to a case awaiting them, they close it
+    /// (<c>LabCaseClosed</c>); before its report, they're kept and the case stays open. Audited
+    /// (<c>SurgeryDetailsAdded</c>: their ID and whether no surgery is expected; never the text).
+    /// </summary>
+    public LabCaseSurgeryDetails AddSurgeryDetails(
+        DateOnly? surgeryOn, string? procedure, string? outcome, bool noSurgeryExpected, string? detail)
+    {
+        var details = new LabCaseSurgeryDetails
+        {
+            Id = Guid.NewGuid(),
+            LabCaseId = labCase.Id,
+            SurgeryOn = surgeryOn,
+            Procedure = procedure,
+            Outcome = outcome,
+            NoSurgeryExpected = noSurgeryExpected,
+            Detail = detail,
+            AddedAtUtc = nowUtc,
+            AddedByUserId = actor.UserId,
+        };
+        labCase.SurgeryDetails.Add(details);
+        _newSurgeryDetails.Add(details);
+        Record(PatientPathwayAuditAction.SurgeryDetailsAdded, new { surgeryDetailsId = details.Id, noSurgeryExpected });
+
+        if (labCase.Status == LabCaseStatus.AwaitingSurgeryDetails)
+        {
+            labCase.Status = LabCaseStatus.Closed;
+            labCase.ClosedAtUtc = nowUtc;
+            labCase.ClosedByUserId = actor.UserId;
+            Record(PatientPathwayAuditAction.LabCaseClosed, new { });
+        }
+
+        return details;
     }
 
     /// <summary>The latest step marked entered in error: kept, struck through, with what was wrong (never in the audit).</summary>

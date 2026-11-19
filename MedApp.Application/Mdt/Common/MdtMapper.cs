@@ -12,7 +12,8 @@ public static class MdtMapper
     /// An item as <paramref name="viewer"/> sees it (its <c>Can…</c> flags follow their permissions), read with its
     /// patient, pathway, team, meeting and who was present.
     /// </summary>
-    public static MdtItemResponse ToResponse(MdtItem item, PathwayActor viewer, DateTime nowUtc) => new()
+    public static MdtItemResponse ToResponse(
+        MdtItem item, PathwayActor viewer, DateTime nowUtc, IEnumerable<Repositories.MdtLabWork>? labWork = null) => new()
     {
         Id = item.Id,
         Status = item.Status.ToString(),
@@ -38,7 +39,22 @@ public static class MdtMapper
         CanWithdraw = MdtRules.CanWithdraw(item, viewer),
         CanDefer = MdtRules.CanDefer(item, viewer),
         CanRecordOutcome = MdtRules.CanRecordOutcome(item, viewer, nowUtc),
-        ReadOnlyReason = PatientRules.WhyCantChange(item.Patient)
+        ReadOnlyReason = PatientRules.WhyCantChange(item.Patient) ?? MdtRules.AttendeeReadOnly(item, viewer.Teams),
+        PresenterUserId = item.PresenterUserId,
+        PresenterUsername = item.PresenterUserId is null ? null : item.PresenterUsername ?? PathwayMapper.DeletedUser,
+        CanChoosePresenter = MdtRules.CanChoosePresenter(item, viewer),
+        LabWork = (labWork ?? [])
+            .Where(w => w.PathwayId == item.PathwayId)
+            .Select(w => new MdtLabWorkResponse
+            {
+                SpecimenId = w.SpecimenId,
+                Number = w.Number,
+                TypeName = w.TypeName,
+                Status = w.Status.ToString(),
+                ReportedAtUtc = w.ReportedAtUtc,
+                ResultId = w.ResultId,
+            })
+            .ToList()
     };
 
     /// <summary>An MDT with its counts, and its attendees by username (a deleted account's left out).</summary>

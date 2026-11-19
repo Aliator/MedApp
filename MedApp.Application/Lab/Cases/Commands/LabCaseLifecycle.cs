@@ -145,6 +145,15 @@ public sealed class OpenLabCaseHandler(
             labStage?.LabCases.Add(change.Case);
         }
 
+        // A hospital sample's request points at its new case (its first was marked entered in error, MC18).
+        if (sample.HospitalRequest is { } hospitalRequest)
+        {
+            hospitalRequest.LabCaseId = change.Case.Id;
+            hospitalRequest.LabCaseNumber = change.Case.Number;
+            change.Case.HospitalRequest = hospitalRequest;
+            change.Case.Hospital ??= sample.Hospital;
+        }
+
         if (pickedUp is { HasChanges: true })
             await pathways.SaveAsync(pickedUp, cancellationToken);
         else
@@ -157,7 +166,8 @@ public sealed class OpenLabCaseHandler(
 /// <summary>
 /// Enters the results and authorises the report (a holder of AuthoriseLabReports in the lab team): 409 unless every step
 /// is done. The case's received samples are reported; a clinic case's report becomes a result for the requesting
-/// clinician to sign off (told, <c>ResultReady</c>); and a pathway's lab stage gets the results (MC16:
+/// clinician to sign off (told, <c>ResultReady</c>); a hospital case's goes back to its hospital (MC20, recorded as
+/// sent: <c>LabReportSent</c>), so the case awaits surgery details; and a pathway's lab stage gets the results (MC16:
 /// <c>PutLabResults</c>, which starts and picks it up but never finishes it: the lab finishes it by hand). One save.
 /// </summary>
 public sealed class AuthoriseLabReportHandler(
@@ -227,6 +237,9 @@ public sealed class AuthoriseLabReportHandler(
 
         var change = new LabCaseChange(labCase, pathway, request.Actor, now.AddTicks(3));
         change.Authorise(results, result?.Id);
+        // A hospital case's report goes back to its hospital in the same change (MC20), so it awaits surgery details.
+        if (labCase.Source == SpecimenSource.Hospital)
+            change.SendReportToHospital(labCase.HospitalRequest?.Hospital ?? labCase.Hospital, labCase.HospitalRequest);
         repository.Track(change, isNew: false);
 
         // A pathway's lab stage gets the results, in the same save (MC16); the lab then finishes it on the pathway.

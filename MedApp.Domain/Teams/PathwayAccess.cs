@@ -24,6 +24,9 @@ public sealed class PathwayAccess
 
     public PathwayAccessReason Reason { get; init; }
 
+    /// <summary>The MDT item an <see cref="PathwayAccessReason.Mdt"/> grant is for (MC26); null for any other. No foreign key.</summary>
+    public Guid? MdtItemId { get; init; }
+
     public DateTime StartedAtUtc { get; init; }
 
     /// <summary>When it ended, or null while it's live. Owner and stage owner grants never end.</summary>
@@ -59,6 +62,21 @@ public sealed class PathwayAccess
         PatientId = patientId,
         TeamId = teamId,
         Reason = PathwayAccessReason.Consult,
+        StartedAtUtc = nowUtc,
+    };
+
+    /// <summary>
+    /// An MDT attendee's grant (MC21, MC26): one person, read only, for one listed item, from its listing until it's
+    /// discussed or withdrawn and its meeting has ended (<c>MdtGrants</c>).
+    /// </summary>
+    public static PathwayAccess Mdt(Guid pathwayId, Guid patientId, Guid userId, Guid mdtItemId, DateTime nowUtc) => new()
+    {
+        Id = Guid.NewGuid(),
+        PathwayId = pathwayId,
+        PatientId = patientId,
+        UserId = userId,
+        MdtItemId = mdtItemId,
+        Reason = PathwayAccessReason.Mdt,
         StartedAtUtc = nowUtc,
     };
 }

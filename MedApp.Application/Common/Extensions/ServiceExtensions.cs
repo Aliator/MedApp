@@ -88,6 +88,7 @@ public static class ServiceExtensions
         services.AddScoped<IScheduledJob, PatientRemindersJob>();
         services.AddScoped<IScheduledJob, MedApp.Application.DataRequests.Jobs.DataRequestRemindersJob>();
         services.AddScoped<IScheduledJob, ServiceAlertsJob>();
+        services.AddScoped<IScheduledJob, MedApp.Application.Mdt.Common.MdtGrantsJob>();
         services.AddOptions<JobsOptions>();
         services.AddOptions<OperationalRetentionOptions>();
 

@@ -42,10 +42,12 @@ public sealed class Specimen
     public Guid? RequestingTeamId { get; init; }
     public MedApp.Domain.Teams.Team? RequestingTeam { get; set; }
 
-    /// <summary>The hospital that sent it and the request it came with (MC18); null for a clinic's. No foreign key yet.</summary>
+    /// <summary>The hospital that sent it and the request it came with (MC18); null for a clinic's.</summary>
     public Guid? HospitalId { get; init; }
+    public MedApp.Domain.Hospitals.Hospital? Hospital { get; set; }
 
     public Guid? HospitalRequestId { get; init; }
+    public MedApp.Domain.Hospitals.HospitalRequest? HospitalRequest { get; set; }
 
     /// <summary>The test asked for, from the lab's catalogue (MC13), if one was chosen (never chosen for the clinician).</summary>
     public Guid? LabTestId { get; set; }

@@ -28,3 +28,10 @@ public sealed class RecordMdtOutcomeRequest
     public List<Guid> PresentUserIds { get; set; } = [];
     public int ExpectedVersion { get; set; }
 }
+
+/// <summary>Chooses an item's presenter from its meeting's attendees (MC21), or nobody (null).</summary>
+public sealed class ChooseMdtPresenterRequest
+{
+    public Guid? PresenterUserId { get; set; }
+    public int ExpectedVersion { get; set; }
+}

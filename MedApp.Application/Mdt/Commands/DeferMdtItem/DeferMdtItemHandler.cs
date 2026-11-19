@@ -48,14 +48,23 @@ public sealed class DeferMdtItemHandler(
         item.MeetingId = meeting.Id;
         item.MeetingCancelledStartUtc = null;
         item.TeamId = meeting.TeamId.Value;
+        // The presenter stays only if they're invited to the new MDT too (MC21).
+        if (item.PresenterUserId is { } presenter && meeting.Attendees.All(a => a.StaffUserId != presenter))
+        {
+            item.PresenterUserId = null;
+            item.PresenterUsername = null;
+        }
+
         item.Version++;
 
+        // The grants follow it: the new MDT's attendees read it, the old one's stop (MC26).
+        await repository.SyncGrantsAsync([item], now, cancellationToken);
         await repository.SaveAsync(
             MdtAudit.Deferred(item, team?.Name ?? string.Empty, fromMeetingId, fromStart, meeting, request.Actor, now),
             cancellationToken);
 
         var saved = await repository.GetAsync(item.Id, cancellationToken)
                     ?? throw new NotFoundException($"MDT item '{item.Id}' was not found.");
-        return MdtMapper.ToResponse(saved, request.Actor, now);
+        return await repository.ToResponseAsync(saved, request.Actor, now, cancellationToken);
     }
 }

@@ -122,7 +122,9 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
             .Include(s => s.SpecimenType)
             .Include(s => s.LabTest)
             .Include(s => s.RequestingTeam)
-            .Include(s => s.LabCase!).ThenInclude(c => c.LabTest);
+            .Include(s => s.Hospital)
+            .Include(s => s.LabCase!).ThenInclude(c => c.LabTest)
+            .Include(s => s.LabCase!).ThenInclude(c => c.HospitalRequest!).ThenInclude(r => r.Hospital);
 
     public async Task<bool> IsReportAsync(Guid attachmentId, CancellationToken ct) =>
         await context.Specimens.AnyAsync(s => s.ReportAttachmentId == attachmentId, ct);
@@ -181,6 +183,9 @@ public sealed class SpecimenRepository(MedAppDbContext context) : ISpecimenRepos
             .Include(s => s.SpecimenType)
             .Include(s => s.LabTest!).ThenInclude(t => t.Steps)
             .Include(s => s.RequestingTeam)
+            .Include(s => s.Hospital)
+            .Include(s => s.HospitalRequest)
             .Include(s => s.LabCase!).ThenInclude(c => c.LabTest)
+            .Include(s => s.LabCase!).ThenInclude(c => c.HospitalRequest!).ThenInclude(r => r.Hospital)
             .AsSplitQuery();
 }

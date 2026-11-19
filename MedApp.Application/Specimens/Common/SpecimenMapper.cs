@@ -40,7 +40,7 @@ public static class SpecimenMapper
             RequestingTeamId = specimen.RequestingTeamId,
             RequestingTeamName = specimen.RequestingTeam?.Name,
             HospitalId = specimen.HospitalId,
-            HospitalName = null,
+            HospitalName = HospitalName(specimen),
             HospitalRequestId = specimen.HospitalRequestId,
             LabTestId = specimen.LabTestId,
             LabTestName = specimen.LabTest?.Name,
@@ -96,6 +96,13 @@ public static class SpecimenMapper
         };
     }
 
+    /// <summary>The hospital that sent it (MC18), by name; null for a clinic's.</summary>
+    public static string? HospitalName(Specimen specimen) =>
+        specimen.HospitalId is null ? null : specimen.Hospital?.Name ?? UnknownHospital;
+
+    /// <summary>What a hospital is called when it isn't read with the record.</summary>
+    public const string UnknownHospital = "The hospital";
+
     /// <summary>A specimen in a list, with its patient, type and lab: dates, names and statuses only.</summary>
     public static SpecimenSummaryResponse ToSummary(Specimen specimen, DateTime nowUtc) => new()
     {
@@ -109,7 +116,7 @@ public static class SpecimenMapper
         RequestingTeamId = specimen.RequestingTeamId,
         RequestingTeamName = specimen.RequestingTeam?.Name,
         HospitalId = specimen.HospitalId,
-        HospitalName = null,
+        HospitalName = HospitalName(specimen),
         HospitalRequestId = specimen.HospitalRequestId,
         LabTestId = specimen.LabTestId,
         LabTestName = specimen.LabTest?.Name,

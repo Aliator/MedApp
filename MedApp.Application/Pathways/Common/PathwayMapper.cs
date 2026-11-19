@@ -113,9 +113,13 @@ public static class PathwayMapper
         string? NameOf(Guid? id) => TeamName(pathway, id, teamNames);
         if (readOnlyReason is null && !mine && !worksCurrent && viewerScope is { SeesAllTeams: false })
             // A team that reads it only through a consult asked of it (MC25) is told so, and where to reply.
-            readOnlyReason = viewerAccess == TeamAccessKind.Consult
-                ? TeamWalls.ConsultReadOnly(teamName ?? NameOf(pathway.TeamId))
-                : TeamWalls.NotYourTeams(teamName ?? NameOf(pathway.TeamId));
+            // An MDT's attendee from another team (MC26) is told why they read it, and until when.
+            readOnlyReason = viewerAccess switch
+            {
+                TeamAccessKind.Consult => TeamWalls.ConsultReadOnly(teamName ?? NameOf(pathway.TeamId)),
+                TeamAccessKind.Mdt => TeamWalls.MdtReadOnly(teamName ?? NameOf(pathway.TeamId)),
+                _ => TeamWalls.NotYourTeams(teamName ?? NameOf(pathway.TeamId))
+            };
         // A restricted record's pathways can still be paused: blocked or cancelled, with a reason.
         var canPause = !PatientRules.IsAnonymised(pathway.Patient);
         var canWork = Allows(viewerPermissions, Permission.WorkPathways) && mine;

@@ -24,6 +24,7 @@ public sealed class ServiceAlertRepository(MedAppDbContext context) : IServiceAl
         if (MonitoringEvents.IsLabClock(rule.Event))
             return (await ServiceAlertCandidates.LabCasesToCheck(sources, rule)
                     .Include(c => c.LabTest)
+                    .Include(c => c.HospitalRequest!).ThenInclude(r => r.Hospital)
                     .ToListAsync(cancellationToken))
                 .Where(c => ServiceAlertCandidates.IsLabCaseDue(c, rule, nowUtc, today))
                 .Select(c => c.Id)
