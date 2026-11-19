@@ -1,7 +1,7 @@
 /**
  * The API's names for statuses and priorities, in words. Two pathway statuses are shown by another name than the
  * API's (docs/glossary.md): InReview is "Awaiting review" and Blocked is "On hold"; Completed is shown as itself (never
- * "Discharged", a word tied to a condition). The
+ * a hospital word for leaving care). The
  * API's own messages say the same (`PathwayWorkflow.Describe`).
  */
 const SHOWN_AS: Record<string, string> = {

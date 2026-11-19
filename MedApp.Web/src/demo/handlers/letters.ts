@@ -84,17 +84,17 @@ function unknownFieldsMessage(text: string | null | undefined): string | null {
     : `${unknown.join(', ')} aren't merge fields. Choose them from the list, or remove the double braces.`;
 }
 
-/** "Discharge summary", for messages (`LetterKinds.Describe`). */
+/** "End of care letter", for messages (`LetterKinds.Describe`). */
 const KIND_WORDS: Record<string, string> = {
   ClinicLetter: 'Clinic letter',
-  DischargeSummary: 'Discharge summary',
+  DischargeSummary: 'End of care letter',
   ReferralResponse: 'Referral response',
   InformationRequest: 'Request for more information',
   AppointmentLetter: 'Appointment letter',
   OnwardReferral: 'Onward referral',
 };
 
-/** A letter kind in a message, starting lower case: "discharge summary" (`LetterWorkflow.KindInMessage`). */
+/** A letter kind in a message, starting lower case: "end of care letter" (`LetterWorkflow.KindInMessage`). */
 export const kindInMessage = (kind: string) => {
   const words = KIND_WORDS[kind] ?? 'Letter';
   return words.charAt(0).toLowerCase() + words.slice(1);

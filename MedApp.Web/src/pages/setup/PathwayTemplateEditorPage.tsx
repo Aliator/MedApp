@@ -263,7 +263,7 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
  * goes back to the list.
  *
  * The route editor (MC9): Draw Routes turns the list into routes, where each stage says what it Comes after (any
- * stages above it), so routes can run side by side (a fork) and meet again (a join), and end anywhere (a discharge, a
+ * stages above it), so routes can run side by side (a fork) and meet again (a join), and end anywhere (the end of care, a
  * referral). A template is the full tree: a choice node lists its outcomes, each naming the stages after it that it
  * leads to (several side by side, or none to end the route; several outcomes may lead to one stage). Choosing a choice
  * node draws routes; a template with routes opens this way. Stages indent by how deep in the routes they sit. The graph rules (`templateGraphProblems`)

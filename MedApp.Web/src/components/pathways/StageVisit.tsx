@@ -16,7 +16,7 @@ import {AppIcon} from '../shared/icons';
 
 /** Where a stage's visit stands: the appointment that says so, if any. */
 export interface StageVisitState {
-  /** Attended, Booked, Requested (Requires appointment), DidNotAttend, or None (nothing yet, or only cancelled ones or ones entered in error). */
+  /** Attended, Booked, Requested (To be booked), DidNotAttend, or None (nothing yet, or only cancelled ones or ones entered in error). */
   status: 'Attended' | 'Booked' | 'Requested' | 'DidNotAttend' | 'None';
   appointment?: Appointment;
 }
@@ -62,7 +62,7 @@ export const appointmentHref = (appointment: Appointment) => `/calendar?appointm
 
 /**
  * A stage's visit in a stage's title: whether it involves one, and, once there's an appointment, where it stands
- * (Requires appointment; Booked, with when and with whom; Attended; Did not attend). Nothing for a stage without a visit.
+ * (To be booked; Booked, with when and with whom; Attended; Did not attend). Nothing for a stage without a visit.
  */
 export function StageVisitTokens({stage, appointments}: {stage: PathwayStage; appointments: readonly Appointment[]}) {
   if (!involvesVisit(stage)) return null;
@@ -94,7 +94,7 @@ export interface StageVisitProps {
   onOutcome: (booked: Appointment, outcome: 'Attended' | 'DidNotAttend') => void;
   /**
    * Record a visit that has already happened (a walk-in, or one booked outside MedApp), with its outcome: offered while
-   * nothing is booked (none, Requires appointment, or after one the patient didn't attend). Left out, it isn't offered.
+   * nothing is booked (none, To be booked, or after one the patient didn't attend). Left out, it isn't offered.
    */
   onRecordPast?: () => void;
   /**
@@ -106,9 +106,9 @@ export interface StageVisitProps {
 
 /**
  * The Visit part of the current stage's work (`StageWork`'s `visit`), for a stage that involves one: where its visit
- * stands, and the next thing to do. Requires appointment, or none: **Book Visit**. Booked: when and with whom,
- * **Reschedule**, and once it has started **Attended** and **Did not attend**. Did not attend: **Book Another**.
- * Attended: when, and nothing more to do. While nothing is booked, **Record Past Visit** records one that has already
+ * stands, and the next thing to do. To be booked, or none: **Book Appointment**. Booked: when and with whom,
+ * **Reschedule**, and once it has started **Mark Attended** and **Did Not Attend**. Did not attend: **Book Another**.
+ * Attended: when, and nothing more to do. While nothing is booked, **Record Past Appointment** records one that has already
  * happened (a walk-in). Each appointment links to the Calendar, where it can also be cancelled.
  */
 export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, onOutcome, onRecordPast, canBook = true}: StageVisitProps) {
@@ -137,7 +137,7 @@ export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, o
         <HStack gap={2} wrap="wrap">
           {(visit.status === 'Requested' || visit.status === 'None') && (
             <Button
-              label="Book Visit"
+              label="Book Appointment"
               variant="secondary"
               icon={<Icon icon={AppIcon.Book} />}
               isDisabled={isBusy}
@@ -149,7 +149,7 @@ export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, o
               {appointment.canRecordOutcome && (
                 <>
                   <Button
-                    label="Attended"
+                    label="Mark Attended"
                     variant="secondary"
                     icon={<Icon icon={AppIcon.Success} />}
                     isDisabled={isBusy}
@@ -179,7 +179,7 @@ export function StageVisit({stage, appointments, isBusy, onBook, onReschedule, o
             <Button label="Book Another" variant="secondary" icon={<Icon icon={AppIcon.Book} />} isDisabled={isBusy} onClick={() => onBook()} />
           )}
           {onRecordPast && (visit.status === 'Requested' || visit.status === 'None' || visit.status === 'DidNotAttend') && (
-            <Button label="Record Past Visit" variant="ghost" icon={<Icon icon={AppIcon.RecordPast} />} isDisabled={isBusy} onClick={onRecordPast} />
+            <Button label="Record Past Appointment" variant="ghost" icon={<Icon icon={AppIcon.RecordPast} />} isDisabled={isBusy} onClick={onRecordPast} />
           )}
         </HStack>
       )}

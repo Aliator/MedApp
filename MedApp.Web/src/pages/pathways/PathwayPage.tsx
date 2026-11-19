@@ -463,7 +463,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       // No banner: the patient is at the top of Details, which never folds (see PathwayPage).
       message={
         isMissing ? (
-          <AlertMessage label="Pathway not found" message="Pathway not found. It may have been deleted." />
+          <AlertMessage label="Pathway not found" message="It may have been deleted." />
         ) : error ? (
           <AlertMessage label="Pathway not loaded" />
         ) : actionError ? (

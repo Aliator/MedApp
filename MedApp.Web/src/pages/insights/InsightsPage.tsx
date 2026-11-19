@@ -63,8 +63,8 @@ type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
 
 /**
  * Insights (admin): an overview of the pathway work, to keep an eye on it. Headline counts against this time last
- * week (open, in progress, overdue, discharged), where the overdue work is (by assignee and by priority), how many
- * were created and discharged each week, and how long each template's stages take, waiting and being worked on. A
+ * week (open, in progress, overdue, completed), where the overdue work is (by assignee and by priority), how many
+ * were created and completed each week, and how long each template's stages take, waiting and being worked on. A
  * period (4, 12 or 26 weeks), a team (the pathways' own: the clinic picker, top right) and a template filter
  * everything, from the URL.
  *
@@ -188,8 +188,8 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
                   previous={data.completedThisWeek?.lastWeek ?? 0}
                   previousLabel={LAST_WEEK}
                   isRiseGood
-                  // No link: the list can't show what was discharged when (it has no such filter), only what's
-                  // discharged now, from any week.
+                  // No link: the list can't show what was completed when (it has no such filter), only what's
+                  // completed now, from any week.
                 />
               </Grid>
               <Grid columns={isNarrow ? 1 : 2} gap={4}>

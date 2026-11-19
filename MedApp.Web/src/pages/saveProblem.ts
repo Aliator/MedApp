@@ -47,7 +47,7 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 
         if (isPermissionMissing(error) && error.title) return {validation: null, message: error.title};
         return {validation: null, message: `You do not have permission to change ${subjects}.`};
       case 404:
-        return {validation: null, message: `${Subject} not found. It may have been deleted.`};
+        return {validation: null, message: `It can't be found: someone else may have deleted the ${subject}.`};
       case 409:
         // The API says why, e.g. "This patient has 2 pathways, so they can't be deleted."
         if (error.title) return {validation: null, message: error.title};

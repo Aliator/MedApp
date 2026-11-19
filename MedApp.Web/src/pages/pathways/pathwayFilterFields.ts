@@ -26,7 +26,7 @@ export const teamField = (teams: readonly Named[], current: string | undefined) 
 
 /**
  * The stage reached: pathways whose current stage comes from any of these stage definitions (e.g. "Stage reached: is
- * Histology (lab)"). The API leaves out discharged, cancelled and archived pathways.
+ * Histology (lab)"). The API leaves out completed, cancelled and archived pathways.
  */
 export const stageReachedField = (definitions: readonly Named[], current: string | undefined) =>
   idField('stage', 'Stage reached', definitions, current, 'Selected stage');

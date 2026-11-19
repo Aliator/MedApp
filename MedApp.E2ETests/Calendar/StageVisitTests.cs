@@ -47,9 +47,9 @@ public sealed class StageVisitTests : E2ETest
         // Its first stage needs a visit, which the app has asked to be booked.
         var visit = main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true });
         await Expect(visit).ToContainTextAsync("Visit required");
-        await Expect(visit).ToContainTextAsync("Requires appointment");
+        await Expect(visit).ToContainTextAsync("To be booked");
         await Expect(visit).ToContainTextAsync("the stage can't be finished until then");
-        await Expect(visit.GetByRole(AriaRole.Button, new() { Name = "Book Visit" })).ToBeVisibleAsync();
+        await Expect(visit.GetByRole(AriaRole.Button, new() { Name = "Book Appointment" })).ToBeVisibleAsync();
 
         // Finishing it anyway asks why.
         await main.GetByRole(AriaRole.Button, new() { Name = "Finish Stage" }).ClickAsync();

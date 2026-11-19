@@ -296,7 +296,7 @@ describe('PathwayPage', () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({title: 'Not found'}, 404)});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await findAlert('Pathway not found. It may have been deleted.');
+    await findAlert('It may have been deleted.');
   });
 
   it('says when the pathway cannot be loaded', async () => {
@@ -871,7 +871,7 @@ describe('PathwayPage: visits and appointments', () => {
 
     const list = within(await screen.findByRole('list', {name: 'Appointments'}));
     expect(list.getByRole('link', {name: 'Mon 23 Nov 2026, 10:00 to 10:30 with test-user'})).toHaveAttribute('href', '/calendar?appointment=booked');
-    expect(list.getByText('Requires appointment')).toBeInTheDocument();
+    expect(list.getByText('To be booked')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${APPOINTMENTS}?PathwayId=${id}&PageSize=100`);
   });
 
@@ -898,22 +898,22 @@ describe('PathwayPage: visits and appointments', () => {
     const {user} = renderVisit(visiting(), [requested]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    expect(visit.getByText('Requires appointment')).toBeInTheDocument();
+    expect(visit.getByText('To be booked')).toBeInTheDocument();
     expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
 
-    await user.click(visit.getByRole('button', {name: 'Book Visit'}));
-    expect(within(openDialog()!).getByText('Book Visit')).toBeInTheDocument();
+    await user.click(visit.getByRole('button', {name: 'Book Appointment'}));
+    expect(within(openDialog()!).getByText('Book Appointment')).toBeInTheDocument();
   });
 
   it('records a past visit from the stage, for this patient, pathway and stage, which it shows', async () => {
     const {user} = renderVisit(visiting(), [{...requested, notes: 'Needs an interpreter.'}]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    await user.click(visit.getByRole('button', {name: 'Record Past Visit'}));
+    await user.click(visit.getByRole('button', {name: 'Record Past Appointment'}));
 
     const dialog = within(openDialog()!);
-    expect(dialog.getByRole('heading', {name: 'Record Past Visit'})).toBeInTheDocument();
+    expect(dialog.getByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
     expect(dialog.getByText(/: Procedure$/)).toBeInTheDocument();
     // The patient and what it's for are fixed, so there's no picker.
     expect(dialog.queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
@@ -980,7 +980,7 @@ describe('PathwayPage: visits and appointments', () => {
     });
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    await user.click(visit.getByRole('button', {name: 'Attended'}));
+    await user.click(visit.getByRole('button', {name: 'Mark Attended'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments/booked/outcome'));
     expect(await bodyOf(fetch, 'POST /api/appointments/booked/outcome')).toEqual({outcome: 'Attended'});

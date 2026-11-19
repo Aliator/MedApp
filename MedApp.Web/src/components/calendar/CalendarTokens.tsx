@@ -38,7 +38,7 @@ function useStatusIcon(icon: IconType | undefined) {
 }
 
 /**
- * An appointment's status: Requires appointment (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled
+ * An appointment's status: To be booked (yellow), Booked (blue), Attended (green), Did not attend (red), Cancelled
  * (gray), Entered in error (gray: a walk-in withdrawn).
  */
 export function AppointmentStatusToken({status}: {status: string}) {

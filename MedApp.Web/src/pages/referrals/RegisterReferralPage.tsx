@@ -101,7 +101,7 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
 
   if (!patientId || isMissing) {
     return (
-      <Page {...pageProps} message={isMissing && <AlertMessage label="Patient not found" message="Patient not found. They may have been deleted. Find them again." />}>
+      <Page {...pageProps} message={isMissing && <AlertMessage label="Patient not found" message="They may have been deleted. Find them again." />}>
         <PanelCard title="Who is it for?">
           <ReferralPatientFinder onChoose={onPatientChange} />
         </PanelCard>

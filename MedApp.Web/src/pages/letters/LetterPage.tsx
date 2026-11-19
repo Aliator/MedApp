@@ -194,7 +194,7 @@ export function LetterPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage label="Letter not found" message="Letter not found. It may have been discarded." />
+          <AlertMessage label="Letter not found" message="It may have been discarded." />
         ) : error ? (
           <AlertMessage label="Letter not loaded" />
         ) : actionError ? (

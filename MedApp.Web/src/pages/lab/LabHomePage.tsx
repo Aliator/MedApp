@@ -142,7 +142,7 @@ const sampleRow = (at: (s: SpecimenSummary) => string | null | undefined, words:
 /**
  * The lab team's home (`/lab`; MC17, built with MC13 in the demo first): what's waiting for the lab, each list's
  * first few and its count, linking to the full list. **New for the lab** (clinic pathways handed to the lab, not
- * picked up) and **Our turn** (lab stages it's working), from the relay's team views (My Worklist's); **To receive**
+ * picked up) and **With my team** (lab stages it's working), from the relay's team views (My Worklist's); **To receive**
  * (samples sent, not received), **In progress** (received, not reported) and **Back to the clinic** (reported in the
  * last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests; **Awaiting
  * surgery details** (MC20), hospital cases whose report has gone back. **To report**
@@ -177,7 +177,7 @@ export function LabHomePage() {
           row={pathwayRow}
         />
         <WorkCard
-          title="Our turn"
+          title="With my team"
           description="Pathways at a stage the lab works."
           empty="No pathway is with the lab"
           query={ourTurn}

@@ -220,7 +220,7 @@ export function registerMdt() {
     if (Object.keys(errors).length > 0) return invalid(errors);
     const pathway = pathwayToChange(body.pathwayId!);
     if (['Completed', 'Cancelled', 'Archived'].includes(pathway.status))
-      return problem(409, "A discharged, cancelled or archived pathway can't be listed for an MDT.");
+      return problem(409, "A completed, cancelled or archived pathway can't be listed for an MDT.");
     const meeting = findMeeting(body.meetingId!);
     ensureCanListFor(meeting);
     ensureNotListed(pathway.id, meeting.id!);

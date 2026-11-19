@@ -278,7 +278,7 @@ describe('LetterPage', () => {
 
   it("says when the letter isn't found, or can't be loaded", async () => {
     const {unmount} = render(() => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Letter not found. It may have been discarded.')).toBeInTheDocument();
+    expect(await screen.findByText('It may have been discarded.')).toBeInTheDocument();
     unmount();
     render(() => json({title: 'Boom'}, 500));
     expect(await screen.findByText('Letter not loaded')).toBeInTheDocument();

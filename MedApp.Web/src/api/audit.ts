@@ -120,7 +120,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   LabReportSent: 'Lab report sent to the hospital',
   SurgeryDetailsAdded: 'Surgery details added',
   LabCaseClosed: 'Lab case closed',
-  ConsultRequested: 'Consult requested',
+  ConsultRequested: 'Consult sent',
   ConsultReplied: 'Consult replied',
   ConsultClosed: 'Consult closed',
   ConsultWithdrawn: 'Consult withdrawn',

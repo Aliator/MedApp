@@ -16,7 +16,7 @@ describe('AppointmentList', () => {
     expect(list.getByText('Assessment')).toBeInTheDocument();
     expect(list.queryByText(/Knee review/)).not.toBeInTheDocument();
     expect(list.getByRole('link', {name: 'Not booked yet'})).toHaveAttribute('href', '/calendar?appointment=requested');
-    expect(list.getByText('Requires appointment')).toBeInTheDocument();
+    expect(list.getByText('To be booked')).toBeInTheDocument();
   });
 
   it('names each one’s pathway when asked', async () => {

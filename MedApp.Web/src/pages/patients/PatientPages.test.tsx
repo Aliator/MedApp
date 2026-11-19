@@ -668,7 +668,7 @@ describe('EditPatientPage', () => {
     await user.click(await screen.findByRole('button', {name: 'Save'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
-    await findAlert('Patient not found. It may have been deleted.');
+    await findAlert("It can't be found: someone else may have deleted the patient.");
   });
 
   it("shows the API's validation errors on the fields", async () => {

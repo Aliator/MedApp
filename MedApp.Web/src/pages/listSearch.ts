@@ -285,7 +285,7 @@ export interface PathwaysListSearch {
   team?: string;
   /**
    * The stage reached, by stage definition IDs: an ID choice (see `parseIdChoice`). Pathways whose current stage is
-   * from one of them, not discharged, cancelled or archived ("Waiting for histology").
+   * from one of them, not completed, cancelled or archived ("Waiting for histology").
    */
   stage?: string;
   overdue?: boolean;

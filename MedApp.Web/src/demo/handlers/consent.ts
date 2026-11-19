@@ -27,7 +27,7 @@ const STATUS_WORDS: Record<DemoConsentRecord['status'], string> = {Valid: 'valid
 
 /** The pathway statuses in words, for "Consent can't be recorded while the pathway is ...". */
 const PATHWAY_STATUS_WORDS: Partial<Record<DemoPathway['status'], string>> = {
-  Completed: 'discharged',
+  Completed: 'completed',
   Cancelled: 'cancelled',
   Archived: 'archived',
 };

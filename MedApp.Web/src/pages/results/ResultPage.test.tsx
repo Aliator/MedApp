@@ -166,7 +166,7 @@ describe('ResultPage', () => {
 
   it('says when it is not found', async () => {
     renderPage(() => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Result not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await screen.findByText('It may have been deleted.')).toBeInTheDocument();
   });
 
   it('says when it could not be loaded', async () => {

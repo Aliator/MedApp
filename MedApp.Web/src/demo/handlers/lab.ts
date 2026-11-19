@@ -105,7 +105,7 @@ export function canSeeSample(specimen: DemoSpecimen, scope: TeamScope = myScope(
   return specimen.source === 'Clinic' && canSeeRecord(specimen, scope);
 }
 
-const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Completed: 'discharged', Cancelled: 'cancelled', Archived: 'archived'};
+const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Completed: 'completed', Cancelled: 'cancelled', Archived: 'archived'};
 
 /** `SpecimenWorkflow.WhyCantTake`: the stage must be editable (the current one, or one unlocked) and the pathway open. */
 function whyCantTake(pathway: DemoPathway, stage: DemoStage): string | null {
