@@ -173,7 +173,7 @@ export const LAB_TESTS = {
 } as const;
 
 export const SPECIMENS = {
-  /** Priya Holloway's punch biopsy, reported two days ago (its result awaits Nadia Thornbury's sign-off). */
+  /** Priya Holloway's punch biopsy, received by the lab: its case is to report (MC16). */
   priyaBiopsy: id(0xe3, 1),
   /** Harriet Quill's punch biopsy, reported and signed off. */
   harrietBiopsy: id(0xe3, 2),
@@ -187,11 +187,13 @@ export const SPECIMENS = {
   ilonaScraping: id(0xe3, 6),
   /** Grace Abernethy's blood sample, reported long ago (her pathway is discharged). */
   graceBlood: id(0xe3, 7),
+  /** Callum Ashby's punch biopsy, reported three days ago (its result awaits Nadia Thornbury's sign-off). */
+  callumBiopsy: id(0xe3, 8),
 } as const;
 
 export const RESULTS = {
-  /** Priya Holloway's biopsy report, awaiting Nadia Thornbury's sign-off. */
-  priyaBiopsy: id(0xe4, 1),
+  /** Callum Ashby's biopsy report, awaiting Nadia Thornbury's sign-off (his review stage waits for it). */
+  callumBiopsy: id(0xe4, 1),
   /** Harriet Quill's biopsy report, signed off by Nadia Thornbury. */
   harrietBiopsy: id(0xe4, 2),
   /** Grace Abernethy's blood results, signed off by the admin. */
@@ -202,7 +204,7 @@ export const RESULTS = {
 
 /** The reports' files (attachments the full version would hold; the light demo has no files). */
 const REPORT_FILES = {
-  priya: id(0xe5, 1),
+  callum: id(0xe5, 1),
   harriet: id(0xe5, 2),
   grace: id(0xe5, 3),
   daniyal: id(0xe5, 4),
@@ -210,9 +212,9 @@ const REPORT_FILES = {
 
 /** The IDs the Read Me's tour opens. */
 export const LAB_IDS = {
-  /** The result to sign off as Nadia Thornbury (on Priya Holloway's pathway). */
-  priyaResult: RESULTS.priyaBiopsy,
-  /** Priya Holloway's reported biopsy specimen. */
+  /** The result to sign off as Nadia Thornbury (on Callum Ashby's pathway, back from the lab). */
+  resultToSignOff: RESULTS.callumBiopsy,
+  /** Priya Holloway's biopsy specimen, in the lab. */
   priyaSpecimen: SPECIMENS.priyaBiopsy,
   /** A specimen at the lab now (received): Ilona Petrova's blood sample. */
   specimenAtLab: SPECIMENS.ilonaBlood,
@@ -264,8 +266,8 @@ const makeResult = (resultId: string, fields: ResultFields): DemoResult => ({
 
 /**
  * Seeds this slice, after the base seed: specimens in each of the Lab page's views (to send, expected, in the lab,
- * overdue, rejected, reported), a result awaiting each account's sign-off and two signed off. Priya Holloway's result
- * awaits Nadia Thornbury, so her "Results and team review" stage is held until it's signed off; Harriet Quill's
+ * overdue, rejected, reported), a result awaiting each account's sign-off and two signed off. Callum Ashby's result
+ * awaits Nadia Thornbury, so his "Results and team review" stage is held until it's signed off; Harriet Quill's
  * biopsy is reported and signed off, so nothing here holds her Clinical photographs stage. Adds the notifications they'd have
  * caused.
  */
@@ -327,21 +329,19 @@ export function seedLab(state: BaseState): LabSlice {
 
   const priyaTaken = plusMinutes(visit(APPOINTMENTS.priyaBiopsy), 20);
   const harrietTaken = plusMinutes(visit(MORE_APPOINTMENTS.harrietBiopsy), 20);
+  const callumTaken = plusMinutes(stage(PATHWAYS.backFromLab, 2).completedAtUtc!, -120);
   const specimens: DemoSpecimen[] = [
     specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
       requestNotes: 'Pigmented lesion, 7 mm. Please report the margins.',
-      status: 'Reported',
+      status: 'Received',
       sentAtUtc: plusMinutes(priyaTaken, 240),
       sentByUserId: STAFF.id,
       courierReference: 'BATCH-0412',
       receivedAtUtc: plusMinutes(priyaTaken, 24 * 60),
       receivedByUserId: LAB.id,
       labReference: 'EVP-55120',
-      reportedAtUtc: ago(2, 14, 0),
-      reportedByUserId: LAB.id,
-      reportAttachmentId: REPORT_FILES.priya,
-      version: 4,
+      version: 3,
     }),
     specimen(SPECIMENS.harrietBiopsy, PATHWAYS.consentToRecord, 2, SPECIMEN_TYPES.skinBiopsy, harrietTaken, STAFF.id, {
       site: 'Left temple',
@@ -401,6 +401,20 @@ export function seedLab(state: BaseState): LabSlice {
       reportAttachmentId: REPORT_FILES.grace,
       version: 4,
     }),
+    // Reported when its case's report was authorised, which finished his Histology (MC16).
+    specimen(SPECIMENS.callumBiopsy, PATHWAYS.backFromLab, 2, SPECIMEN_TYPES.skinBiopsy, callumTaken, STAFF.id, {
+      site: 'Back of the right hand',
+      status: 'Reported',
+      sentAtUtc: plusMinutes(callumTaken, 240),
+      sentByUserId: STAFF.id,
+      receivedAtUtc: plusMinutes(callumTaken, 24 * 60),
+      receivedByUserId: LAB.id,
+      labReference: 'EVP-55187',
+      reportedAtUtc: stage(PATHWAYS.backFromLab, 3).completedAtUtc!,
+      reportedByUserId: LAB.id,
+      reportAttachmentId: REPORT_FILES.callum,
+      version: 4,
+    }),
   ];
 
   const byId = (specimenId: string) => specimens.find((s) => s.id === specimenId)!;
@@ -416,7 +430,7 @@ export function seedLab(state: BaseState): LabSlice {
     responsibleUserId: s.requestingUserId,
   });
   const results: DemoResult[] = [
-    makeResult(RESULTS.priyaBiopsy, {...fromSpecimen(byId(SPECIMENS.priyaBiopsy), 'Skin biopsy (punch)'), reportFileName: 'histology-report.pdf'}),
+    makeResult(RESULTS.callumBiopsy, {...fromSpecimen(byId(SPECIMENS.callumBiopsy), 'Skin biopsy (punch)'), reportFileName: 'histology-report.pdf'}),
     makeResult(RESULTS.harrietBiopsy, {
       ...fromSpecimen(byId(SPECIMENS.harrietBiopsy), 'Skin biopsy (punch)'),
       reportFileName: 'histology-report.pdf',
@@ -458,9 +472,9 @@ export function seedLab(state: BaseState): LabSlice {
       kind: 'ResultReady',
       title: 'Result ready',
       message: `${LAB.username} reported a Skin biopsy (punch) specimen.`,
-      pathwayId: PATHWAYS.histologyToFinish,
-      subjectId: RESULTS.priyaBiopsy,
-      createdAtUtc: ago(2, 14, 0),
+      pathwayId: PATHWAYS.backFromLab,
+      subjectId: RESULTS.callumBiopsy,
+      createdAtUtc: stage(PATHWAYS.backFromLab, 3).completedAtUtc!,
       isRead: false,
     },
     {

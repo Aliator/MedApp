@@ -75,7 +75,8 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
     case 'report':
       return {
         title: 'Enter Results and Authorise',
-        message: 'The results you enter are the report. Authorising sends it back to the clinic or the hospital, and reports the case’s samples.',
+        message:
+          'The results you enter are the report. Authorising sends it back to the clinic or the hospital, and reports the case’s samples. On a pathway, it finishes the lab’s stage with these results and hands the pathway back.',
         confirm: 'Authorise Report',
         icon: AppIcon.SignOff,
         announced: 'Report authorised',

@@ -1,10 +1,12 @@
 import {Collapsible} from '@astryxdesign/core/Collapsible';
+import {Link} from '@astryxdesign/core/Link';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
 import type {Schemas} from '../../api/client';
+import {labCaseStatusLabel} from '../../api/hospitals';
 import {needsLetterWords} from '../../api/letters';
 import {choiceKindLabel, stageDepths, waitsForWords} from '../../api/pathwayRoutes';
 import type {PathwayStage} from '../../api/pathways';
@@ -173,6 +175,31 @@ export function StageResult({stage, title}: {stage: PathwayStage; title?: string
   );
 }
 
+/**
+ * Why a lab stage can't be finished by hand (MC16): its lab case is open, and authorising the case's report finishes
+ * it with the results. Null otherwise.
+ */
+export const labCaseOpenWords = (stage: PathwayStage): string | null =>
+  stage.labCaseId && stage.labCaseStatus === 'Open'
+    ? `Lab case ${stage.labCaseNumber ?? ''} is open: authorising its report finishes this stage.`
+    : null;
+
+/** A lab stage's lab case (MC16): its number, linked, and where it stands. */
+export function StageLabCase({stage}: {stage: PathwayStage}) {
+  if (!stage.labCaseId) return null;
+  return (
+    <HStack gap={1} wrap="wrap" vAlign="center">
+      <Text type="body">Lab case</Text>
+      <Link href={`/lab/cases/${stage.labCaseId}`}>{stage.labCaseNumber ?? 'Open the case'}</Link>
+      <Text type="body" color="secondary">
+        {stage.labCaseStatus === 'Open'
+          ? '(open): authorising its report finishes this stage, with its results.'
+          : `(${labCaseStatusLabel(stage.labCaseStatus).toLowerCase()})`}
+      </Text>
+    </HStack>
+  );
+}
+
 /** What a stage that waits for results says, under its title. */
 export const WAITS_FOR_RESULTS_WORDS = 'Waits for results: every result on the pathway must be signed off before it can be finished.';
 
@@ -222,6 +249,7 @@ export function StageDetails({stage, work, instructions, files, waitsFor, result
       {before.map((s) => (
         <StageResult key={s.id} stage={s} title={`Result from ${s.name}`} />
       ))}
+      <StageLabCase stage={stage} />
       <StageResult stage={stage} />
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
