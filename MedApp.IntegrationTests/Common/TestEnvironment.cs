@@ -20,7 +20,7 @@ namespace MedApp.IntegrationTests;
 /// Once per run: starts SQL Server 2022 and Azurite (the Azure Storage emulator, for attached files) in Docker
 /// (Testcontainers), applies every migration to a new database, and starts the API against both. Before each test,
 /// <see cref="ResetDatabaseAsync"/> empties the database (Respawn), keeping the migrations history, the seeded General
-/// team, the seeded default stage definition and the seeded calendar activity types.
+/// and lab teams, the seeded default stage definition and the seeded calendar activity types.
 /// </summary>
 [SetUpFixture]
 public sealed class TestEnvironment
@@ -169,15 +169,18 @@ public sealed class TestEnvironment
         sites.Parameters.AddWithValue("@createdAt", SiteConfiguration.MainSiteCreatedAt);
         await sites.ExecuteNonQueryAsync();
 
-        // Every team but General, which the migrations seeded (templates and memberships are gone already), and
-        // General back as it was.
+        // Every team but General and the lab, which the migrations seeded (templates and memberships are gone
+        // already), and both back as they were.
         await using var teams = connection.CreateCommand();
         teams.CommandText = """
-            DELETE FROM Teams WHERE Id <> @general;
-            UPDATE Teams SET Name = @name, IsArchived = 0, Version = 1 WHERE Id = @general;
+            DELETE FROM Teams WHERE Id NOT IN (@general, @lab);
+            UPDATE Teams SET Name = @name, IsArchived = 0, Version = 1, Kind = 0 WHERE Id = @general;
+            UPDATE Teams SET Name = @labName, IsArchived = 0, Version = 1, Kind = 1 WHERE Id = @lab;
             """;
         teams.Parameters.AddWithValue("@general", Team.GeneralId);
         teams.Parameters.AddWithValue("@name", Team.GeneralName);
+        teams.Parameters.AddWithValue("@lab", Team.LabId);
+        teams.Parameters.AddWithValue("@labName", Team.LabName);
         await teams.ExecuteNonQueryAsync();
     }
 }

@@ -19,6 +19,21 @@ internal static class LaterMigrationPermissions
         ("20261118183559_AddedConsentRecords", [Permission.RecordConsent]),
     ];
 
+    /// <summary>The starting roles later migrations add: Senior clinician (SplitOverrideStages) and Pathologist (AddedMultiClinicCentre).</summary>
+    private static readonly (string Migration, StandardRole Role)[] AddedRoles =
+    [
+        ("20261118173821_SplitOverrideStages", StandardRoles.SeniorClinician),
+        ("20261119192009_AddedMultiClinicCentre", StandardRoles.Pathologist),
+    ];
+
+    /// <summary>The starting roles as they are at that migration: now's, less those later migrations add.</summary>
+    public static IReadOnlyList<StandardRole> StartingAsAt(string migration) =>
+        StandardRoles.Starting.Where(role => AddedRoles.All(added => added.Role != role || string.CompareOrdinal(added.Migration, migration) <= 0)).ToList();
+
+    /// <summary>Every standard role as at that migration (<see cref="StartingAsAt"/>, with Admin and All staff).</summary>
+    public static IReadOnlyList<StandardRole> AllAsAt(string migration) =>
+        [StandardRoles.Admin, StandardRoles.AllStaffBeforeRoles, .. StartingAsAt(migration)];
+
     /// <summary>The permissions migrations later than this one add (migration IDs sort by their timestamp).</summary>
     public static IReadOnlySet<Permission> AddedAfter(string migration) =>
         Grants.Where(grant => string.CompareOrdinal(grant.Migration, migration) > 0)

@@ -143,7 +143,8 @@ public sealed class MultiClinicCentreMigrationTests
             .Options;
         _context = new MedAppDbContext(options);
         await _context.GetService<IMigrator>().MigrateAsync(Before);
-        await _context.Database.ExecuteSqlRawAsync(Seed);
+        // Raw SQL's braces are format placeholders: the seed's JSON has its own.
+        await _context.Database.ExecuteSqlRawAsync(Seed.Replace("{", "{{").Replace("}", "}}"));
     }
 
     [TearDown]

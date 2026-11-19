@@ -101,6 +101,39 @@ public abstract class IntegrationTest
 
     protected static Task<HttpClient> SignInAsAdminAsync() => SignInAsync(AdminUsername, AdminPassword);
 
+    /// <summary>
+    /// The name of a role holding every permission staff can hold (all but the Administrator-only ones, setup included),
+    /// made by <see cref="CreateClinicStaffAsync"/>. Admins are read only (decisions 182 and 208 of
+    /// <c>docs/multi-clinic-plan.md</c>), so a test doing clinical work, and the setup it needs, does it as this.
+    /// </summary>
+    protected const string EveryStaffPermissionRole = "Every staff permission";
+
+    /// <summary>
+    /// A member of staff in General (or the given teams) holding <see cref="EveryStaffPermissionRole"/>: they set up
+    /// templates and do every clinical action a test needs, as staff in their team.
+    /// </summary>
+    protected static async Task<StaffAccount> CreateClinicStaffAsync(params Guid[] teamIds)
+    {
+        var admin = await SignInAsAdminAsync();
+        var roles = await (await admin.GetAsync("/api/auth/roles")).Content.ReadAsStringAsync();
+        if (!roles.Contains(EveryStaffPermissionRole, StringComparison.Ordinal))
+        {
+            var permissions = MedApp.Application.Common.Identity.Permissions.Catalogue
+                .Where(p => !p.IsAdminOnly)
+                .Select(p => p.Name.ToString())
+                .ToList();
+            await (await admin.PostAsJsonAsync("/api/roles", new MedApp.Contracts.Roles.Requests.CreateRoleRequest
+            {
+                Name = EveryStaffPermissionRole, Description = "Integration tests' clinic staff.", Permissions = permissions,
+            })).ShouldHaveStatusAsync(HttpStatusCode.Created);
+        }
+
+        return await CreateStaffInAsync(teamIds.Length > 0 ? teamIds : [Team.GeneralId], EveryStaffPermissionRole);
+    }
+
+    /// <summary>A signed-in member of staff in General who can set up and do every clinical action (<see cref="CreateClinicStaffAsync"/>).</summary>
+    protected static async Task<HttpClient> SignInAsClinicStaffAsync() => (await CreateClinicStaffAsync()).Client;
+
     protected static string UniqueName(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 13)];
 
     /// <summary>
@@ -109,7 +142,15 @@ public abstract class IntegrationTest
     /// With no roles the account can't change its password (that needs UseApp, which every role grants), so it keeps the
     /// generated one and stays held by the forced password change: give it a role, then remove it, to test that.
     /// </summary>
-    protected static async Task<StaffAccount> CreateStaffAsync(params string[] roles)
+    /// <para>
+    /// Staff work in teams (MC3): the account joins General, or the lab for the Lab and Pathologist roles; an admin
+    /// joins none. <see cref="CreateStaffInAsync"/> chooses the teams.
+    /// </para>
+    protected static Task<StaffAccount> CreateStaffAsync(params string[] roles) =>
+        CreateStaffInAsync(DefaultTeamsFor(roles), roles);
+
+    /// <summary>As <see cref="CreateStaffAsync"/>, in the given teams (as a member).</summary>
+    protected static async Task<StaffAccount> CreateStaffInAsync(IReadOnlyList<Guid> teamIds, params string[] roles)
     {
         var admin = await SignInAsAdminAsync();
         var username = UniqueName("staff");
@@ -118,6 +159,8 @@ public abstract class IntegrationTest
             .ReadAsAsync<CreateUserResponse>();
         (await admin.PutAsJsonAsync($"/api/auth/users/{username}/roles", new SetUserRolesRequest(roles)))
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
+        if (teamIds.Count > 0)
+            await SetTeamsAsync(admin, username, teamIds);
 
         if (roles.Length > 0)
         {
@@ -132,6 +175,18 @@ public abstract class IntegrationTest
         var user = await (await admin.GetAsync($"/api/auth/users/{username}")).ReadAsAsync<UserResponse>();
         return new StaffAccount(user.UserId, username, password, await SignInAsync(username, password));
     }
+
+    /// <summary>The teams a new account joins by default: none for an admin, the lab for lab staff, else General.</summary>
+    private static IReadOnlyList<Guid> DefaultTeamsFor(IReadOnlyCollection<string> roles) =>
+        roles.Contains(MedApp.Application.Common.Identity.AppRoles.Admin, StringComparer.OrdinalIgnoreCase) ? []
+        : roles.Any(r => r is "Lab" or "Pathologist") ? [Team.LabId]
+        : [Team.GeneralId];
+
+    /// <summary>Puts a member of staff in exactly these teams, as a member of each (an admin's change).</summary>
+    protected static async Task SetTeamsAsync(HttpClient admin, string username, IReadOnlyList<Guid> teamIds) =>
+        await (await admin.PutAsJsonAsync($"/api/auth/users/{username}/teams",
+                new SetUserTeamsRequest([.. teamIds.Select(id => new TeamMembershipRequest(id, "Member"))])))
+            .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
     protected static async Task<Guid> GetUserIdAsync(HttpClient admin, string username) =>
         (await (await admin.GetAsync($"/api/auth/users/{username}")).ReadAsAsync<UserResponse>()).UserId;

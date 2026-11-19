@@ -48,7 +48,7 @@ public sealed class HospitalHandlersTests
         response.Should().BeEquivalentTo(new
         {
             Name = "Hillcrest (test)", OdsCode = "RXX02", Contact = (string?)null, ReportDeliveryMethod = "Post",
-            DefaultDeadlineDays = 14, IsArchived = false, CanBeDeleted = true, ExpectedVersion = 1,
+            DefaultDeadlineDays = 14, IsArchived = false, CanBeDeleted = true,
         });
     }
 
@@ -71,7 +71,7 @@ public sealed class HospitalHandlersTests
             new UpdateHospitalCommand(_hospital.Id, "Riverside (test)", "RXX01", "Lab office", "EmailOutsideMedApp", 7), _cts.Token);
 
         _hospital.ReportDeliveryMethod.Should().Be(LetterDispatchMethod.EmailOutsideMedApp);
-        response.ExpectedVersion.Should().Be(2);
+        _hospital.Version.Should().Be(2);
         response.DefaultDeadlineDays.Should().Be(7);
         _repository.Verify(r => r.UpdateAsync(_hospital, _cts.Token), Times.Once);
     }
@@ -136,7 +136,7 @@ public sealed class HospitalHandlersTests
         HospitalMapper.ToResponse(_hospital, inUse: true).Should().BeEquivalentTo(new
         {
             _hospital.Id, Name = HospitalsTestConstants.HospitalName, OdsCode = "RXX01", ReportDeliveryMethod = "SecureEmail",
-            DefaultDeadlineDays = 10, IsArchived = false, CanBeDeleted = false, ExpectedVersion = 1,
+            DefaultDeadlineDays = 10, IsArchived = false, CanBeDeleted = false,
         });
     }
 }

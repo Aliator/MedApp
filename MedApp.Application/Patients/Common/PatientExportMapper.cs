@@ -225,7 +225,8 @@ public static class PatientExportMapper
                     OutcomeAtUtc = i.OutcomeAtUtc,
                     Present = i.Attendees.Select(a => a.Username).OrderBy(u => u, StringComparer.OrdinalIgnoreCase).ToList(),
                     WithdrawnBy = i.WithdrawnByUsername,
-                    WithdrawnAtUtc = i.WithdrawnAtUtc
+                    WithdrawnAtUtc = i.WithdrawnAtUtc,
+                    Presenter = i.PresenterUsername
                 })
                 .ToList(),
             // As the pathways' history: staff by the username recorded at the time.
