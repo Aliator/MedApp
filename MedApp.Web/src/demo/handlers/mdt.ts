@@ -7,7 +7,7 @@ import {db} from '../store';
 import {daysFrom, nowUtc, ukTime} from '../time';
 import {can, me, pathwayPatient, requirePermission} from './common';
 import {findPathway, pathwayToChange} from './pathways';
-import {canSeeRecord, myScope, seeRecord} from './teamWalls';
+import {canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
 
 /**
  * The MDT list (`api/mdt`), simplified from the API's `MdtRules`: pathways listed for a team's MDT (a calendar
@@ -15,6 +15,9 @@ import {canSeeRecord, myScope, seeRecord} from './teamWalls';
  * team's outcome recorded as written, with who was present from its attendees (final). Every change carries
  * `expectedVersion`. **MedApp never suggests an outcome or changes the pathway because of one;** the pathway's
  * assignees are told (a fixed title). A deleted MDT leaves its items to list again ("Meeting cancelled").
+ * MC21: an item's presenter, one of its meeting's attendees (a lab member may attend any MDT, and reads the pathways
+ * listed on it: `hasMdtGrant`); each item shows the lab's samples and reports on its pathway. Only the item's own team
+ * lists, moves, withdraws or chooses the presenter; attendees from elsewhere only read.
  */
 
 type Meeting = Schemas['MeetingResponse'];
@@ -33,11 +36,28 @@ const meetingOf = (item: DemoMdtItem) => (item.meetingId ? db().meetings.find((m
 
 const teamName = (teamId: string | null | undefined) => db().teams.find((s) => s.id === teamId)?.name ?? '';
 
+/** The lab's samples on an item's pathway, with their reports (MC21), oldest taken first; none entered in error. */
+function labWorkOf(pathwayId: string): Schemas['MdtLabWorkResponse'][] {
+  const state = db();
+  return state.specimens
+    .filter((s) => s.pathwayId === pathwayId && s.status !== 'EnteredInError')
+    .sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc) || a.id.localeCompare(b.id))
+    .map((s) => ({
+      specimenId: s.id,
+      number: s.number,
+      typeName: state.specimenTypes.find((t) => t.id === s.specimenTypeId)?.name ?? null,
+      status: s.status,
+      reportedAtUtc: s.reportedAtUtc,
+      resultId: state.results.find((r) => r.specimenId === s.id && r.status !== 'EnteredInError')?.id ?? null,
+    }));
+}
+
 /** An item as the API answers it, for the signed-in person (`MdtMapper.ToResponse`). */
 function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
   const meeting = meetingOf(item);
   const pathway = db().pathways.find((p) => p.id === item.pathwayId);
   const open = isOpen(item);
+  const ours = canChangeRecord(item);
   return {
     id: item.id,
     status: item.status,
@@ -60,10 +80,14 @@ function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
     withdrawnByUsername: usernameOf(item.withdrawnByUserId),
     withdrawnAtUtc: item.withdrawnAtUtc,
     version: item.version,
-    canWithdraw: can('WorkPathways') && open,
-    canDefer: can('WorkPathways') && open,
+    canWithdraw: can('WorkPathways') && ours && open,
+    canDefer: can('WorkPathways') && ours && open,
     canRecordOutcome: can('RecordMdtOutcomes') && open && meeting !== undefined && (meeting.startUtc ?? '') <= nowUtc(),
     readOnlyReason: null,
+    presenterUserId: item.presenterUserId ?? null,
+    presenterUsername: usernameOf(item.presenterUserId),
+    canChoosePresenter: can('WorkPathways') && ours && open && meeting !== undefined,
+    labWork: labWorkOf(item.pathwayId),
   };
 }
 
@@ -194,6 +218,7 @@ export function registerMdt() {
       presentUserIds: [],
       withdrawnByUserId: null,
       withdrawnAtUtc: null,
+      presenterUserId: null,
       version: 1,
     };
     db().mdtItems.push(item);
@@ -203,6 +228,7 @@ export function registerMdt() {
     requirePermission('WorkPathways');
     const viewer = me();
     const item = findItem(params.id);
+    ensureCanChangeRecord(item, 'This MDT item');
     ensureVersion(item, body.expectedVersion);
     ensureOpen(item);
     Object.assign(item, {status: 'Withdrawn', withdrawnByUserId: viewer.id, withdrawnAtUtc: nowUtc(), version: item.version + 1});
@@ -212,6 +238,7 @@ export function registerMdt() {
     requirePermission('WorkPathways');
     if (!body.meetingId) return invalid({meetingId: ['Choose an MDT.']});
     const item = findItem(params.id);
+    ensureCanChangeRecord(item, 'This MDT item');
     ensureVersion(item, body.expectedVersion);
     ensureOpen(item);
     const meeting = findMeeting(body.meetingId);
@@ -224,8 +251,24 @@ export function registerMdt() {
       meetingId: meeting.id,
       meetingStartUtc: meeting.startUtc ?? null,
       teamId: meeting.teamId,
+      // The presenter stays only if they're invited to the new MDT too.
+      presenterUserId: (meeting.attendees ?? []).some((a) => a.userId === item.presenterUserId) ? item.presenterUserId : null,
       version: item.version + 1,
     });
+    return itemResponse(item);
+  });
+  on('post', '/api/mdt/items/{id}/presenter', ({params, body}) => {
+    requirePermission('WorkPathways');
+    const item = findItem(params.id);
+    ensureCanChangeRecord(item, 'This MDT item');
+    ensureVersion(item, body.expectedVersion);
+    ensureOpen(item);
+    const meeting = meetingOf(item);
+    if (!meeting) return problem(409, 'Its meeting was cancelled: list it for another MDT first.');
+    const presenterUserId = body.presenterUserId ?? null;
+    if (presenterUserId && !(meeting.attendees ?? []).some((a) => a.userId === presenterUserId))
+      return invalid({presenterUserId: ["Choose the presenter from the MDT's attendees."]});
+    Object.assign(item, {presenterUserId, version: item.version + 1});
     return itemResponse(item);
   });
   on('post', '/api/mdt/items/{id}/outcome', ({params, body}) => {

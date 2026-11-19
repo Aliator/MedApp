@@ -33,7 +33,7 @@ describe('the team walls in the light demo', () => {
     const back = (await call('GET', `${PATHWAY}/${PATHWAYS.consentToRecord}`)).body;
     expect(back).toMatchObject({canWorkOnStages: false, canAddNotes: false});
     expect((await call('POST', `${PATHWAY}/${PATHWAYS.consentToRecord}/notes`, {text: 'x'})).status).toBe(409);
-    expect((await call('GET', `${PATHWAY}/${PATHWAYS.biopsyToBook}`)).status).toBe(404);
+    expect((await call('GET', `${PATHWAY}/${PATHWAYS.unassigned}`)).status).toBe(404);
   });
 
   it('lets an admin read every team’s pathways, with no summaries', async () => {

@@ -252,3 +252,56 @@ export function WithdrawMdtItemDialog({item, isProcessing, onConfirm, onCancel}:
     </ConfirmDialog>
   );
 }
+
+export interface ChooseMdtPresenterDialogProps {
+  item: MdtItem;
+  /** The meeting's attendees: the presenter is one of them (a pathologist from the lab, or anyone invited). */
+  attendees: readonly {userId?: string; username?: string | null}[];
+  isProcessing: boolean;
+  /** The presenter's user ID, or null for nobody. */
+  onConfirm: MdtSend<string | null>;
+  onCancel: () => void;
+}
+
+const NOBODY = 'nobody';
+
+/**
+ * Choosing who presents an item at its MDT (MC21): one of the meeting's attendees, often a pathologist presenting the
+ * lab's report, or nobody. It starts on whoever presents now; nobody is suggested. Mount it only while it's open.
+ */
+export function ChooseMdtPresenterDialog({item, attendees, isProcessing, onConfirm, onCancel}: ChooseMdtPresenterDialogProps) {
+  const [presenter, setPresenter] = useState(item.presenterUserId ?? NOBODY);
+  const {problem, errors, fail, clear} = useDialogProblem(['presenterUserId'], 'The presenter could not be changed.');
+  const options = [
+    {value: NOBODY, label: 'Nobody'},
+    ...attendees.map((a) => ({value: a.userId ?? '', label: a.username ?? ''})),
+  ];
+
+  return (
+    <ConfirmDialog
+      isOpen
+      title="Choose the presenter"
+      message="Who presents this case at the MDT, from the meeting's attendees. Invite a pathologist to the meeting to have them present the lab's report."
+      icon={AppIcon.Assign}
+      intent="accent"
+      confirmText="Save"
+      confirmDisabled={presenter === (item.presenterUserId ?? NOBODY)}
+      isProcessing={isProcessing}
+      onConfirm={() => {
+        clear();
+        onConfirm(presenter === NOBODY ? null : presenter, fail);
+      }}
+      onCancel={onCancel}>
+      {item.patient && <PatientBanner patient={item.patient} isCompact />}
+      <AnchoredSelector
+        label="Presenter"
+        value={presenter}
+        onChange={setPresenter}
+        isDisabled={isProcessing}
+        status={fieldStatus(errors, 'presenterUserId')}
+        options={options}
+      />
+      {problem && <AlertMessage message={problem} />}
+    </ConfirmDialog>
+  );
+}

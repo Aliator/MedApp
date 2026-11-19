@@ -14,7 +14,8 @@ import {me, teamIdsOf} from './common';
  * - **Patients** are centre-wide: anyone can find any patient.
  * - **A pathway** is seen in full by admins (`ViewAllTeams`, read only), and by a team with a live grant
  *   (`pathwayAccess`): its own team (`Owner`), and the lab once a sample is passed to it (`StageOwner`, kept after
- *   hand-back). Anyone else sees it only as a summary line on the patient (`otherTeamPathways`).
+ *   hand-back). A lab member invited to an MDT reads the pathways listed on it (`hasMdtGrant`, MC21), read only.
+ *   Anyone else sees it only as a summary line on the patient (`otherTeamPathways`).
  * - **Its records** (appointments, letters, results, consent, specimens, MDT items) follow it; one without a
  *   pathway follows its own team. **A referral** is its current team's (and its pathway's, once accepted): redirected,
  *   the old team stops seeing it; registered for another team, the registrar doesn't keep it (MC5).
@@ -42,12 +43,31 @@ export const scopeOf = (person: DemoPerson): TeamScope => ({
 /** The signed-in person's scope (a 401 when nobody is). */
 export const myScope = () => scopeOf(me());
 
-/** Whether the viewer sees a pathway in full: every team (admins), or a live grant for one of their teams. */
+/** Whether the viewer sees a pathway in full: every team (admins), a live grant for one of their teams, or an MDT's. */
 export function canSeePathway(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope = myScope()): boolean {
   return (
     scope.seesAllTeams ||
-    db().pathwayAccess.some((a) => a.pathwayId === pathway.id && a.endedAtUtc === null && scope.teamIds.includes(a.teamId))
+    db().pathwayAccess.some((a) => a.pathwayId === pathway.id && a.endedAtUtc === null && scope.teamIds.includes(a.teamId)) ||
+    hasMdtGrant(pathway.id, scope)
   );
+}
+
+/**
+ * An MDT grant (MC21; `PathwayAccessReason.Mdt`, decision 185, Q12): a lab member among an MDT's attendees reads each
+ * pathway listed on it, read only, while its item is listed or deferred, and at least to the meeting's end; it ends
+ * when the item is discussed or withdrawn. Worked out from the items here (the API keeps it as a `PathwayAccess` row by
+ * user). MC26 widens it to every team's attendees.
+ */
+export function hasMdtGrant(pathwayId: string, scope: TeamScope): boolean {
+  const lab = labTeamId();
+  if (!lab || !scope.teamIds.includes(lab)) return false;
+  const now = nowUtc();
+  return db().mdtItems.some((item) => {
+    if (item.pathwayId !== pathwayId || !item.meetingId) return false;
+    const meeting = db().meetings.find((m) => m.id === item.meetingId);
+    if (!meeting?.isMdt || !(meeting.attendees ?? []).some((a) => a.userId === scope.userId)) return false;
+    return item.status === 'Listed' || item.status === 'Deferred' || (meeting.endUtc ?? '') > now;
+  });
 }
 
 /** Whether the viewer's team owns a pathway, so may change it (admins read only, the lab only reads it). */
