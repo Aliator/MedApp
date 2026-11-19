@@ -272,6 +272,36 @@ public sealed class PathwayInsightsQueriesTests
     }
 
     [Test]
+    public void InScope_Pathways_KeepsOnlyTheViewersTeams_WhenTheyreGiven()
+    {
+        var mine = Guid.NewGuid();
+        var theirs = Guid.NewGuid();
+        var ours = CreatePathway();
+        ours.TeamId = mine;
+        var others = CreatePathway();
+        others.TeamId = theirs;
+        var pathways = new[] { ours, others }.AsQueryable();
+
+        pathways.InScope(new InsightsScope(TeamIds: [mine])).Should().Equal(ours);
+        pathways.InScope(new InsightsScope(TeamIds: [])).Should().BeEmpty("someone in no team sees no team's pathways");
+        pathways.InScope(new InsightsScope(TeamId: theirs, TeamIds: [mine])).Should().BeEmpty();
+        pathways.InScope(InsightsScope.Everything).Should().Equal(ours, others);
+    }
+
+    [Test]
+    public void InScope_AuditEntries_KeepsOnlyTheViewersTeamsPathways()
+    {
+        var mine = Guid.NewGuid();
+        var ours = CreatePathway();
+        ours.TeamId = mine;
+        var others = CreatePathway();
+        var audit = new[] { Created(ours, Moment), Created(others, Moment) }.AsQueryable();
+
+        audit.InScope(new[] { ours, others }.AsQueryable(), new InsightsScope(TeamIds: [mine]))
+            .Select(e => e.PatientPathwayId).Should().Equal(ours.Id);
+    }
+
+    [Test]
     public void InScope_AuditEntries_KeepsOnlyThoseOfTheTeamsExistingPathways()
     {
         var team = Guid.NewGuid();

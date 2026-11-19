@@ -43,6 +43,8 @@ public static class ResultsTestConstants
             Patient = specimen.Patient,
             PathwayId = specimen.PathwayId,
             Pathway = specimen.Pathway,
+            // Its pathway's team, as the API copies it when a result is made (the team walls).
+            TeamId = specimen.Pathway?.TeamId ?? Guid.Empty,
             SpecimenId = specimen.Id,
             Specimen = specimen,
             Source = ResultSource.Specimen,

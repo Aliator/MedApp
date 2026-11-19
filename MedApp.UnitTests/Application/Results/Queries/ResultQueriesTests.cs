@@ -1,6 +1,7 @@
 using MedApp.Domain.Patients;
 using FluentAssertions;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Results.Queries.GetResult;
 using MedApp.Application.Results.Queries.SearchResults;
 using MedApp.Domain.Activity;
@@ -50,12 +51,12 @@ public sealed class ResultQueriesTests : ResultTestBase
     }
 
     [Test]
-    public void TeamFilter_KeepsOnlyThatTeamsPathways()
+    public void TeamFilter_KeepsOnlyThatTeamsResults()
     {
         var all = Results();
-        all[0].Pathway!.TeamId = Guid.NewGuid();
+        all[0].TeamId = Guid.NewGuid();
 
-        Search(all, Query("AwaitingMine", teamId: all[0].Pathway!.TeamId)).Should().Equal(all[0]);
+        Search(all, Query("AwaitingMine", teamId: all[0].TeamId)).Should().Equal(all[0]);
     }
 
     [Test]
@@ -80,7 +81,7 @@ public sealed class ResultQueriesTests : ResultTestBase
     [Test]
     public async Task Count_IsMineAwaiting()
     {
-        Repository.Setup(r => r.CountAwaitingForAsync(Clinician.UserId, It.IsAny<CancellationToken>())).ReturnsAsync(4);
+        Repository.Setup(r => r.CountAwaitingForAsync(Clinician.UserId, It.IsAny<TeamScope>(), It.IsAny<CancellationToken>())).ReturnsAsync(4);
 
         var count = await new SearchResultsHandler(Repository.Object, Holders.Object, Identity.Object, new RecordingActivityLog(), Clock)
             .Handle(new CountResultsQuery(Clinician.UserId), Cts.Token);
@@ -94,7 +95,7 @@ public sealed class ResultQueriesTests : ResultTestBase
         var result = Given(CreateResult());
         var log = new RecordingActivityLog();
 
-        var response = await new GetResultHandler(Repository.Object, log, Identity.Object, Holders.Object, Clock)
+        var response = await new GetResultHandler(Repository.Object, Walls.Boundary, log, Identity.Object, Holders.Object, Clock)
             .Handle(new GetResultQuery(result.Id, Clinician), Cts.Token);
 
         response.Id.Should().Be(result.Id);

@@ -49,6 +49,7 @@ public static class ConsentTestConstants
             Patient = pathway.Patient,
             PathwayId = pathway.Id,
             Pathway = pathway,
+            TeamId = pathway.TeamId,
             StageId = pathway.StageAt(1).Id,
             ConsentFormId = form.Id,
             ConsentForm = form,
