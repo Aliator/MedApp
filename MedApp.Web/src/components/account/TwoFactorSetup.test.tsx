@@ -30,7 +30,7 @@ type User = ReturnType<typeof renderSetup>['user'];
 async function turnOn(user: User, code = '123456', password = 'Synthetic-Passw0rd') {
   await user.type(await screen.findByLabelText(/your password/i), password);
   await user.type(screen.getByLabelText(/code from your authenticator app/i), code);
-  await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+  await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
 }
 
 describe('TwoFactorSetup, switching from codes by email', () => {
@@ -41,11 +41,11 @@ describe('TwoFactorSetup, switching from codes by email', () => {
 
     expect(await screen.findByText(PROVE_CURRENT)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
     expect(await screen.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
     await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), '654321');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
 
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     const enable = fetch.mock.calls.map(([r]) => r as Request).find((r) => new URL(r.url).pathname === '/api/auth/me/two-factor/enable')!;
@@ -62,7 +62,7 @@ describe('TwoFactorSetup, switching from codes by email', () => {
     );
 
     await user.type(await screen.findByLabelText(/your password/i), 'not-it');
-    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
 
     expect(await screen.findByText('That password is wrong.')).toBeInTheDocument();
     expect(screen.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
@@ -97,7 +97,7 @@ describe('TwoFactorSetup, switching from codes by email', () => {
 
     await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
 
     await waitFor(() =>
       expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true'),
@@ -231,7 +231,7 @@ describe('TwoFactorSetup', () => {
     });
 
     expect(await findAlert('Two-factor authentication is already on.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Try again'}));
+    await user.click(screen.getByRole('button', {name: 'Try Again'}));
 
     expect(await screen.findByRole('img', {name: /QR code/})).toBeInTheDocument();
   });

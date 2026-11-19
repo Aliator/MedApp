@@ -25,7 +25,7 @@ export interface MonitoringRuleInput {
 export const MONITORING_EVENTS = [
   {value: 'PathwayCreated', label: 'Creates a pathway'},
   {value: 'StageFinished', label: 'Finishes a stage', hasStage: true},
-  {value: 'PathwayCompleted', label: 'Discharges a pathway'},
+  {value: 'PathwayCompleted', label: 'Completes a pathway'},
   {value: 'PathwayBlocked', label: 'Puts a pathway on hold'},
   {value: 'PathwayCancelled', label: 'Cancels a pathway'},
   {value: 'PathwayAssigned', label: 'Is assigned to a pathway'},
@@ -36,7 +36,7 @@ export const MONITORING_EVENTS = [
   {value: 'ReferralNotTriaged', label: 'Service alert: a referral awaits triage', isAlert: true, noPerson: true, noTemplate: true},
   {value: 'ResultNotSignedOff', label: 'Service alert: a result awaits sign-off', isAlert: true},
   {value: 'VisitNotBooked', label: 'Service alert: a visit awaits booking', isAlert: true, noPerson: true, hasStage: true},
-  {value: 'SpecimenOverdue', label: 'Service alert: a specimen is overdue at the lab', isAlert: true, noPerson: true, hasStage: true},
+  {value: 'SpecimenOverdue', label: 'Service alert: a sample is overdue at the lab', isAlert: true, noPerson: true, hasStage: true},
   {value: 'WaitBreached', label: 'Service alert: a waiting-time target is near or passed', isAlert: true, noPerson: true},
   {value: 'PauseReviewPassed', label: "Service alert: a paused clock's review date passed", isAlert: true, noPerson: true},
   // MC19's strict clocks: a lab case at risk of missing its due date, or past it (dates only, never a test's values).

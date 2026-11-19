@@ -85,7 +85,7 @@ describe('AccountPage', () => {
   it('turns off folding the side nav in a half view, in the Navigation card, and remembers it', async () => {
     const {user} = renderWithApp(<AccountPage />, {user: staffUser});
 
-    const folds = await screen.findByRole('switch', {name: 'Fold the side nav in half view'});
+    const folds = await screen.findByRole('switch', {name: 'Shrink the side nav when two pages are open'});
     expect(folds).toBeChecked();
     await user.click(folds);
 
@@ -156,7 +156,7 @@ describe('AccountPage', () => {
 
     expect(JSON.parse(localStorage.getItem('medapp.accessibility')!)).toEqual({shortcuts: true, underlineLinks: true});
     expect(document.querySelector('style[data-medapp-accessibility]')?.textContent).toContain('.astryx-link');
-    expect(screen.getByRole('link', {name: 'Accessibility statement'})).toHaveAttribute('href', '/accessibility');
+    expect(screen.getByRole('link', {name: 'Accessibility Statement'})).toHaveAttribute('href', '/accessibility');
   });
 });
 

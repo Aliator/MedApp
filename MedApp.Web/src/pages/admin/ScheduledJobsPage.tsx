@@ -54,28 +54,41 @@ export function jobLabels(job: ScheduledJob): JobLabel[] {
 /** How many a run handled, in words: "1 item", "1,284 items". */
 export const countWords = (count: number) => `${count.toLocaleString('en-GB')} ${count === 1 ? 'item' : 'items'}`;
 
-/** Failures in a row, in words, with the last one's type: "Failed 3 times in a row (SqlException)". */
+/**
+ * The kind of error a run failed with, in plain words, from the exception's type name ("SqlException" gives "database
+ * error"); the type itself is in the server's logs.
+ */
+export function errorWords(errorType: string | null | undefined): string | null {
+  if (!errorType) return null;
+  if (/Sql|DbUpdate|Database/i.test(errorType)) return 'database error';
+  if (/Timeout|Cancel/i.test(errorType)) return 'timed out';
+  if (/Http|Socket|Smtp|Request/i.test(errorType)) return 'connection error';
+  return 'unexpected error';
+}
+
+/** Failures in a row, in words, with the last one's kind: "Failed 3 times in a row (database error)". */
 export function failureWords({consecutiveFailures = 0, lastErrorType}: ScheduledJob): string | null {
   if (consecutiveFailures <= 0) return null;
   const times = consecutiveFailures === 1 ? 'Failed once' : `Failed ${consecutiveFailures} times in a row`;
-  return lastErrorType ? `${times} (${lastErrorType})` : times;
+  const error = errorWords(lastErrorType);
+  return error ? `${times} (${error})` : times;
 }
 
 /** Why Run Now can't be pressed for a job, or null when it can. */
 export function whyCantRun(job: ScheduledJob): string | null {
   if (job.isRunning) return 'Already running';
-  if (job.enabled === false) return "Switched off in the API's settings";
+  if (job.enabled === false) return 'Switched off in the server settings';
   return null;
 }
 
-/** What a run now did, in words: "Operational data purge succeeded: 12 items." or "… failed (SqlException)." */
+/** What a run now did, in words: "Operational data purge succeeded: 12 items." or "… failed (database error)." */
 export function runOutcomeWords(job: ScheduledJob): string {
   const title = job.title ?? job.name ?? 'The job';
   switch (job.lastOutcome) {
     case 'Succeeded':
       return job.lastCount != null ? `${title} succeeded: ${countWords(job.lastCount)}.` : `${title} succeeded.`;
     case 'Failed':
-      return job.lastErrorType ? `${title} failed (${job.lastErrorType}).` : `${title} failed.`;
+      return job.lastErrorType ? `${title} failed (${errorWords(job.lastErrorType)}).` : `${title} failed.`;
     case 'Skipped':
       return `${title} was skipped.`;
     default:
@@ -284,8 +297,8 @@ export function ScheduledJobsPage() {
         search={
           <VStack gap={3} hAlign="stretch">
             <Text type="body" color="secondary">
-              These jobs run inside the API on a schedule. Only one copy of the API runs each job at a time, and a job
-              that fails three times in a row notifies everyone who manages setup.
+              These jobs run automatically on a schedule. If one fails three times in a row, everyone who manages setup is
+              told.
             </Text>
             {outcome && <AlertMessage status={outcome.status} label={outcome.label} message={outcome.message} onDismiss={() => setOutcome(null)} />}
           </VStack>

@@ -9,15 +9,18 @@ import {
 } from './rolePermissions';
 
 describe('rolePermissions', () => {
-  it('names a permission in words', () => {
+  it('names a permission by its hand-written label, or one it does not know in words', () => {
     expect(permissionLabel('ManageAnyCalendar')).toBe('Manage any calendar');
     expect(permissionLabel('ViewPatients')).toBe('View patients');
+    expect(permissionLabel('RecordMdtOutcomes')).toBe('Record MDT outcomes');
+    expect(permissionLabel('ManageClinics')).toBe('Set working hours');
+    expect(permissionLabel('SomethingNew')).toBe('Something new');
   });
 
-  it('groups every permission but UseApp, in the catalogue order, Administrator only last', () => {
+  it('groups every permission but UseApp, in the catalogue order, Admin only last', () => {
     const groups = permissionGroups('');
     expect(groups.map((g) => g.title)).toEqual(PERMISSION_GROUPS.map((g) => g.title));
-    expect(groups.at(-1)?.title).toBe('Administrator only');
+    expect(groups.at(-1)?.title).toBe('Admin only');
     expect(groups.flatMap((g) => g.permissions)).toEqual(PERMISSIONS.filter((p) => p !== 'UseApp'));
     expect(groups.find((g) => g.group === 'AppointmentsAndCalendars')?.permissions).toContain('ManageClinics');
   });

@@ -100,7 +100,7 @@ export function ConfirmEmailPage() {
           title={SIGN_IN_TO_CONFIRM}
           description="Sign in with the account this address was given for. You'll come back here to confirm it."
         />
-        <Button label="Sign in" variant="primary" size="lg" icon={<Icon icon={AppIcon.Login} />} onClick={signIn} />
+        <Button label="Sign In" variant="primary" size="lg" icon={<Icon icon={AppIcon.Login} />} onClick={signIn} />
       </StandalonePage>
     );
   }
@@ -113,7 +113,7 @@ export function ConfirmEmailPage() {
       <StandalonePage title={TITLE}>
         <Banner status="error" container="card" role="alert" title={wrongAccount.description} description={WRONG_ACCOUNT_HINT} />
         <Button
-          label="Sign out"
+          label="Sign Out"
           variant="primary"
           size="lg"
           icon={<Icon icon={AppIcon.Logout} />}
@@ -156,7 +156,7 @@ export function ConfirmEmailPage() {
         <Banner status="error" container="card" role="alert" title={problem} description={isRefused ? NEW_LINK_HINT : undefined} />
       )}
       {!isRefused && (
-        <Button label="Confirm email address" variant="primary" size="lg" isLoading={confirm.isPending} onClick={confirmLink} />
+        <Button label="Confirm Email Address" variant="primary" size="lg" isLoading={confirm.isPending} onClick={confirmLink} />
       )}
       {isRefused && continueButton}
     </StandalonePage>

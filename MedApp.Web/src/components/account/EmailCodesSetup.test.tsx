@@ -34,7 +34,7 @@ const bodyOf = (fetch: ReturnType<typeof mockApi>, path: string, index = 0) =>
 
 async function sendCode(user: User, password = 'Synthetic-Passw0rd') {
   await user.type(await screen.findByLabelText(/your password/i), password);
-  await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+  await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
 }
 
 describe('EmailCodesSetup', () => {
@@ -45,7 +45,7 @@ describe('EmailCodesSetup', () => {
     expect(password).toHaveAttribute('autocomplete', 'current-password');
     expect(password).toHaveFocus();
     expect(document.querySelector('input[name="username"]')).toHaveValue('test-admin');
-    expect(isDisabled(screen.getByRole('button', {name: 'Email me a code'}))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', {name: 'Email Me a Code'}))).toBe(true);
     // Nothing is sent until they ask.
     expect(calls(fetch)).toEqual([]);
   });
@@ -60,7 +60,7 @@ describe('EmailCodesSetup', () => {
     const code = screen.getByLabelText(/code from the email/i);
     expect(code).toHaveAttribute('inputmode', 'numeric');
     await user.type(code, '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on codes by email'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Codes by Email'}));
 
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     expect(await bodyOf(fetch, '/api/auth/me/two-factor/email/enable')).toEqual({code: '123456'});
@@ -135,7 +135,7 @@ describe('EmailCodesSetup', () => {
 
     await sendCode(user);
     await user.type(await screen.findByLabelText(/code from the email/i), '000000');
-    await user.click(screen.getByRole('button', {name: 'Turn on codes by email'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Codes by Email'}));
 
     expect((await screen.findAllByText("That code isn't right.")).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/code from the email/i)).toHaveAttribute('aria-invalid', 'true');
@@ -147,7 +147,7 @@ describe('EmailCodesSetup', () => {
 
     await sendCode(user);
     await user.type(await screen.findByLabelText(/code from the email/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on codes by email'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Codes by Email'}));
 
     expect(await findAlert('Two-factor authentication is already on.')).toBeInTheDocument();
   });

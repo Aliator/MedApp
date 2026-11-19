@@ -153,6 +153,51 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
 };
 
 /**
+ * Each permission's name on screen (the roles page, the no-permission page), written by hand rather than made from its
+ * key, so "RecordMdtOutcomes" reads "Record MDT outcomes". The web app's own: the API's catalogue has descriptions,
+ * not labels, so `permissionCatalogue.test.ts` doesn't compare these. Keys never change (they're stored by name).
+ */
+export const PERMISSION_LABELS: Record<Permission, string> = {
+  UseApp: 'Use the app',
+  ViewPatients: 'View patients',
+  EditPatients: 'Add and edit patients',
+  DeletePatients: 'Delete patients',
+  RegisterReferrals: 'Register referrals',
+  TriageReferrals: 'Triage referrals',
+  CreatePathways: 'Start pathways',
+  WorkPathways: 'Work on pathways',
+  AssignPathways: 'Assign pathways',
+  UnlockStages: 'Unlock stages',
+  FinishWithoutVisit: 'Finish without a visit',
+  RecordMdtOutcomes: 'Record MDT outcomes',
+  RecordConsent: 'Record consent',
+  DeletePathways: 'Delete pathways',
+  BookAppointments: 'Book appointments',
+  ManageAnyCalendar: 'Manage any calendar',
+  ArrangeMeetings: 'Arrange meetings',
+  ManageClinics: 'Set working hours',
+  AttachFiles: 'Attach files',
+  RecordSpecimens: 'Record samples',
+  ProcessSpecimens: 'Process samples',
+  AuthoriseLabReports: 'Authorise lab reports',
+  SignOffResults: 'Sign off results',
+  WriteLetters: 'Write letters',
+  ApproveLetters: 'Approve letters',
+  SendLetters: 'Send letters',
+  ViewInsights: 'View insights',
+  ManageMonitoring: 'Manage monitoring',
+  ManageSetup: 'Manage setup',
+  ManageUsers: 'Manage users',
+  ManageRoles: 'Manage roles',
+  ManageSecuritySettings: 'Manage security settings',
+  ViewAudit: 'View the audit logs',
+  ExportPatientRecords: 'Export patient records',
+  ManagePrivacy: 'Manage privacy',
+  CorrectRecords: 'Correct records',
+  ViewAllTeams: 'View all teams',
+};
+
+/**
  * The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`): admins are read
  * only (decisions 182 and 208 of `docs/multi-clinic-plan.md`), so only staff do clinical work.
  */

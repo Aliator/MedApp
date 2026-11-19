@@ -36,7 +36,7 @@ describe('RecoveryCodes', () => {
     const downloads = stubDownloads();
     const {user} = renderCodes();
 
-    await user.click(await screen.findByRole('button', {name: 'Download codes'}));
+    await user.click(await screen.findByRole('button', {name: 'Download Codes'}));
 
     expect(downloads.clicks).toEqual([{href: 'blob:synthetic/1', download: RECOVERY_CODES_FILE}]);
     expect(downloads.blobs[0].type).toBe('text/plain;charset=utf-8');
@@ -52,7 +52,7 @@ describe('RecoveryCodes', () => {
 
     expect(await screen.findByText(/If you can't get MedApp's emails/)).toBeInTheDocument();
     expect(screen.queryByText(/authenticator app/)).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Download codes'}));
+    await user.click(screen.getByRole('button', {name: 'Download Codes'}));
     expect(await downloads.blobs[0].text()).toContain('instead of a code MedApp emails you');
   });
 

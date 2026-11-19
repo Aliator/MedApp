@@ -44,7 +44,7 @@ export function RequiredTwoFactorSetupPage() {
         onDone={() => void enterApp()}
         onEnabled={() => setIsOn(true)}
       />
-      {!isOn && <Button label="Sign out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />}
+      {!isOn && <Button label="Sign Out" variant="ghost" size="lg" onClick={() => logout.mutate()} isLoading={logout.isPending} />}
     </StandalonePage>
   );
 }

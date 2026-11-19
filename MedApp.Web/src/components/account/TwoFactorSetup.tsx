@@ -173,7 +173,7 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
         />
         <HStack gap={2} hAlign="end">
           {onCancel && <Button label="Cancel" variant="secondary" onClick={onCancel} />}
-          <Button label="Try again" variant="primary" icon={<Icon icon={AppIcon.Refresh} />} onClick={start} />
+          <Button label="Try Again" variant="primary" icon={<Icon icon={AppIcon.Refresh} />} onClick={start} />
         </HStack>
       </VStack>
     );
@@ -240,7 +240,7 @@ export function TwoFactorSetup({username, doneLabel, onDone, onCancel, onEnabled
           {onCancel && <Button label="Cancel" variant="secondary" isDisabled={enable.isPending} onClick={onCancel} />}
           <Button
             type="submit"
-            label="Turn on two-factor"
+            label="Turn On Two-Factor"
             variant="primary"
             icon={<Icon icon={AppIcon.TwoFactorOn} />}
             isLoading={enable.isPending}

@@ -133,8 +133,8 @@ export function AccountPage() {
                 ))}
               </RadioList>
               <Switch
-                label="Fold the side nav in half view"
-                description="Opening a half view folds the side nav to its icons. Turn off to keep it open beside the two halves."
+                label="Shrink the side nav when two pages are open"
+                description="Opening a page in half view shrinks the side nav to its icons. Turn off to keep it open beside both pages."
                 value={foldsInHalfView}
                 onChange={setFoldsInHalfView}
               />
@@ -174,7 +174,7 @@ export function AccountPage() {
         <ViewCard
           footerActions={
             <Button
-              label="Accessibility statement"
+              label="Accessibility Statement"
               variant="secondary"
               icon={<Icon icon={AppIcon.Accessibility} />}
               href="/accessibility"

@@ -83,9 +83,9 @@ export const MAX_REQUESTER_NAME = 200;
 /** The longest a requester's relationship to the patient can be. */
 export const MAX_REQUESTER_RELATIONSHIP = 100;
 
-/** The serious harm test, in one plain line: the only reason an item is withheld. */
+/** When an item may be withheld, in plain words: the serious harm test, or information about a third party. */
 export const SERIOUS_HARM_TEST =
-  'Withhold an item only where providing it would be likely to cause serious harm to the physical or mental health of the patient or another person.';
+  'Withhold an item only where providing it would be likely to cause serious harm to the physical or mental health of the patient or another person, or where it would identify someone else (not a health professional caring for the patient) who hasn’t agreed, and sharing it without their agreement isn’t reasonable.';
 
 /** Every data request query is under ['data-requests'], so one change refreshes them all. */
 export const dataRequestKeys = {

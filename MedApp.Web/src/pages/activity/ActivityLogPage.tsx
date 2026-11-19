@@ -34,7 +34,7 @@ export interface ActivityLogPageProps {
 
 /** The search's fields, as the API filters the log, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
-  {kind: 'text', key: 'q', label: 'User or address'},
+  {kind: 'text', key: 'q', label: 'User or IP address'},
   {kind: 'choice', key: 'action', label: 'Action', options: ACTIVITY_ACTIONS.map((a) => ({value: a, label: activityActionLabel(a)})), isMultiple: true},
   {kind: 'date', key: 'when', label: 'When', fromKey: 'from', toKey: 'to'},
 ];
@@ -143,7 +143,8 @@ export function ActivityLogPage({search, onSearchChange}: ActivityLogPageProps) 
     ? 'Loading the activity log...'
     : patientName
       ? `${total} ${noun} for ${patientName}`
-      : `${total} ${noun}${isFiltered ? ' found' : ''}`;
+      : // What it holds, so it isn't mistaken for the Audit Log (changes to pathways).
+        `Record access, sign-ins and accounts · ${total} ${noun}${isFiltered ? ' found' : ''}`;
 
   return (
     <Page

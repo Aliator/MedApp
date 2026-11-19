@@ -91,7 +91,7 @@ export function DataRequestsPage({search, onSearchChange}: DataRequestsPageProps
             <Link href={`/patients/${r.patientId}`}>{r.patientName}</Link>
           </Text>
           <Text type="supporting" color="secondary" maxLines={1}>
-            {r.requestedByPatient ? 'Asked by the patient' : 'Asked on their behalf'}
+            {r.requestedByPatient ? 'Requested by the patient' : 'Requested on their behalf'}
           </Text>
         </VStack>
       ),

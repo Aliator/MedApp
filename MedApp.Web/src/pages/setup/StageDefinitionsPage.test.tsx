@@ -141,19 +141,19 @@ describe('StageDefinitionsPage', () => {
 
     await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Edit stage'}));
     let dialog = within(openDialog()!);
-    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT Code/}), '80146002');
-    await user.type(dialog.getByRole('textbox', {name: /Display Term/}), 'Appendectomy');
+    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT code/}), '80146002');
+    await user.type(dialog.getByRole('textbox', {name: /Display term/}), 'Appendectomy');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(await sent(fetch, 'PATCH').json()).toEqual(expect.objectContaining({snomedCode: '80146002', snomedTerm: 'Appendectomy'}));
 
     await user.click(within(await rowOf('Consent')).getByRole('button', {name: 'Edit stage'}));
     dialog = within(openDialog()!);
-    const code = dialog.getByRole('textbox', {name: /SNOMED CT Code/});
+    const code = dialog.getByRole('textbox', {name: /SNOMED CT code/});
     expect(code).toHaveValue('71388002');
-    expect(dialog.getByRole('textbox', {name: /Display Term/})).toHaveValue('Procedure');
+    expect(dialog.getByRole('textbox', {name: /Display term/})).toHaveValue('Procedure');
     await user.clear(code);
-    await user.clear(dialog.getByRole('textbox', {name: /Display Term/}));
+    await user.clear(dialog.getByRole('textbox', {name: /Display term/}));
     await user.click(dialog.getByRole('button', {name: 'Save'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     const patches = fetch.mock.calls.map(([r]) => r as Request).filter((r) => r.method === 'PATCH');
@@ -169,11 +169,11 @@ describe('StageDefinitionsPage', () => {
 
     await user.click(within(await rowOf('Biopsy')).getByRole('button', {name: 'Edit stage'}));
     const dialog = within(openDialog()!);
-    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT Code/}), '123');
+    await user.type(dialog.getByRole('textbox', {name: /SNOMED CT code/}), '123');
     await user.click(dialog.getByRole('button', {name: 'Save'}));
 
-    await waitFor(() => expect(dialog.getByRole('textbox', {name: /Display Term/})).toHaveAccessibleDescription(expect.stringContaining(message)));
-    expect(dialog.getByRole('textbox', {name: /SNOMED CT Code/})).toHaveAccessibleDescription(/Not a concept ID\./);
+    await waitFor(() => expect(dialog.getByRole('textbox', {name: /Display term/})).toHaveAccessibleDescription(expect.stringContaining(message)));
+    expect(dialog.getByRole('textbox', {name: /SNOMED CT code/})).toHaveAccessibleDescription(/Not a concept ID\./);
   });
 
   it('archives after a confirmation, and restores an archived one', async () => {

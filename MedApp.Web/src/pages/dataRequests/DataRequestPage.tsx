@@ -221,7 +221,7 @@ export function DataRequestPage({id}: {id: string}) {
           <DataRequestStatusToken status={request.status} />
         </MetadataListItem>
         <MetadataListItem label="Received">{formatDate(request.receivedOn ?? '')}</MetadataListItem>
-        <MetadataListItem label="Asked by">{askedByWords(request)}</MetadataListItem>
+        <MetadataListItem label="Requested by">{askedByWords(request)}</MetadataListItem>
         <MetadataListItem label="Logged">{`${formatDateTime(request.createdAtUtc ?? '')} by ${request.createdByUsername}`}</MetadataListItem>
       </MetadataList>,
     );

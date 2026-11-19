@@ -1,4 +1,4 @@
-import {PERMISSION_CATALOGUE, PERMISSIONS, type Permission, type PermissionGroup} from '../../auth/permissions';
+import {isPermission, PERMISSION_CATALOGUE, PERMISSION_LABELS, PERMISSIONS, type Permission, type PermissionGroup} from '../../auth/permissions';
 
 /**
  * The groups the role editor shows permissions in, in order, with their titles (decision 62). `Base` (UseApp alone,
@@ -18,11 +18,15 @@ export const PERMISSION_GROUPS: {
   {group: 'Letters', title: 'Letters'},
   {group: 'Oversight', title: 'Oversight'},
   {group: 'Setup', title: 'Setup'},
-  {group: 'AdministratorOnly', title: 'Administrator only'},
+  {group: 'AdministratorOnly', title: 'Admin only'},
 ];
 
-/** A permission's name in words, from its name: "ManageAnyCalendar" → "Manage any calendar". */
+/**
+ * A permission's name on screen: its hand-written label (`PERMISSION_LABELS`: "RecordMdtOutcomes" → "Record MDT
+ * outcomes"), or, for one this copy of the app doesn't know yet, its key in words ("NewThing" → "New thing").
+ */
 export function permissionLabel(permission: string): string {
+  if (isPermission(permission)) return PERMISSION_LABELS[permission];
   const words = permission.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

@@ -40,7 +40,7 @@ describe('AdminSettingsPage', () => {
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     expect(await screen.findByText('Settings saved')).toBeInTheDocument();
-    expect(screen.getByText("2 admin accounts haven't set up an authenticator app; they'll be asked to at their next request.")).toBeInTheDocument();
+    expect(screen.getByText("2 admin accounts haven't set up an authenticator app. They'll be asked to the next time they use MedApp.")).toBeInTheDocument();
     expect(await requireSwitch()).toBeChecked();
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
     expect(await request.json()).toEqual({requireTwoFactorForAdmins: true});
@@ -98,7 +98,7 @@ describe('AdminSettingsPage', () => {
 
   it('counts the admins without it in words', () => {
     const settings = {requireTwoFactorForAdmins: true, adminsWithoutTwoFactor: 1, updatedAtUtc: null, updatedBy: null};
-    expect(adminsWithoutTwoFactorText(settings)).toBe("1 admin account hasn't set up an authenticator app; they'll be asked to at their next request.");
+    expect(adminsWithoutTwoFactorText(settings)).toBe("1 admin account hasn't set up an authenticator app. They'll be asked to the next time they use MedApp.");
     expect(adminsWithoutTwoFactorText({...settings, requireTwoFactorForAdmins: false})).toBe("1 admin account hasn't set up an authenticator app.");
   });
 

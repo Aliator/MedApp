@@ -25,7 +25,7 @@ describe('route guards', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
     expect(router.state.location.search).toEqual({permission: 'ManageUsers'});
     expect(await screen.findByRole('heading', {name: "You don't have permission to use this page"})).toBeInTheDocument();
-    expect(screen.getAllByText(/It needs the permission to: Manage accounts: create and delete them/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/This page needs the ‘Manage users’ permission/)[0]).toBeInTheDocument();
     // Inside the signed-in layout, so the side nav is still there to go elsewhere.
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
@@ -102,7 +102,7 @@ describe('route guards', () => {
     expect(await screen.findByText('Main site')).toBeInTheDocument();
   });
 
-  it('sends someone without ManageSetup away from Specimen Types and Lab Tests, and lets an admin in', async () => {
+  it('sends someone without ManageSetup away from Sample Types and Lab Tests, and lets an admin in', async () => {
     const fetch = mockApi({'GET /api/specimen-types': () => json([]), 'GET /api/lab-tests': () => json([])});
     const {router, unmount} = renderApp({path: '/admin/specimen-setup', user: staffUser});
     await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
@@ -110,7 +110,7 @@ describe('route guards', () => {
     unmount();
 
     renderApp({path: '/admin/specimen-setup', user: adminUser});
-    expect(await screen.findByRole('heading', {name: 'Specimen Types and Lab Tests', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Sample Types and Lab Tests', level: 1})).toBeInTheDocument();
   });
 
   it('opens Samples on To send for those who send specimens, asking for that view', async () => {
@@ -190,7 +190,7 @@ describe('route guards', () => {
     );
     renderApp({path: '/admin/users', user: adminUser});
 
-    expect(await screen.findByRole('heading', {name: /user management/i})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Users', level: 1})).toBeInTheDocument();
   });
 
   it('lets any member of staff into their own calendar templates', async () => {

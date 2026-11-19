@@ -68,12 +68,13 @@ export const TEAM_REQUIRED = 'Choose the team this template belongs to.';
 /**
  * The retention classes a template can have (decision 139): how long its patients' records are kept before they're
  * reviewed. Standard keeps the adult or child period; the others are longer, from the Retention:Classes settings.
+ * The periods shown are the API's defaults (`RetentionOptions`, `docs/governance/retention-schedule.md`).
  */
 export const RETENTION_CLASS_CHOICES = [
-  {value: 'Standard', label: 'Standard (adult or child period)'},
-  {value: 'Oncology', label: 'Oncology'},
-  {value: 'Maternity', label: 'Maternity'},
-  {value: 'MentalHealth', label: 'Mental health'},
+  {value: 'Standard', label: 'Standard (adults 8 years; children to age 25 or 26)'},
+  {value: 'Oncology', label: 'Oncology (30 years)'},
+  {value: 'Maternity', label: 'Maternity (25 years)'},
+  {value: 'MentalHealth', label: 'Mental health (20 years)'},
 ];
 
 /** No team: what the API sends for a template without one. */
@@ -720,7 +721,7 @@ function StageOptionFields({stage, description, canBeLabs = false, comesAfter, o
           isDisabled={isDisabled}
         />
         <AnchoredSelector
-          label="Choice node"
+          label="Decision point"
           size="sm"
           options={[{value: NO_CHOICE, label: 'No'}, ...CHOICE_KINDS.map((k) => ({value: k.value, label: k.label}))]}
           value={stage.choiceKind || NO_CHOICE}

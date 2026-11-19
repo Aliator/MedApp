@@ -75,19 +75,19 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
     },
     {
       key: 'class',
-      header: 'Class',
-      width: pixel(90),
+      header: 'Retention class',
+      width: pixel(130),
       renderCell: (item) => <TextCell text={CLASS_LABELS[item.retentionClass ?? ''] ?? item.retentionClass ?? ''} />,
     },
     {
       key: 'concluded',
-      header: 'Care Ended',
+      header: 'Care ended',
       width: pixel(130),
       renderCell: (item) => <TextCell text={item.conclusionOfTreatment ? formatDate(item.conclusionOfTreatment) : ''} />,
     },
     {
       key: 'due',
-      header: 'Due for Review',
+      header: 'Due for review',
       width: proportional(1, {minWidth: 120}),
       renderCell: (item) => (
         <VStack gap={0}>

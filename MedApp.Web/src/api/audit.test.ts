@@ -142,9 +142,9 @@ describe('specimen entries', () => {
   const details = {specimenId: 's1', number: 'MA26-000123', specimenType: 'Skin biopsy (punch)', laboratory: 'Northgate pathology'};
 
   it('names each action', () => {
-    expect(auditActionLabel('SpecimenTaken')).toBe('Specimen taken');
-    expect(auditActionLabel('SpecimenEnteredInError')).toBe('Specimen entered in error');
-    expect(auditActionLabel('SpecimenDetailsEdited')).toBe('Specimen details edited');
+    expect(auditActionLabel('SpecimenTaken')).toBe('Sample taken');
+    expect(auditActionLabel('SpecimenEnteredInError')).toBe('Sample entered in error');
+    expect(auditActionLabel('SpecimenDetailsEdited')).toBe('Sample details edited');
   });
 
   it('says which specimen, its status change, a rejection reason and the fields an edit changed', () => {

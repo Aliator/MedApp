@@ -72,7 +72,7 @@ const VISIT_CHOICES: {value: VisitRequirement; label: string; description: strin
   {
     value: 'Required',
     label: 'Required',
-    description: "It can't be finished until an appointment is marked Attended; an admin can override.",
+    description: "It can't be finished until an appointment is marked Attended. Staff with the Finish without a visit permission can override, giving a reason.",
   },
 ];
 
@@ -274,20 +274,20 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               {/* The clinical concept the stage records, for reports and other systems: optional, both or neither. */}
               <Grid columns={2} gap={4}>
                 <TextInput
-                  label="SNOMED CT Code"
+                  label="SNOMED CT code"
                   value={form.snomedCode}
                   onChange={set('snomedCode')}
-                  placeholder="e.g. 80146002"
+                  placeholder="e.g. 240977001"
                   inputMode="numeric"
                   autoComplete="off"
                   isOptional
                   status={fieldStatus(problem.validation, 'snomedCode')}
                 />
                 <TextInput
-                  label="Display Term"
+                  label="Display term"
                   value={form.snomedTerm}
                   onChange={set('snomedTerm')}
-                  placeholder="e.g. Appendectomy"
+                  placeholder="e.g. Biopsy of skin"
                   autoComplete="off"
                   isOptional
                   status={fieldStatus(problem.validation, 'snomedTerm')}
@@ -295,7 +295,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               </Grid>
               <RadioList
                 label="Visit"
-                description="Whether the stage involves an appointment with the patient. New pathways ask for one to be booked when they reach it."
+                description="Whether the stage involves an appointment with the patient. New pathways request one when they reach it."
                 value={form.visitRequirement}
                 onChange={(value) => setForm((current) => ({...current, visitRequirement: value as VisitRequirement}))}
                 status={fieldStatus(problem.validation, 'visitRequirement')}>
@@ -305,7 +305,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
               </RadioList>
               <AnchoredSelector
                 label="Needs a letter"
-                description="A kind of letter that must be approved and sent to every recipient before the stage can be finished, such as a discharge summary to the GP."
+                description="A kind of letter that must be approved and sent to every recipient before the stage can be finished, such as an end-of-care summary to the GP."
                 options={LETTER_CHOICES}
                 value={form.needsLetterKind}
                 onChange={(value: string) => setForm((current) => ({...current, needsLetterKind: value}))}

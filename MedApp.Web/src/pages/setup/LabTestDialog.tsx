@@ -151,7 +151,7 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
         <HStack gap={3} wrap="wrap">
           <StackItem size="fill">
             <NumberInput
-              label="Target, in days"
+              label="Target turnaround, in days"
               description="Calendar days from receipt."
               value={targetDays}
               onChange={setTargetDays}
@@ -163,8 +163,8 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
           </StackItem>
           <StackItem size="fill">
             <NumberInput
-              label="Limit, in days"
-              description="The latest it may be."
+              label="Maximum turnaround, in days"
+              description="The latest the report may be, from receipt."
               value={limitDays}
               onChange={setLimitDays}
               min={LAB_TEST_LIMITS.minDays}
@@ -175,8 +175,8 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
           </StackItem>
           <StackItem size="fill">
             <NumberInput
-              label="At risk, days before"
-              description="Before the due date."
+              label="Flag at risk, in days"
+              description="How many days before the due date the case is flagged at risk."
               value={atRiskDays}
               onChange={setAtRiskDays}
               min={0}
