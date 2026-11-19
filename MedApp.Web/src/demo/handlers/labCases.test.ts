@@ -12,10 +12,12 @@ describe('the light demo’s lab cases (MC15)', () => {
   it('lists the lab’s cases by tab, and a clinic only its own clinic’s', async () => {
     startLightDemo(LAB);
     const open = (await call('POST', '/api/lab-cases/search', {view: 'Open'})).body;
-    expect(open.totalCount).toBe(4);
+    // Five worked, and three lab stages' cases waiting for their samples (MC16: Priya's Gynaecology Histology, Aisha's two).
+    expect(open.totalCount).toBe(8);
+    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(3);
     const toReport = (await call('POST', '/api/lab-cases/search', {view: 'ToReport'})).body;
-    expect(toReport.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.ilonaBlood]);
-    expect(toReport.items[0]).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
+    expect(toReport.items.map((c: {id: string}) => c.id).sort()).toEqual([LAB_CASES.ilonaBlood, LAB_CASES.priyaBiopsy].sort());
+    expect(toReport.items.find((c: {id: string}) => c.id === LAB_CASES.ilonaBlood)).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
     const hospital = (await call('POST', '/api/lab-cases/search', {view: 'All', source: 'Hospital'})).body;
     expect(hospital.totalCount).toBe(3);
 
