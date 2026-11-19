@@ -49,6 +49,10 @@ Jobs the API runs on a schedule, inside its own process (`MedApp.Application/Job
 
 `ServiceAlertsJob` (`service-alerts`, every 15 minutes) finds, for each switched-on service alert rule, the items it reports and hasn't yet, and sends its owner one notification with the count, saved with the items' `MonitoringAlertsSent` rows in one save: see [Monitoring](monitoring.md). It reads referrals, results, appointments and specimens, changes only its own rows and notifications, and logs counts only. A convenience: nothing clinical relies on it (H-29).
 
+## MDT attendees' access
+
+`MdtGrantsJob` (`mdt-grants`, every 15 minutes) ends the `Mdt` access grants that have lapsed (MC26: an item discussed or withdrawn whose meeting has ended, an MDT cancelled, an attendee no longer invited), in one UPDATE; it logs counts only. Grants are otherwise written with the change that causes them (`MdtGrants`, [pathways](pathways.md)).
+
 ## Adding a job
 
 1. A class implementing `IScheduledJob` (in its area's `Application` folder), registered with `services.AddScoped<IScheduledJob, YourJob>()` in `AddApplication`. Pick a name that's never reused.
