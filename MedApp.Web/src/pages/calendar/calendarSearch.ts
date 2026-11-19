@@ -3,6 +3,7 @@
  * a person's calendar or an open appointment is a link (notifications link to `/calendar?appointment=<id>`). These
  * parse what's in the address bar, dropping anything invalid, so a bad link shows the default.
  */
+import {parseClinic} from '../listSearch';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -91,6 +92,8 @@ export interface RequiresAppointmentSearch {
   sort?: RequiresAppointmentSortColumn;
   asc?: boolean;
   patient?: string;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
 }
 
 export function parseRequiresAppointmentSearch(raw: Record<string, unknown>): RequiresAppointmentSearch {
@@ -103,6 +106,7 @@ export function parseRequiresAppointmentSearch(raw: Record<string, unknown>): Re
     sort,
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,
     patient: text(raw.patient),
+    clinic: parseClinic(raw.clinic),
   });
 }
 

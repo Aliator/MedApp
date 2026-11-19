@@ -8,7 +8,7 @@ import {logActivity} from './adminLogs';
 import {contains, int, list, me, paged, requirePermission, sorted} from './common';
 import {isOverdue} from './pathways';
 import {ensureCanChange, patientResponse} from './setupPrivacy';
-import {canSeePathway, canSeeRecord, myScope, otherTeamPathways} from './teamWalls';
+import {canSeePathway, canSeeRecord, isPickedTeam, myScope, otherTeamPathways, pickedTeam} from './teamWalls';
 
 /**
  * Patients and their timeline. The timeline is read from the patient's pathways, appointments and referrals as they
@@ -107,8 +107,16 @@ export function timelineOf(patientId: string): Entry[] {
 export function registerPatients() {
   on('get', '/api/patients/search', ({query}) => {
     me();
+    // The clinic picker (MC6): patients with a pathway, referral or appointment in the team picked.
+    const picked = pickedTeam(query);
+    const inPicked = (patientId: string | null | undefined) =>
+      !picked ||
+      db().pathways.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked)) ||
+      db().referrals.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked)) ||
+      db().appointments.some((x) => x.patientId === patientId && isPickedTeam(x.teamId, picked));
     const items = db().patients.filter(
       (p) =>
+        inPicked(p.id) &&
         contains(p.firstName, query.get('FirstName')) &&
         contains(p.lastName, query.get('LastName')) &&
         contains(p.email, query.get('Email')) &&

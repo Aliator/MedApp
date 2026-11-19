@@ -163,7 +163,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 
 **MC6. The clinic picker on every grid** (M). After MC5. ∥ MC7 to MC11.
 - **Scope:** a `teamId` filter on Patients, Pathways, Referrals, Appointments, Results, Letters and Insights searches: **"All clinics"** or one team. Shown to admins (`SeesAllTeams`) and to staff in more than one team (their own only; another team is a 400). Kept in the URL (`clinic=<id>`) and remembered per page in account settings (`medapp.clinicPicker.<page>`). Patients: "has a pathway, referral or appointment in that clinic".
-- **Light demo:** the picker on the same pages for `admin`.
+- **Light demo (built first, demo-first rule):** the picker on the same pages for `admin` (`components/teams/ClinicPicker.tsx`; `pickedTeam` in `handlers/teamWalls.ts`). Decided: it sits in each page's header actions; Appointments is Requires Appointment (both lists); Results' old Team select and Insights' Team select became it (an old `team=` link still narrows Results, and Insights reads it as `clinic`); archived teams are offered, marked; `clinic=all` overrides a remembered team; a link to a team the person can't pick shows all clinics; Insights for another team is now a 400, as the other grids.
 
 **MC7. The relay: stages owned by a team** (L). After MC4 (MC5 for the worklist counts). ∥ MC8.
 - **Scope:**

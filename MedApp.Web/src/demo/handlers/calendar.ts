@@ -10,7 +10,7 @@ import {nowUtc, today, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
 import {can, contains, int, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {pathwayToChange} from './pathways';
-import {busyTimeOf, canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
+import {busyTimeOf, canChangeRecord, canSeeRecord, ensureCanChangeRecord, isPickedTeam, myScope, pickedTeam, seeRecord} from './teamWalls';
 import {activityType, calendarDay, findSession, sessionsFor, sharedWorkingTime, templateBlocksOn, workingDayOf} from './setupCalendar';
 
 /**
@@ -499,9 +499,11 @@ export function registerCalendar() {
     // The Did not attend list: missed, with no decision that no further appointment is needed.
     const didNotAttend = query.get('View') === 'didNotAttend';
     const scope = myScope();
+    const picked = pickedTeam(query, scope);
     const items = db().appointments.filter(
       (a) =>
         canSeeRecord(a, scope) &&
+        isPickedTeam(a.teamId, picked) &&
         (!query.get('PatientId') || a.patientId === query.get('PatientId')) &&
         (!query.get('PathwayId') || a.pathwayId === query.get('PathwayId')) &&
         (!query.get('StageId') || a.stageId === query.get('StageId')) &&

@@ -11,8 +11,6 @@ import {resultActionLabel, resultSearchQuery, resultViewLabel, type ResultSummar
 import {teamsQuery} from '../../api/teams';
 import {useListSettings} from '../../app/listSettings';
 import {useCan} from '../../auth/auth';
-import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
-import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {ageWords, NeedsClinicianToken, ResultPatientCell, ResultStatusToken, ResultTitleCell} from '../../components/results/ResultCells';
 import {AlertMessage} from '../../components/shared/AlertMessage';
@@ -20,6 +18,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterFavourite, type ListFilterField, type ListFilterValues} from '../../components/tables/ListFilterBar';
 import {TextCell} from '../../components/tables/TextCell';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {formatDateTime} from '../../utils/dates';
 import {resultsSortOf, resultsViewOf, resultViewsFor, type ResultSortColumn, type ResultsSearch, type ResultsView} from './resultsSearch';
 
@@ -45,11 +44,14 @@ const VIEW_EMPTY: Record<ResultsView, string> = {
 
 const viewLabel = (view: ResultsView) => (view === 'All' ? 'All results' : resultViewLabel(view));
 
-/** The view's page of results, for its team, patient, sort and page size (the route's loader fetches the same). */
-export function resultsListQuery(view: ResultsView, search: ResultsSearch, pageSize: number) {
+/**
+ * The view's page of results, for the clinic picker's team (else a linked team), patient, sort and page size (the
+ * route's loader fetches the same).
+ */
+export function resultsListQuery(view: ResultsView, search: ResultsSearch, pageSize: number, teamId?: string) {
   return resultSearchQuery({
     View: view,
-    TeamId: search.team,
+    TeamId: teamId ?? search.team,
     Search: search.patient,
     Sort: search.sort,
     Ascending: search.sort ? (search.asc ?? true) : undefined,
@@ -70,7 +72,7 @@ export interface ResultsPageProps {
  * sign-off** (holders of SignOffResults, where they start), **Awaiting sign-off (everyone)** (where everyone else
  * starts), **Needs a clinician** (awaiting, and the responsible clinician can no longer sign off) and **Signed off**;
  * the person can change the tabs, and search by the patient's name (`ListFilterBar`; removing the view shows every
- * result). The Team picker beside the title narrows it to one team. Each row is the patient (name, NHS
+ * result). The clinic picker beside the title (admins, and staff in more than one team) narrows it to one team. Each row is the patient (name, NHS
  * number, date of birth), the result (opening its page), its pathway, when it was reported and how many days ago, the
  * responsible clinician, the status and, once signed off, who, when and what they did. **No interpretation:** each
  * view's own order is by dates, a column sorts only when the person asks, and nothing is highlighted by what a report
@@ -81,16 +83,14 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
   const view = resultsViewOf(search, canSignOff);
   const views = useMemo(() => resultViewsFor(canSignOff), [canSignOff]);
   const {pageSize} = useListSettings();
-  const {data, isPending, isError} = useQuery(resultsListQuery(view, search, pageSize));
-  const teams = useQuery(teamsQuery(true));
+  // The clinic picker; choosing one replaces a team the link narrowed it to.
+  const clinic = useClinicPicker('results', search.clinic, (next) => onSearchChange({...search, clinic: next, team: undefined, page: undefined}));
+  const {data, isPending, isError} = useQuery(resultsListQuery(view, search, pageSize, clinic.teamId));
+  const teams = useQuery({...teamsQuery(true), enabled: !clinic.teamId && search.team !== undefined});
   const isNarrow = useIsNarrow();
   const {sort, asc} = resultsSortOf(search, view);
   const total = data?.totalCount ?? 0;
-  const teamName = teams.data?.find((s) => s.id === search.team)?.name;
-  const teamOptions = [
-    {value: '', label: 'All teams'},
-    ...(teams.data ?? []).filter((s) => !s.isArchived || s.id === search.team).map((s) => ({value: s.id ?? '', label: s.name ?? ''})),
-  ];
+  const teamName = clinic.teamName ?? teams.data?.find((s) => s.id?.toLowerCase() === search.team)?.name;
   const fields = useMemo<ListFilterField[]>(
     () => [
       {kind: 'text', key: 'patient', label: 'Patient'},
@@ -105,6 +105,7 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
     onSearchChange({
       view: typeof values.view === 'string' ? (values.view as ResultsView) : 'All',
       team: search.team,
+      clinic: search.clinic,
       patient: typeof values.patient === 'string' ? values.patient : undefined,
       sort: search.sort,
       asc: search.asc,
@@ -180,17 +181,7 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
       subtitle={isPending ? 'Loading results...' : `${viewLabel(view)}: ${total} ${noun}${teamName ? ` in ${teamName}` : ''}`}
       fill
       message={isError && <AlertMessage message="The results could not be loaded. Please try again." />}
-      actions={
-        <AnchoredSelector
-          label="Team"
-          isLabelHidden
-          options={teamOptions}
-          value={search.team ?? ''}
-          onChange={(team: string) => onSearchChange({...search, page: undefined, team: team || undefined})}
-          width={220}
-          containerStyle={NO_STATUS_LINE}
-        />
-      }>
+      actions={clinic.picker}>
       <DataTable
         data={(data?.items ?? []) as ResultRow[]}
         columns={isNarrow ? columns.filter((c) => c.key !== 'pathway') : columns}

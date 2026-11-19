@@ -1,7 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Icon} from '@astryxdesign/core/Icon';
-import {VStack} from '@astryxdesign/core/Stack';
+import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery} from '@tanstack/react-query';
 import {useMemo} from 'react';
@@ -25,6 +25,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterFavourite, type ListFilterField, type ListFilterValues} from '../../components/tables/ListFilterBar';
 import {TextCell} from '../../components/tables/TextCell';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {formatShortDate} from '../../utils/dates';
 import {
   REFERRAL_SORTS,
@@ -83,6 +84,7 @@ function fromBar(values: ListFilterValues, search: ReferralsListSearch): Referra
     patient: typeof values.patient === 'string' ? values.patient : undefined,
     view: view === 'awaiting' ? undefined : view,
     team: typeof values.team === 'string' ? values.team : undefined,
+    clinic: search.clinic,
   };
 }
 
@@ -117,8 +119,8 @@ const EMPTY_DESCRIPTIONS: Partial<Record<ReferralView, string>> = {
 
 type ReferralRow = ReferralSummary & Record<string, unknown>;
 
-/** The list's page of referrals, for its search and page size (the route's loader fetches the same). */
-export function referralsListQuery(search: ReferralsListSearch, pageSize: number) {
+/** The list's page of referrals, for its search, page size and the clinic picker's team (the route's loader fetches the same). */
+export function referralsListQuery(search: ReferralsListSearch, pageSize: number, teamId?: string) {
   const {sort, asc} = sortOf(search);
   return referralSearchQuery({
     Page: search.page ?? 1,
@@ -128,6 +130,7 @@ export function referralsListQuery(search: ReferralsListSearch, pageSize: number
     ...viewFilters(referralViewOf(search)),
     Search: search.patient,
     TeamIds: idChoiceValues(search.team),
+    TeamId: teamId,
   });
 }
 
@@ -153,7 +156,8 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
   const view = referralViewOf(search);
   const {pageSize} = useListSettings();
   const canRegister = useCan('RegisterReferrals');
-  const {data, isPending, isError} = useQuery(referralsListQuery(search, pageSize));
+  const clinic = useClinicPicker('referrals', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
+  const {data, isPending, isError} = useQuery(referralsListQuery(search, pageSize, clinic.teamId));
   const teams = useQuery(teamsQuery(true)).data;
   const fields = useMemo(() => [...FILTER_FIELDS, teamField(teams ?? [], search.team)], [teams, search.team]);
   const isSearched = Boolean(search.patient || search.team);
@@ -242,9 +246,10 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       fill
       message={isError && <AlertMessage message="The referrals could not be loaded. Please try again." />}
       actions={
-        canRegister && (
-          <Button label="Register Referral" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/referrals/new" />
-        )
+        <HStack gap={2} vAlign="center">
+          {clinic.picker}
+          {canRegister && <Button label="Register Referral" variant="primary" icon={<Icon icon={AppIcon.Add} />} href="/referrals/new" />}
+        </HStack>
       }>
       <DataTable
         data={rows}

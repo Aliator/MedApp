@@ -106,9 +106,29 @@ describe('the team walls in the light demo', () => {
   it("counts Insights for the viewer's teams only (an admin's, every team's)", async () => {
     startLightDemo(STAFF);
     const mine = (await call('GET', '/api/pathways/insights')).body;
-    expect((await call('GET', `/api/pathways/insights?TeamId=${TEAMS.gynaecology}`)).body.open.current).toBe(0);
+    // Another team picked is a 400 (MC6's clinic picker).
+    expect((await call('GET', `/api/pathways/insights?TeamId=${TEAMS.gynaecology}`)).status).toBe(400);
     startLightDemo(ADMIN);
     const all = (await call('GET', '/api/pathways/insights')).body;
     expect(all.open.current).toBeGreaterThan(mine.open.current);
+  });
+
+  it("narrows the grids to the clinic picked: an admin's any team, staff's own only (another is a 400)", async () => {
+    startLightDemo(ADMIN);
+    const ids = (body: {items: {id: string}[]}) => body.items.map((x) => x.id);
+    const gynae = `TeamId=${TEAMS.gynaecology}&PageSize=100`;
+    const pathways = (await call('GET', `${PATHWAY}/search?${gynae}&IncludeClosed=true`)).body;
+    expect(ids(pathways)).toContain(PATHWAYS.priyaGynaecology);
+    expect(pathways.items.every((p: {id: string}) => db().pathways.find((x) => x.id === p.id)?.teamId === TEAMS.gynaecology)).toBe(true);
+    expect(ids((await call('GET', `/api/patients/search?${gynae}`)).body)).toContain(PATIENTS.priyaHolloway);
+    expect(ids((await call('GET', `/api/patients/search?TeamId=${TEAMS.urology}&PageSize=100`)).body)).not.toContain(PATIENTS.priyaHolloway);
+    for (const path of ['/api/referrals/search', '/api/appointments/search', '/api/results/search', '/api/letters/search?View=All&'])
+      expect((await call('GET', `${path}${path.endsWith('&') ? '' : '?'}${gynae}`)).status).toBe(200);
+
+    startLightDemo(STAFF);
+    expect((await call('GET', `${PATHWAY}/search?TeamId=${TEAMS.dermatology}`)).status).toBe(200);
+    const refused = await call('GET', `/api/patients/search?${gynae}`);
+    expect(refused.status).toBe(400);
+    expect(refused.body.errors.teamId).toBeDefined();
   });
 });

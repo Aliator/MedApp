@@ -1,5 +1,6 @@
 import {searchNow} from '../../app/beforePathways';
 import {RESULT_VIEWS, type ResultView} from '../../api/results';
+import {parseClinic} from '../listSearch';
 
 /** A view of the Results page: one of its views, or All (its view filter removed), newest report first. */
 export type ResultsView = ResultView | 'All';
@@ -16,8 +17,13 @@ export type ResultSortColumn = (typeof RESULT_SORTS)[number];
  */
 export interface ResultsSearch {
   view?: ResultsView;
-  /** A team's ID. */
+  /**
+   * A team's ID, from a link (a service alert's): narrows the list when no clinic is picked. The page's own picker is
+   * the clinic picker (`clinic`).
+   */
   team?: string;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
   /** The patient's name contains this. */
   patient?: string;
   page?: number;
@@ -40,6 +46,7 @@ export function parseResultsSearch(saved: Record<string, unknown>): ResultsSearc
   const search: ResultsSearch = {
     view: view === 'all' ? 'All' : RESULT_VIEWS.find((v) => v.value.toLowerCase() === view)?.value,
     team: team && GUID.test(team) ? team.toLowerCase() : undefined,
+    clinic: parseClinic(raw.clinic),
     patient: text(raw.patient),
     page: Number.isInteger(page) && page > 1 ? page : undefined,
     sort: RESULT_SORTS.find((s) => s === sort),

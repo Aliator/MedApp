@@ -1,5 +1,6 @@
 import {LETTER_VIEWS, letterSearchQuery, type LetterView} from '../../api/letters';
 import type {Permission} from '../../auth/permissions';
+import {parseClinic} from '../listSearch';
 
 /** A view of the Letters page: one of its views, or All (its view filter removed), newest started first. */
 export type LettersView = LetterView | 'All';
@@ -20,6 +21,8 @@ export interface LettersListSearch {
   page?: number;
   sort?: LetterSortColumn;
   asc?: boolean;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
 }
 
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
@@ -36,6 +39,7 @@ export function parseLettersSearch(raw: Record<string, unknown>): LettersListSea
     page: Number.isInteger(page) && page > 1 ? page : undefined,
     sort: LETTER_SORTS.find((s) => s === sort),
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,
+    clinic: parseClinic(raw.clinic),
   };
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as LettersListSearch;
 }
@@ -62,8 +66,11 @@ export function lettersSortOf(search: LettersListSearch, view: LettersView): {so
   return null;
 }
 
-/** The list's page of letters, for its view, search, page and page size (the route's loader fetches the same). */
-export const lettersListQuery = (view: LettersView, search: LettersListSearch, pageSize: number) =>
+/**
+ * The list's page of letters, for its view, search, page, page size and the clinic picker's team (the route's loader
+ * fetches the same).
+ */
+export const lettersListQuery = (view: LettersView, search: LettersListSearch, pageSize: number, teamId?: string) =>
   letterSearchQuery({
     View: view,
     Search: search.patient,
@@ -71,4 +78,5 @@ export const lettersListQuery = (view: LettersView, search: LettersListSearch, p
     Ascending: search.sort ? (search.asc ?? true) : undefined,
     Page: search.page ?? 1,
     PageSize: pageSize,
+    TeamId: teamId,
   });

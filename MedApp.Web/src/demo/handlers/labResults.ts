@@ -5,7 +5,7 @@ import type {DemoResult, ResultStatus} from '../slices/lab';
 import {db} from '../store';
 import {nowUtc} from '../time';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
-import {canSeeRecord, myScope, seeRecord} from './teamWalls';
+import {canSeeRecord, isPickedTeam, myScope, pickedTeam, seeRecord} from './teamWalls';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, wholeDaysBetween} from './labCommon';
 
 /**
@@ -155,19 +155,19 @@ export function registerResults() {
     const viewer = me();
     requirePermission('ViewPatients');
     const view = VIEWS[query.get('View') ?? ''] ?? VIEWS.All;
-    const teamId = query.get('TeamId');
     const pathwayId = query.get('PathwayId');
     const patientId = query.get('PatientId');
     // The patient's name only, as the API: a title can hold a specimen number, which stays out of URLs.
     const search = query.get('Search')?.trim() ?? '';
     if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
     const scope = myScope();
+    const teamId = pickedTeam(query, scope);
     const items = db()
       .results.filter(
         (r) =>
           canSeeRecord(r, scope) &&
           view.match(r, viewer.id) &&
-          (!teamId || pathwayOf(r)?.teamId === teamId) &&
+          isPickedTeam(pathwayOf(r)?.teamId ?? r.teamId, teamId) &&
           (!pathwayId || r.pathwayId === pathwayId) &&
           (!patientId || r.patientId === patientId) &&
           contains(patientName(r.patientId), search),

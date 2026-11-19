@@ -10,7 +10,7 @@ import {can, contains, flag, list, me, NO_FLAGS, paged, pathwayPatient, patientN
 import {canRecordConsent, clinicalGate} from './clinical';
 import {canRecordSpecimen, labGate} from './lab';
 import {pathwayReferralResponse, referralSummaryClock} from './referrals';
-import {canChangePathway, canSeePathway, ensureCanChangePathway, insightsTeams, myScope, refuseAcrossWall} from './teamWalls';
+import {canChangePathway, canSeePathway, ensureCanChangePathway, insightsTeams, isPickedTeam, myScope, pickedTeam, refuseAcrossWall} from './teamWalls';
 
 /**
  * Pathways, their stages and notes, the stage library, the templates and Insights. The rules are a simplified copy of
@@ -379,9 +379,11 @@ export function registerPathways() {
     const started = flag(query, 'Started');
     const search = query.get('Search');
     const scope = myScope();
+    const picked = pickedTeam(query, scope);
     const items = db().pathways.filter(
       (p) =>
         canSeePathway(p, scope) &&
+        isPickedTeam(p.teamId, picked) &&
         (includeClosed || isOpen(p)) &&
         (statuses.length === 0 || statuses.includes(p.status)) &&
         (priorities.length === 0 || priorities.includes(p.priority)) &&
@@ -727,7 +729,7 @@ export function registerPathways() {
 
   registerSetupOfPathways();
 
-  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), query.get('TeamId')));
+  on('get', '/api/pathways/insights', ({query}) => insights(Number(query.get('Weeks')) || 12, query.get('TemplateId'), pickedTeam(query)));
 }
 
 /**

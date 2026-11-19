@@ -27,6 +27,7 @@ import {WaitCell} from '../../components/referrals/WaitingClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {TextCell} from '../../components/tables/TextCell';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterFavourite, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {
@@ -118,13 +119,14 @@ export interface PathwaysListPageProps {
  * a pathway created directly has none. Breached only is a filter, like Overdue only.
  */
 /**
- * The list's page of pathways, for its search and list settings, and the patient on a patient's pathways (the
- * route's loader fetches it too).
+ * The list's page of pathways, for its search and list settings, the patient on a patient's pathways, and the clinic
+ * picker's team on the full list (the route's loader fetches it too).
  */
 export function pathwaysListQuery(
   search: PathwaysListSearch,
   {pageSize, startsOnMine}: {pageSize: number; startsOnMine: boolean},
   patientId?: string,
+  teamId?: string,
 ) {
   const mine = search.mine ?? startsOnMine;
   return pathwaySearchQuery({
@@ -145,6 +147,7 @@ export function pathwaysListQuery(
     NobodyAssigned: search.assignee === NOBODY || undefined,
     TemplateId: search.templateId,
     TeamIds: idChoiceValues(search.team),
+    TeamId: patientId ? undefined : teamId,
     StageDefinitionIds: idChoiceValues(search.stage),
     IncludeClosed: search.closed,
     DueFrom: search.dueFrom,
@@ -161,8 +164,11 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
   const mine = search.mine ?? startsOnMine;
   const isFiltered = hasPathwayFilters({...search, mine: mine || undefined});
 
+  // The clinic picker, on the full list only (a patient's pathways are all theirs).
+  const clinic = useClinicPicker('pathways', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
+  const teamId = patientId ? undefined : clinic.teamId;
   const patient = useQuery({...patientQuery(patientId ?? ''), enabled: patientId !== undefined});
-  const {data, isPending, isError} = useQuery(pathwaysListQuery(search, {pageSize, startsOnMine}, patientId));
+  const {data, isPending, isError} = useQuery(pathwaysListQuery(search, {pageSize, startsOnMine}, patientId, teamId));
   // Starting a pathway needs CreatePathways.
   const canCreate = useCan('CreatePathways');
   // Anyone can filter by who is assigned; the bar names them from the staff list.
@@ -181,8 +187,8 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PathwayRow[];
 
-  /** Keeps the sort; any change to the filters goes back to page 1. */
-  const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc});
+  /** Keeps the sort and the clinic; any change to the filters goes back to page 1. */
+  const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc, clinic: search.clinic});
 
   const allColumns: DataTableColumn<PathwayRow>[] = [
     {
@@ -257,10 +263,11 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
         )
       }
       actions={
-        patientId &&
-        canCreate && (
-          <Button label="New Pathway" variant="primary" icon={<Icon icon={AppIcon.Add} />} href={`/pathways/new?patientId=${patientId}`} />
-        )
+        patientId
+          ? canCreate && (
+              <Button label="New Pathway" variant="primary" icon={<Icon icon={AppIcon.Add} />} href={`/pathways/new?patientId=${patientId}`} />
+            )
+          : clinic.picker
       }>
       <DataTable
         data={rows}
