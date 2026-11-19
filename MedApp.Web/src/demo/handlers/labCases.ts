@@ -14,7 +14,7 @@ import {logActivity} from './adminLogs';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {specimenSummary} from './lab';
 import {addSurgeryDetails, hospitalReportAuditEntries, hospitalReportFields, sendReportToHospital} from './hospitalReports';
-import {finishLabStage, pickUpLabStage, reopenSampleStage} from './pathways';
+import {pickUpLabStage, putLabResultsOnStage, reopenSampleStage} from './pathways';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, stepTime} from './labCommon';
 import {labClock, type LabClock} from './labClock';
 import {canSeeRecord, labTeamId, myScope, refuseAcrossWall, type TeamScope} from './teamWalls';
@@ -733,8 +733,8 @@ export function registerLabCases() {
     // MC20: a hospital case's report goes back to its hospital in the same action (hospital cases only).
     if (c.source === 'Hospital') sendReportToHospital(c, viewer.id, now);
     moved(c);
-    // A pathway's lab stage finishes with the results, in the same change, and the pathway goes back (MC16).
-    if (c.pathwayId && c.stageId) finishLabStage(c.pathwayId, c.stageId, viewer.id, text, now);
+    // A pathway's lab stage gets the results, in the same change (MC16); the lab then finishes it on the pathway.
+    if (c.pathwayId && c.stageId) putLabResultsOnStage(c.pathwayId, c.stageId, viewer.id, text, now);
     return caseResponse(c);
   });
 

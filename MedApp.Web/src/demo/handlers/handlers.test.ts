@@ -35,6 +35,8 @@ describe('the light demo handlers', () => {
     expect(current.name).toBe('Histology');
     const labCase = (await call('GET', `/api/lab-cases/${current.labCaseId}`)).body;
     expect((await call('POST', `/api/lab-cases/${labCase.id}/report`, {results: 'Compound naevus (synthetic).', expectedVersion: labCase.version})).status).toBe(200);
+    // The results are on the stage; the lab finishes it by hand, which sends the pathway back (the owner, 19 Nov).
+    expect((await call('POST', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}/stages/${current.id}/finish`, {})).status).toBe(200);
     const after = await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`);
     expect(after.body.stages.find(isCurrent).name).toBe('Histology result');
     expect(after.body.completedStageCount).toBe(4);

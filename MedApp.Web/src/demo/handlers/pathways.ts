@@ -141,10 +141,13 @@ function outcomesOf(pathway: DemoPathway, stage: DemoStage): Schemas['PatientPat
 /** Whether the lab works the stage (MC7's relay): its results come from its lab case (MC16). */
 const isLabsStage = (stage: DemoStage) => stage.ownerTeamId !== null && stage.ownerTeamId === labTeamId();
 
-/** `StageGates.WhyLabCaseOpen` (MC16): a lab stage isn't finished by hand while its case is open; authorising does it. */
+/**
+ * `StageGates.WhyLabCaseOpen` (MC16): a lab stage isn't finished while its case is open. Authorising the case's report
+ * puts its results on the stage; the lab then finishes the stage, which sends the pathway back.
+ */
 function whyLabCaseOpen(stage: DemoStage): string | null {
   const open = isLabsStage(stage) ? openCaseOfStage(stage.id) : undefined;
-  return open ? `Lab case ${open.number} is still open: authorising its report finishes this stage, with its results.` : null;
+  return open ? `Lab case ${open.number} is still open: authorise its report first, then finish this stage.` : null;
 }
 
 /** Whether the pathway's last stage to do is this one (finishing it leaves none; a choice node always adds more). */
@@ -538,12 +541,12 @@ function skipStage(stage: DemoStage, userId: string, reason: string, detail: str
 }
 
 /**
- * Authorising a lab case's report (MC16) finishes its lab stage in the same change, with the results on it, and hands
- * the pathway on (`StageFinished`, then `StageHandedOver` back to the clinic). The gates aren't asked: the report is
- * what the stage waits for. A stage not current (the pathway on hold, or the stage before it unfinished) keeps the
- * results, and the lab finishes it by hand later (its case no longer open).
+ * Authorising a lab case's report (MC16) puts the results on its lab stage, in the same change, and (when it's current)
+ * starts the stage and picks it up for the lab. It doesn't finish it: the lab does, on the pathway, which sends it back
+ * (`StageFinished`, then `StageHandedOver` to the clinic; the owner, 19 November 2026). The lab case's dialog opens the
+ * pathway for that.
  */
-export function finishLabStage(pathwayId: string, stageId: string, userId: string, text: string, atUtc: string) {
+export function putLabResultsOnStage(pathwayId: string, stageId: string, userId: string, text: string, atUtc: string) {
   const pathway = db().pathways.find((p) => p.id === pathwayId);
   const stage = pathway?.stages.find((s) => s.id === stageId);
   if (!pathway || !stage || !isLabsStage(stage) || !isToDo(stage)) return;
@@ -552,11 +555,7 @@ export function finishLabStage(pathwayId: string, stageId: string, userId: strin
   if (!isCurrentStage(pathway, stage)) return;
   stage.startedAtUtc ??= atUtc;
   stage.startedByUserId ??= userId;
-  stage.completedAtUtc = atUtc;
-  stage.completedByUserId = userId;
   pickUp(stage, userId);
-  afterStageDone(pathway);
-  reachNext(pathway, stageTeamOf(pathway, stage), userId);
 }
 
 /** Receiving a lab stage's first sample picks the stage up (MC16), when it's current and waiting to be. */

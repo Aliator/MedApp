@@ -95,11 +95,11 @@ describe('the Read Me tour', () => {
     expect(TOUR.map((step) => step.key)).not.toContain('timeline');
   });
 
-  it('runs the relay: consent and Triage, the lab’s results finish Testing, then it’s back for the appointment', async () => {
+  it('runs the relay: consent and Triage, the lab’s results then its own finish of Testing, then back for the appointment', async () => {
     const [triage, lab, back] = ['relay-triage', 'relay-lab', 'relay-back'].map((key) => TOUR.find((step) => step.key === key)!);
     expect(triage.whyNot!(seed())).toBeNull();
     expect(lab.whyNot!(seed())).toMatch(/Finish her Triage first/);
-    expect(back.whyNot!(seed())).toMatch(/hasn’t entered the results/);
+    expect(back.whyNot!(seed())).toMatch(/hasn’t sent it back/);
 
     startLightDemo(STAFF);
     const path = `/api/pathways/patient-pathways/${PATHWAYS.relay}`;
@@ -115,12 +115,17 @@ describe('the Read Me tour', () => {
     expect(triage.whyNot!(db())).toMatch(/already/);
     expect(lab.whyNot!(db())).toBeNull();
 
-    // The lab: her case is ready for its results, and authorising them finishes Testing.
+    // The lab: her case is ready for its results; authorising puts them on Testing, and the lab finishes it by hand.
     db().user = LAB.username;
     const caseUrl = `/api/lab-cases/${LAB_CASE_IDS.relay}`;
     const labCase = (await call('GET', caseUrl)).body;
     expect(labCase.canAuthorise).toBe(true);
     expect((await call('POST', `${caseUrl}/report`, {results: 'Synthetic results.', expectedVersion: labCase.version})).status).toBe(200);
+    expect(lab.whyNot!(db())).toMatch(/finish Stage on Testing|Finish Stage on Testing/);
+    expect(back.whyNot!(db())).toMatch(/hasn’t sent it back/);
+    const testing = await current();
+    expect(testing).toMatchObject({name: 'Testing', result: expect.objectContaining({text: 'Synthetic results.'})});
+    expect((await call('POST', `${path}/stages/${testing.id}/finish`, {})).status).toBe(200);
     expect(lab.whyNot!(db())).toMatch(/already/);
 
     // Back with Dermatology, at the Results appointment, which needs a visit.
@@ -132,6 +137,7 @@ describe('the Read Me tour', () => {
   });
 
   it('has the first time for the admin and Nadia Thornbury clash with Bea Sandiford, and the team’s suggestions move on', async () => {
+    expect(TOUR.find((step) => step.key === 'relay-lab')!.steps.join(' ')).toMatch(/Authorise and Open Pathway.*Finish Stage on Testing/);
     expect(TOUR.find((step) => step.key === 'team-calendar')!.steps.join(' ')).toMatch(/b\.sandiford and t\.hallworth/);
     startLightDemo(ADMIN);
     const availability = async (ids: string[]) =>
