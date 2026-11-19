@@ -12,7 +12,7 @@ import {TextArea} from '@astryxdesign/core/TextArea';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {ToggleButton, ToggleButtonGroup} from '@astryxdesign/core/ToggleButton';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
-import {useRef, useState, type ReactNode, type RefObject} from 'react';
+import {useEffect, useRef, useState, type ReactNode, type RefObject} from 'react';
 import {
   availabilityQuery,
   calendarKeys,
@@ -49,7 +49,9 @@ import {
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
-import {useIsNarrowDialog} from '../pages/Page';
+import {NO_STATUS_LINE} from '../forms/fieldSpace';
+import {DialogRegionContext, useDialogRegion} from '../pages/halfView';
+import {useIsNarrowDialog, useIsNarrowWindow} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {MeetingReplyToken} from './CalendarTokens';
@@ -299,11 +301,36 @@ interface MeetingFormProps {
   onSaved?: (meeting: Meeting | null) => void;
 }
 
+/** The dialog's full width, with suggested times beside the details. */
+const WIDE_WIDTH = 920;
+
+/** Room the dialog needs around it to sit over a region at full size (its margins on both sides). */
+const FIT_MARGIN = 48;
+
+/** An element's width, kept up to date as it changes (undefined without one): read at once, so the first render has it. */
+function useWidthOf(element: HTMLElement | null): number | undefined {
+  const [width, setWidth] = useState(() => element?.getBoundingClientRect().width);
+  useEffect(() => {
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    // It reports the size as it starts watching, and on every change after.
+    const observer = new ResizeObserver(() => setWidth(element.getBoundingClientRect().width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return element ? width : undefined;
+}
+
 /** New Meeting, or Change Meeting (`meeting`). */
 function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: MeetingFormProps) {
   const me = useCurrentUser();
-  // Its size and layout follow what it sits over: its half of a half view (or the page beside the notepad), or the window.
-  const isNarrow = useIsNarrowDialog();
+  // Full size wherever it fits (the owner, 19 November 2026): over its own half of a half view (or the page beside the
+  // notepad) when that's wide enough, else over the whole window, narrow only when even the window is.
+  const region = useDialogRegion();
+  const regionWidth = useWidthOf(region?.element ?? null);
+  const isNarrowWindow = useIsNarrowWindow();
+  const isNarrowHere = useIsNarrowDialog();
+  const isOverWindow = region !== null && !isNarrowWindow && (regionWidth ?? 0) < WIDE_WIDTH + FIT_MARGIN;
+  const isNarrow = isOverWindow ? false : isNarrowHere;
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const actions = useMeetingActions();
@@ -460,6 +487,8 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
           hasSearch={people.length > 8}
           formatValue={(items) => (isEveryone ? 'Everyone' : items.length > 3 ? `${items.length} people` : items.map((i) => i.label).join(', '))}
           status={fieldStatus(validation, 'attendeeUserIds')}
+          // Everyone and Clear sit right under it: the line kept for an error only while it has one.
+          containerStyle={fieldStatus(validation, 'attendeeUserIds') ? undefined : NO_STATUS_LINE}
         />
         <HStack gap={2}>
           <Button label="Everyone" variant="secondary" size="sm" isDisabled={isEveryone} onClick={() => setWho(everyone)} />
@@ -473,6 +502,12 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
         onChange={(value) => setLength(Number(value))}
         options={lengthOptions(length).map((minutes) => ({value: String(minutes), label: lengthLabel(minutes)}))}
       />
+    </VStack>
+  );
+
+  // Under the suggested times (the owner, 19 November 2026): whether it's an MDT, and notes.
+  const extras = (
+    <VStack gap={4} hAlign="stretch">
       <CheckboxInput
         label="A team's MDT"
         description="A multidisciplinary team meeting that pathways can be listed for. The list stays separate: don't name patients here."
@@ -618,41 +653,50 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
     </Text>
   );
 
+  // Too wide for its region: over the whole window instead (as a dialog from a page on its own is).
   return (
-    <DialogFrame
-      isOpen={isOpen}
-      title={isNew ? 'New Meeting' : 'Change Meeting'}
-      icon={<Icon icon={AppIcon.Meeting} size="lg" color="accent" />}
-      onClose={onClose}
-      width={isNarrow ? 520 : 920}
-      purpose={isSaving ? 'required' : 'form'}
-      footerStart={isOpen ? summary : undefined}
-      footer={
-        <>
-          <Button label={onBack ? 'Back' : 'Cancel'} variant="secondary" isDisabled={isSaving} onClick={onBack ?? onClose} />
-          <Button label={isNew ? 'Add Meeting' : 'Save'} variant="primary" isDisabled={!canSave} isLoading={isSaving} onClick={save} />
-        </>
-      }>
-      {isOpen && (
-        <VStack ref={content} gap={4} hAlign="stretch">
-          {problem.message && <AlertMessage label="Meeting not saved" message={problem.message} />}
-          {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
-          {isNarrow ? (
-            <VStack gap={6} hAlign="stretch">
-              {details}
-              {timesSection}
-            </VStack>
-          ) : (
-            <HStack gap={6} vAlign="start">
-              <StackItem size="static">
-                <VStack width={320}>{details}</VStack>
-              </StackItem>
-              <StackItem size="fill">{timesSection}</StackItem>
-            </HStack>
-          )}
-        </VStack>
-      )}
-    </DialogFrame>
+    <DialogRegionContext.Provider value={isOverWindow ? null : region}>
+      <DialogFrame
+        isOpen={isOpen}
+        title={isNew ? 'New Meeting' : 'Change Meeting'}
+        icon={<Icon icon={AppIcon.Meeting} size="lg" color="accent" />}
+        onClose={onClose}
+        width={isNarrow ? 520 : WIDE_WIDTH}
+        purpose={isSaving ? 'required' : 'form'}
+        footerStart={isOpen ? summary : undefined}
+        footer={
+          <>
+            <Button label={onBack ? 'Back' : 'Cancel'} variant="secondary" isDisabled={isSaving} onClick={onBack ?? onClose} />
+            <Button label={isNew ? 'Add Meeting' : 'Save'} variant="primary" isDisabled={!canSave} isLoading={isSaving} onClick={save} />
+          </>
+        }>
+        {isOpen && (
+          <VStack ref={content} gap={4} hAlign="stretch">
+            {problem.message && <AlertMessage label="Meeting not saved" message={problem.message} />}
+            {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
+            {isNarrow ? (
+              <VStack gap={6} hAlign="stretch">
+                {details}
+                {timesSection}
+                {extras}
+              </VStack>
+            ) : (
+              <HStack gap={6} vAlign="start">
+                <StackItem size="static">
+                  <VStack width={320}>{details}</VStack>
+                </StackItem>
+                <StackItem size="fill">
+                  <VStack gap={6} hAlign="stretch">
+                    {timesSection}
+                    {extras}
+                  </VStack>
+                </StackItem>
+              </HStack>
+            )}
+          </VStack>
+        )}
+      </DialogFrame>
+    </DialogRegionContext.Provider>
   );
 }
 
