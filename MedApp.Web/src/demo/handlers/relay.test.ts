@@ -16,12 +16,13 @@ describe('the relay in the light demo', () => {
     const priya = (await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`)).body;
     expect(current(priya)).toMatchObject({ownerTeamName: 'Lab', isWithAnotherTeam: true, canEdit: false});
     expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`, {})).status).toBe(409);
-    expect(await viewIds('AwaitingLab')).toContain(PATHWAYS.histologyToFinish);
+    expect(await viewIds('AwaitingLab')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.forkedTests]));
     expect(await viewIds('BackFromLab')).toEqual([PATHWAYS.backFromLab]);
 
     // The lab has Gynaecology's new for it, and finishes Priya's Histology: a handover back to Dermatology.
     db().user = LAB.username;
-    expect(await viewIds('NewForUs')).toEqual([PATHWAYS.priyaGynaecology]);
+    // Aisha's fork has two of the lab's stages current at once, both handed over (MC8 with the relay).
+    expect(await viewIds('NewForUs')).toEqual(expect.arrayContaining([PATHWAYS.priyaGynaecology, PATHWAYS.forkedTests]));
     expect(await viewIds('OurTurn')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.priyaGynaecology]));
     const finished = await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`, {});
     expect(finished.status).toBe(200);

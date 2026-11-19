@@ -6,6 +6,7 @@ import {MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {Section} from '@astryxdesign/core/Section';
 import {ProgressBar} from '@astryxdesign/core/ProgressBar';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
+import {andList} from '../../api/pathwayRoutes';
 import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
@@ -74,10 +75,21 @@ type Dialog =
   | {kind: 'delete'}
   | null;
 
-/** What a screen reader says when a stage is finished (or skipped): which, and what's next. */
+/**
+ * A pathway's current stages, in order: one on a chain, one per route where routes run side by side (MC8). From
+ * `currentStageIds`, or `currentStageId` from an API that sends only that.
+ */
+export function currentStagesOf(pathway: Pathway): PathwayStage[] {
+  const ids = pathway.currentStageIds ?? (pathway.currentStageId ? [pathway.currentStageId] : []);
+  return (pathway.stages ?? []).filter((s) => ids.includes(s.id ?? '')).sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0));
+}
+
+/** What a screen reader says when a stage is finished (or skipped): which, and what's next (each current stage). */
 export function finishedMessage(stage: PathwayStage, pathway: Pathway, done = 'finished'): string {
-  const next = pathway.stages?.find((s) => s.id === pathway.currentStageId);
-  return `${stage.name} ${done}. ${next ? `Next stage: ${next.name}` : allDoneWords(pathway)}`;
+  const next = currentStagesOf(pathway);
+  const nextWords =
+    next.length > 1 ? `Current stages: ${andList(next.map((s) => s.name ?? ''))}` : next[0] ? `Next stage: ${next[0].name}` : allDoneWords(pathway);
+  return `${stage.name} ${done}. ${nextWords}`;
 }
 
 /** That no stage is left to do: "Every stage is finished", or "...finished or skipped" when some were skipped. */
@@ -246,7 +258,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const staff = useQuery({...staffWithPermissionQuery('WorkPathways'), enabled: canAssignStaff && dialog?.kind === 'assign'});
 
   const isMissing = error instanceof ApiError && error.status === 404;
-  const currentStage = pathway?.stages?.find((s) => s.id === pathway.currentStageId);
+  const currentStages = pathway ? currentStagesOf(pathway) : [];
+  const hasCurrent = currentStages.length > 0;
   const isMine = pathway?.assignments?.some((a) => a.username === user.username) ?? false;
   const isBusy = Object.values(actions).some((action) => action.isPending) || remove.isPending || appointmentActions.recordOutcome.isPending;
 
@@ -827,15 +840,18 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     );
   }
 
-  /** The stage being worked on, with its notes box and actions. */
-  function currentStageBody(pathway: Pathway, stage: PathwayStage) {
+  /**
+   * A stage being worked on, with its notes box and actions. Where routes run side by side (MC8), each current stage
+   * has its own, one under the other; only a lone one's notes box is fitted to the free space.
+   */
+  function currentStageBody(pathway: Pathway, stage: PathwayStage, index = 0, isAlone = true) {
     return (
-      <Section variant="transparent" padding={6}>
+      <Section key={stage.id} variant="transparent" padding={6} dividers={index > 0 ? ['top'] : []}>
         <CurrentStage
           pathway={pathway}
           canWork={canWork}
           stage={stage}
-          work={workFor(stage, true)}
+          work={workFor(stage, isAlone)}
           files={filesFor(stage)}
           instructions={instructions}
           // Its Visit part says where the visit stands while it's worked on; otherwise the title does.
@@ -950,14 +966,22 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
-  /** The current stage's section; a pathway with none (every stage finished or skipped) has no such section. */
-  function currentStageSection(pathway: Pathway, stage: PathwayStage): FoldingSection {
+  /**
+   * The current stage's section, or the current stages' where routes run side by side (MC8: every one shows, so none
+   * is missed); a pathway with none (every stage finished or skipped) has no such section.
+   */
+  function currentStageSection(pathway: Pathway, stages: PathwayStage[]): FoldingSection {
     return {
       key: 'currentStage',
-      title: 'Current stage',
+      title: stages.length > 1 ? `Current stages (${stages.length})` : 'Current stage',
       isOpen: open.currentStage,
       onToggle: () => toggle('currentStage'),
-      children: currentStageBody(pathway, stage),
+      children:
+        stages.length > 1 ? (
+          <VStack gap={0}>{stages.map((stage, i) => currentStageBody(pathway, stage, i, false))}</VStack>
+        ) : (
+          currentStageBody(pathway, stages[0])
+        ),
     };
   }
 
@@ -1146,11 +1170,11 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       <TwoColumns
         start={
           <FoldingCard
-            sections={[detailsSection(pathway), currentStage ? currentStageSection(pathway, currentStage) : stagesSection(pathway)]}
+            sections={[detailsSection(pathway), hasCurrent ? currentStageSection(pathway, currentStages) : stagesSection(pathway)]}
             footerActions={footer(pathway)}
           />
         }
-        end={<FoldingCard sections={[...(currentStage ? [stagesSection(pathway)] : []), ...otherSections(pathway)]} />}
+        end={<FoldingCard sections={[...(hasCurrent ? [stagesSection(pathway)] : []), ...otherSections(pathway)]} />}
       />
     );
   }
@@ -1165,7 +1189,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         footerActions={footer(pathway)}
         sections={[
           detailsSection(pathway),
-          ...(currentStage ? [currentStageSection(pathway, currentStage)] : []),
+          ...(hasCurrent ? [currentStageSection(pathway, currentStages)] : []),
           stagesSection(pathway),
           ...otherSections(pathway),
         ]}

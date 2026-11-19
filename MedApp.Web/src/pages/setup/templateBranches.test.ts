@@ -39,6 +39,13 @@ describe('template branches', () => {
     expect(stageOptionProblems([inBranch('A'), plain]).get(0)).toBe(BRANCH_WITHOUT_POINT_MESSAGE);
   });
 
+  it('ends the branches at a plain stage, their join (MC8), so a branch after it has no branch point', () => {
+    const rows = [point, inBranch('A'), plain, inBranch('B'), plain];
+    expect(stageOptionProblems(rows).get(0)).toBe(TOO_FEW_BRANCHES_MESSAGE);
+    expect(stageOptionProblems(rows).get(3)).toBe(BRANCH_WITHOUT_POINT_MESSAGE);
+    expect(isAfterBranchPoint(rows, 3)).toBe(false);
+  });
+
   it('keeps branch names short', () => {
     expect(stageOptionProblems([point, inBranch('x'.repeat(51)), inBranch('B'), plain]).get(1)).toBe(BRANCH_TOO_LONG_MESSAGE);
   });

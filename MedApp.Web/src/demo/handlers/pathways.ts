@@ -2,7 +2,8 @@ import type {Schemas} from '../../api/client';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {ownerAccess, teamName, templateStages} from '../seed';
+import {andList, chainLinks, hasParallelRoutes, PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
+import {ownerAccess, pathwayLinks, teamName, templateStages} from '../seed';
 import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
 import {endOfUkDay, nowUtc, today} from '../time';
@@ -28,10 +29,11 @@ import {
 
 /**
  * Pathways, their stages and notes, the stage library, the templates and Insights. The rules are a simplified copy of
- * the API's `PathwayWorkflow`: stages are worked in order (the current stage is the first neither finished nor
- * skipped), the first stage started or finished starts the pathway, and finishing or skipping the last puts it in
- * review. Optional stages can be skipped, a branch point's branch is chosen as it's finished (never by MedApp), and
- * the gates without an override (`StageGates`: the lab's, the letter's and consent's) are checked on every finish.
+ * the API's `PathwayWorkflow`: stages follow their links (MC8, tree pathways), so a stage is current when it's neither
+ * finished nor skipped and nothing before it is still to do; a fork's routes run side by side, and a join waits for
+ * each. The first stage started or finished starts the pathway, and finishing or skipping the last on every route puts
+ * it in review. Optional stages can be skipped, a branch point's branch is chosen as it's finished (never by MedApp),
+ * and the gates without an override (`StageGates`: the lab's, the letter's and consent's) are checked on every finish.
  * There's no monitoring.
  *
  * **The relay** (MC7): a template's stage can be owned by another team (the lab, in Stage 1). Only its owner works it
@@ -50,9 +52,45 @@ const inOrder = (pathway: DemoPathway) => [...pathway.stages].sort((a, b) => a.s
 /** Every stage finished and locked (none reopened), or skipped. */
 const allFinished = (pathway: DemoPathway) => pathway.stages.every((s) => (isDone(s) && !s.unlocked) || isSkipped(s));
 
-/** The stage being worked: the first neither finished nor skipped, while the pathway is open (none when it's on hold or closed). */
-export const currentStage = (pathway: DemoPathway) =>
-  pathway.status === 'Blocked' || !isOpen(pathway) ? undefined : inOrder(pathway).find(isToDo);
+/** The stages straight before a stage (its links' froms). */
+const predecessorsOf = (pathway: DemoPathway, stage: DemoStage) =>
+  inOrder(pathway).filter((s) => pathway.links.some((l) => l.fromStageId === s.id && l.toStageId === stage.id));
+
+/** The stages straight after a stage, in order. */
+const successorsOf = (pathway: DemoPathway, stage: DemoStage) =>
+  inOrder(pathway).filter((s) => pathway.links.some((l) => l.fromStageId === stage.id && l.toStageId === s.id));
+
+/** Every stage after a stage, on any route (its descendants), by ID. */
+function after(pathway: DemoPathway, stage: DemoStage): Set<string> {
+  const seen = new Set<string>();
+  const queue = [stage.id];
+  while (queue.length > 0) {
+    const from = queue.shift()!;
+    for (const link of pathway.links)
+      if (link.fromStageId === from && !seen.has(link.toStageId)) {
+        seen.add(link.toStageId);
+        queue.push(link.toStageId);
+      }
+  }
+  return seen;
+}
+
+/** Whether nothing before a stage, on any route into it, is still to do (`PathwayWorkflow.CurrentStages`). */
+const isReached = (pathway: DemoPathway, stage: DemoStage) =>
+  pathway.stages.every((other) => !isToDo(other) || !after(pathway, other).has(stage.id));
+
+/**
+ * The stages being worked, in order: each neither finished nor skipped, with nothing before it still to do, while the
+ * pathway is open (none when it's on hold or closed). A chain has one; routes side by side have one each.
+ */
+export const currentStages = (pathway: DemoPathway): DemoStage[] =>
+  pathway.status === 'Blocked' || !isOpen(pathway) ? [] : inOrder(pathway).filter((s) => isToDo(s) && isReached(pathway, s));
+
+/** The first current stage, for what shows only one (as the API's `CurrentStage`). */
+export const currentStage = (pathway: DemoPathway): DemoStage | undefined => currentStages(pathway)[0];
+
+/** Whether a stage is one of the current ones. */
+export const isCurrentStage = (pathway: DemoPathway, stage: DemoStage) => currentStages(pathway).some((s) => s.id === stage.id);
 
 const SKIP_REASONS = ['NotNeeded', 'PatientDeclined', 'Other'];
 
@@ -62,28 +100,25 @@ function whySkipNotAllowed(pathway: DemoPathway, stage: DemoStage): string | nul
   if (!canWorkOnStages(pathway)) return 'Stages can’t be skipped while the pathway is on hold or closed.';
   if (isSkipped(stage)) return `The '${stage.name}' stage has already been skipped.`;
   if (isDone(stage)) return `The '${stage.name}' stage is finished, so it can't be skipped.`;
-  const current = currentStage(pathway);
-  if (current?.id !== stage.id) return `Only the current stage can be skipped: finish the '${current?.name}' stage first.`;
+  if (!isCurrentStage(pathway, stage)) return `Only a current stage can be skipped: finish the stages before '${stage.name}' first.`;
   return stage.visitRequirement === 'Required' && !can('FinishWithoutVisit')
     ? `The '${stage.name}' stage needs a visit, so only someone who can finish a stage without its visit can skip it.`
     : null;
 }
 
 /**
- * A branch point's branches, in the template's order, each with its stages: the stages with a branch name after it, up
- * to the next branch point or the end. None is ever chosen or pre-selected: the clinician chooses.
+ * A branch point's branches, in the template's order, each with its stages: one per stage straight after it (named by
+ * its branch), with every stage on that route up to where the routes join (those after it and after no other branch's
+ * first stage), nested branches included. None is ever chosen or pre-selected: the clinician chooses.
  */
 function branchesOf(pathway: DemoPathway, branchPoint: DemoStage): {name: string; stages: DemoStage[]}[] {
   if (!branchPoint.choosesBranch) return [];
-  const branches: {name: string; stages: DemoStage[]}[] = [];
-  for (const stage of inOrder(pathway).filter((s) => s.stageOrder > branchPoint.stageOrder)) {
-    if (stage.choosesBranch) break;
-    if (!stage.branch) continue;
-    const branch = branches.find((b) => b.name.toLowerCase() === stage.branch!.toLowerCase());
-    if (branch) branch.stages.push(stage);
-    else branches.push({name: stage.branch, stages: [stage]});
-  }
-  return branches;
+  const firsts = successorsOf(pathway, branchPoint);
+  const routes = firsts.map((first) => new Set([first.id, ...after(pathway, first)]));
+  return firsts.map((first, i) => ({
+    name: first.branch ?? first.name,
+    stages: inOrder(pathway).filter((s) => routes[i].has(s.id) && routes.every((other, j) => j === i || !other.has(s.id))),
+  }));
 }
 
 /** Whether the pathway's last stage to do is this one (finishing it leaves none). */
@@ -96,11 +131,9 @@ function whyGated(pathway: DemoPathway, stage: DemoStage): string | null {
 
 const canWorkOnStages = (pathway: DemoPathway) => ['Unassigned', 'Assigned', 'InProgress', 'InReview'].includes(pathway.status);
 
-/** Whether the viewer's team works the pathway's current stage (the lab, while one of its stages is current). */
-const worksCurrentStage = (pathway: DemoPathway, scope: TeamScope = myScope()) => {
-  const current = currentStage(pathway);
-  return current !== undefined && canWorkStage(pathway, current, scope);
-};
+/** Whether the viewer's team works one of the pathway's current stages (the lab, while one of its stages is current). */
+const worksCurrentStage = (pathway: DemoPathway, scope: TeamScope = myScope()) =>
+  currentStages(pathway).some((s) => canWorkStage(pathway, s, scope));
 
 /** Whether the viewer's team adds and edits notes on the pathway: its own team, or the team working its current stage. */
 const canNoteOn = (pathway: DemoPathway) => canChangePathway(pathway) || worksCurrentStage(pathway);
@@ -116,14 +149,16 @@ function pickUp(stage: DemoStage, userId: string) {
 }
 
 /**
- * After a stage is finished or skipped (`PathwayChange.HandOver`): the stage now current is reached, and when its team
- * differs from `fromTeamId` (the finished stage's) it's handed over: the receiving team gets its grant to see the
- * pathway (`StageOwner`, kept), and its members who work pathways are told, with a fixed title and only who passed it
- * (no patient, no stage).
+ * After a stage is finished or skipped (`PathwayChange.HandOver`): each stage now current and not reached before is
+ * reached (a fork can reach several, a lab's and a clinic's at once), and when its team differs from `fromTeamId` (the
+ * finished stage's) it's handed over: the receiving team gets its grant to see the pathway (`StageOwner`, kept), and
+ * its members who work pathways are told, with a fixed title and only who passed it (no patient, no stage).
  */
 function reachNext(pathway: DemoPathway, fromTeamId: string, byUserId: string) {
-  const next = currentStage(pathway);
-  if (!next || next.reachedAtUtc) return;
+  for (const next of currentStages(pathway).filter((s) => !s.reachedAtUtc)) handOver(pathway, next, fromTeamId, byUserId);
+}
+
+function handOver(pathway: DemoPathway, next: DemoStage, fromTeamId: string, byUserId: string) {
   const now = nowUtc();
   next.reachedAtUtc = now;
   const to = stageTeamOf(pathway, next);
@@ -149,21 +184,15 @@ const VIEWS: Record<string, (pathway: DemoPathway, scope: TeamScope) => boolean>
   /** A current stage owned by my team. */
   OurTurn: (p, scope) => worksCurrentStage(p, scope),
   /** That, handed to us and not picked up yet. */
-  NewForUs: (p, scope) => {
-    const current = currentStage(p);
-    return current !== undefined && canWorkStage(p, current, scope) && awaitsPickUp(current);
-  },
+  NewForUs: (p, scope) => currentStages(p).some((s) => canWorkStage(p, s, scope) && awaitsPickUp(s)),
   /** My team's pathway, with a current stage owned by the lab. */
   AwaitingLab: (p, scope) => {
-    const current = currentStage(p);
     const lab = labTeamId();
-    return scope.teamIds.includes(p.teamId) && current !== undefined && lab !== null && lab !== p.teamId && stageTeamOf(p, current) === lab;
+    return scope.teamIds.includes(p.teamId) && lab !== null && lab !== p.teamId && currentStages(p).some((s) => stageTeamOf(p, s) === lab);
   },
-  /** My team's pathway, its current stage reached from a lab stage, not picked up yet. */
-  BackFromLab: (p, scope) => {
-    const current = currentStage(p);
-    return scope.teamIds.includes(p.teamId) && current !== undefined && current.handedOverFromTeamId === labTeamId() && awaitsPickUp(current);
-  },
+  /** My team's pathway, a current stage reached from a lab stage, not picked up yet. */
+  BackFromLab: (p, scope) =>
+    scope.teamIds.includes(p.teamId) && currentStages(p).some((s) => s.handedOverFromTeamId === labTeamId() && awaitsPickUp(s)),
 };
 
 /** Open and past its target date (pathways on hold are waiting on something else, so never overdue). */
@@ -228,9 +257,10 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
   // Only the pathway's own team changes it (the team walls): admins and the lab read it.
   const mine = canChangePathway(pathway);
   const canWork = can('WorkPathways') && mine;
-  const current = currentStage(pathway);
+  const currents = currentStages(pathway);
+  const isCurrent = (stage: DemoStage) => currents.some((s) => s.id === stage.id);
   const scope = myScope();
-  // The relay: the team working the current stage (the lab, for its stages) works that stage and adds notes too.
+  // The relay: the team working a current stage (the lab, for its stages) works that stage and adds notes too.
   const worksCurrent = worksCurrentStage(pathway, scope);
   const workable = can('WorkPathways') && (mine || worksCurrent) && canWorkOnStages(pathway);
   const notes = can('WorkPathways') && (mine || worksCurrent);
@@ -253,7 +283,8 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     isOverdue: isOverdue(pathway),
     createdAt: pathway.createdAt,
     lastUpdated: pathway.lastUpdated,
-    currentStageId: current?.id ?? null,
+    currentStageId: currents[0]?.id ?? null,
+    currentStageIds: currents.map((s) => s.id),
     completedStageCount: pathway.stages.filter(isDone).length,
     skippedStageCount: pathway.stages.filter(isSkipped).length,
     stageCount: pathway.stages.length,
@@ -281,12 +312,13 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       isOptional: stage.isOptional,
       choosesBranch: stage.choosesBranch,
       branch: stage.branch,
+      predecessorIds: predecessorsOf(pathway, stage).map((s) => s.id),
       branches: branchResponses(pathway, stage),
       needsBranchChoice: stage.choosesBranch && stage.chosenBranch === null,
       state: isDone(stage) ? 'Completed' : isSkipped(stage) ? 'Skipped' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
-      isCurrent: stage.id === current?.id,
+      isCurrent: isCurrent(stage),
       isLocked: isDone(stage) && !stage.unlocked,
-      canEdit: workable && canWorkStage(pathway, stage, scope) && (stage.id === current?.id || (isDone(stage) && stage.unlocked)),
+      canEdit: workable && canWorkStage(pathway, stage, scope) && (isCurrent(stage) || (isDone(stage) && stage.unlocked)),
       canUnlock: can('UnlockStages') && mine && isDone(stage) && !stage.unlocked && (isOpen(pathway) || pathway.status === 'Completed'),
       canSkip: can('WorkPathways') && canWorkStage(pathway, stage, scope) && whySkipNotAllowed(pathway, stage) === null,
       canReinstate: can('UnlockStages') && mine && isSkipped(stage) && (isOpen(pathway) || pathway.status === 'Completed'),
@@ -305,13 +337,13 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       // Null for the pathway's own team's stages; the owner (the lab) for the rest.
       ownerTeamId: stage.ownerTeamId,
       ownerTeamName: teamName(stage.ownerTeamId),
-      isWithAnotherTeam: stage.id === current?.id && stageTeamOf(pathway, stage) !== pathway.teamId && !canWorkStage(pathway, stage, scope),
+      isWithAnotherTeam: isCurrent(stage) && stageTeamOf(pathway, stage) !== pathway.teamId && !canWorkStage(pathway, stage, scope),
       reachedAtUtc: stage.reachedAtUtc,
       handedOverFromTeamName: teamName(stage.handedOverFromTeamId),
       pickedUpAtUtc: stage.pickedUpAtUtc,
       pickedUpByUserId: stage.pickedUpByUserId,
       pickedUpByUsername: usernameOf(stage.pickedUpByUserId),
-      canPickUp: workable && stage.id === current?.id && canWorkStage(pathway, stage, scope) && awaitsPickUp(stage),
+      canPickUp: workable && isCurrent(stage) && canWorkStage(pathway, stage, scope) && awaitsPickUp(stage),
     })),
     assignments: pathway.assignments.map((a) => ({
       userId: a.userId,
@@ -331,7 +363,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
 /** A pathway in a list (`PatientPathwaySummaryResponse`). */
 export function pathwaySummary(pathway: DemoPathway): Schemas['PatientPathwaySummaryResponse'] {
   const referral = pathway.referralId ? db().referrals.find((r) => r.id === pathway.referralId) : undefined;
-  const current = currentStage(pathway);
+  const currents = currentStages(pathway);
   return {
     id: pathway.id,
     patientId: pathway.patientId,
@@ -346,9 +378,10 @@ export function pathwaySummary(pathway: DemoPathway): Schemas['PatientPathwaySum
     completedStageCount: pathway.stages.filter(isDone).length,
     skippedStageCount: pathway.stages.filter(isSkipped).length,
     stageCount: pathway.stages.length,
-    currentStageName: current?.name ?? null,
-    currentStageTeamName: current ? teamName(stageTeamOf(pathway, current)) : null,
-    awaitingPickUp: current !== undefined && awaitsPickUp(current),
+    // Every current stage, so a route side by side isn't missed in a list (H-69); and who has them (the relay).
+    currentStageName: andList(currents.map((s) => s.name)) || null,
+    currentStageTeamName: andList([...new Set(currents.map((s) => teamName(stageTeamOf(pathway, s)) ?? ''))]) || null,
+    awaitingPickUp: currents.some(awaitsPickUp),
     assignees: pathway.assignments.map((a) => usernameOf(a.userId) ?? ''),
     lastUpdated: pathway.lastUpdated,
     clock: referral ? referralSummaryClock(referral) : undefined,
@@ -439,6 +472,7 @@ export function createPathway(input: {
   const now = nowUtc();
   const priority = (['Low', 'Medium', 'High', 'Urgent'].includes(input.priority ?? '') ? input.priority : 'Medium') as DemoPathway['priority'];
   const due = input.dueDate || new Date(Date.now() + 12 * 7 * 86400_000).toISOString().slice(0, 10);
+  const stages = templateStages(template, db().stageDefinitions).map((stage) => ({...stage, id: newId()}));
   const pathway: DemoPathway = {
     id: newId(),
     patientId: input.patientId,
@@ -453,7 +487,8 @@ export function createPathway(input: {
     blockedFromStatus: null,
     createdAt: now,
     lastUpdated: now,
-    stages: templateStages(template, db().stageDefinitions).map((stage) => ({...stage, id: newId()})),
+    stages,
+    links: pathwayLinks(template, stages),
     assignments: input.assigneeUserId ? [{userId: input.assigneeUserId, assignedByUserId: viewer.id, assignedAtUtc: now}] : [],
     handovers: [],
     notes: input.notes?.trim()
@@ -512,7 +547,7 @@ export function registerPathways() {
         (statuses.length === 0 || statuses.includes(p.status)) &&
         (priorities.length === 0 || priorities.includes(p.priority)) &&
         (teamIds.length === 0 || teamIds.includes(p.teamId)) &&
-        (stageDefinitionIds.length === 0 || stageDefinitionIds.includes(currentStage(p)?.stageDefinitionId ?? '')) &&
+        (stageDefinitionIds.length === 0 || currentStages(p).some((s) => stageDefinitionIds.includes(s.stageDefinitionId))) &&
         (!query.get('PatientId') || p.patientId === query.get('PatientId')) &&
         (!query.get('TemplateId') || p.templateId === query.get('TemplateId')) &&
         (flag(query, 'AssignedToMe') !== true || p.assignments.some((a) => a.userId === viewer.id)) &&
@@ -584,7 +619,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/start', ({params}) => {
     const viewer = me();
     const {pathway, stage} = forStageWork(params.id, params.stageId);
-    if (stage.id !== currentStage(pathway)?.id) return problem(409, 'Only the current stage can be started.');
+    if (!isCurrentStage(pathway, stage)) return problem(409, 'Only a current stage can be started.');
     stage.startedAtUtc = nowUtc();
     stage.startedByUserId = viewer.id;
     pickUp(stage, viewer.id);
@@ -597,7 +632,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/pick-up', ({params}) => {
     const viewer = me();
     const {pathway, stage} = forStageWork(params.id, params.stageId);
-    if (stage.id !== currentStage(pathway)?.id) return problem(409, 'Only the current stage can be picked up.');
+    if (!isCurrentStage(pathway, stage)) return problem(409, 'Only a current stage can be picked up.');
     if (stage.handedOverFromTeamId === null) return problem(409, 'This stage wasn’t handed over, so there’s nothing to pick up.');
     pickUp(stage, viewer.id);
     touch(pathway);
@@ -615,7 +650,7 @@ export function registerPathways() {
     const viewer = me();
     const {pathway, stage} = forStageWork(params.id, params.stageId);
     const reopened = isDone(stage) && stage.unlocked;
-    if (stage.id !== currentStage(pathway)?.id && !reopened) return problem(409, 'Only the current stage can be finished.');
+    if (!isCurrentStage(pathway, stage) && !reopened) return problem(409, 'Only a current stage can be finished.');
     // A branch point's branch is chosen as it's first finished, by the clinician: never by MedApp.
     const branches = branchesOf(pathway, stage);
     const chosen = body.branch?.trim() ? branches.find((b) => b.name.toLowerCase() === body.branch!.trim().toLowerCase()) : undefined;
@@ -1026,7 +1061,7 @@ function templateStageList(
   });
 }
 
-/** The template's branch rules (`TemplateBranchRules`), as 400s, or null when they hold. */
+/** The template's branch rules (`TemplateBranchRules`; a branch's stages sit together, MC8), as 400s, or null when they hold. */
 function whyTemplateInvalid(stages: Schemas['PathwayTemplateStageResponse'][]): DemoReply | null {
   if (stages.length === 0) return invalid({stageDefinitionIdsInOrder: ['Add at least one stage.']});
   const last = stages[stages.length - 1];
@@ -1039,8 +1074,12 @@ function whyTemplateInvalid(stages: Schemas['PathwayTemplateStageResponse'][]): 
       if (stage.isOptional || stage.branch) return invalid({stageOptions: ['A branch point can’t be optional or in a branch.']});
       open = {names: new Set()};
     } else if (stage.branch) {
-      if (!open) return invalid({stageOptions: ['A stage can be in a branch only after a branch point.']});
+      if (!open) return invalid({stageOptions: ['A stage in a branch must come straight after its branch point or another stage in a branch.']});
       open.names.add(stage.branch.toLowerCase());
+    } else {
+      // A plain stage ends the branches (their join, MC8).
+      if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
+      open = null;
     }
   }
   if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
@@ -1095,6 +1134,12 @@ function registerSetupOfPathways() {
     );
     const why = whyTemplateInvalid(stages);
     if (why) return why;
+    // Routes side by side (MC8) are drawn only in the route editor (MC9): until then, such a template's stages keep theirs.
+    const parallel = hasParallelRoutes(template);
+    const optionsOf = (list: Schemas['PathwayTemplateStageResponse'][]) =>
+      JSON.stringify(list.map((s) => [s.stageDefinitionId, s.isOptional, s.choosesBranch, s.branch ?? null]));
+    if (parallel && optionsOf(stages) !== optionsOf(template.stages ?? []))
+      return invalid({stageDefinitionIdsInOrder: [PARALLEL_ROUTES_LOCKED]});
     Object.assign(template, {
       name,
       teamId,
@@ -1103,6 +1148,7 @@ function registerSetupOfPathways() {
       clockStopStageOrder: clockStop ?? null,
       stageDefinitionIdsInOrder: ids,
       stages,
+      links: parallel ? template.links : chainLinks(stages),
     });
     return null;
   };
