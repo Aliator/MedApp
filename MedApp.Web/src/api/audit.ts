@@ -51,6 +51,8 @@ export const AUDIT_ACTIONS = [
   'MdtOutcomeRecorded',
   'MdtDeferred',
   'MdtWithdrawn',
+  'StageHandedOver',
+  'StagePickedUp',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -91,6 +93,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   MdtOutcomeRecorded: 'MDT outcome recorded',
   MdtDeferred: 'MDT item moved',
   MdtWithdrawn: 'Withdrawn from MDT',
+  StageHandedOver: 'Stage handed over',
+  StagePickedUp: 'Stage picked up',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -220,6 +224,9 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
         .filter(Boolean)
         .join('; ');
     }
+    // The relay (MC7): which team passed the stage to which, by the teams' names.
+    case 'StageHandedOver':
+      return text(d.from) && text(d.to) ? `${text(d.from)} → ${text(d.to)}` : '';
     // A skipped stage to run again: how it had been skipped, and why it's reinstated.
     case 'StageReinstated': {
       const was = text(d.skipReason) ? `Was skipped (${skipReasonLabel(text(d.skipReason)).toLowerCase()})` : '';

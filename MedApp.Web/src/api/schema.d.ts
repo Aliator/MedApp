@@ -11280,6 +11280,7 @@ export interface paths {
                     DueTo?: string;
                     IncludeClosed?: boolean;
                     Started?: boolean;
+                    View?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11844,6 +11845,68 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pathways/patient-pathways/{id}/stages/{stageId}/pick-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientPathwayResponse"];
+                        "application/json": components["schemas"]["PatientPathwayResponse"];
+                        "text/json": components["schemas"]["PatientPathwayResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -21546,6 +21609,8 @@ export interface components {
             isOptional?: boolean;
             choosesBranch?: boolean;
             branch?: string | null;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
         };
         PathwayTemplateStageResponse: {
             /** Format: int32 */
@@ -21562,6 +21627,9 @@ export interface components {
             choosesBranch?: boolean;
             branch?: string | null;
             stopsClock?: boolean;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
+            ownerTeamName?: string | null;
         };
         PatientExportResponse: {
             /** Format: date-time */
@@ -21818,6 +21886,19 @@ export interface components {
             /** Format: uuid */
             completedByUserId?: string | null;
             completedByUsername?: string | null;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
+            ownerTeamName?: string | null;
+            isWithAnotherTeam?: boolean;
+            /** Format: date-time */
+            reachedAtUtc?: string | null;
+            handedOverFromTeamName?: string | null;
+            /** Format: date-time */
+            pickedUpAtUtc?: string | null;
+            /** Format: uuid */
+            pickedUpByUserId?: string | null;
+            pickedUpByUsername?: string | null;
+            canPickUp?: boolean;
         };
         PatientPathwaySummaryResponse: {
             /** Format: uuid */
@@ -21841,6 +21922,8 @@ export interface components {
             /** Format: int32 */
             stageCount?: number;
             currentStageName?: string | null;
+            currentStageTeamName?: string | null;
+            awaitingPickUp?: boolean;
             assignees?: string[] | null;
             /** Format: date-time */
             lastUpdated?: string;
