@@ -65,6 +65,7 @@ import { Route as AppPatientsAddRouteImport } from './routes/_app/patients/add'
 import { Route as AppReferralsIndexRouteImport } from './routes/_app/referrals/index'
 import { Route as AppReferralsNewRouteImport } from './routes/_app/referrals/new'
 import { Route as AppResultsIndexRouteImport } from './routes/_app/results/index'
+import { Route as AppTeamIndexRouteImport } from './routes/_app/team/index'
 import { Route as AppAdminLetterTemplatesIndexRouteImport } from './routes/_app/admin/letter-templates/index'
 import { Route as AppAdminLetterTemplatesIdRouteImport } from './routes/_app/admin/letter-templates/$id'
 import { Route as AppAdminLetterTemplatesNewRouteImport } from './routes/_app/admin/letter-templates/new'
@@ -377,6 +378,11 @@ const AppResultsIndexRoute = AppResultsIndexRouteImport.update({
   path: '/results/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeamIndexRoute = AppTeamIndexRouteImport.update({
+  id: '/team/',
+  path: '/team/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAdminLetterTemplatesIndexRoute =
   AppAdminLetterTemplatesIndexRouteImport.update({
     id: '/admin/letter-templates/',
@@ -591,6 +597,7 @@ export interface FileRoutesByFullPath {
   '/patients/': typeof AppPatientsIndexRoute
   '/referrals/': typeof AppReferralsIndexRoute
   '/results/': typeof AppResultsIndexRoute
+  '/team/': typeof AppTeamIndexRoute
   '/admin/letter-templates/$id': typeof AppAdminLetterTemplatesIdRoute
   '/admin/letter-templates/new': typeof AppAdminLetterTemplatesNewRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
@@ -677,6 +684,7 @@ export interface FileRoutesByTo {
   '/patients': typeof AppPatientsIndexRoute
   '/referrals': typeof AppReferralsIndexRoute
   '/results': typeof AppResultsIndexRoute
+  '/team': typeof AppTeamIndexRoute
   '/admin/letter-templates/$id': typeof AppAdminLetterTemplatesIdRoute
   '/admin/letter-templates/new': typeof AppAdminLetterTemplatesNewRoute
   '/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
@@ -765,6 +773,7 @@ export interface FileRoutesById {
   '/_app/patients/': typeof AppPatientsIndexRoute
   '/_app/referrals/': typeof AppReferralsIndexRoute
   '/_app/results/': typeof AppResultsIndexRoute
+  '/_app/team/': typeof AppTeamIndexRoute
   '/_app/admin/letter-templates/$id': typeof AppAdminLetterTemplatesIdRoute
   '/_app/admin/letter-templates/new': typeof AppAdminLetterTemplatesNewRoute
   '/_app/admin/pathway-templates/$id': typeof AppAdminPathwayTemplatesIdRoute
@@ -853,6 +862,7 @@ export interface FileRouteTypes {
     | '/patients/'
     | '/referrals/'
     | '/results/'
+    | '/team/'
     | '/admin/letter-templates/$id'
     | '/admin/letter-templates/new'
     | '/admin/pathway-templates/$id'
@@ -939,6 +949,7 @@ export interface FileRouteTypes {
     | '/patients'
     | '/referrals'
     | '/results'
+    | '/team'
     | '/admin/letter-templates/$id'
     | '/admin/letter-templates/new'
     | '/admin/pathway-templates/$id'
@@ -1026,6 +1037,7 @@ export interface FileRouteTypes {
     | '/_app/patients/'
     | '/_app/referrals/'
     | '/_app/results/'
+    | '/_app/team/'
     | '/_app/admin/letter-templates/$id'
     | '/_app/admin/letter-templates/new'
     | '/_app/admin/pathway-templates/$id'
@@ -1462,6 +1474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppResultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/team/': {
+      id: '/_app/team/'
+      path: '/team'
+      fullPath: '/team/'
+      preLoaderRoute: typeof AppTeamIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/letter-templates/': {
       id: '/_app/admin/letter-templates/'
       path: '/admin/letter-templates'
@@ -1717,6 +1736,7 @@ interface AppRouteChildren {
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
   AppReferralsIndexRoute: typeof AppReferralsIndexRoute
   AppResultsIndexRoute: typeof AppResultsIndexRoute
+  AppTeamIndexRoute: typeof AppTeamIndexRoute
   AppAdminLetterTemplatesIdRoute: typeof AppAdminLetterTemplatesIdRoute
   AppAdminLetterTemplatesNewRoute: typeof AppAdminLetterTemplatesNewRoute
   AppAdminPathwayTemplatesIdRoute: typeof AppAdminPathwayTemplatesIdRoute
@@ -1797,6 +1817,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPatientsIndexRoute: AppPatientsIndexRoute,
   AppReferralsIndexRoute: AppReferralsIndexRoute,
   AppResultsIndexRoute: AppResultsIndexRoute,
+  AppTeamIndexRoute: AppTeamIndexRoute,
   AppAdminLetterTemplatesIdRoute: AppAdminLetterTemplatesIdRoute,
   AppAdminLetterTemplatesNewRoute: AppAdminLetterTemplatesNewRoute,
   AppAdminPathwayTemplatesIdRoute: AppAdminPathwayTemplatesIdRoute,
