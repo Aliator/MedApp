@@ -134,20 +134,24 @@ export const TOUR: TourStep[] = [
   {
     key: 'relay-lab',
     part: 'story',
-    title: 'The relay, 2: the lab enters the results',
+    title: 'The relay, 2: the lab enters the results and sends it back',
     steps: [
       `Switches to ${LAB.fullName}, from the lab. This opens Leah Corrin’s lab case: her sample is in, and its steps are done.`,
-      'Choose Enter Results and Authorise, type the results and authorise them. That finishes the lab’s Testing stage, and the pathway goes back to Dermatology.',
+      'Choose Enter Results and Authorise, type the results, and choose Authorise and Open Pathway. The results go on the lab’s Testing stage, and her pathway opens.',
+      'On the pathway, choose Finish Stage on Testing. That sends it back to Dermatology.',
     ],
+    isNumbered: true,
     account: LAB.username,
     path: `/lab/cases/${LAB_CASE_IDS.relay}`,
     buttonLabel: 'Open the lab case as the lab',
     whyNot: (state) =>
-      state.labCases.find((c) => c.id === LAB_CASE_IDS.relay)?.status !== 'Open'
-        ? `You've entered the results already in your copy of the demo: the pathway is back with Dermatology. ${RESET_HINT}`
-        : relayStage(state, 'Triage')?.completedAtUtc
-          ? null
-          : 'Finish her Triage first (the step before): until then the pathway isn’t with the lab.',
+      relayStage(state, 'Testing')?.completedAtUtc
+        ? `You've sent it back already in your copy of the demo: the pathway is with Dermatology. ${RESET_HINT}`
+        : state.labCases.find((c) => c.id === LAB_CASE_IDS.relay)?.status !== 'Open'
+          ? 'You’ve entered the results already: open her pathway and choose Finish Stage on Testing to send it back.'
+          : relayStage(state, 'Triage')?.completedAtUtc
+            ? null
+            : 'Finish her Triage first (the step before): until then the pathway isn’t with the lab.',
   },
   {
     key: 'relay-back',
@@ -162,7 +166,7 @@ export const TOUR: TourStep[] = [
     buttonLabel: 'Open the pathway back from the lab',
     whyNot: (state) =>
       !relayStage(state, 'Testing')?.completedAtUtc
-        ? 'The lab hasn’t entered the results yet: do the step before first.'
+        ? 'The lab hasn’t sent it back yet: do the step before first.'
         : state.appointments.some((a) => a.pathwayId === PATHWAYS.relay && a.stageName === 'Results appointment' && a.status === 'Booked')
           ? `You've booked her appointment already in your copy of the demo. ${RESET_HINT}`
           : null,

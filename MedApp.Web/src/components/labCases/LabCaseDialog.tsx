@@ -3,6 +3,7 @@ import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {useNavigate} from '@tanstack/react-router';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
@@ -75,9 +76,12 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
     case 'report':
       return {
         title: 'Enter Results and Authorise',
-        message:
-          'The results you enter are the report. Authorising sends it back to the clinic or the hospital, and reports the case’s samples. On a pathway, it finishes the lab’s stage with these results and hands the pathway back.',
-        confirm: 'Authorise Report',
+        // A pathway's case: the results go on its lab stage, and the pathway opens next for the lab to finish the stage
+        // there (with its notes), which sends it back (the owner, 19 November 2026).
+        message: labCase.pathwayId
+          ? 'The results you enter are the report. Authorising sends it to the clinic, reports the case’s samples and puts the results on the pathway’s lab stage. The pathway opens next: finish the stage there to send it back to the clinic.'
+          : 'The results you enter are the report. Authorising sends it back to the clinic or the hospital, and reports the case’s samples.',
+        confirm: labCase.pathwayId ? 'Authorise and Open Pathway' : 'Authorise Report',
         icon: AppIcon.SignOff,
         announced: 'Report authorised',
         failed: 'The report could not be authorised.',
@@ -114,6 +118,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
  */
 export function LabCaseDialog({dialog, labCase, onClose}: LabCaseDialogProps) {
   const announce = useAnnounce();
+  const navigate = useNavigate();
   const actions = useLabCaseActions(labCase.id ?? '');
   const [initialAt] = useState<UkDateTime>(() => ukDateTime());
   const [at, setAt] = useState<UkDateTime>(initialAt);
@@ -140,6 +145,8 @@ export function LabCaseDialog({dialog, labCase, onClose}: LabCaseDialogProps) {
       onSuccess: () => {
         announce(words.announced);
         onClose();
+        // A pathway's case: on to the pathway, where the lab finishes its stage to send it back (the owner, 19 Nov).
+        if (dialog.kind === 'report' && labCase.pathwayId) void navigate({to: '/pathways/$id', params: {id: labCase.pathwayId}});
       },
       onError: (e: unknown) => {
         if (e instanceof ApiValidationError) setErrors(e.errors);
