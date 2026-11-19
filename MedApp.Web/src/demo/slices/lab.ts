@@ -189,6 +189,8 @@ export const SPECIMENS = {
   callumBiopsy: id(0xe3, 8),
   /** Aisha Khoury's second lesion's biopsy: too little to test, so its case asked for a repeat (MC22; `seedLabCases`). */
   aishaBiopsy: id(0xe3, 9),
+  /** Leah Corrin's skin scraping, taken at her Triage (the tour's relay): with the lab, its case ready for results. */
+  leahScraping: id(0xe3, 10),
 } as const;
 
 export const RESULTS = {
@@ -408,6 +410,16 @@ export function seedLab(state: BaseState): LabSlice {
       sentAtUtc: plusMinutes(aishaTaken, 240),
       sentByUserId: STAFF.id,
       receivedAtUtc: plusMinutes(aishaTaken, 24 * 60),
+      receivedByUserId: LAB.id,
+      version: 3,
+    }),
+    // The tour's relay: taken at her Triage yesterday morning and with the lab by the afternoon.
+    specimen(SPECIMENS.leahScraping, PATHWAYS.relay, 1, SPECIMEN_TYPES.skinScraping, ago(1, 9, 30), STAFF.id, {
+      site: 'Left forearm',
+      status: 'Received',
+      sentAtUtc: ago(1, 10, 30),
+      sentByUserId: STAFF.id,
+      receivedAtUtc: ago(1, 14, 0),
       receivedByUserId: LAB.id,
       version: 3,
     }),

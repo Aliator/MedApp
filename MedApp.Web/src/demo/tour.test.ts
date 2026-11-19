@@ -4,13 +4,10 @@ import {createAppRouter} from '../router';
 import {accountTypeOfPerson, ADMIN, DEMO_ACCOUNTS, LAB, STAFF} from './accounts';
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
-import {PATHWAYS, PATIENTS, REFERRALS, TEAMS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from './ids';
 import {seed} from './seed';
 import {LAB_CASE_IDS} from './slices/labCases';
-import {CLINICAL_IDS, CONSENT} from './slices/clinical';
-import {LAB_IDS} from './slices/lab';
-import {CONSULTS} from './slices/consults';
-import type {DemoState} from './state';
+import {CONSENT} from './slices/clinical';
 import {db} from './store';
 import {today} from './time';
 import {TOUR, TOUR_PARTS} from './tour';
@@ -36,12 +33,6 @@ const COLLECTIONS = {
   'hospital-requests': 'hospitalRequests',
 } as const;
 
-/** Ellis Varden's consent to his biopsy, recorded again (the tour's consent step). */
-function validConsent(state: DemoState) {
-  const withdrawn = state.consentRecords.find((c) => c.id === CONSENT.ellisWithdrawn)!;
-  state.consentRecords.push({...withdrawn, id: 'ellis-again', status: 'Valid', withdrawnOn: null, consentFormId: CONSENT.adultForm});
-}
-
 describe('the Read Me tour', () => {
   const links = TOUR.flatMap((step) => (step.path ? [step.path] : []));
 
@@ -62,63 +53,15 @@ describe('the Read Me tour', () => {
     }
   });
 
-  it('opens only lab cases the seed has (MC15), and says when the case has been worked already', () => {
+  it('opens only lab cases the seed has (MC15)', () => {
     const state = seed();
     const caseLinks = links.filter((link) => pathOf(link).startsWith('/lab/cases/'));
     expect(caseLinks.length).toBeGreaterThan(0);
     for (const link of caseLinks) expect(state.labCases.some((c) => c.id === pathOf(link).split('/')[3]), link).toBe(true);
-    const step = TOUR.find((s) => s.key === 'lab-case')!;
-    expect(step.whyNot!(state)).toBeNull();
-    for (const c of state.labCases) c.status = 'Reported';
-    expect(step.whyNot!(state)).toMatch(/finished this case/);
-    const sent = TOUR.find((s) => s.key === 'hospital-report')!;
-    expect(sent.whyNot!(seed())).toBeNull();
-    expect(sent.whyNot!(state)).toMatch(/surgery details already/);
   });
 
   it('asks only for the three demo accounts', () => {
     for (const step of TOUR) if (step.account) expect(DEMO_ACCOUNTS.map((a) => a.username)).toContain(step.account);
-  });
-
-  it('says why a step that has been done already won’t do it again', () => {
-    const state = seed();
-    const byKey = (key: string) => TOUR.find((step) => step.key === key)!;
-    expect(byKey('triage').whyNot!(state)).toBeNull();
-    expect(byKey('finish-stage').whyNot!(state)).toBeNull();
-    expect(byKey('book').whyNot!(state)).toBeNull();
-    for (const key of ['sign-off', 'consent', 'branch', 'mdt']) expect(byKey(key).whyNot!(state), key).toBeNull();
-
-    state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
-    state.labCases.find((c) => c.id === LAB_CASE_IDS.stageToReport)!.status = 'Reported';
-    state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Take biopsy', status: 'Booked', teamId: null});
-    validConsent(state);
-    expect(byKey('triage').whyNot!(state)).toMatch(/already/);
-    expect(byKey('consent').whyNot!(state)).toMatch(/already/);
-    expect(byKey('finish-stage').whyNot!(state)).toMatch(/already/);
-    expect(byKey('book').whyNot!(state)).toMatch(/already/);
-  });
-
-  it('opens the pathway the lab was asked a consult on, readable only through it, and says when it has been answered', async () => {
-    const step = TOUR.find((s) => s.key === 'consult')!;
-    expect(step.account).toBe(LAB.username);
-    const state = seed();
-    expect(step.whyNot!(state)).toBeNull();
-    // Only the consult lets the lab read it: no sample has gone to the lab.
-    expect(state.pathwayAccess.filter((a) => a.pathwayId === PATHWAYS.branchToChoose && a.teamId === TEAMS.lab).map((a) => a.reason)).toEqual(['Consult']);
-    startLightDemo(LAB);
-    expect((await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`)).status).toBe(200);
-    state.consults.find((c) => c.id === CONSULTS.felixToLab)!.status = 'Replied';
-    expect(step.whyNot!(state)).toMatch(/replied already/);
-    state.consults.find((c) => c.id === CONSULTS.felixToLab)!.status = 'Closed';
-    expect(step.whyNot!(state)).toMatch(/closed/);
-  });
-
-  it('opens this morning’s MDT, at an item still to discuss', () => {
-    const state = seed();
-    const mdt = TOUR.find((step) => step.key === 'mdt')!;
-    const meetingId = new URLSearchParams(mdt.path!.split('?')[1]).get('meeting');
-    expect(state.meetings.find((m) => m.id === meetingId)?.isMdt).toBe(true);
-    expect(state.mdtItems.some((i) => i.meetingId === meetingId && i.status === 'Listed')).toBe(true);
   });
 
   it('has the staff member triage in her own team, and the admin see Insights', () => {
@@ -137,51 +80,82 @@ describe('the Read Me tour', () => {
     expect(accountTypeOfPerson(STAFF)).toBe('ClinicAdmin');
     expect(accountTypeOfPerson(LAB)).toBe('Staff');
     const byKey = (key: string) => TOUR.find((step) => step.key === key)!;
-    expect(byKey('lab').account).toBe(LAB.username);
-    expect(byKey('mdt').account).toBe(STAFF.username);
-    expect(byKey('team-home').account).toBe(STAFF.username);
-    expect(LAB.permissions).toContain('ProcessSpecimens');
-    // The admin's steps are what an admin does: reading every team's list is one (the team walls).
-    for (const step of TOUR.filter((s) => s.account === ADMIN.username))
-      expect(['draw-routes', 'dermatology-templates', 'assessment-only', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
+    expect(byKey('relay-triage').account).toBe(STAFF.username);
+    expect(byKey('relay-lab').account).toBe(LAB.username);
+    expect(byKey('relay-back').account).toBe(STAFF.username);
+    expect(LAB.permissions).toContain('AuthoriseLabReports');
+    // The admin's steps are what an admin does: arranging a meeting, reading every team's list, and Insights.
+    for (const step of TOUR.filter((s) => s.account === ADMIN.username)) expect(['team-calendar', 'on-hold-overdue', 'insights']).toContain(step.key);
     expect(byKey('team-walls').account).toBe(LAB.username);
   });
 
-  it('runs the relay in order: Dermatology hands Ellis Varden’s pathway over, and it is new for the lab', async () => {
-    const keys = TOUR.map((step) => step.key);
-    const relay = ['relay-hand-over', 'relay-arrives', 'finish-stage', 'relay-back'].map((key) => keys.indexOf(key));
-    expect(relay).toEqual([...relay].sort((a, b) => a - b));
-    expect(relay[3] - relay[0]).toBe(3);
-    const handOver = TOUR.find((step) => step.key === 'relay-hand-over')!;
-    expect(handOver.whyNot!(seed())).toBeNull();
-
-    startLightDemo(STAFF);
-    const path = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`;
-    const biopsy = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
-    expect(biopsy.name).toBe('Take biopsy');
-    // Refused until his consent is recorded again (the tour's step before).
-    expect(TOUR.findIndex((step) => step.key === 'consent')).toBe(TOUR.findIndex((step) => step.key === 'relay-hand-over') - 1);
-    const finish = () => call('POST', `${path}/stages/${biopsy.id}/finish`, {withoutVisit: true, reason: 'Done in clinic'});
-    expect((await finish()).status).toBe(409);
-    validConsent(db());
-    expect((await finish()).status).toBe(200);
-    expect(handOver.whyNot!(db())).toMatch(/already/);
-    db().user = LAB.username;
-    const newForLab = (await call('GET', '/api/pathways/patient-pathways/search?View=NewForUs')).body.items;
-    expect(newForLab.map((p: {id: string}) => p.id)).toContain(PATHWAYS.biopsyToBook);
+  it('tells the relay in three stages, one step each (the owner, 19 November 2026)', () => {
+    expect(TOUR.filter((step) => step.part === 'story').map((step) => step.key)).toEqual(['relay-triage', 'relay-lab', 'relay-back']);
+    expect(seed().pathways.find((p) => p.id === PATHWAYS.relay)!.stages.map((s) => s.name)).toEqual(['Triage', 'Testing', 'Results appointment']);
+    expect(TOUR.map((step) => step.key)).not.toContain('timeline');
   });
 
-  it('has the notepad step copy sample notes into the pathway pinned when booking, which she can add notes to', async () => {
+  it('runs the relay: consent and Triage, the lab’s results finish Testing, then it’s back for the appointment', async () => {
+    const [triage, lab, back] = ['relay-triage', 'relay-lab', 'relay-back'].map((key) => TOUR.find((step) => step.key === key)!);
+    expect(triage.whyNot!(seed())).toBeNull();
+    expect(lab.whyNot!(seed())).toMatch(/Finish her Triage first/);
+    expect(back.whyNot!(seed())).toMatch(/hasn’t entered the results/);
+
+    startLightDemo(STAFF);
+    const path = `/api/pathways/patient-pathways/${PATHWAYS.relay}`;
+    const current = async () => (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
+    const first = await current();
+    expect(first.name).toBe('Triage');
+    const finish = () => call('POST', `${path}/stages/${first.id}/finish`, {});
+    // Refused until her consent is recorded.
+    expect((await finish()).status).toBe(409);
+    const consent = {stageId: first.id, consentFormId: CONSENT.adultForm, signedOn: today(), signedBy: 'Patient'};
+    expect((await call('POST', `/api/pathways/${PATHWAYS.relay}/consent-records`, consent)).status).toBe(201);
+    expect((await finish()).status).toBe(200);
+    expect(triage.whyNot!(db())).toMatch(/already/);
+    expect(lab.whyNot!(db())).toBeNull();
+
+    // The lab: her case is ready for its results, and authorising them finishes Testing.
+    db().user = LAB.username;
+    const caseUrl = `/api/lab-cases/${LAB_CASE_IDS.relay}`;
+    const labCase = (await call('GET', caseUrl)).body;
+    expect(labCase.canAuthorise).toBe(true);
+    expect((await call('POST', `${caseUrl}/report`, {results: 'Synthetic results.', expectedVersion: labCase.version})).status).toBe(200);
+    expect(lab.whyNot!(db())).toMatch(/already/);
+
+    // Back with Dermatology, at the Results appointment, which needs a visit.
+    db().user = STAFF.username;
+    expect(await current()).toMatchObject({name: 'Results appointment', visitRequirement: 'Required'});
+    const backFromLab = (await call('GET', '/api/pathways/patient-pathways/search?View=BackFromLab')).body.items;
+    expect(backFromLab.map((p: {id: string}) => p.id)).toContain(PATHWAYS.relay);
+    expect(back.whyNot!(db())).toBeNull();
+  });
+
+  it('has the first time for the admin and Nadia Thornbury clash with Bea Sandiford, and the team’s suggestions move on', async () => {
+    expect(TOUR.find((step) => step.key === 'team-calendar')!.steps.join(' ')).toMatch(/b\.sandiford and t\.hallworth/);
+    startLightDemo(ADMIN);
+    const availability = async (ids: string[]) =>
+      (await call('GET', `/api/calendar/availability?${ids.map((id) => `StaffUserIds=${id}`).join('&')}&From=${today()}&DurationMinutes=30`)).body;
+    const first = (await availability([ADMIN.id, STAFF.id])).suggestions[0];
+    expect(first).toBeDefined();
+    const team = await availability([ADMIN.id, STAFF.id, USERS.sandiford, USERS.hallworth]);
+    const overlapsFirst = (b: {startUtc: string; endUtc: string}) => b.startUtc < first.endUtc && b.endUtc > first.startUtc;
+    expect(team.busy.filter(overlapsFirst).map((b: {username: string}) => b.username)).toContain('b.sandiford');
+    expect(team.suggestions.length).toBeGreaterThan(0);
+    expect(team.suggestions.some(overlapsFirst)).toBe(false);
+  });
+
+  it('has the notepad step copy sample notes into the relay’s pathway, pinned in the relay, which she can add notes to', async () => {
     const step = TOUR.find((s) => s.key === 'notepad')!;
     expect(step).toMatchObject({opensNotepad: true, isNumbered: true});
     expect(step.path).toBeUndefined();
     expect(step.sampleText!.length).toBeGreaterThan(0);
     expect(step.steps.join(' ')).toMatch(/Add Note to Pathway/);
-    const pathway = seed().pathways.find((p) => p.id === PATHWAYS.biopsyToBook)!;
+    const pathway = seed().pathways.find((p) => p.id === PATHWAYS.relay)!;
     expect(step.steps.join(' ')).toContain(pathway.title);
     expect(step.steps.join(' ')).toMatch(/from its pin/);
-    expect(TOUR.find((s) => s.key === 'book')!.steps.join(' ')).toMatch(/choose Pin/);
-    expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.ellisVarden});
+    expect(TOUR.find((s) => s.key === 'relay-triage')!.steps.join(' ')).toMatch(/choose Pin/);
+    expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.leahCorrin});
     startLightDemo(STAFF);
     expect((await call('GET', `/api/pathways/patient-pathways/${pathway.id}`)).body.canAddNotes).toBe(true);
   });
@@ -208,73 +182,5 @@ describe('the Read Me tour', () => {
     expect(new Set(TOUR.map((step) => step.part)).size).toBe(parts.length);
     expect(TOUR[0]).toMatchObject({key: 'half-view', path: '/account'});
     expect(new Set(TOUR.map((step) => step.key)).size).toBe(TOUR.length);
-  });
-
-  it('tells the Dermatology story in the owner’s order', () => {
-    const story = TOUR.filter((step) => step.part === 'story').map((step) => step.key);
-    expect(story).toEqual([
-      'triage', 'branch', 'book', 'consent', 'relay-hand-over', 'relay-arrives', 'finish-stage', 'relay-back',
-      'sign-off', 'results-review', 'referral-letter', 'mdt-pathology', 'mdt',
-    ]);
-  });
-
-  it('reviews Callum Ashby’s result: Histology result waits for the sign-off, then records the outcome chosen', async () => {
-    const step = TOUR.find((s) => s.key === 'results-review')!;
-    expect(step.whyNot!(seed())).toBeNull();
-    startLightDemo(STAFF);
-    const path = `/api/pathways/patient-pathways/${PATHWAYS.backFromLab}`;
-    const stage = (await call('GET', path)).body.stages.find((s: {name: string}) => s.name === 'Histology result');
-    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {withoutVisit: true, reason: 'Results by phone', outcome: 'Benign'});
-    expect((await finish()).status).toBe(409);
-    const result = db().results.find((r) => r.id === LAB_IDS.resultToSignOff)!;
-    expect((await call('POST', `/api/results/${result.id}/sign-off`, {action: 'PatientInformed', expectedVersion: result.version})).status).toBe(200);
-    expect((await finish()).status).toBe(200);
-    const names = (await call('GET', path)).body.stages.map((s: {name: string}) => s.name);
-    expect(names).toEqual(expect.arrayContaining(['Agree care plan', 'Letter to GP and discharge']));
-    expect(step.whyNot!(db())).toMatch(/already/);
-  });
-
-  it('refers Harriet Quill to the hospital: her letter approved and sent, then Refer to hospital finishes', async () => {
-    const step = TOUR.find((s) => s.key === 'referral-letter')!;
-    expect(step.whyNot!(seed())).toBeNull();
-    startLightDemo(STAFF);
-    const path = `/api/pathways/patient-pathways/${PATHWAYS.referredToHospital}`;
-    const stage = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
-    expect(stage.name).toBe('Refer to hospital');
-    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {});
-    expect((await finish()).status).toBe(409);
-    const letterUrl = `/api/letters/${CLINICAL_IDS.onwardReferralLetter}`;
-    let letter = (await call('POST', `${letterUrl}/approve`, {expectedVersion: (await call('GET', letterUrl)).body.version})).body;
-    expect(letter.status).toBe('Approved');
-    for (const recipient of letter.recipients) {
-      const sent = await call('POST', `${letterUrl}/recipients/${recipient.id}/record-sent`, {method: 'Post', sentOn: today(), expectedVersion: letter.version});
-      expect(sent.status).toBe(200);
-      letter = sent.body;
-    }
-    expect((await finish()).status).toBe(200);
-    expect(step.whyNot!(db())).toMatch(/already/);
-    // The MDT steps after it still work on her item.
-    expect(TOUR.find((s) => s.key === 'mdt')!.whyNot!(db())).toBeNull();
-    expect(TOUR.find((s) => s.key === 'mdt-pathology')!.whyNot!(db())).toBeNull();
-  });
-
-  it('has Nora Fennick’s Take photographs wait for her photo consent', async () => {
-    const step = TOUR.find((s) => s.key === 'photo-consent')!;
-    expect(step.whyNot!(seed())).toBeNull();
-    startLightDemo(STAFF);
-    const path = `/api/pathways/patient-pathways/${PATHWAYS.photosToTake}`;
-    const stage = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
-    expect(stage.name).toBe('Take photographs');
-    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {withoutVisit: true, reason: 'Taken in clinic'});
-    expect((await finish()).status).toBe(409);
-    const recorded = await call('POST', `/api/pathways/${PATHWAYS.photosToTake}/consent-records`, {
-      stageId: stage.id,
-      consentFormId: CLINICAL_IDS.photographyConsentForm,
-      signedOn: today(),
-      signedBy: 'Patient',
-    });
-    expect(recorded.status).toBe(201);
-    expect(step.whyNot!(db())).toMatch(/already/);
-    expect((await finish()).status).toBe(200);
   });
 });

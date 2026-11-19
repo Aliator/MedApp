@@ -30,6 +30,7 @@ const TEMPLATE_IDS: Record<string, string> = {
   'Suspected skin infection': TEMPLATES.skinInfection,
   'Hair loss assessment': TEMPLATES.hairLoss,
   'Skin pigmentation assessment': TEMPLATES.pigmentation,
+  'Skin sample to the lab': TEMPLATES.skinSample,
 };
 
 /** The reviewed file's addable routes' fixed IDs, by name. */
@@ -72,9 +73,29 @@ const letterKind = (letter: string | undefined) =>
 
 const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
 
-/** Every stage of the reviewed file, its addable routes' too, in the file's order. */
+/**
+ * Not one of the owner's reviewed ten: the tour's relay, kept as short as the owner asked (19 November 2026). Triage
+ * (the seeded pathway's needs the patient's consent), the lab's Testing, then a Results appointment back in the clinic.
+ */
+const TOUR_RELAY: ReviewedTemplate = {
+  template: 'Skin sample to the lab',
+  retentionClass: 'Standard',
+  summary: 'A short route for the tour: triage, the lab’s test, then the results at an appointment.',
+  start: 'triage',
+  stages: [
+    {id: 'triage', name: 'Triage', kind: 'step', visit: 'none', next: ['testing'], snomed: '225390008 | Triage', notes: 'Triage the referral and take the sample.'},
+    {id: 'testing', name: 'Testing', owner: 'lab', kind: 'step', visit: 'none', next: ['results'], notes: 'The lab tests the sample and enters the results.'},
+    {id: 'results', name: 'Results appointment', kind: 'step', visit: 'required', next: [], endOutcome: 'discharge', notes: 'Go through the results with the patient.'},
+  ],
+  addableRoutes: [],
+};
+
+/** The templates the demo has: the reviewed ten, then the tour's relay. */
+const ALL_TEMPLATES: ReviewedTemplate[] = [...DERMATOLOGY_REVIEWED, TOUR_RELAY];
+
+/** Every stage of the templates, their addable routes' too, in order (the reviewed file's first, so their IDs stay). */
 const everyStage = (): ReviewedStage[] =>
-  DERMATOLOGY_REVIEWED.flatMap((t) => [...t.stages, ...t.addableRoutes.flatMap((r) => r.stages)]);
+  ALL_TEMPLATES.flatMap((t) => [...t.stages, ...t.addableRoutes.flatMap((r) => r.stages)]);
 
 /** The first new definition's number (`id(0xd3, n)`): after the existing library's. */
 const FIRST_DEFINITION = 0x20;
@@ -254,8 +275,8 @@ function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageD
   };
 }
 
-/** The ten reviewed Dermatology templates, owned by the Dermatology team, as the API answers them. */
+/** The ten reviewed Dermatology templates and the tour's relay, owned by the Dermatology team, as the API answers them. */
 export function dermatologyTemplates(definitions: readonly DemoStageDefinition[]): Schemas['PathwayTemplateResponse'][] {
   nextRouteNumber = 0x10;
-  return DERMATOLOGY_REVIEWED.map((template) => toTemplate(template, definitions));
+  return ALL_TEMPLATES.map((template) => toTemplate(template, definitions));
 }

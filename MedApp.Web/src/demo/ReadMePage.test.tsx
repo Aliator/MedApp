@@ -4,7 +4,7 @@ import {HalfViewsContext, InHalfPaneContext, type HalfViews} from '../components
 import {renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
 import {ADMIN, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
+import {PATHWAYS, PATIENTS} from './ids';
 import {ReadMePage} from './ReadMePage';
 import {hasSeenReadMe} from './readMeSeen';
 import {demoNavigation} from './session';
@@ -36,10 +36,11 @@ describe('ReadMePage', () => {
     expect(screen.getByText('Ravi Aldous (r.aldous)')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Three accounts'})).toBeInTheDocument();
     expect(screen.getByText(`${STAFF.fullName} (${STAFF.username})`)).toBeInTheDocument();
-    expect(screen.getByRole('heading', {name: /Triage a referral/})).toBeInTheDocument();
-    // The tour in parts: the story, then the side stories.
-    expect(screen.getByRole('heading', {name: 'The Dermatology story', level: 3})).toBeInTheDocument();
-    expect(screen.getByRole('heading', {name: 'Side story: clinical photo consent', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: /The relay, 1: consent, then finish Triage/})).toBeInTheDocument();
+    // The tour in parts: getting started, the relay, then around the app (no side stories).
+    expect(screen.getByRole('heading', {name: 'The relay', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Around the app', level: 3})).toBeInTheDocument();
+    expect(screen.queryByRole('heading', {name: /Side story/})).not.toBeInTheDocument();
     expect(screen.getByRole('heading', {name: /^1. Two pages side by side/, level: 4})).toBeInTheDocument();
     expect(screen.getByText('Real-time notifications')).toBeInTheDocument();
     // The full app's architecture, in plain words.
@@ -62,26 +63,26 @@ describe('ReadMePage', () => {
     const assign = vi.spyOn(demoNavigation, 'assign').mockImplementation(() => {});
     const {user} = renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
 
-    await user.click(await screen.findByRole('button', {name: 'Open the referral to triage it'}));
+    await user.click(await screen.findByRole('button', {name: 'Open the pathway at Triage'}));
 
-    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/referrals/${REFERRALS.dermatologyToTriage}`));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/pathways/${PATHWAYS.relay}`));
     expect(state.user).toBe(STAFF.username);
     expect(sessionStorage.getItem('medapp.halfView')).toBeNull();
   });
 
   it('explains instead of opening a record that’s gone, and says when a step was done already', async () => {
     startLightDemo(STAFF);
-    db().pathways = db().pathways.filter((p) => p.id !== PATHWAYS.histologyToFinish);
-    db().referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
+    db().patients = db().patients.filter((p) => p.id !== PATIENTS.samuelOkafor);
+    db().pathways.find((p) => p.id === PATHWAYS.relay)!.stages[0].completedAtUtc = new Date().toISOString();
     const {user, router} = renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
 
-    await user.click(await screen.findByRole('button', {name: 'Open the pathway to add a branch to'}));
+    await user.click(await screen.findByRole('button', {name: 'Open the patient to pin'}));
     expect(await screen.findByText(/isn’t in your copy of the demo any more/)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/read-me');
 
-    await user.click(screen.getByRole('button', {name: 'Open the referral to triage it'}));
-    expect(await screen.findByText(/You've triaged this referral already/)).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${REFERRALS.dermatologyToTriage}`));
+    await user.click(screen.getByRole('button', {name: 'Open the pathway at Triage'}));
+    expect(await screen.findByText(/You've finished her Triage already/)).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${PATHWAYS.relay}`));
   });
 
   it('numbers the half-view step, and opens Account Settings on the left for its fold setting', async () => {
@@ -157,9 +158,9 @@ describe('ReadMePage', () => {
       {user: asCurrentUser(ADMIN), path: '/read-me'},
     );
 
-    await user.click(await screen.findByRole('button', {name: 'Open the referral to triage it'}));
+    await user.click(await screen.findByRole('button', {name: 'Open the pathway at Triage'}));
 
-    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/referrals/${REFERRALS.dermatologyToTriage}`));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(`/pathways/${PATHWAYS.relay}`));
     expect(sessionStorage.getItem('medapp.halfView')).toBe('/read-me');
     // After the reload, the Read Me on the right is put back where the reader was.
     expect(JSON.parse(sessionStorage.getItem('medapp.readMePlace')!)).toMatchObject({position: 'right'});
@@ -213,6 +214,6 @@ describe('ReadMePage', () => {
     await user.click(screen.getByRole('button', {name: 'Copy the Notes'}));
 
     expect(await screen.findByRole('button', {name: 'Copied'})).toBeInTheDocument();
-    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Mole on the left forearm, 6 mm, as in the referral photo.', 'Biopsy explained; patient happy to go ahead.'].join('\n'));
+    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Scaly patch on the left forearm, about 3 cm, itchy for two months.', 'Results talked through; patient happy with the plan.'].join('\n'));
   });
 });
