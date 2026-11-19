@@ -811,12 +811,14 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
                     $"stage {stage.Id} needed its letter sent to be finished");
         }
 
-        var branched = await Query(db => db.PatientPathwayStages.AsNoTracking()
-            .Where(s => s.Branch != null && db.PatientPathwayStages.Any(b => b.PatientPathwayId == s.PatientPathwayId && b.ChoosesBranch && b.IsCompleted))
+        // Choice nodes (MC10b): each recorded outcome is one of the template's, and nothing is skipped for want of one.
+        var recorded = await Query(db => db.PatientPathwayStages.AsNoTracking()
+            .Where(s => s.ChoiceKind != null && s.Outcome != null)
             .ToListAsync());
-        branched.Should().NotBeEmpty();
-        branched.GroupBy(s => s.PatientPathwayId).Should().OnlyContain(g =>
-            g.GroupBy(s => s.Branch).Count(b => b.Any(s => s.SkipReason != StageSkipReason.BranchNotChosen)) == 1);
+        recorded.Should().NotBeEmpty();
+        recorded.Should().OnlyContain(s => s.Outcome == DemoPathwayKinds.BenignBranch || s.Outcome == DemoPathwayKinds.TreatmentBranch);
+        (await Query(db => db.PatientPathwayStages.AsNoTracking().CountAsync(s => s.SkipReason == StageSkipReason.BranchNotChosen)))
+            .Should().Be(0);
 
         var items = await Query(db => db.MdtItems.AsNoTracking().Include(i => i.Meeting).ToListAsync());
         items.Should().Contain(i => i.Status == MdtItemStatus.Discussed);

@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Security.Claims;
 using FluentAssertions;
 using MedApp.API.Common.Extensions;
@@ -247,6 +247,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientPathwayStagesController.RestorePatientPathwayStageDefinition 00001
         PatientPathwayStagesController.UpdatePathwayTemplate 00001
         PatientPathwayStagesController.UpdatePatientPathwayStageDefinition 00001
+        PatientPathwaysController.AddPathwayBranch 00011
         PatientPathwaysController.AddPathwayNote 00011
         PatientPathwaysController.AssignPatientPathway 00001
         PatientPathwaysController.ChangePatientPathwayStatus 00011
@@ -257,6 +258,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         PatientPathwaysController.FinishPathwayStage 00011
         PatientPathwaysController.GetPatientPathwayById 00011
         PatientPathwaysController.GetPatientPathwayLabels 00011
+        PatientPathwaysController.PickUpPathwayStage 00011
         PatientPathwaysController.ReinstatePathwayStage 00001
         PatientPathwaysController.RequestNoteDeletion 00011
         PatientPathwaysController.SearchPatientPathways 00011

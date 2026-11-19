@@ -119,6 +119,8 @@ public sealed class PatientPathwayStagesControllerTests
     {
         var request = _fixture.Create<CreatePathwayTemplateRequest>();
         request.StageOptions = null;
+        request.Links = null;
+        request.AddableBranches = null;
         var template = _fixture.Create<PathwayTemplateResponse>();
         var mediator = new RecordingMediator(_ => template);
 
@@ -137,6 +139,8 @@ public sealed class PatientPathwayStagesControllerTests
     {
         var request = _fixture.Create<UpdatePathwayTemplateRequest>();
         request.StageOptions = null;
+        request.Links = null;
+        request.AddableBranches = null;
         await ExpectOk(_fixture.Create<PathwayTemplateResponse>(),
             new UpdatePathwayTemplateCommand(RecordId, request.Name, request.TeamId, request.StageDefinitionIdsInOrder, request.ClockStopStageOrder,
                 RetentionClass: request.RetentionClass),

@@ -1,3 +1,5 @@
+using MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayBranch;
+using MedApp.Application.Pathways.PatientPathways.Commands.PickUpPathwayStage;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Identity;
@@ -119,6 +121,22 @@ public sealed class PathwayCommandsMonitoringTests : PathwayHandlerTestBase
             Skip(p.StageAt(1));
             return t.Fixture.Create<ReinstatePathwayStageHandler>().Handle(
                 new ReinstatePathwayStageCommand(p.Id, p.StageAt(1).Id, SkipDetail, Admin), t.Token);
+        });
+        yield return Case<PickUpPathwayStageHandler>(Status.InProgress, 0, (t, p) =>
+        {
+            p.StageAt(1).HandedOverFromTeamId = Guid.NewGuid();
+            return t.Fixture.Create<PickUpPathwayStageHandler>().Handle(new PickUpPathwayStageCommand(p.Id, p.StageAt(1).Id, Staff), t.Token);
+        });
+        yield return Case<AddPathwayBranchHandler>(Status.InProgress, 1, (t, p) =>
+        {
+            foreach (var stage in p.Stages)
+                stage.TemplateStageOrder = stage.StageOrder;
+            p.Plan = BranchingPlan() with
+            {
+                Branches = [new PathwayPlanBranch(Guid.NewGuid(), "Repeat", [Planned(0, PathwayDefinitionId, "Repeat")], [], true)]
+            };
+            return t.Fixture.Create<AddPathwayBranchHandler>().Handle(
+                new AddPathwayBranchCommand(p.Id, p.Plan.Branches[0].Id, p.StageAt(1).Id, "Synthetic reason.", Staff), t.Token);
         });
         yield return Case<StartPathwayStageHandler>(Status.Assigned, 0, (t, p) =>
             t.Fixture.Create<StartPathwayStageHandler>().Handle(new StartPathwayStageCommand(p.Id, p.StageAt(1).Id, Staff), t.Token));
