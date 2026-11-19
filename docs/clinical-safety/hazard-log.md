@@ -2819,7 +2819,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Possible harm.** A wrong or delayed decision. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** **MC25 (light demo, 19 Nov 2026):** the reply notification, open consults counted on the pathway's Consults section and listed on the asked team's home, and only the asking team closes; the backend follows.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 

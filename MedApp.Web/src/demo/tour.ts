@@ -3,6 +3,7 @@ import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
+import {CONSULTS} from './slices/consults';
 import {HOSPITAL_IDS} from './slices/hospitals';
 import {LAB_IDS} from './slices/lab';
 import {LAB_CASE_IDS} from './slices/labCases';
@@ -405,6 +406,25 @@ export const TOUR: TourStep[] = [
       state.mdtItems.find((i) => i.id === CLINICAL_IDS.mdtItemPresented)?.presenterUserId === LAB.id
         ? null
         : `Harriet Quill’s case has another presenter, or none, in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
+    key: 'consult',
+    title: 'A consult: Dermatology asks the lab',
+    steps: [
+      `As ${LAB.fullName}, open Felix Moreton’s pathway. It’s Dermatology’s and no sample has gone to the lab, but Dermatology asked the lab a question (a consult), so the lab reads it, read only, while the consult is open. The lab’s home lists it under Consults for the lab.`,
+      'In Consults, choose Reply and write the pathologist’s opinion. It’s kept on the pathway, and Dermatology is told (the notification never holds the question or the reply).',
+      `Then as ${STAFF.fullName}, Close Consult on the same pathway ends the lab’s reading. Ask Another Team asks a new one: a clinic or the lab, none chosen for you.`,
+    ],
+    account: LAB.username,
+    path: `/pathways/${PATHWAYS.branchToChoose}`,
+    buttonLabel: 'Open the pathway as the lab',
+    whyNot: (state) => {
+      const status = state.consults.find((c) => c.id === CONSULTS.felixToLab)?.status;
+      if (status === 'Open') return null;
+      return status === 'Replied'
+        ? `The lab has replied already in your copy of the demo: Dermatology can close it. ${RESET_HINT}`
+        : `This consult is closed in your copy of the demo, so the lab can no longer open the pathway. ${RESET_HINT}`;
+    },
   },
   {
     key: 'timeline',

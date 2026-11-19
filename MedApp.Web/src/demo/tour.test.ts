@@ -8,6 +8,7 @@ import {PATHWAYS, PATIENTS, REFERRALS, TEAMS} from './ids';
 import {seed} from './seed';
 import {LAB_CASE_IDS} from './slices/labCases';
 import {CONSENT} from './slices/clinical';
+import {CONSULTS} from './slices/consults';
 import type {DemoState} from './state';
 import {db} from './store';
 import {TOUR} from './tour';
@@ -93,6 +94,21 @@ describe('the Read Me tour', () => {
     expect(byKey('consent').whyNot!(state)).toMatch(/already/);
     expect(byKey('finish-stage').whyNot!(state)).toMatch(/already/);
     expect(byKey('book').whyNot!(state)).toMatch(/already/);
+  });
+
+  it('opens the pathway the lab was asked a consult on, readable only through it, and says when it has been answered', async () => {
+    const step = TOUR.find((s) => s.key === 'consult')!;
+    expect(step.account).toBe(LAB.username);
+    const state = seed();
+    expect(step.whyNot!(state)).toBeNull();
+    // Only the consult lets the lab read it: no sample has gone to the lab.
+    expect(state.pathwayAccess.filter((a) => a.pathwayId === PATHWAYS.branchToChoose && a.teamId === TEAMS.lab).map((a) => a.reason)).toEqual(['Consult']);
+    startLightDemo(LAB);
+    expect((await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.branchToChoose}`)).status).toBe(200);
+    state.consults.find((c) => c.id === CONSULTS.felixToLab)!.status = 'Replied';
+    expect(step.whyNot!(state)).toMatch(/replied already/);
+    state.consults.find((c) => c.id === CONSULTS.felixToLab)!.status = 'Closed';
+    expect(step.whyNot!(state)).toMatch(/closed/);
   });
 
   it('opens this morning’s MDT, at an item still to discuss', () => {

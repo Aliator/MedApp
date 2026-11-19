@@ -1,5 +1,6 @@
 import type {Schemas} from '../api/client';
 import type {ClinicalSlice} from './slices/clinical';
+import type {ConsultSlice} from './slices/consults';
 import type {HospitalSlice} from './slices/hospitals';
 import type {LabSlice} from './slices/lab';
 import type {LabCaseSlice} from './slices/labCases';
@@ -182,13 +183,16 @@ export type DemoAppointment = Schemas['AppointmentResponse'] & {teamId: string |
 /**
  * A grant to see a pathway in full (`PathwayAccess`, decision 201 of `docs/multi-clinic-plan.md`): `Owner` for the
  * pathway's own team, written with it; `StageOwner` for the lab once a stage it owns is reached (or a sample is passed
- * to it), never ended (decision 184). Kept after the pathway is deleted. The rules that read them are in `handlers/teamWalls.ts`.
+ * to it), never ended (decision 184); `Consult` for a team asked a question (MC25), read only, ended when the consult
+ * closes or is withdrawn. Kept after the pathway is deleted. The rules that read them are in `handlers/teamWalls.ts`.
  */
 export interface DemoPathwayAccess {
   pathwayId: string;
   patientId: string;
   teamId: string;
-  reason: 'Owner' | 'StageOwner';
+  reason: 'Owner' | 'StageOwner' | 'Consult';
+  /** The consult a `Consult` grant is for. */
+  consultId?: string;
   startedAtUtc: string;
   endedAtUtc: string | null;
 }
@@ -197,7 +201,7 @@ export interface DemoPathwayAccess {
  * Everything the light demo holds: the base (below) and each area's slice, each in its own file under `slices/`, with
  * its own seed function (`seed.ts` calls them).
  */
-export type DemoState = BaseState & LabSlice & ClinicalSlice & SetupSlice & HospitalSlice & LabCaseSlice;
+export type DemoState = BaseState & LabSlice & ClinicalSlice & SetupSlice & HospitalSlice & LabCaseSlice & ConsultSlice;
 
 /** A stage definition in the stage library (`PatientPathwayStageDefinitionResponse`, without its usage counts). */
 export type DemoStageDefinition = Omit<Schemas['PatientPathwayStageDefinitionResponse'], 'templateCount' | 'canBeDeleted'> & {id: string};

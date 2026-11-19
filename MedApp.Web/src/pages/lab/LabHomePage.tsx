@@ -7,11 +7,13 @@ import {Section} from '@astryxdesign/core/Section';
 import {Text} from '@astryxdesign/core/Text';
 import {useQuery, type UseQueryResult} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
+import {incomingConsultsQuery} from '../../api/consults';
 import {hospitalRequestSearchQuery, type HospitalRequestSummary} from '../../api/hospitals';
 import {labCaseSearchQuery, type LabCaseSummary, type LabCaseView} from '../../api/labCases';
 import type {PathwaySummary} from '../../api/pathways';
 import {pathwaySearchQuery, type PathwaySearch} from '../../api/search';
 import {specimenWorklistQuery, type SpecimenSummary, type SpecimenView} from '../../api/specimens';
+import {IncomingConsults} from '../../components/consults/IncomingConsults';
 import {labClockLine} from '../../components/labCases/LabClock';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
@@ -46,6 +48,7 @@ export const labHomeQueries = () => [
   labPathwaysQuery('newForUs'),
   labPathwaysQuery('ourTurn'),
   ...(['Expected', 'InLab', 'Reported'] as const).map(labSamplesQuery),
+  incomingConsultsQuery(),
 ];
 
 /** One list on the home: its title, what it holds, its rows, and where all of it is. */
@@ -144,7 +147,8 @@ const sampleRow = (at: (s: SpecimenSummary) => string | null | undefined, words:
  * surgery details** (MC20), hospital cases whose report has gone back. **To report**
  * (MC15): lab cases with every step done and "No more work" recorded. **At risk** and **Overdue** (MC19): lab cases by
  * their strict clock (the sooner of the lab's target and the hospital's date), soonest due first, each with its
- * countdown. Lists order by target dates and times only (decision 191). Every patient shown is recorded as listed, by
+ * countdown. **Consults for the lab** (MC25): other teams' open questions to the lab, oldest asked first, with Reply.
+ * Lists order by target dates and times only (decision 191). Every patient shown is recorded as listed, by
  * the endpoints.
  */
 export function LabHomePage() {
@@ -243,6 +247,7 @@ export function LabHomePage() {
           href="/lab/cases?view=AwaitingSurgeryDetails"
           row={sentRow}
         />
+        <IncomingConsults title="Consults for the lab" />
       </Grid>
     </Page>
   );
