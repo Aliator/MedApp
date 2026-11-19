@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Practices.Common;
 using MedApp.Application.Practices.Repositories;
 using MedApp.Application.Referrals.Common;
@@ -10,7 +11,8 @@ using MediatR;
 namespace MedApp.Application.Referrals.Commands.EditReferral;
 
 /// <summary>
-/// Edits a referral awaiting triage (409 once it's closed, or while its record is restricted or anonymised, or if it
+/// Edits a referral awaiting triage, by its own team (404 behind the viewer's team wall, 409 for another team's;
+/// <see cref="ReferralRepositoryExtensions.GetForChangeOrThrowAsync"/>; 409 once it's closed, or while its record is restricted or anonymised, or if it
 /// changed since the caller's version). A new team must exist and not be archived; the one it has may be. So must
 /// a new practice from the directory (none removes the link); an empty typed practice or ODS code takes its. Nothing
 /// is saved, or recorded, if nothing changed.
@@ -19,12 +21,14 @@ public sealed class EditReferralHandler(
     IReferralRepository repository,
     ITeamRepository teams,
     IPracticeRepository practices,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<EditReferralCommand, ReferralResponse>
 {
     public async Task<ReferralResponse> Handle(EditReferralCommand request, CancellationToken cancellationToken)
     {
-        var referral = await repository.GetForEditOrThrowAsync(request.ReferralId, cancellationToken);
+        var referral = await repository.GetForEditOrThrowAsync(
+            request.ReferralId, boundary, request.Actor.Teams, cancellationToken);
         ReferralWorkflow.EnsureVersion(referral, request.ExpectedVersion);
 
         var previous = referral.Team;

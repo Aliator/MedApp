@@ -35,7 +35,7 @@ public sealed class WithdrawLetterHandler(LetterRecords records, TimeProvider ti
 {
     public async Task<LetterResponse> Handle(WithdrawLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForWithdrawalAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         if (letter.Status != LetterStatus.Approved)
             throw new ConflictException(letter.Status == LetterStatus.Withdrawn
@@ -77,7 +77,7 @@ public sealed class DiscardLetterHandler(LetterRecords records, TimeProvider tim
 {
     public async Task<LetterResponse> Handle(DiscardLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         if (letter.AuthorUserId != request.Actor.UserId)
             throw new ForbiddenException(LetterWorkflow.NotAuthorMessage);

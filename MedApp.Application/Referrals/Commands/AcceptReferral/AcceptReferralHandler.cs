@@ -2,6 +2,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
@@ -24,7 +25,7 @@ namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 /// differs from the priority asked for's). Then the person assigned (if any) and whoever registered the referral are
 /// told, and the monitor runs.
 /// <para>
-/// 403 without <c>TriageReferrals</c> or membership of the referral's team, or to assign someone without
+/// 404 when it's behind the viewer's team wall (recorded); 403 without <c>TriageReferrals</c> or membership of the referral's team, or to assign someone without
 /// <c>AssignPathways</c>; 409 once it's been triaged (naming who and how), on a restricted or anonymised record, if it
 /// changed since the caller's version, or for an archived or empty template; 400 for a template of another team.
 /// </para>
@@ -37,6 +38,7 @@ public sealed class AcceptReferralHandler(
     IPermissionHolders permissionHolders,
     INotificationSender notificationSender,
     IPathwayMonitor pathwayMonitor,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<AcceptReferralCommand, PatientPathwayResponse>
 {
@@ -48,7 +50,7 @@ public sealed class AcceptReferralHandler(
     {
         var actor = request.Actor;
         var referral = await referrals.GetForTriageOrThrowAsync(
-            request.ReferralId, actor, request.ExpectedVersion, cancellationToken);
+            request.ReferralId, actor, request.ExpectedVersion, boundary, cancellationToken);
 
         var template = await stagesRepository.GetPathwayTemplateByIdAsync(request.TemplateId, cancellationToken)
                        ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");

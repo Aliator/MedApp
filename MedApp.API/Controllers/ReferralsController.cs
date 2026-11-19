@@ -63,7 +63,10 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
         return Created($"/api/referrals/{referral.Id}", referral);
     }
 
-    /// <summary>One page of referrals. By default the oldest received first, so the longest wait is at the top.</summary>
+    /// <summary>
+    /// One page of the referrals the caller may see (the team walls), optionally one team's (<c>TeamId</c>, the clinic
+    /// picker). By default the oldest received first, so the longest wait is at the top.
+    /// </summary>
     [HttpGet("search")]
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(PagedResponse<ReferralSummaryResponse>), StatusCodes.Status200OK)]
@@ -82,17 +85,19 @@ public sealed class ReferralsController(IMediator mediator) : ControllerBase
             User.GetUserId(),
             request.BreachedOnly,
             request.Paused,
-            request.ClockStopped), ct));
+            request.ClockStopped,
+            request.TeamId,
+            User.ToTeamScope()), ct));
 
     /// <summary>
-    /// How many referrals await triage in the caller's teams (every team's, if they belong to none), for the
-    /// side nav. A count only: it names no patients, so it records nothing.
+    /// How many referrals await triage that the caller may see (their teams'; an admin's, every team's), for the side
+    /// nav. A count only: it names no patients, so it records nothing.
     /// </summary>
     [HttpGet("awaiting-triage/count")]
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(ReferralCountResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CountAwaitingTriage(CancellationToken ct) =>
-        Ok(await mediator.Send(new CountReferralsAwaitingTriageQuery(User.GetUserId()), ct));
+        Ok(await mediator.Send(new CountReferralsAwaitingTriageQuery(User.GetUserId(), User.ToTeamScope()), ct));
 
     /// <summary>One referral, with its history. Opening it is recorded (<c>ReferralViewed</c>).</summary>
     [HttpGet("{id:guid}")]

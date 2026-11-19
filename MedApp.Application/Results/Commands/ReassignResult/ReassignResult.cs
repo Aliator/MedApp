@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Common;
@@ -33,8 +34,13 @@ public sealed class ReassignResultValidator : AbstractValidator<ReassignResultCo
 /// record is anonymised, or if it's changed since (allowed while restricted). The new one is told
 /// (<c>ResultReassigned</c>) unless they took it over themselves.
 /// </summary>
+/// <remarks>
+/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; only
+/// its own team moves it on (a 409 for an admin or the lab, who read it).
+/// </remarks>
 public sealed class ReassignResultHandler(
     IResultRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     IPermissionHolders permissionHolders,
     INotificationSender notifications,
@@ -44,6 +50,8 @@ public sealed class ReassignResultHandler(
     public async Task<ResultResponse> Handle(ReassignResultCommand request, CancellationToken cancellationToken)
     {
         var result = await repository.GetForUpdateOrThrowAsync(request.ResultId, cancellationToken);
+        // Behind the viewer's team wall: a 404, as for one that isn't there (recorded).
+        await boundary.EnsureCanChangeResultAsync(result, request.Actor.Teams, cancellationToken);
         if (ResultWorkflow.WhyCantProgress(result) is { } why)
             throw new ConflictException(why);
         ResultWorkflow.EnsureVersion(result, request.ExpectedVersion);

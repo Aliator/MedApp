@@ -259,4 +259,26 @@ public sealed class CalendarRepository(MedAppDbContext context) : ICalendarRepos
     }
 
     public async Task SaveAsync(CancellationToken ct) => await context.SaveChangesAsync(ct);
+
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlySet<Guid>>> GetTeamsOfStaffAsync(
+        IReadOnlyCollection<Guid> staffUserIds, CancellationToken ct)
+    {
+        var ids = staffUserIds.Distinct().ToList();
+        var memberships = ids.Count == 0
+            ? []
+            : await context.TeamMemberships.AsNoTracking()
+                .Where(m => ids.Contains(m.UserId))
+                .Select(m => new { m.UserId, m.TeamId })
+                .ToListAsync(ct);
+
+        return ids.ToDictionary(
+            id => id,
+            id => (IReadOnlySet<Guid>)memberships.Where(m => m.UserId == id).Select(m => m.TeamId).ToHashSet());
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetTeamMemberIdsAsync(Guid teamId, CancellationToken ct) =>
+        await context.TeamMemberships.AsNoTracking()
+            .Where(m => m.TeamId == teamId)
+            .Select(m => m.UserId)
+            .ToListAsync(ct);
 }

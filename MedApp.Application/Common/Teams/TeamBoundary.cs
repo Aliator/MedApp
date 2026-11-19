@@ -55,6 +55,18 @@ public sealed class TeamBoundary(
             throw await RefuseAsync(targetKind, targetId, notFoundMessage, ct);
     }
 
+    public async Task<TeamAccessKind> EnsureRecordVisibleAsync(
+        string targetKind, Guid targetId, Guid teamId, Guid? pathwayId, TeamScope scope, string notFoundMessage, CancellationToken ct)
+    {
+        if (scope.IsMember(teamId))
+            return TeamAccessKind.Owner;
+        if (pathwayId is { } id && await GetPathwayAccessAsync(id, scope, ct) is { } access)
+            return access;
+        if (scope.SeesAllTeams)
+            return scope.IsSystem ? TeamAccessKind.System : TeamAccessKind.Admin;
+        throw await RefuseAsync(targetKind, targetId, notFoundMessage, ct);
+    }
+
     public async Task EnsureCanChangeTeamAsync(Guid teamId, TeamScope scope, string what, CancellationToken ct)
     {
         if (!TeamAccess.CanChangeTeam(teamId, scope))

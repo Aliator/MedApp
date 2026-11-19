@@ -110,7 +110,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         CalendarController.GetCalendar 00011
         CalendarController.GetStaff 00011
         CalendarController.GetStaffHours 00011
-        CalendarController.GetTeamCalendar 00001
+        CalendarController.GetTeamCalendar 00011
         CalendarController.GetWeekTemplate 00011
         CalendarController.RemoveTemplateBlockForDay 00011
         CalendarController.SetStaffHours 00011

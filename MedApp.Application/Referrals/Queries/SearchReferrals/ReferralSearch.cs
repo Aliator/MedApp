@@ -1,5 +1,7 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 
@@ -63,16 +65,40 @@ public static class ReferralSearch
             used.Add("paused");
         if (query.ClockStopped is not null)
             used.Add("clockStopped");
+        if (query.TeamId is not null)
+            used.Add("teamId");
         return used;
     }
 
     /// <summary>
-    /// Referrals matching every filter given. <paramref name="teamIds"/> is the teams to keep (from the query,
-    /// or the viewer's own for "mine"), or null for every one. The clock's filters count to <paramref name="today"/> (UK).
+    /// The referrals a viewer may see (the team walls, MC5; the light demo's <c>canSeeRecord</c>): their current team is
+    /// one of the viewer's, or their pathway (once accepted) is seen in full; every one for an admin or the system.
+    /// <paramref name="grants"/> is the grants table, needed unless the scope sees every team.
+    /// </summary>
+    public static IQueryable<Referral> Visible(
+        this IQueryable<Referral> referrals, TeamScope scope, IQueryable<PathwayAccess>? grants) =>
+        scope.SeesAllTeams
+            ? referrals
+            : referrals.Where(TeamAccess.ByPathway<Referral>(
+                scope, grants ?? throw new ArgumentNullException(nameof(grants)), r => r.PathwayId, r => r.TeamId));
+
+    /// <summary>
+    /// Referrals the viewer may see (<see cref="Visible"/>) matching every filter given. <paramref name="teamIds"/> is
+    /// the teams to keep (from the query, or the viewer's own for "mine"), or null for every one; the query's
+    /// <c>TeamId</c> (the clinic picker) narrows to that team. The clock's filters count to <paramref name="today"/> (UK).
+    /// <paramref name="grants"/> is the grants table, needed unless the viewer sees every team.
     /// </summary>
     public static IQueryable<Referral> Filter(
-        this IQueryable<Referral> referrals, SearchReferralsQuery query, IReadOnlyCollection<Guid>? teamIds, DateOnly today = default)
+        this IQueryable<Referral> referrals,
+        SearchReferralsQuery query,
+        IReadOnlyCollection<Guid>? teamIds,
+        DateOnly today = default,
+        IQueryable<PathwayAccess>? grants = null)
     {
+        referrals = referrals.Visible(query.Teams, grants);
+        if (query.TeamId is { } picked)
+            referrals = referrals.Where(r => r.TeamId == picked);
+
         // The same rules as WaitingClock's, in a form EF can translate.
         if (query.BreachedOnly)
             referrals = referrals.Where(r => (r.StoppedOn ?? r.PausedSinceOn ?? today) > r.TargetOn);

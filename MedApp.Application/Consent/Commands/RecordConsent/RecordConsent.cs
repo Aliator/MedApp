@@ -2,6 +2,7 @@ using FluentValidation;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -42,10 +43,12 @@ public sealed class RecordConsentValidator : AbstractValidator<RecordConsentComm
 /// now (<see cref="ConsentWorkflow.WhyCantRecord"/>: the record can change, the pathway is open, the stage still to
 /// do); 400 for an archived or unknown form, a signed date in the future or over a year back, or a scan that isn't a
 /// live file on the pathway. Saved with its <c>ConsentRecorded</c> audit entry. <b>Nothing is assessed</b>: MedApp
-/// records what the clinician states.
+/// records what the clinician states. Only the pathway's own team records consent on it: behind the viewer's team wall
+/// a 404 (recorded), seen but another team's a 409 (<see cref="TeamWalls.NotYourTeams"/>).
 /// </summary>
 public sealed class RecordConsentHandler(
     IPatientPathwayRepository pathways,
+    ITeamBoundary boundary,
     IConsentRepository repository,
     IIdentityReadService identity,
     TimeProvider timeProvider)
@@ -56,7 +59,9 @@ public sealed class RecordConsentHandler(
     public async Task<ConsentRecordResponse> Handle(RecordConsentCommand request, CancellationToken cancellationToken)
     {
         var pathway = await pathways.GetByIdAsync(request.PathwayId, cancellationToken)
-                      ?? throw new NotFoundException($"Pathway '{request.PathwayId}' was not found.");
+                      ?? throw new NotFoundException(PathwayRepositoryExtensions.NotFoundMessage(request.PathwayId));
+        await boundary.EnsureCanChangePathwayAsync(
+            pathway, request.Actor.Teams, PathwayRepositoryExtensions.NotFoundMessage(request.PathwayId), cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
         if (ConsentWorkflow.WhyCantRecord(pathway, stage) is { } why)

@@ -208,7 +208,7 @@ public sealed class MeetingTests : IntegrationTest
     }
 
     [Test]
-    public async Task Meetings_AsStaff_WritesReturn403AndTheTeamViewAndAvailabilityToo()
+    public async Task Meetings_AsStaff_WritesReturn403AndAvailabilityToo()
     {
         var meeting = await CreateMeetingAsync(UkAt(_day, 9), UkAt(_day, 10), _staff.UserId);
         var client = _staff.Client;
@@ -218,12 +218,13 @@ public sealed class MeetingTests : IntegrationTest
             await PostMeetingAsync(client, Meeting(UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)),
             await client.PutAsJsonAsync($"/api/calendar/meetings/{meeting.Id}", Change(meeting, UkAt(_day, 11), UkAt(_day, 12), _staff.UserId)),
             await client.DeleteAsync($"/api/calendar/meetings/{meeting.Id}"),
-            await client.GetAsync($"/api/calendar/team?date={_day:yyyy-MM-dd}"),
             await client.GetAsync($"/api/calendar/availability?staffUserIds={_staff.UserId}&from={_day:yyyy-MM-dd}&to={_day:yyyy-MM-dd}&durationMinutes=30"),
         };
 
         refused.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.Forbidden));
         await (await client.GetAsync($"/api/calendar/meetings/{meeting.Id}")).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        // A team's calendar is anyone's (MC11).
+        await (await client.GetAsync($"/api/calendar/team?date={_day:yyyy-MM-dd}")).ShouldHaveStatusAsync(HttpStatusCode.OK);
     }
 
     [Test]

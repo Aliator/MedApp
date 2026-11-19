@@ -23,6 +23,7 @@ public sealed class ReferralQueriesTests
     private Mock<IReferralRepository> _repository = null!;
     private Mock<ITeamRepository> _teams = null!;
     private RecordingActivityLog _activity = null!;
+    private GrantsTeamBoundary _walls = null!;
     private CancellationTokenSource _cts = null!;
 
     [SetUp]
@@ -32,6 +33,7 @@ public sealed class ReferralQueriesTests
         _teams = new Mock<ITeamRepository>();
         _teams.Setup(s => s.GetForUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _activity = new RecordingActivityLog();
+        _walls = new GrantsTeamBoundary(_activity);
         _cts = new CancellationTokenSource();
     }
 
@@ -49,21 +51,21 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
         _repository.Setup(r => r.CountLettersAsync(referral.Id, _cts.Token)).ReturnsAsync(2);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
+        var response = await new GetReferralByIdHandler(_repository.Object, _walls.Boundary, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Registrar), _cts.Token);
 
         response.LetterCount.Should().Be(2);
         var view = _activity.SingleViews.Single();
         view.Action.Should().Be(ActivityAction.ReferralViewed);
         view.PatientId.Should().Be(referral.PatientId);
-        view.Details.Should().Be($"{{\"referralId\":\"{referral.Id}\"}}");
+        view.Details.Should().Be($"{{\"referralId\":\"{referral.Id}\",\"access\":\"System\"}}");
         _activity.Tokens.Should().Equal(_cts.Token);
     }
 
     [Test]
     public async Task GetById_Unknown_IsNotFoundAndRecordsNothing()
     {
-        var act = () => new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
+        var act = () => new GetReferralByIdHandler(_repository.Object, _walls.Boundary, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(Guid.NewGuid(), Registrar), _cts.Token);
 
         await act.Should().ThrowAsync<NotFoundException>();
@@ -137,7 +139,7 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
         _repository.Setup(r => r.IsTeamMemberAsync(Triager.UserId, referral.TeamId, _cts.Token)).ReturnsAsync(true);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
+        var response = await new GetReferralByIdHandler(_repository.Object, _walls.Boundary, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Triager), _cts.Token);
 
         response.CanTriage.Should().BeTrue();
@@ -150,7 +152,7 @@ public sealed class ReferralQueriesTests
         _repository.Setup(r => r.GetByIdAsync(referral.Id, _cts.Token)).ReturnsAsync(referral);
         _repository.Setup(r => r.GetHistoryAsync(referral.Id, _cts.Token)).ReturnsAsync([]);
 
-        var response = await new GetReferralByIdHandler(_repository.Object, _activity, new FixedTimeProvider(NowUtc))
+        var response = await new GetReferralByIdHandler(_repository.Object, _walls.Boundary, _activity, new FixedTimeProvider(NowUtc))
             .Handle(new GetReferralByIdQuery(referral.Id, Registrar), _cts.Token);
 
         response.CanTriage.Should().BeFalse();
@@ -184,22 +186,24 @@ public sealed class ReferralQueriesTests
     }
 
     [Test]
-    public async Task Count_InTheViewersTeams_OrEveryOneWhenTheyHaveNone_RecordingNothing()
+    public async Task Count_OnlyWhatTheViewerMaySee_InTheirTeamsOrAnAdminsEveryTeam_RecordingNothing()
     {
-        _repository.Setup(r => r.CountAwaitingTriageAsync(null, _cts.Token)).ReturnsAsync(9);
-        var handler = new CountReferralsAwaitingTriageHandler(_repository.Object, _teams.Object);
+        var mine = TeamsTestConstants.CreateTeam();
+        var member = GrantsTeamBoundary.MemberOf(Registrar.UserId, mine.Id);
+        var admin = GrantsTeamBoundary.AdminScope(Registrar.UserId);
+        _repository.Setup(r => r.CountAwaitingTriageAsync(admin, _cts.Token)).ReturnsAsync(9);
+        _repository.Setup(r => r.CountAwaitingTriageAsync(member, _cts.Token)).ReturnsAsync(3);
+        var handler = new CountReferralsAwaitingTriageHandler(_repository.Object);
 
-        var all = await handler.Handle(new CountReferralsAwaitingTriageQuery(Registrar.UserId), _cts.Token);
+        var all = await handler.Handle(new CountReferralsAwaitingTriageQuery(Registrar.UserId, admin), _cts.Token);
         all.Count.Should().Be(9);
         all.InYourTeams.Should().BeFalse();
 
-        var mine = TeamsTestConstants.CreateTeam();
-        GivenMembership(mine);
-        _repository.Setup(r => r.CountAwaitingTriageAsync(It.Is<IReadOnlyCollection<Guid>?>(ids => ids != null && ids.Contains(mine.Id)), _cts.Token))
-            .ReturnsAsync(3);
-        var yours = await handler.Handle(new CountReferralsAwaitingTriageQuery(Registrar.UserId), _cts.Token);
+        var yours = await handler.Handle(new CountReferralsAwaitingTriageQuery(Registrar.UserId, member), _cts.Token);
         yours.Count.Should().Be(3);
         yours.InYourTeams.Should().BeTrue();
+        _activity.Recorded.Should().BeEmpty();
+        _activity.Views.Should().BeEmpty();
     }
 
     [Test]

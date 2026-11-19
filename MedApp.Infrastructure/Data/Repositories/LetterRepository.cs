@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Letters.Queries.SearchLetters;
 using MedApp.Application.Letters.Repositories;
@@ -59,7 +60,7 @@ public sealed class LetterRepository(MedAppDbContext context) : ILetterRepositor
 
     public async Task<PagedResult<LetterRow>> SearchAsync(SearchLettersQuery query, CancellationToken ct)
     {
-        var letters = LetterSearch.Apply(context.Letters.AsNoTracking(), query, context.Patients.AsNoTracking());
+        var letters = LetterSearch.Apply(context.Letters.AsNoTracking(), query, context.Patients.AsNoTracking(), context.PathwayAccess);
         var total = await letters.CountAsync(ct);
 
         var page = await letters
@@ -97,11 +98,12 @@ public sealed class LetterRepository(MedAppDbContext context) : ILetterRepositor
         return new PagedResult<LetterRow>(rows, total);
     }
 
-    public async Task<(int ToApprove, int ToSend)> CountAsync(Guid viewerId, CancellationToken ct)
+    public async Task<(int ToApprove, int ToSend)> CountAsync(Guid viewerId, TeamScope scope, CancellationToken ct)
     {
-        var toApprove = await context.Letters.CountAsync(
+        var visible = LetterSearch.Visible(context.Letters, scope, context.PathwayAccess);
+        var toApprove = await visible.CountAsync(
             l => l.Status == LetterStatus.AwaitingApproval && l.ApproverUserId == viewerId, ct);
-        var toSend = await LetterSearch.ToSend(context.Letters).CountAsync(ct);
+        var toSend = await LetterSearch.ToSend(visible).CountAsync(ct);
         return (toApprove, toSend);
     }
 

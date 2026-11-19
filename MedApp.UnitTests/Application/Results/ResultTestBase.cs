@@ -24,6 +24,9 @@ public abstract class ResultTestBase
     protected Mock<INotificationSender> Notifications { get; private set; } = null!;
     protected FixedTimeProvider Clock { get; } = new(PathwaysTestConstants.Now);
 
+    /// <summary>The team walls (the real boundary over a list of grants); actors without a scope pass it.</summary>
+    protected TeamWallsTestBoundary Walls { get; private set; } = null!;
+
     protected List<Result> Added { get; } = [];
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
     protected List<Notification> Sent { get; } = [];
@@ -37,6 +40,7 @@ public abstract class ResultTestBase
     public void SetUpResultMocks()
     {
         Cts = new CancellationTokenSource();
+        Walls = new TeamWallsTestBoundary();
         Added.Clear();
         SavedAudit.Clear();
         Sent.Clear();

@@ -29,7 +29,8 @@ public sealed class ResultsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
     /// One page of results: awaiting the caller's sign-off, everyone's, needing a clinician (oldest report first),
-    /// signed off (newest first), or all of a pathway's or patient's. Each patient shown is recorded as listed.
+    /// signed off (newest first), or all of a pathway's or patient's; only those the caller's teams may see, narrowed to
+    /// one of them by <c>TeamId</c> (an admin's to any team; another's is a 400). Each patient shown is recorded as listed.
     /// </summary>
     [HttpGet("search")]
     [RequirePermission(Permission.ViewPatients)]
@@ -38,14 +39,17 @@ public sealed class ResultsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> SearchResults([FromQuery] SearchResultsRequest request, CancellationToken ct) =>
         Ok(await mediator.Send(new SearchResultsQuery(
             request.Page, request.PageSize, request.View, request.TeamId, request.PathwayId, request.PatientId,
-            User.ToPathwayActor().UserId, request.Search, request.Sort, request.Ascending), ct));
+            User.ToPathwayActor().UserId, request.Search, request.Sort, request.Ascending, User.ToTeamScope()), ct));
 
-    /// <summary>How many results await the caller's sign-off, for the side nav. Names no patient, so records nothing.</summary>
+    /// <summary>
+    /// How many results await the caller's sign-off (of those their teams may see), for the side nav. Names no patient,
+    /// so records nothing.
+    /// </summary>
     [HttpGet("count")]
     [RequirePermission(Permission.ViewPatients)]
     [ProducesResponseType(typeof(ResultCountResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CountResults(CancellationToken ct) =>
-        Ok(await mediator.Send(new CountResultsQuery(User.ToPathwayActor().UserId), ct));
+        Ok(await mediator.Send(new CountResultsQuery(User.ToPathwayActor().UserId, User.ToTeamScope()), ct));
 
     /// <summary>One result. Opening it is recorded (<c>ResultViewed</c>).</summary>
     [HttpGet("{id:guid}")]

@@ -44,18 +44,26 @@ public static class PathwayInsightsQueries
     /// <summary>Where a details change's old target date is: a UK day, <c>yyyy-MM-dd</c> (<c>UpdatePatientPathwayHandler</c>).</summary>
     public const string DueDateFromPath = "$.changes.dueDate.from";
 
-    /// <summary>Only pathways in the scope: made from its template and in its team, for each it names.</summary>
+    /// <summary>
+    /// Only pathways in the scope: made from its template, in its team, and in one of its teams (the viewer's, the team
+    /// walls), for each it names.
+    /// </summary>
     public static IQueryable<PatientPathway> InScope(this IQueryable<PatientPathway> pathways, InsightsScope scope)
     {
         if (scope.TemplateId is { } templateId)
             pathways = pathways.Where(p => p.TemplateId == templateId);
         if (scope.TeamId is { } teamId)
             pathways = pathways.Where(p => p.TeamId == teamId);
+        if (scope.TeamIds is { } teamIds)
+        {
+            var ids = teamIds.ToList();
+            pathways = pathways.Where(p => ids.Contains(p.TeamId));
+        }
         return pathways;
     }
 
     /// <summary>
-    /// Only entries about pathways in the scope, when it names a template or team (deleted pathways then drop out,
+    /// Only entries about pathways in the scope, when it names a template or teams (deleted pathways then drop out,
     /// as the audit log keeps neither).
     /// </summary>
     public static IQueryable<PatientPathwayAuditEntry> InScope(

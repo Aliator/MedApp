@@ -19,7 +19,7 @@ public sealed class GetMdtMeetingsHandler(
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var rows = await repository.GetMeetingsAsync(
-            request.TeamId, now.AddDays(-DaysBack), now.AddDays(DaysAhead), cancellationToken);
+            request.TeamId, now.AddDays(-DaysBack), now.AddDays(DaysAhead), request.Teams, cancellationToken);
         var usernames = await identityReadService.GetUsernamesByIdAsync(
             rows.SelectMany(r => r.Meeting.Attendees.Select(a => a.StaffUserId)).Distinct(), cancellationToken);
         return rows.Select(r => MdtMapper.ToResponse(r, usernames)).ToList();
