@@ -324,6 +324,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 **MC29. Phase 3 demo data** (M). Last.
 - **Full demo:** Dermatology patients on every route, one going to the lab and back, one at a cross-clinic MDT, one consult, photos with consent.
 - **Light demo:** the tour's Dermatology story, start to end, across the three accounts.
+- **Done (light demo, 19 Nov):** the tour in parts (getting started, the Dermatology story from referral to MDT, side stories, around the app); seed 24 adds Nora Fennick at Take photographs and moves the hospital's two "centre patient" cases from Ellis Varden to Samuel Okafor. Full demo left for the backend stage.
 
 ## 7. Stored numbers
 

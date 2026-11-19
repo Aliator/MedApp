@@ -7,11 +7,13 @@ import {PINS_KEY} from '../components/navigation/pins';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS} from './ids';
 import {seed} from './seed';
 import {LAB_CASE_IDS} from './slices/labCases';
-import {CONSENT} from './slices/clinical';
+import {CLINICAL_IDS, CONSENT} from './slices/clinical';
+import {LAB_IDS} from './slices/lab';
 import {CONSULTS} from './slices/consults';
 import type {DemoState} from './state';
 import {db} from './store';
-import {TOUR} from './tour';
+import {today} from './time';
+import {TOUR, TOUR_PARTS} from './tour';
 
 /** Every page in the app's route tree, as a pattern (`/pathways/$id` matches `/pathways/<any id>`). */
 function routePatterns(): RegExp[] {
@@ -196,5 +198,83 @@ describe('the Read Me tour', () => {
     } finally {
       appSettings.set(PINS_KEY, null);
     }
+  });
+
+  it('keeps each part’s steps together, in the parts’ order, with the owner’s first steps first', () => {
+    const parts = TOUR_PARTS.map((p) => p.key);
+    const order = TOUR.map((step) => parts.indexOf(step.part));
+    expect(order.every((n) => n >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(new Set(TOUR.map((step) => step.part)).size).toBe(parts.length);
+    expect(TOUR[0]).toMatchObject({key: 'half-view', path: '/account'});
+    expect(new Set(TOUR.map((step) => step.key)).size).toBe(TOUR.length);
+  });
+
+  it('tells the Dermatology story in the owner’s order', () => {
+    const story = TOUR.filter((step) => step.part === 'story').map((step) => step.key);
+    expect(story).toEqual([
+      'triage', 'branch', 'book', 'consent', 'relay-hand-over', 'relay-arrives', 'finish-stage', 'relay-back',
+      'sign-off', 'results-review', 'referral-letter', 'mdt-pathology', 'mdt',
+    ]);
+  });
+
+  it('reviews Callum Ashby’s result: Histology result waits for the sign-off, then records the outcome chosen', async () => {
+    const step = TOUR.find((s) => s.key === 'results-review')!;
+    expect(step.whyNot!(seed())).toBeNull();
+    startLightDemo(STAFF);
+    const path = `/api/pathways/patient-pathways/${PATHWAYS.backFromLab}`;
+    const stage = (await call('GET', path)).body.stages.find((s: {name: string}) => s.name === 'Histology result');
+    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {withoutVisit: true, reason: 'Results by phone', outcome: 'Benign'});
+    expect((await finish()).status).toBe(409);
+    const result = db().results.find((r) => r.id === LAB_IDS.resultToSignOff)!;
+    expect((await call('POST', `/api/results/${result.id}/sign-off`, {action: 'PatientInformed', expectedVersion: result.version})).status).toBe(200);
+    expect((await finish()).status).toBe(200);
+    const names = (await call('GET', path)).body.stages.map((s: {name: string}) => s.name);
+    expect(names).toEqual(expect.arrayContaining(['Agree care plan', 'Letter to GP and discharge']));
+    expect(step.whyNot!(db())).toMatch(/already/);
+  });
+
+  it('refers Harriet Quill to the hospital: her letter approved and sent, then Refer to hospital finishes', async () => {
+    const step = TOUR.find((s) => s.key === 'referral-letter')!;
+    expect(step.whyNot!(seed())).toBeNull();
+    startLightDemo(STAFF);
+    const path = `/api/pathways/patient-pathways/${PATHWAYS.referredToHospital}`;
+    const stage = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
+    expect(stage.name).toBe('Refer to hospital');
+    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {});
+    expect((await finish()).status).toBe(409);
+    const letterUrl = `/api/letters/${CLINICAL_IDS.onwardReferralLetter}`;
+    let letter = (await call('POST', `${letterUrl}/approve`, {expectedVersion: (await call('GET', letterUrl)).body.version})).body;
+    expect(letter.status).toBe('Approved');
+    for (const recipient of letter.recipients) {
+      const sent = await call('POST', `${letterUrl}/recipients/${recipient.id}/record-sent`, {method: 'Post', sentOn: today(), expectedVersion: letter.version});
+      expect(sent.status).toBe(200);
+      letter = sent.body;
+    }
+    expect((await finish()).status).toBe(200);
+    expect(step.whyNot!(db())).toMatch(/already/);
+    // The MDT steps after it still work on her item.
+    expect(TOUR.find((s) => s.key === 'mdt')!.whyNot!(db())).toBeNull();
+    expect(TOUR.find((s) => s.key === 'mdt-pathology')!.whyNot!(db())).toBeNull();
+  });
+
+  it('has Nora Fennick’s Take photographs wait for her photo consent', async () => {
+    const step = TOUR.find((s) => s.key === 'photo-consent')!;
+    expect(step.whyNot!(seed())).toBeNull();
+    startLightDemo(STAFF);
+    const path = `/api/pathways/patient-pathways/${PATHWAYS.photosToTake}`;
+    const stage = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
+    expect(stage.name).toBe('Take photographs');
+    const finish = () => call('POST', `${path}/stages/${stage.id}/finish`, {withoutVisit: true, reason: 'Taken in clinic'});
+    expect((await finish()).status).toBe(409);
+    const recorded = await call('POST', `/api/pathways/${PATHWAYS.photosToTake}/consent-records`, {
+      stageId: stage.id,
+      consentFormId: CLINICAL_IDS.photographyConsentForm,
+      signedOn: today(),
+      signedBy: 'Patient',
+    });
+    expect(recorded.status).toBe(201);
+    expect(step.whyNot!(db())).toMatch(/already/);
+    expect((await finish()).status).toBe(200);
   });
 });

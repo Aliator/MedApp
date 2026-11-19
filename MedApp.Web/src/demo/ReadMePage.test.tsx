@@ -37,6 +37,10 @@ describe('ReadMePage', () => {
     expect(screen.getByRole('heading', {name: 'Three accounts'})).toBeInTheDocument();
     expect(screen.getByText(`${STAFF.fullName} (${STAFF.username})`)).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: /Triage a referral/})).toBeInTheDocument();
+    // The tour in parts: the story, then the side stories.
+    expect(screen.getByRole('heading', {name: 'The Dermatology story', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'Side story: clinical photo consent', level: 3})).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: /^1. Two pages side by side/, level: 4})).toBeInTheDocument();
     expect(screen.getByText('Real-time notifications')).toBeInTheDocument();
     // The full app's architecture, in plain words.
     expect(screen.getByText('How the full app is built')).toBeInTheDocument();

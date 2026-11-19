@@ -3,7 +3,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
-import {Text} from '@astryxdesign/core/Text';
+import {Heading, Text} from '@astryxdesign/core/Text';
 import {useClipboard} from '@astryxdesign/core/hooks';
 import {useNavigate} from '@tanstack/react-router';
 import {useContext, useEffect, useRef, useState} from 'react';
@@ -22,7 +22,7 @@ import {PLACE_ATTRIBUTE, rememberReadMePlace, restoreReadMePlace} from './readMe
 import {markReadMeSeen, READ_ME_PATH} from './readMeSeen';
 import {resetDemo, switchAccount} from './session';
 import {db} from './store';
-import {NOT_IN_THE_LIGHT_VERSION, TOUR, type TourStep} from './tour';
+import {NOT_IN_THE_LIGHT_VERSION, TOUR, TOUR_PARTS, type TourPart, type TourStep} from './tour';
 
 /** The IDs in a path (`/pathways/<id>`), by the kind of record the page before them names. */
 const RECORDS: Record<string, (id: string) => boolean> = {
@@ -59,6 +59,17 @@ function SampleText({lines}: {lines: string[]}) {
           onClick={() => void copy(lines.join('\n'))}
         />
       </HStack>
+    </VStack>
+  );
+}
+
+/** A part of the tour's title, with its line if it has one. */
+function TourPartHeading({part}: {part: TourPart}) {
+  const {title, intro}: {title: string; intro?: string} = TOUR_PARTS.find((p) => p.key === part)!;
+  return (
+    <VStack gap={1}>
+      <Heading level={3}>{title}</Heading>
+      {intro && <Text type="body">{intro}</Text>}
     </VStack>
   );
 }
@@ -206,10 +217,12 @@ export function ReadMePage() {
               </Text>
               {TOUR.map((step, i) => (
                 <VStack key={step.key} gap={2} {...{[PLACE_ATTRIBUTE]: step.key}}>
-                  <Text type="body" weight="semibold" as="h3">
+                  {/* A part's title (and its line) above its first step. */}
+                  {step.part !== TOUR[i - 1]?.part && <TourPartHeading part={step.part} />}
+                  <Heading level={4}>
                     {`${i + 1}. ${step.title}`}
                     {step.account ? ` (as ${accountLabel(personByUsername(step.account) ?? ADMIN)})` : ''}
-                  </Text>
+                  </Heading>
                   <List listStyle={step.isNumbered ? 'decimal' : 'disc'} edge="flush" density="compact">
                     {/* Each as text, so a long one wraps (a plain string label is cut to one line). */}
                     {step.steps.map((line) => (
