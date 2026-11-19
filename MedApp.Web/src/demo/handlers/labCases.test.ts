@@ -1,5 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, LAB, STAFF} from '../accounts';
+import {PATHWAYS} from '../ids';
 import {HOSPITAL_REQUESTS} from '../slices/hospitals';
 import {LAB_TESTS, SPECIMENS} from '../slices/lab';
 import {LAB_CASES} from '../slices/labCases';
@@ -12,9 +13,11 @@ describe('the light demo’s lab cases (MC15)', () => {
   it('lists the lab’s cases by tab, and a clinic only its own clinic’s', async () => {
     startLightDemo(LAB);
     const open = (await call('POST', '/api/lab-cases/search', {view: 'Open'})).body;
-    // Five worked, and two lab stages' cases waiting for their samples (MC16: Aisha's two).
-    expect(open.totalCount).toBe(7);
-    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(2);
+    // Five worked, and a lab stage's case waiting for its sample (MC16: Aisha's first; her second's asked for a repeat).
+    expect(open.totalCount).toBe(6);
+    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(1);
+    const repeats = (await call('POST', '/api/lab-cases/search', {view: 'RepeatRequested'})).body;
+    expect(repeats.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.aishaBiopsy]);
     const toReport = (await call('POST', '/api/lab-cases/search', {view: 'ToReport'})).body;
     expect(toReport.items.map((c: {id: string}) => c.id).sort()).toEqual([LAB_CASES.ilonaBlood, LAB_CASES.priyaBiopsy].sort());
     expect(toReport.items.find((c: {id: string}) => c.id === LAB_CASES.ilonaBlood)).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
@@ -104,6 +107,20 @@ describe('the light demo’s lab cases (MC15)', () => {
     const told = db().notifications.find((n) => n.kind === 'RepeatSampleRequested' && n.subjectId === sample.id)!;
     expect(told.userId).toBe(STAFF.id);
     expect(told.message).not.toContain('Too little');
+  });
+
+  it('seeds a repeat requested as the outcome leaves one: the sample rejected, the stage reopened, the clinic told (MC22)', async () => {
+    startLightDemo(LAB);
+    const c = await caseOf(LAB_CASES.aishaBiopsy);
+    expect(c).toMatchObject({status: 'RepeatRequested', canRecord: false, repeatDetail: expect.any(String)});
+    expect(c.steps.map((s: {name: string}) => s.name)).toEqual(['Received', 'Accessioned', 'Sample adequate?']);
+    const sample = db().specimens.find((s) => s.id === SPECIMENS.aishaBiopsy)!;
+    expect(sample).toMatchObject({status: 'RejectedByLab', rejectionReason: 'InsufficientSample', labCaseId: c.id});
+    const pathway = db().pathways.find((p) => p.id === PATHWAYS.forkedTests)!;
+    expect(pathway.stages.find((s) => s.id === sample.stageId)!.unlocked).toBe(true);
+    const told = db().notifications.find((n) => n.kind === 'RepeatSampleRequested' && n.subjectId === sample.id)!;
+    expect(told.userId).toBe(STAFF.id);
+    expect(told.message).not.toContain(c.repeatDetail);
   });
 
   it('marks the latest step entered in error, so the case goes back to it', async () => {

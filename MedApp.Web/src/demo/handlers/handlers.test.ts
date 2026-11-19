@@ -201,14 +201,15 @@ describe('the light demo handlers', () => {
     expect(second.branchAdditionId).toBe(pathway.branchAdditions[0].id);
     const review = pathway.stages.find((s: {name: string}) => s.name === 'Histology result');
     expect(review.predecessorIds).toEqual([histology.id]);
-    // Both are the lab's (the relay): the lab finishes them, each on its own (their cases, waiting for samples that
-    // never came here, set aside: an open case's stage is finished only by authorising it, MC16).
+    // Both are the lab's (the relay): the lab finishes them, each on its own. The first's case waits for a sample that
+    // never came here (set aside below: an open case's stage is finished only by authorising it, MC16); the second's
+    // closed with a repeat requested (MC22), so nothing holds it.
     expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
     db().user = LAB.username;
-    expect((await call('POST', `${url}/stages/${second.id}/finish`, {})).status).toBe(409);
-    for (const c of db().labCases.filter((x) => x.pathwayId === PATHWAYS.forkedTests)) c.status = 'EnteredInError';
+    expect((await call('POST', `${url}/stages/${histology.id}/finish`, {})).status).toBe(409);
     pathway = (await call('POST', `${url}/stages/${second.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([histology.id]);
+    for (const c of db().labCases.filter((x) => x.pathwayId === PATHWAYS.forkedTests)) c.status = 'EnteredInError';
     pathway = (await call('POST', `${url}/stages/${histology.id}/finish`, {})).body;
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
     expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});

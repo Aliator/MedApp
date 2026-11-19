@@ -187,6 +187,8 @@ export const SPECIMENS = {
   ilonaScraping: id(0xe3, 6),
   /** Callum Ashby's punch biopsy, reported three days ago (its result awaits Nadia Thornbury's sign-off). */
   callumBiopsy: id(0xe3, 8),
+  /** Aisha Khoury's second lesion's biopsy: too little to test, so its case asked for a repeat (MC22; `seedLabCases`). */
+  aishaBiopsy: id(0xe3, 9),
 } as const;
 
 export const RESULTS = {
@@ -325,6 +327,9 @@ export function seedLab(state: BaseState): LabSlice {
   const priyaTaken = plusMinutes(visit(APPOINTMENTS.priyaBiopsy), 20);
   const harrietTaken = plusMinutes(visit(MORE_APPOINTMENTS.harrietBiopsy), 20);
   const callumTaken = plusMinutes(stage(PATHWAYS.backFromLab, 3).completedAtUtc!, -120);
+  // Aisha Khoury's added route's Take biopsy (MC10): its sample, received; its case rejects it as insufficient (MC22).
+  const aishaTake = pathway(PATHWAYS.forkedTests).stages.find((s) => s.branchAdditionId && s.name === 'Take biopsy')!;
+  const aishaTaken = plusMinutes(aishaTake.completedAtUtc!, -20);
   const specimens: DemoSpecimen[] = [
     specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 3, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
@@ -396,6 +401,15 @@ export function seedLab(state: BaseState): LabSlice {
       reportedByUserId: LAB.id,
       reportAttachmentId: REPORT_FILES.callum,
       version: 4,
+    }),
+    specimen(SPECIMENS.aishaBiopsy, PATHWAYS.forkedTests, aishaTake.stageOrder, SPECIMEN_TYPES.skinBiopsy, aishaTaken, STAFF.id, {
+      site: 'Left shin, lower lesion',
+      status: 'Received',
+      sentAtUtc: plusMinutes(aishaTaken, 240),
+      sentByUserId: STAFF.id,
+      receivedAtUtc: plusMinutes(aishaTaken, 24 * 60),
+      receivedByUserId: LAB.id,
+      version: 3,
     }),
   ];
 
