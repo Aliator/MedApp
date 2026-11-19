@@ -40,6 +40,27 @@ public static class LabCaseRules
     public const string AwaitingSurgeryDetailsMessage =
         "The report has gone to the hospital, so the steps and report can’t be changed. The hospital’s surgery details can still be added.";
 
+    public const string SurgeryDetailsHospitalOnlyMessage = "Surgery details come only with a hospital’s case.";
+
+    public const string SurgeryDetailsClosedMessage = "This case is closed, so no more surgery details can be added.";
+
+    public const string NoSurgeryFieldsMessage =
+        "With no surgery expected, leave the surgery’s date, procedure and outcome empty.";
+
+    public const string NoSurgeryWhyMessage = "Say why no surgery is expected, as the hospital wrote it.";
+
+    public const string NoSurgeryNotSentMessage =
+        "“No surgery expected” closes the case: record it once the report has been sent.";
+
+    public const string SurgeryDetailsMissingMessage =
+        "Enter what the hospital sent: the date, the procedure, the outcome or other details.";
+
+    /// <summary>The letter a hospital case's report goes back as (MC20's <c>LetterKind.LabReport = 6</c>, its PDF to come).</summary>
+    public const string LabReportLetterKind = "LabReport";
+
+    /// <summary>Whom a report is addressed to when its request isn't read with it.</summary>
+    public const string UnknownSurgeon = "The requesting surgeon";
+
     public const string LatestStepOnlyMessage = "Only the latest step recorded can be marked entered in error.";
 
     public const string OwnStepOnlyMessage = "Only whoever recorded a step can mark it entered in error.";
@@ -235,6 +256,15 @@ public static class LabCaseRules
         if (labCase.Status != LabCaseStatus.Open)
             throw new ConflictException(ClosedMessage(labCase.Status));
     }
+
+    /// <summary>Whether surgery details can still arrive (MC20): a hospital case, open or awaiting them.</summary>
+    public static bool TakesSurgeryDetails(LabCase labCase) =>
+        labCase.Source == MedApp.Domain.Specimens.SpecimenSource.Hospital
+        && labCase.Status is LabCaseStatus.Open or LabCaseStatus.AwaitingSurgeryDetails;
+
+    /// <summary>Whether the viewer may add surgery details now: they work cases, the case takes them, and the record isn't anonymised.</summary>
+    public static bool MayAddSurgeryDetails(LabCase labCase, PathwayActor viewer, Guid? labTeamId) =>
+        WorksCases(viewer, labTeamId) && TakesSurgeryDetails(labCase) && !PatientRules.IsAnonymised(labCase.Patient);
 
     /// <summary>Free text: trimmed, or null when empty.</summary>
     public static string? Optional(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();

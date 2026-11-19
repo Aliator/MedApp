@@ -15,16 +15,39 @@ public static class LabCaseMapper
     public static IEnumerable<Guid> PeopleIn(LabCase labCase) =>
         new Guid?[]
             {
-                labCase.OpenedByUserId, labCase.ReportedByUserId, labCase.RepeatRequestedByUserId, labCase.EnteredInErrorByUserId
+                labCase.OpenedByUserId, labCase.ReportedByUserId, labCase.RepeatRequestedByUserId, labCase.EnteredInErrorByUserId,
+                labCase.ReportSentByUserId, labCase.ClosedByUserId
             }
             .Concat(labCase.Steps.SelectMany(s => new Guid?[] { s.ByUserId, s.EnteredInErrorByUserId }))
+            .Concat(labCase.SurgeryDetails.Select(d => (Guid?)d.AddedByUserId))
             .Concat(labCase.Specimens.SelectMany(SpecimenMapper.PeopleIn).Select(id => (Guid?)id))
             .OfType<Guid>()
             .Distinct();
 
-    /// <summary>Where it came from, in words: its clinic's name (a hospital's comes with MC18).</summary>
+    /// <summary>Where it came from, in words: its clinic's name, or its hospital's (MC18).</summary>
     public static string? SourceName(LabCase labCase) =>
-        labCase.Source == SpecimenSource.Hospital ? "The hospital" : labCase.RequestingTeam?.Name;
+        labCase.Source == SpecimenSource.Hospital ? HospitalName(labCase) ?? SpecimenMapper.UnknownHospital : labCase.RequestingTeam?.Name;
+
+    /// <summary>The hospital's name, for a hospital case; null for a clinic's.</summary>
+    public static string? HospitalName(LabCase labCase) =>
+        labCase.HospitalId is null ? null : labCase.Hospital?.Name ?? labCase.HospitalRequest?.Hospital?.Name ?? SpecimenMapper.UnknownHospital;
+
+    /// <summary>A hospital case's report as it went back (MC20), or null before it was sent.</summary>
+    public static LabCaseHospitalReportResponse? ToHospitalReport(LabCase labCase, IReadOnlyDictionary<Guid, string> usernames) =>
+        labCase.ReportSentAtUtc is not { } sentAtUtc
+            ? null
+            : new LabCaseHospitalReportResponse
+            {
+                Status = "Final",
+                LetterKind = LabCaseRules.LabReportLetterKind,
+                HospitalId = labCase.HospitalId ?? Guid.Empty,
+                HospitalName = HospitalName(labCase),
+                AddressedTo = labCase.ReportAddressedTo,
+                DeliveryMethod = labCase.ReportDeliveryMethod?.ToString(),
+                IssuedAtUtc = labCase.ReportedAtUtc ?? sentAtUtc,
+                SentAtUtc = sentAtUtc,
+                SentByUsername = Username(usernames, labCase.ReportSentByUserId),
+            };
 
     public static LabCaseResponse ToResponse(
         LabCase labCase,
@@ -54,7 +77,7 @@ public static class LabCaseMapper
             RequestingTeamId = labCase.RequestingTeamId,
             RequestingTeamName = labCase.RequestingTeam?.Name,
             HospitalId = labCase.HospitalId,
-            HospitalName = labCase.HospitalId is null ? null : SourceName(labCase),
+            HospitalName = HospitalName(labCase),
             HospitalRequestId = labCase.HospitalRequestId,
             PathwayId = labCase.PathwayId,
             PathwayTitle = labCase.Pathway?.Title,
@@ -104,11 +127,28 @@ public static class LabCaseMapper
             ErrorDetail = labCase.ErrorDetail,
             EnteredInErrorAtUtc = labCase.EnteredInErrorAtUtc,
             EnteredInErrorByUsername = Username(usernames, labCase.EnteredInErrorByUserId),
+            HospitalReport = ToHospitalReport(labCase, usernames),
+            SurgeryDetails = labCase.SurgeryDetails
+                .OrderBy(d => d.AddedAtUtc).ThenBy(d => d.Id)
+                .Select(d => new LabCaseSurgeryDetailsResponse
+                {
+                    Id = d.Id,
+                    SurgeryOn = d.SurgeryOn,
+                    Procedure = d.Procedure,
+                    Outcome = d.Outcome,
+                    NoSurgeryExpected = d.NoSurgeryExpected,
+                    Detail = d.Detail,
+                    AddedAtUtc = d.AddedAtUtc,
+                    AddedByUsername = Username(usernames, d.AddedByUserId),
+                })
+                .ToList(),
+            ClosedAtUtc = labCase.ClosedAtUtc,
+            ClosedByUsername = Username(usernames, labCase.ClosedByUserId),
             Version = labCase.Version,
             CanRecord = canWork && next is { Kind: LabNextKind.Step or LabNextKind.Choice },
             CanAuthorise = canWork && next?.Kind == LabNextKind.Report && viewer.Has(Permission.AuthoriseLabReports),
             CanMarkEnteredInError = LabCaseRules.MayMarkEnteredInError(labCase, viewer, labTeamId, nowUtc),
-            CanAddSurgeryDetails = false,
+            CanAddSurgeryDetails = LabCaseRules.MayAddSurgeryDetails(labCase, viewer, labTeamId),
             ReadOnlyReason = reason,
         };
     }
@@ -147,7 +187,7 @@ public static class LabCaseMapper
             NextKind = next?.Kind.ToString(),
             OpenedAtUtc = labCase.OpenedAtUtc,
             ReportedAtUtc = labCase.ReportedAtUtc,
-            ReportSentAtUtc = null,
+            ReportSentAtUtc = labCase.ReportSentAtUtc,
             Clock = LabClock.Of(labCase, nowUtc),
         };
     }

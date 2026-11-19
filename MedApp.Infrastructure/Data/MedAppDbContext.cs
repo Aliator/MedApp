@@ -67,6 +67,9 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<MedApp.Domain.Lab.LabTestStep> LabTestSteps => Set<MedApp.Domain.Lab.LabTestStep>();
     public DbSet<MedApp.Domain.Lab.LabCase> LabCases => Set<MedApp.Domain.Lab.LabCase>();
     public DbSet<MedApp.Domain.Lab.LabCaseStep> LabCaseSteps => Set<MedApp.Domain.Lab.LabCaseStep>();
+    public DbSet<MedApp.Domain.Lab.LabCaseSurgeryDetails> LabCaseSurgeryDetails => Set<MedApp.Domain.Lab.LabCaseSurgeryDetails>();
+    public DbSet<MedApp.Domain.Hospitals.Hospital> Hospitals => Set<MedApp.Domain.Hospitals.Hospital>();
+    public DbSet<MedApp.Domain.Hospitals.HospitalRequest> HospitalRequests => Set<MedApp.Domain.Hospitals.HospitalRequest>();
     public DbSet<MedApp.Domain.Results.Result> Results => Set<MedApp.Domain.Results.Result>();
     public DbSet<ConsentForm> ConsentForms => Set<ConsentForm>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();

@@ -52,7 +52,7 @@ public static class PatientTimelineKinds
         >= LetterDrafted and <= LetterWithdrawn => PatientTimelineKind.Letters,
         >= SpecimenTaken and <= SpecimenDetailsEdited => PatientTimelineKind.Specimens,
         // Lab cases (MC15) are the samples' work: shown with them.
-        >= LabCaseOpened and <= LabCaseEnteredInError => PatientTimelineKind.Specimens,
+        >= LabCaseOpened and <= LabCaseClosed => PatientTimelineKind.Specimens,
         >= ResultRecorded and <= ResultEnteredInError => PatientTimelineKind.Results,
         MdtListed or MdtOutcomeRecorded or MdtDeferred or MdtWithdrawn => PatientTimelineKind.Mdt,
         ConsentRecorded or ConsentWithdrawn or ConsentEnteredInError => PatientTimelineKind.Consent,
@@ -102,7 +102,7 @@ public static class PatientTimelineKinds
             || (files && (e.Action == AttachmentAdded || e.Action == AttachmentDeleted || e.Action == AttachmentDownloaded))
             || (letters && e.Action >= LetterDrafted && e.Action <= LetterWithdrawn)
             || (specimens && ((e.Action >= SpecimenTaken && e.Action <= SpecimenDetailsEdited)
-                              || (e.Action >= LabCaseOpened && e.Action <= LabCaseEnteredInError)))
+                              || (e.Action >= LabCaseOpened && e.Action <= LabCaseClosed)))
             || (results && e.Action >= ResultRecorded && e.Action <= ResultEnteredInError)
             || (mdt && (e.Action == MdtListed || e.Action == MdtOutcomeRecorded || e.Action == MdtDeferred || e.Action == MdtWithdrawn))
             || (consent && e.Action >= ConsentRecorded && e.Action <= ConsentEnteredInError)

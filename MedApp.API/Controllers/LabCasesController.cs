@@ -111,6 +111,23 @@ public sealed class LabCasesController(IMediator mediator) : ControllerBase
         Ok(await mediator.Send(new AuthoriseLabReportCommand(id, request.Results, request.ExpectedVersion, User.ToPathwayActor()), ct));
 
     /// <summary>
+    /// Adds a hospital case's surgery details, as the hospital wrote them (MC20): the date, procedure, outcome and other
+    /// details, or "no surgery expected" with why (only once the report was sent). Added to a case awaiting them, they
+    /// close it. Nothing is worked out from them.
+    /// </summary>
+    [HttpPost("{id:guid}/surgery-details")]
+    [RequirePermission(Permission.ProcessSpecimens)]
+    [ProducesResponseType(typeof(LabCaseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddSurgeryDetails(Guid id, [FromBody] AddSurgeryDetailsRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new AddSurgeryDetailsCommand(
+            id, request.SurgeryOn, request.Procedure, request.Outcome, request.NoSurgeryExpected, request.Detail,
+            request.ExpectedVersion, User.ToPathwayActor()), ct));
+
+    /// <summary>
     /// Marks the case entered in error: whoever opened it within 24 hours, or a holder of CorrectRecords (checked by
     /// the handler: 403 otherwise). Its samples are freed for the right case.
     /// </summary>

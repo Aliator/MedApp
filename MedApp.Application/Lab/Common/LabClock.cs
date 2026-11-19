@@ -40,9 +40,26 @@ public static class LabClock
     public const string ReportedLate = "ReportedLate";
     public const string Stopped = "Stopped";
 
-    /// <summary>The case's clock, or null before the lab has received it.</summary>
+    /// <summary>The hospital's default deadline when a case's hospital isn't loaded (as the light demo's).</summary>
+    public const int FallbackHospitalDeadlineDays = 10;
+
+    /// <summary>
+    /// The case's clock, or null before the lab has received it. A hospital case's side comes from its request and
+    /// hospital (read with it) unless <paramref name="hospital"/> is given.
+    /// </summary>
     public static LabClockResponse? Of(LabCase labCase, DateTime nowUtc, LabClockHospital? hospital = null) =>
-        Of(new LabClockInput(labCase.ReceivedAtUtc, labCase.Status, labCase.ReportedAtUtc, labCase.LabTest, hospital), nowUtc);
+        Of(new LabClockInput(labCase.ReceivedAtUtc, labCase.Status, labCase.ReportedAtUtc, labCase.LabTest,
+            hospital ?? HospitalOf(labCase)), nowUtc);
+
+    /// <summary>A hospital case's side of the clock from its request (MC18), or null for a clinic case.</summary>
+    public static LabClockHospital? HospitalOf(LabCase labCase) =>
+        labCase.HospitalRequest is { } request
+            ? new LabClockHospital(
+                request.ReportNeededBy,
+                request.IsCancerPathway,
+                request.CollectedAtUtc,
+                request.Hospital?.DefaultDeadlineDays ?? labCase.Hospital?.DefaultDeadlineDays ?? FallbackHospitalDeadlineDays)
+            : null;
 
     /// <summary>The clock, or null before the lab has received the case.</summary>
     public static LabClockResponse? Of(LabClockInput input, DateTime nowUtc)

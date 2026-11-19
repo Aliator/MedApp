@@ -110,6 +110,23 @@ public sealed class LabCaseConfiguration : IEntityTypeConfiguration<LabCase>
             .HasForeignKey(s => s.LabCaseId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // A hospital case's hospital and request (MC18): a hospital that sent requests is archived, never deleted.
+        builder.HasOne(x => x.Hospital)
+            .WithMany()
+            .HasForeignKey(x => x.HospitalId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasOne(x => x.HospitalRequest)
+            .WithMany()
+            .HasForeignKey(x => x.HospitalRequestId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Its report sent back to the hospital (MC20), and its surgery details.
+        builder.Property(x => x.ReportAddressedTo).HasMaxLength(Domain.Hospitals.HospitalRequest.MaxSurgeonNameLength);
+        builder.HasMany(x => x.SurgeryDetails)
+            .WithOne()
+            .HasForeignKey(d => d.LabCaseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // The lab's lists: a status's cases by when they were opened; a stage's open case; a patient's, a pathway's.
         builder.HasIndex(x => new { x.Status, x.OpenedAtUtc });
         builder.HasIndex(x => x.StageId);
@@ -117,6 +134,24 @@ public sealed class LabCaseConfiguration : IEntityTypeConfiguration<LabCase>
         builder.HasIndex(x => x.PatientId);
         builder.HasIndex(x => x.RequestingTeamId);
         builder.HasIndex(x => x.HospitalRequestId).HasFilter("[HospitalRequestId] IS NOT NULL");
+        builder.HasIndex(x => x.HospitalId).HasFilter("[HospitalId] IS NOT NULL");
+    }
+}
+
+public sealed class LabCaseSurgeryDetailsConfiguration : IEntityTypeConfiguration<LabCaseSurgeryDetails>
+{
+    public void Configure(EntityTypeBuilder<LabCaseSurgeryDetails> builder)
+    {
+        builder.ToTable("LabCaseSurgeryDetails");
+
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
+
+        builder.Property(x => x.Procedure).HasMaxLength(LabCaseSurgeryDetails.MaxProcedureLength);
+        builder.Property(x => x.Outcome).HasMaxLength(LabCaseSurgeryDetails.MaxTextLength);
+        builder.Property(x => x.Detail).HasMaxLength(LabCaseSurgeryDetails.MaxTextLength);
+
+        builder.HasIndex(x => x.LabCaseId);
     }
 }
 

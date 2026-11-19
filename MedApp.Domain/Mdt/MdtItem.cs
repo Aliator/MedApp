@@ -67,6 +67,15 @@ public sealed class MdtItem
     public string? WithdrawnByUsername { get; set; }
     public DateTime? WithdrawnAtUtc { get; set; }
 
+    /// <summary>
+    /// Who presents it at the MDT (MC21; a pathologist, say), chosen by the item's team from its meeting's attendees;
+    /// null for nobody. Kept on a move only if they're invited to the new MDT too.
+    /// </summary>
+    public Guid? PresenterUserId { get; set; }
+
+    /// <summary>The presenter's username at the time, kept if the account is deleted.</summary>
+    public string? PresenterUsername { get; set; }
+
     /// <summary>Who was present when it was discussed, chosen from the meeting's attendees.</summary>
     public List<MdtItemAttendee> Attendees { get; set; } = [];
 

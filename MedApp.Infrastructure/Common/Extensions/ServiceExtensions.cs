@@ -296,6 +296,7 @@ public static class ServiceExtensions
         services.AddScoped<ISpecimenRepository, SpecimenRepository>();
         services.AddScoped<MedApp.Application.Lab.Repositories.ILabTestRepository, LabTestRepository>();
         services.AddScoped<MedApp.Application.Lab.Repositories.ILabCaseRepository, LabCaseRepository>();
+        services.AddScoped<MedApp.Application.Hospitals.Repositories.IHospitalRepository, HospitalRepository>();
         services.AddScoped<MedApp.Application.Results.Repositories.IResultRepository, ResultRepository>();
         services.AddScoped<IConsentRepository, ConsentRepository>();
         services.AddScoped<MedApp.Application.DataRequests.Repositories.IDataRequestRepository, DataRequestRepository>();

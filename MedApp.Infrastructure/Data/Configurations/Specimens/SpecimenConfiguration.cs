@@ -78,8 +78,17 @@ public sealed class SpecimenConfiguration : IEntityTypeConfiguration<Specimen>
             .HasForeignKey(x => x.LabCaseId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // The hospital and its request (MC18) come with S3b's tables; indexed for their lookups.
+        // The hospital and its request (MC18): a hospital that sent requests is archived, never deleted.
+        builder.HasOne(x => x.Hospital)
+            .WithMany()
+            .HasForeignKey(x => x.HospitalId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasOne(x => x.HospitalRequest)
+            .WithMany()
+            .HasForeignKey(x => x.HospitalRequestId)
+            .OnDelete(DeleteBehavior.NoAction);
         builder.HasIndex(x => x.HospitalRequestId).HasFilter("[HospitalRequestId] IS NOT NULL");
+        builder.HasIndex(x => x.HospitalId).HasFilter("[HospitalId] IS NOT NULL");
 
         // The samples' tabs: a status's samples, oldest sent first; and a pathway's, a patient's and a case's.
         builder.HasIndex(x => new { x.Status, x.SentAtUtc });

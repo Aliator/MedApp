@@ -29,6 +29,10 @@ public sealed class MdtItemConfiguration : IEntityTypeConfiguration<MdtItem>
         builder.Property(x => x.WithdrawnByUsername)
             .HasMaxLength(256);
 
+        // MC21: who presents it (no foreign key to the users table, as with other staff IDs).
+        builder.Property(x => x.PresenterUsername)
+            .HasMaxLength(256);
+
         builder.Property(x => x.Version)
             .IsRequired();
 

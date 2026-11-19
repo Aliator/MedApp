@@ -117,7 +117,8 @@ public static class LabCaseSearch
                 || (c.Patient.FirstName + " " + c.Patient.LastName).ToLower().Contains(term)
                 || (c.Patient.NhsNumber != null && c.Patient.NhsNumber.Contains(compact))
                 || (c.LabTest != null && c.LabTest.Name.ToLower().Contains(term))
-                || (c.RequestingTeam != null && c.RequestingTeam.Name.ToLower().Contains(term)));
+                || (c.RequestingTeam != null && c.RequestingTeam.Name.ToLower().Contains(term))
+                || (c.Hospital != null && c.Hospital.Name.ToLower().Contains(term)));
         }
 
         if (PathwayEnums.TryParse<SpecimenSource>(query.Source, out var source))
@@ -144,7 +145,8 @@ public static class LabCaseSearch
             SortByNumber => cases.OrderByDirection(c => c.Number, ascending),
             SortByPatient => cases.OrderByDirection(c => c.Patient.LastName, ascending)
                 .ThenByDirection(c => c.Patient.FirstName, ascending),
-            SortBySource => cases.OrderByDirection(c => c.RequestingTeam != null ? c.RequestingTeam.Name : "", ascending),
+            SortBySource => cases.OrderByDirection(
+                c => c.RequestingTeam != null ? c.RequestingTeam.Name : c.Hospital != null ? c.Hospital.Name : "", ascending),
             SortByTest => cases.OrderByDirection(c => c.LabTest != null ? c.LabTest.Name : "", ascending),
             SortByOpened => cases.OrderByDirection(c => c.OpenedAtUtc, ascending),
             _ => null
@@ -155,7 +157,7 @@ public static class LabCaseSearch
         return view switch
         {
             LabCaseView.Reported => cases.OrderByDescending(c => c.ReportedAtUtc).ThenByDescending(c => c.Id),
-            LabCaseView.AwaitingSurgeryDetails => cases.OrderBy(c => c.ReportedAtUtc).ThenBy(c => c.Id),
+            LabCaseView.AwaitingSurgeryDetails => cases.OrderBy(c => c.ReportSentAtUtc).ThenBy(c => c.Id),
             LabCaseView.RepeatRequested => cases.OrderByDescending(c => c.RepeatRequestedAtUtc).ThenByDescending(c => c.Id),
             _ => cases.OrderByDescending(c => c.OpenedAtUtc).ThenByDescending(c => c.Id),
         };
@@ -185,7 +187,7 @@ public static class LabCaseSearch
             LabCaseView.Open or LabCaseView.AtRisk or LabCaseView.Overdue or LabCaseView.ToReport =>
                 items.OrderBy(c => DueKey(c, nowUtc)).ThenBy(c => c.Id),
             LabCaseView.Reported => items.OrderByDescending(c => c.ReportedAtUtc).ThenByDescending(c => c.Id),
-            LabCaseView.AwaitingSurgeryDetails => items.OrderBy(c => c.ReportedAtUtc).ThenBy(c => c.Id),
+            LabCaseView.AwaitingSurgeryDetails => items.OrderBy(c => c.ReportSentAtUtc).ThenBy(c => c.Id),
             LabCaseView.RepeatRequested => items.OrderByDescending(c => c.RepeatRequestedAtUtc).ThenByDescending(c => c.Id),
             _ => items.OrderByDescending(c => c.OpenedAtUtc).ThenByDescending(c => c.Id),
         };
@@ -195,7 +197,7 @@ public static class LabCaseSearch
         {
             SortByNumber => By(ordered, c => c.Number, ascending),
             SortByPatient => By(ordered, c => (c.Patient?.LastName ?? "") + "\u0000" + (c.Patient?.FirstName ?? ""), ascending),
-            SortBySource => By(ordered, c => c.RequestingTeam?.Name ?? "", ascending),
+            SortBySource => By(ordered, c => c.RequestingTeam?.Name ?? c.Hospital?.Name ?? "", ascending),
             SortByTest => By(ordered, c => c.LabTest?.Name ?? "", ascending),
             SortByOpened => By(ordered, c => c.OpenedAtUtc, ascending),
             SortByDue => By(ordered, c => DueKey(c, nowUtc), ascending),
