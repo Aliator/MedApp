@@ -16,9 +16,9 @@ const emptyApi = () =>
 // The whole app renders, and its first route chunk can be slow to load.
 const heading = (name: string) => screen.findByRole('heading', {name, level: 1}, {timeout: 15000});
 
-/** A nav item's "Open in half view", from its row's menu. */
+/** A nav item's "Open in half view on the right", from its row's menu. */
 const halfViewItem = (user: ReturnType<typeof userEvent.setup>, item: string) =>
-  rowMenuItem(user, item, 'Open in half view');
+  rowMenuItem(user, item, 'Open in half view on the right');
 
 /** An admin page's row in the folded nav: its category's icon brings the category's row out, with its pages under it. */
 async function railCategoryPage(user: ReturnType<typeof userEvent.setup>, category: string, item: string) {

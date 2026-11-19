@@ -94,7 +94,7 @@ describe('ReadMePage', () => {
       {user: asCurrentUser(ADMIN), path: '/read-me'},
     );
 
-    const first = await screen.findByText(/choose Open in half view\. Patients opens on the right/);
+    const first = await screen.findByText(/choose Open in half view on the right\. Patients opens on the right/);
     expect(first.closest('ol')).not.toBeNull();
     expect(screen.getByText(/Shift-click Patients in the side nav: it opens on the right again/)).toBeInTheDocument();
     expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) Patients: it opens on the left, and this Read Me moves to the right/)).toBeInTheDocument();
