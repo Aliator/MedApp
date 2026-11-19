@@ -137,6 +137,7 @@ describe('the Read Me tour', () => {
     const byKey = (key: string) => TOUR.find((step) => step.key === key)!;
     expect(byKey('lab').account).toBe(LAB.username);
     expect(byKey('mdt').account).toBe(STAFF.username);
+    expect(byKey('team-home').account).toBe(STAFF.username);
     expect(LAB.permissions).toContain('ProcessSpecimens');
     // The admin's steps are what an admin does: reading every team's list is one (the team walls).
     for (const step of TOUR.filter((s) => s.account === ADMIN.username))

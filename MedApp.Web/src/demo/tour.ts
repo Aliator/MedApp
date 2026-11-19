@@ -106,6 +106,17 @@ export const TOUR: TourStep[] = [
     buttonLabel: `Open Home as ${STAFF.fullName}`,
   },
   {
+    key: 'team-home',
+    title: 'The team’s home',
+    steps: [
+      `${STAFF.fullName}’s home in Dermatology, first in her side nav: referrals to triage, her pathways, pathways back from the lab, results to sign off and appointments to book.`,
+      'Each list shows its first five and how many there are, soonest first, and opens its full list. Any clinic team gets the same home.',
+    ],
+    account: STAFF.username,
+    path: '/team',
+    buttonLabel: 'Open the team’s home',
+  },
+  {
     key: 'team-walls',
     title: 'Another team’s pathway: a summary only',
     steps: [

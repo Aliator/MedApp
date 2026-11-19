@@ -93,6 +93,21 @@ describe('MyTasksPage', () => {
     expect(screen.getByRole('columnheader', {name: 'Current stage'})).toBeInTheDocument();
   });
 
+  it("shows who has the stage in a team view, with Not picked up on its own line", async () => {
+    mockApi({
+      [SEARCH]: () =>
+        json(pageOf([summary({id: 'd', title: 'Skin lesion review', currentStageName: 'Histology', currentStageTeamName: 'Dermatology', awaitingPickUp: true})], 1)),
+      [TEAMS]: () => json([]),
+      [DEFINITIONS]: () => json([]),
+    });
+    renderWithApp(<MyTasksPage search={{view: 'backFromLab'}} onSearchChange={vi.fn()} />, {user: staffUser});
+
+    const row = (await screen.findByText('Skin lesion review')).closest('tr')!;
+    expect(within(row).getByText('Dermatology')).toBeInTheDocument();
+    expect(within(row).getByText('Not picked up')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name: 'With'})).toBeInTheDocument();
+  });
+
   it('asks for the breached ones by days waited, and shows each task\'s wait', async () => {
     expect(taskQuery({breached: true, sort: 'Wait', asc: false})).toMatchObject({BreachedOnly: true, Sort: 'daysWaited', Ascending: false});
     renderTasks();
