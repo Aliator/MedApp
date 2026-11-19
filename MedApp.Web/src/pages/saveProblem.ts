@@ -35,7 +35,6 @@ export type SaveSubject =
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
 export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {
-  const Subject = subject.charAt(0).toUpperCase() + subject.slice(1);
   const subjects = subject.endsWith('s') ? subject : /[^aeiou]y$/.test(subject) ? `${subject.slice(0, -1)}ies` : `${subject}s`;
   if (error instanceof ApiValidationError) return {validation: error.errors, message: null};
   if (error instanceof ApiError) {

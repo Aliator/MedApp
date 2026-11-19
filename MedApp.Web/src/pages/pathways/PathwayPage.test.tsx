@@ -192,7 +192,7 @@ describe('PathwayPage', () => {
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await findAlert(/Restricted record: .* can be put on hold or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
+    expect(await findAlert(/Restricted record: .* You can still put a pathway on hold or cancel it/)).toHaveTextContent('Reason: Synthetic accuracy check');
     expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
     // The patient's banner says it all: the bare reason isn't repeated.
     expect(screen.queryByText('Restricted.')).not.toBeInTheDocument();

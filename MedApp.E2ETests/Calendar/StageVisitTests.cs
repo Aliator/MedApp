@@ -55,7 +55,7 @@ public sealed class StageVisitTests : E2ETest
         await main.GetByRole(AriaRole.Button, new() { Name = "Finish Stage" }).ClickAsync();
         var confirm = page.GetByRole(AriaRole.Dialog, new() { Name = "Finish without a visit?" });
         await Expect(confirm).ToContainTextAsync($"{stages[0].Name} requires a visit");
-        await Expect(confirm).ToContainTextAsync("Its visit comes off Requires Appointment.");
+        await Expect(confirm).ToContainTextAsync("Its appointment request is removed from the Requires Appointment list.");
         var finish = confirm.GetByRole(AriaRole.Button, new() { Name = "Finish Without Visit" });
         await Expect(finish).ToBeDisabledAsync();
         await confirm.GetByRole(AriaRole.Textbox, new() { Name = "Reason" }).FillAsync(Reason);
