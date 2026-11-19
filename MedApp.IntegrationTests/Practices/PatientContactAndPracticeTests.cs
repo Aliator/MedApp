@@ -175,7 +175,7 @@ public sealed class PatientContactAndPracticeTests : IntegrationTest
     {
         var practice = await CreatePracticeAsync(_admin);
         var patient = await CreatePatientWithContactDetailsAsync(practice.Id);
-        await (await _admin.PostAsJsonAsync($"{Practices}/{practice.Id}/archive", new PracticeVersionRequest { ExpectedVersion = 1 }))
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{Practices}/{practice.Id}/archive", new PracticeVersionRequest { ExpectedVersion = 1 }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var edit = new UpdatePatientRequest
