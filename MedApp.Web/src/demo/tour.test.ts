@@ -153,7 +153,11 @@ describe('the Read Me tour', () => {
 
   it('has the notepad step copy sample notes into the relay’s pathway, pinned in the relay, which she can add notes to', async () => {
     const step = TOUR.find((s) => s.key === 'notepad')!;
-    expect(step).toMatchObject({opensNotepad: true, isNumbered: true});
+    expect(step).toMatchObject({switchTo: STAFF.username, isNumbered: true});
+    // No button of its own: the notepad opens from the side nav.
+    expect(step.buttonLabel).toBeUndefined();
+    expect(step.steps[1]).toMatch(/Notepad in the side nav/);
+    expect(step.steps[2]).toMatch(/Shift-click Notepad/);
     expect(step.path).toBeUndefined();
     expect(step.sampleText!.length).toBeGreaterThan(0);
     expect(step.steps.join(' ')).toMatch(/Add Note to Pathway/);

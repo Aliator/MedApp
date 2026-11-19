@@ -17,13 +17,17 @@ export interface TourStep {
   account?: string;
   /** The page to open: a path in the app, with its query; none stays on the Read Me. */
   path?: string;
-  /** Opens the notepad beside the page. */
-  opensNotepad?: boolean;
+  /**
+   * An account to switch to from the step itself (a "Switch to …" button above its sample text), for a step with no
+   * page of its own to open: the notepad's, done as that account.
+   */
+  switchTo?: string;
   /** Its steps are numbered, as they're done in order. */
   isNumbered?: boolean;
   /** Synthetic sample text shown under the steps to select or copy (the notepad's notes), one line each. */
   sampleText?: string[];
-  buttonLabel: string;
+  /** The step's button, opening its page; none for a step done from the app itself (the notepad's). */
+  buttonLabel?: string;
   /** Why the step can't do what it says in this copy of the demo (already done, say), or null when it can. */
   whyNot?: (state: DemoState) => string | null;
 }
@@ -216,20 +220,19 @@ export const TOUR: TourStep[] = [
     part: 'around',
     title: 'The notepad',
     steps: [
-      `As ${STAFF.fullName} (switch above if you’re not her), copy the sample notes below: select them, or choose Copy the Notes.`,
-      'Open the notepad with the button below: it opens beside this page and stays open as you move around the app. Paste the notes into it; it saves as you type, and each account has its own.',
+      `Do this as ${STAFF.fullName}: not signed in as her? Choose Switch to ${STAFF.username} below. Then copy the sample notes below: select them, or choose Copy the Notes.`,
+      'Open the notepad from Notepad in the side nav (near the bottom): it opens beside the page you’re on and stays open as you move around the app. Paste the notes into it; it saves as you type, and each account has its own.',
+      'Or Shift-click Notepad in the side nav, to open it in the half view on the right instead.',
       'Open Leah Corrin’s pathway, Scaly patch, left forearm, from its pin under Pathways in the side nav (you pinned it in the relay). Not pinned? Patients, then Leah Corrin, then the pathway.',
       'In the notepad, choose Add Note to Pathway, check it’s her pathway, and add it. The pathway then shows the note under Notes, by you.',
-      'Shift-click Notepad in the side nav to open it in the half view on the right instead.',
     ],
     isNumbered: true,
+    switchTo: STAFF.username,
     sampleText: [
       'Seen yesterday: scaly patch on the left forearm, about 3 cm, itchy for two months.',
       'Skin scraping taken and sent to the lab.',
       'To go through the results at the results appointment.',
     ],
-    opensNotepad: true,
-    buttonLabel: 'Open the notepad',
   },
   {
     key: 'accessibility',
@@ -271,7 +274,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'Email', full: 'Password reset, confirming an address, and sign-in codes by email.'},
   {
     title: 'Reports as files',
-    full: 'A lab case’s report is a file the lab attaches and authorises, an external result arrives as a file, a sample’s label has a QR code, and a hospital’s report goes back as a letter (a PDF) with the report attached. Here results are typed in as text, and the hospital’s report is recorded as sent.',
+    full: 'A lab case’s report is a file the lab attaches and authorises, an external result arrives as a file, and a hospital’s report goes back as a letter (a PDF) with the report attached. Here results are typed in as text, and the hospital’s report is recorded as sent.',
   },
   {
     title: 'File uploads',
@@ -290,7 +293,6 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
     title: 'The activity log, exports and the data-request pack',
     full: 'Every read and change of a patient’s record is logged as it happens, admins download everything held about a patient, and a data request is answered with a pack made on the server: a PDF report, the record as JSON and the files. Here the logs are worked out from the demo’s records, the export page only shows what would be in it, and the pack can’t be downloaded.',
   },
-  {title: 'The demographics lookup and NHS links', full: 'Patients’ details looked up from the national demographics service (PDS), and FHIR and SNOMED CT links.'},
   {
     title: 'Background jobs',
     full: 'Appointment reminders to patients, service alerts (admins told of referrals not triaged, results not signed off, visits not booked, and samples and lab cases overdue), purges of old operational data, and other jobs on a schedule. Here the Scheduled Jobs page lists them, but nothing runs.',
