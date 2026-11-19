@@ -21,6 +21,7 @@ import {
 } from './ids';
 import {dermatologyStageDefinitions, dermatologyTemplates} from './dermatology';
 import {seedClinical} from './slices/clinical';
+import {consultAccess, seedConsults} from './slices/consults';
 import {seedHospitals} from './slices/hospitals';
 import {hospitalSample, seedLab} from './slices/lab';
 import {seedLabCases} from './slices/labCases';
@@ -47,7 +48,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 21;
+export const SEED_VERSION = 22;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -806,7 +807,7 @@ export function seed(): DemoState {
   const hospitals = seedHospitals(base, lab);
   // Each hospital request's sample, in the one samples database (MC14).
   lab.specimens.push(...hospitals.hospitalRequests.map((r, i) => hospitalSample(r, id(0xc6, i + 1))));
-  const state: DemoState = {...base, ...lab, ...seedClinical(base), ...seedSetup(base), ...hospitals, labCases: []};
+  const state: DemoState = {...base, ...lab, ...seedClinical(base), ...seedSetup(base), ...hospitals, labCases: [], ...seedConsults(base)};
   // The lab's cases (MC15), last: they read the samples, the hospital's requests and the results.
   state.labCases = seedLabCases(state).labCases;
   // The team walls' grants: each pathway's own team, and the lab on every pathway with a sample passed to it or a
@@ -821,6 +822,20 @@ export function seed(): DemoState {
     ...pathways
       .filter((p) => p.teamId !== TEAMS.lab && labSince(p))
       .map((p) => ({pathwayId: p.id, patientId: p.patientId, teamId: TEAMS.lab, reason: 'StageOwner' as const, startedAtUtc: labSince(p), endedAtUtc: null})),
+    // Each consult's asked team (MC25), read only while it's open.
+    ...state.consults.map(consultAccess),
   ];
+  // The lab is told of the open consult (a fixed title; who asked and which team, never the question or the patient).
+  for (const c of state.consults.filter((x) => x.status === 'Open'))
+    state.notifications.push({
+      id: `000000e0-0000-4000-8000-0000000000${(0x10 + state.consults.indexOf(c)).toString(16)}`,
+      userId: LAB.id,
+      kind: 'ConsultRequested',
+      title: 'Consult requested',
+      message: `${usernameOf(c.requestedByUserId)} from ${teamName(c.askingTeamId)} asked your team for a consult.`,
+      pathwayId: c.pathwayId,
+      createdAtUtc: c.requestedAtUtc,
+      isRead: false,
+    });
   return state;
 }

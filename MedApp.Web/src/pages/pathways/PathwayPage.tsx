@@ -43,6 +43,7 @@ import {NoteDeletionRequestDialog} from '../../components/pathways/NoteDeletionR
 import {PathwayNotes} from '../../components/pathways/PathwayNotes';
 import {DetailsPatient} from '../../components/patients/DetailsPatient';
 import {PathwayMdt} from '../../components/mdt/PathwayMdt';
+import {PathwayConsults} from '../../components/consults/PathwayConsults';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {labCaseOpenWords, resultsBefore, StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/pathways/StageVisit';
@@ -230,6 +231,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const [open, setOpen] = useState(() => ({
     referralWait: true,
     notes: true,
+    consults: true,
     mdt: true,
     currentStage: true,
     files: !isNarrow,
@@ -986,6 +988,21 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     };
   }
 
+  /** The pathway's consults with other teams, and Ask Another Team (MC25). */
+  function consultsSection(pathway: Pathway): FoldingSection {
+    return {
+      key: 'consults',
+      title: 'Consults',
+      isOpen: open.consults,
+      onToggle: () => toggle('consults'),
+      children: (
+        <Section variant="transparent" padding={6}>
+          <PathwayConsults pathway={pathway} />
+        </Section>
+      ),
+    };
+  }
+
   /** The pathway's MDT items, and List for MDT (decisions 141 to 143). */
   function mdtSection(pathway: Pathway): FoldingSection {
     return {
@@ -1186,6 +1203,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       assignedStaffSection(pathway),
       ...referralWaitSection(pathway),
       notesSection(pathway),
+      consultsSection(pathway),
       mdtSection(pathway),
       specimensSection(pathway),
       resultsSection(pathway),
@@ -1198,7 +1216,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   /**
    * Two cards side by side: Details and the Current stage on the left, so the current stage starts on the first
    * screen, and on the right Stages (folded into their progress bar), Appointments, Assigned staff, Referral and wait
-   * (from a referral only), Notes, MDT, Specimens, Results, Consent, Files and Letters. With no current stage (every stage finished or skipped), Stages takes its place on the left.
+   * (from a referral only), Notes, Consults, MDT, Specimens, Results, Consent, Files and Letters. With no current stage (every stage finished or skipped), Stages takes its place on the left.
    */
   function wideLayout(pathway: Pathway) {
     return (

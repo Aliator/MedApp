@@ -302,6 +302,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Migration** `AddedConsults`.
 - **Governance:** DPIA 47, H-75.
 - **Light demo:** a consult from Dermatology to the lab (`r.aldous` replies).
+- **Built (demo first, 19 Nov):** `api/consults` (`pathways/{pathwayId}` with `canRequest`, `incoming`, ask, `reply`, `close`, `withdraw`); the pathway's Consults section, Consults for the lab on `/lab` (`IncomingConsults`, any team's home can take it), the tour's `consult` step. Decided: no new permission (`WorkPathways`); one open consult per asked team per pathway; close only after a reply, withdraw only before one; the reply tells the asker and the pathway's assignees. **Consult meetings left for the backend stage** (the meeting rule needs `ConsultId` on meetings and a way to arrange one from the consult).
 
 **MC26. Cross-clinic MDTs** (M). After MC25.
 - **Scope:** an MDT's attendees from several teams and the lab get an `Mdt` grant per listed item, by `UserId`, read-only, from listing until the item is discussed or withdrawn (and at least to the meeting's end). **Attendees see the listed cases only.**

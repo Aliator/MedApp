@@ -7,6 +7,7 @@ import {db} from '../store';
 import {teamName} from '../seed';
 import {nowUtc, ukDateOf} from '../time';
 import {contains, list, me, paged, patientName, requirePermission} from './common';
+import {consultAuditEntries} from './consults';
 import {labCaseAuditEntries} from './labCases';
 
 /**
@@ -130,6 +131,8 @@ export function auditEntries(): AuditEntry[] {
   }
   // The lab cases' entries (MC15): a clinic case's on its pathway, a hospital case's with no pathway.
   entries.push(...labCaseAuditEntries());
+  // Consults (MC25): who asked whom, replied and closed; never the question or the reply.
+  entries.push(...consultAuditEntries());
   return entries.sort((a, b) => (b.atUtc ?? '').localeCompare(a.atUtc ?? '') || (b.id ?? '').localeCompare(a.id ?? ''));
 }
 
