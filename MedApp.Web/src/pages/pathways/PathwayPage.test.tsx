@@ -1285,7 +1285,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
 
     const finish = await screen.findByRole('button', {name: 'Finish Stage'});
     expect(isDisabled(finish)).toBe(true);
-    expect(screen.getAllByText(/Lab case MA26-000201 is open: authorising its report finishes this stage\./).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Lab case MA26-000201 is open: authorise its report first, then finish this stage\./).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', {name: 'MA26-000201'})[0]).toHaveAttribute('href', '/lab/cases/case-1');
   });
 

@@ -67,20 +67,39 @@ describe('LabCaseDialog', () => {
     expect(await bodyOf(fetch)).toEqual({choice: 'SampleAdequate', outcome: 'Insufficient', detail: 'Too little to test', expectedVersion: 3});
   });
 
-  it('enters the results and authorises the report', async () => {
+  it('enters the results and authorises the report, then opens the pathway for the lab to finish its stage', async () => {
     const labCase = testCase({next: {kind: 'Report', name: 'Results and report'}, canAuthorise: true});
-    const {user, fetch} = renderDialog(
+    const {user, fetch, router} = renderDialog(
       {kind: 'report'},
       {[`POST /api/lab-cases/${CASE_ID}/report`]: () => json(testCase({status: 'Reported', reportText: 'Synthetic results.'}))},
       labCase,
     );
 
     expect(await screen.findByRole('heading', {name: 'Enter Results and Authorise'})).toBeInTheDocument();
-    expect(isDisabled(dialog().getByRole('button', {name: 'Authorise Report'}))).toBe(true);
+    expect(dialog().getByText(/finish the stage there to send it back/)).toBeInTheDocument();
+    expect(isDisabled(dialog().getByRole('button', {name: 'Authorise and Open Pathway'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /^Results/}), 'Synthetic results.');
-    await user.click(dialog().getByRole('button', {name: 'Authorise Report'}));
+    await user.click(dialog().getByRole('button', {name: 'Authorise and Open Pathway'}));
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     expect(await bodyOf(fetch)).toEqual({results: 'Synthetic results.', expectedVersion: 3});
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe(`/pathways/${labCase.pathwayId}`));
+  });
+
+  it('authorises a case with no pathway (the hospital’s) and stays', async () => {
+    const labCase = testCase({next: {kind: 'Report', name: 'Results and report'}, canAuthorise: true, pathwayId: null, stageId: null});
+    const {user, router, onClose} = renderDialog(
+      {kind: 'report'},
+      {[`POST /api/lab-cases/${CASE_ID}/report`]: () => json(testCase({status: 'Reported', pathwayId: null}))},
+      labCase,
+    );
+    expect(await screen.findByRole('heading', {name: 'Enter Results and Authorise'})).toBeInTheDocument();
+    const before = router.state.location.pathname;
+
+    await user.type(dialog().getByRole('textbox', {name: /^Results/}), 'Synthetic results.');
+    await user.click(dialog().getByRole('button', {name: 'Authorise Report'}));
+
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(router.state.location.pathname).toBe(before);
   });
 });

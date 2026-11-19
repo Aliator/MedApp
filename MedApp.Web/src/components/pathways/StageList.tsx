@@ -181,7 +181,7 @@ export function StageResult({stage, title}: {stage: PathwayStage; title?: string
  */
 export const labCaseOpenWords = (stage: PathwayStage): string | null =>
   stage.labCaseId && stage.labCaseStatus === 'Open'
-    ? `Lab case ${stage.labCaseNumber ?? ''} is open: authorising its report finishes this stage.`
+    ? `Lab case ${stage.labCaseNumber ?? ''} is open: authorise its report first, then finish this stage.`
     : null;
 
 /** A lab stage's lab case (MC16): its number, linked, and where it stands. */
@@ -193,7 +193,7 @@ export function StageLabCase({stage}: {stage: PathwayStage}) {
       <Link href={`/lab/cases/${stage.labCaseId}`}>{stage.labCaseNumber ?? 'Open the case'}</Link>
       <Text type="body" color="secondary">
         {stage.labCaseStatus === 'Open'
-          ? '(open): authorising its report finishes this stage, with its results.'
+          ? '(open): authorise its report first, then finish this stage.'
           : `(${labCaseStatusLabel(stage.labCaseStatus).toLowerCase()})`}
       </Text>
     </HStack>

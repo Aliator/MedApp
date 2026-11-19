@@ -25,7 +25,7 @@ describe('the relay in the light demo', () => {
     // Aisha's fork has two of the lab's stages current at once, both handed over (MC8 with the relay).
     expect(await viewIds('NewForUs')).toEqual(expect.arrayContaining([PATHWAYS.forkedTests]));
     expect(await viewIds('OurTurn')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.forkedTests]));
-    // Its case is open, so the stage isn't finished by hand (MC16): authorising the case's report finishes it.
+    // Its case is open, so the stage isn't finished by hand yet (MC16): its report is authorised first.
     const histology = `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`;
     const refused = await call('POST', histology, {});
     expect(refused.status).toBe(409);
@@ -34,6 +34,11 @@ describe('the relay in the light demo', () => {
     expect(current((await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`)).body)).toMatchObject({labCaseId: labCase.id, labCaseStatus: 'Open'});
     const report = await call('POST', `/api/lab-cases/${labCase.id}/report`, {results: 'Compound naevus, no atypia (synthetic).', expectedVersion: labCase.version});
     expect(report.status).toBe(200);
+    // The results are on the stage, still the lab's, until the lab finishes it by hand (the owner, 19 Nov).
+    const reported = (await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`)).body;
+    expect(current(reported)).toMatchObject({name: 'Histology', labCaseStatus: 'Reported', pickedUpByUsername: LAB.username});
+    expect(reported.stages.find((s: {name: string}) => s.name === 'Histology').result).toMatchObject({text: 'Compound naevus, no atypia (synthetic).'});
+    expect((await call('POST', histology, {})).status).toBe(200);
     const finished = await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`);
     expect(current(finished.body)).toMatchObject({name: 'Histology result', handedOverFromTeamName: 'Lab', canPickUp: false, needsOutcome: true});
     expect(finished.body.stages.find((s: {name: string}) => s.name === 'Histology').result).toMatchObject({
