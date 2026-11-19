@@ -48,7 +48,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 23;
+export const SEED_VERSION = 24;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -203,6 +203,7 @@ const PATIENT_SPECS: [string, string, string, string, string, number][] = [
   [PATIENTS.callumAshby, 'Callum', 'Ashby', '1970-05-05', '9991020551', 21],
   [PATIENTS.harrietQuill, 'Harriet', 'Quill', '1949-01-22', '9991022007', 22],
   [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09', '9991023372', 23],
+  [PATIENTS.noraFennick, 'Nora', 'Fennick', '1990-06-14', '9991041818', 24],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
@@ -564,6 +565,13 @@ export function seed(): DemoState {
         title: 'Scaly patch, back of the right hand', dueIn: 24, priority: 'Medium', done: 4, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 21,
         results: {Histology: 'Seborrhoeic keratosis, no dysplasia (synthetic report).'},
+      },
+      // Photo consent (MC27, the tour's side story in MC29): the dermoscopy was uncertain, so Take photographs is next,
+      // and it needs her consent to clinical photography, not recorded yet.
+      {
+        n: 15, id: PATHWAYS.photosToTake, patientId: PATIENTS.noraFennick, templateId: TEMPLATES.changingMole,
+        title: 'Atypical mole, left shoulder', dueIn: 45, priority: 'Medium', done: 2, outcomes: {'Dermoscopy assessment': 'Uncertain: monitor'},
+        status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 12,
       },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
