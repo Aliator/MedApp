@@ -4,25 +4,21 @@ import {SPECIMEN_VIEWS, type SpecimenView} from '../../api/specimens';
 export type LabView = SpecimenView | 'All';
 
 /** The columns the Lab page sorts by, as the API names them (`time` is the view's own time). */
-export const LAB_SORTS = ['number', 'patient', 'lab', 'status', 'time'] as const;
+export const LAB_SORTS = ['number', 'patient', 'status', 'time'] as const;
 export type LabSortColumn = (typeof LAB_SORTS)[number];
 
 /**
- * The Lab page's address: its view, the lab it's narrowed to, the page and the sort. With no view, it opens on Expected
+ * The samples page's address (`/lab/samples`): its view, the page and the sort. With no view, it opens on Expected
  * for holders of ProcessSpecimens (the lab's own staff) and To send for everyone else (the clinic, who send them), so
  * the Lab item's own link has no search at all. The page's text search is never here: it may be a specimen number,
  * which stays out of URLs (the page keeps it, and sends it in a request body).
  */
 export interface LabSearch {
   view?: LabView;
-  /** A lab's ID. */
-  lab?: string;
   page?: number;
   sort?: LabSortColumn;
   asc?: boolean;
 }
-
-const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
 
@@ -30,12 +26,10 @@ const text = (value: unknown) => (typeof value === 'string' || typeof value === 
 export function parseLabSearch(raw: Record<string, unknown>): LabSearch {
   const view = text(raw.view)?.toLowerCase();
   const page = Number(text(raw.page));
-  const lab = text(raw.lab);
   const sort = text(raw.sort)?.toLowerCase();
   const asc = text(raw.asc)?.toLowerCase();
   const search: LabSearch = {
     view: [...SPECIMEN_VIEWS, 'All' as const].find((v) => v.toLowerCase() === view),
-    lab: lab && GUID.test(lab) ? lab.toLowerCase() : undefined,
     page: Number.isInteger(page) && page > 1 ? page : undefined,
     sort: LAB_SORTS.find((s) => s === sort),
     asc: asc === 'true' ? true : asc === 'false' ? false : undefined,

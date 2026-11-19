@@ -46,7 +46,12 @@ function CaseDetails({request}: {request: HospitalRequest}) {
     <MetadataList>
       <MetadataListItem label="Lab case">{request.labCaseNumber}</MetadataListItem>
       <MetadataListItem label="Status">{labCaseStatusLabel(request.labCaseStatus)}</MetadataListItem>
-      <MetadataListItem label="Type of sample">{request.specimenTypeName}</MetadataListItem>
+      <MetadataListItem label="Source">From the hospital</MetadataListItem>
+      <MetadataListItem label="Test">{request.labTestName}</MetadataListItem>
+      <MetadataListItem label="Type of sample">
+        {request.specimenTypeName}
+        {request.specimenTypeSnomedCode ? ` (SNOMED CT ${request.specimenTypeSnomedCode})` : ''}
+      </MetadataListItem>
       <MetadataListItem label="Collected">{request.collectedAtUtc ? formatDateTime(request.collectedAtUtc) : 'Not given'}</MetadataListItem>
       <MetadataListItem label="Registered">
         {formatDateTime(request.registeredAtUtc ?? '')}

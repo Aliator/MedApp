@@ -2,7 +2,7 @@ import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, LAB, STAFF} from '../accounts';
 import {PATIENTS} from '../ids';
 import {HOSPITAL_PATIENTS, HOSPITAL_REQUESTS, HOSPITALS} from '../slices/hospitals';
-import {SPECIMEN_TYPES} from '../slices/lab';
+import {LAB_TESTS, SPECIMEN_TYPES} from '../slices/lab';
 import {db} from '../store';
 import {daysFrom, ukTime} from '../time';
 
@@ -17,6 +17,7 @@ const newRequest = (more: Record<string, unknown> = {}) => ({
   reportNeededBy: daysFrom(3),
   collectedAtUtc: ukTime(daysFrom(-1), 11, 0),
   specimenTypeId: SPECIMEN_TYPES.skinBiopsy,
+  labTestId: LAB_TESTS.skinHistology,
   ...more,
 });
 
@@ -47,6 +48,9 @@ describe('the light demo’s hospitals and hospital requests (MC18)', () => {
       nhsNumbersDiffer: false,
       priority: 'Urgent',
       isCancerPathway: true,
+      source: 'Hospital',
+      specimenTypeSnomedCode: '309066003',
+      labTestName: expect.any(String),
       patient: {id: HOSPITAL_PATIENTS.wilfredAshdown, lastName: 'Ashdown', nhsNumber: '9991031375'},
     });
     expect(db().activityLog.some((a) => a.action === 'LabCaseViewed' && a.patientId === HOSPITAL_PATIENTS.wilfredAshdown)).toBe(true);
@@ -81,6 +85,7 @@ describe('the light demo’s hospitals and hospital requests (MC18)', () => {
     const missing = await call('POST', '/api/hospital-requests', newRequest({priority: null, surgeonName: ''}));
     expect(missing.status).toBe(400);
     expect(Object.keys(missing.body.errors)).toEqual(expect.arrayContaining(['priority', 'surgeonName']));
+    expect((await call('POST', '/api/hospital-requests', newRequest({labTestId: null, patientId: PATIENTS.ellisVarden}))).body.errors).toHaveProperty('labTestId');
     expect((await call('POST', '/api/hospital-requests', newRequest())).body.errors).toHaveProperty('patientId');
 
     const forEllis = await call('POST', '/api/hospital-requests', newRequest({patientId: PATIENTS.ellisVarden}));

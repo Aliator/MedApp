@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {personById, usernameOf} from '../accounts';
 import {invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {specimenNumber, type DemoLaboratory, type DemoSpecimen, type DemoSpecimenType, type SpecimenStatus} from '../slices/lab';
+import {specimenNumber, type DemoSpecimen, type DemoSpecimenType, type SpecimenStatus} from '../slices/lab';
 import type {DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc, today} from '../time';
@@ -19,11 +19,12 @@ import {
   withArticle,
 } from './labCommon';
 import {isAwaitingResult, registerResults} from './labResults';
+import {registerLabTests} from './labTests';
 import {findPathway, isCurrentStage} from './pathways';
 import {canSeeRecord, myScope, passToLab, seeRecord} from './teamWalls';
 
 /**
- * Specimens, the Lab page, specimen types and labs (results: `labResults.ts`), a simplified copy of the API's
+ * Specimens, the samples page and specimen types (lab tests: `labTests.ts`; results: `labResults.ts`), a simplified copy of the API's
  * `SpecimenWorkflow`: statuses only move forward (Taken → Sent → Received → Reported) or close early (rejected by the
  * lab, lost, entered in error), every change carries `expectedVersion`, and the last stage can't be finished while a
  * specimen is open. MedApp tracks specimens; it never reads or interprets a report. Simplified: no report uploads (no
@@ -55,7 +56,6 @@ const EIE_NOT_ALLOWED =
 const MAX_NAME = 100;
 
 const typeOf = (specimen: DemoSpecimen) => db().specimenTypes.find((t) => t.id === specimen.specimenTypeId);
-const labOf = (specimen: DemoSpecimen) => db().laboratories.find((l) => l.id === specimen.laboratoryId);
 const expectedBy = (specimen: DemoSpecimen) => addDaysUtc(specimen.takenAtUtc, typeOf(specimen)?.expectedTurnaroundDays ?? 0);
 const isOverdueAtLab = (specimen: DemoSpecimen) => isOpenSpecimen(specimen) && Date.parse(nowUtc()) > Date.parse(expectedBy(specimen));
 const stageOf = (specimen: DemoSpecimen) =>
@@ -119,7 +119,6 @@ function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummaryRespon
     pathwayId: specimen.pathwayId,
     stageId: specimen.stageId,
     specimenTypeName: typeOf(specimen)?.name ?? null,
-    laboratoryName: labOf(specimen)?.name ?? null,
     status: specimen.status,
     isOpen: isOpenSpecimen(specimen),
     takenAtUtc: specimen.takenAtUtc,
@@ -158,8 +157,6 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
     specimenTypeId: specimen.specimenTypeId,
     specimenTypeName: typeOf(specimen)?.name ?? null,
     expectedTurnaroundDays: typeOf(specimen)?.expectedTurnaroundDays ?? 0,
-    laboratoryId: specimen.laboratoryId,
-    laboratoryName: labOf(specimen)?.name ?? null,
     site: specimen.site,
     requestNotes: specimen.requestNotes,
     requestingUserId: specimen.requestingUserId,
@@ -233,16 +230,14 @@ function moved(specimen: DemoSpecimen) {
   specimen.version++;
 }
 
-/** The type, lab and requesting clinician chosen for a specimen (`SpecimenChoices`): a 400 on the field otherwise. */
+/** The type and requesting clinician chosen for a specimen (`SpecimenChoices`): a 400 on the field otherwise. */
 function checkChoices(
-  body: {specimenTypeId?: string; laboratoryId?: string; requestingUserId?: string; site?: string | null; requestNotes?: string | null},
+  body: {specimenTypeId?: string; requestingUserId?: string; site?: string | null; requestNotes?: string | null},
   existing?: DemoSpecimen,
 ) {
   const errors: Record<string, string[]> = {};
   const type = db().specimenTypes.find((t) => t.id === body.specimenTypeId);
   if (!type || (type.isArchived && type.id !== existing?.specimenTypeId)) errors.specimenTypeId = ["Choose a specimen type that isn't archived."];
-  const lab = db().laboratories.find((l) => l.id === body.laboratoryId);
-  if (!lab || (lab.isArchived && lab.id !== existing?.laboratoryId)) errors.laboratoryId = ["Choose a lab that isn't archived."];
   const requesting = personById(body.requestingUserId);
   if (!requesting || (!requesting.permissions.includes('SignOffResults') && requesting.id !== existing?.requestingUserId))
     errors.requestingUserId = ["Choose a clinician whose roles allow signing off results: they'll get the result."];
@@ -266,10 +261,9 @@ const VIEW_ORDER: Record<string, {match: (s: DemoSpecimen) => boolean; key: (s: 
   All: {match: () => true, key: (s) => s.takenAtUtc, newestFirst: true},
 };
 
-/** What a specimen search asks for: a view, a lab, a pathway, a patient, text and a column to sort by. */
+/** What a specimen search asks for: a view, a pathway, a patient, text and a column to sort by. */
 interface SpecimenListSearch {
   view?: string | null;
-  laboratoryId?: string | null;
   pathwayId?: string | null;
   patientId?: string | null;
   search?: string | null;
@@ -278,7 +272,7 @@ interface SpecimenListSearch {
 }
 
 /** The specimens a search finds, in the view's order or the column asked for (as `SpecimenSearch` in the API). */
-function specimenList({view: viewName, laboratoryId, pathwayId, patientId, search, sort, ascending = true}: SpecimenListSearch) {
+function specimenList({view: viewName, pathwayId, patientId, search, sort, ascending = true}: SpecimenListSearch) {
   const view = VIEW_ORDER[viewName ?? ''] ?? VIEW_ORDER.All;
   const term = search?.trim() ?? '';
   const compact = term.replace(/\s/g, '');
@@ -288,7 +282,6 @@ function specimenList({view: viewName, laboratoryId, pathwayId, patientId, searc
       (s) =>
         canSeeRecord(s, scope) &&
         view.match(s) &&
-        (!laboratoryId || s.laboratoryId === laboratoryId) &&
         (!pathwayId || s.pathwayId === pathwayId) &&
         (!patientId || s.patientId === patientId) &&
         (!term ||
@@ -305,7 +298,6 @@ function specimenList({view: viewName, laboratoryId, pathwayId, patientId, searc
     sortedBy(items, sort, ascending, {
       number: (s) => s.number,
       patient: (s) => patientSortName(s.patientId),
-      lab: (s) => labOf(s)?.name ?? '',
       status: (s) => STATUS_ORDER.indexOf(s.status),
       time: view.key,
     }) ?? items
@@ -316,7 +308,7 @@ function specimenList({view: viewName, laboratoryId, pathwayId, patientId, searc
 const STATUS_ORDER: SpecimenStatus[] = ['Taken', 'Sent', 'Received', 'Reported', 'RejectedByLab', 'Lost', 'EnteredInError'];
 
 /** A setup list's name: required, at most 100 characters, and not another's (a 409). */
-function setupName(name: string | null | undefined, others: {id: string; name: string}[], id: string | undefined, taken: (name: string) => string) {
+export function setupName(name: string | null | undefined, others: {id: string; name: string}[], id: string | undefined, taken: (name: string) => string) {
   const trimmed = name?.trim() ?? '';
   if (!trimmed) refuse(invalid({name: ['Give it a name.']}));
   if (trimmed.length > MAX_NAME) refuse(invalid({name: [`The name must be at most ${MAX_NAME} characters.`]}));
@@ -328,21 +320,23 @@ function typeResponse(type: DemoSpecimenType): Schemas['SpecimenTypeResponse'] {
   return {...type, canBeDeleted: !db().specimens.some((s) => s.specimenTypeId === type.id)};
 }
 
-function laboratoryResponse(lab: DemoLaboratory): Schemas['LaboratoryResponse'] {
-  return {...lab, canBeDeleted: !db().specimens.some((s) => s.laboratoryId === lab.id)};
+/** A SNOMED CT code, as the API checks it: optional, 6 to 18 digits (a concept ID), never looked up. */
+export function snomedCode(value: string | null | undefined, field = 'snomedCode'): string | null {
+  const code = value?.trim() ?? '';
+  if (!code) return null;
+  if (!/^\d{6,18}$/.test(code)) refuse(invalid({[field]: ['A SNOMED CT code is 6 to 18 digits.']}));
+  return code;
 }
 
-const byName = <T extends {name: string}>(a: T, b: T) => a.name.localeCompare(b.name);
+export const byName = <T extends {name: string}>(a: T, b: T) => a.name.localeCompare(b.name);
 
 function registerSetupLists() {
   const findType = (id: string) => db().specimenTypes.find((t) => t.id === id) ?? refuse(notFound(`Specimen type '${id}'`));
-  const findLab = (id: string) => db().laboratories.find((l) => l.id === id) ?? refuse(notFound(`Lab '${id}'`));
   const turnaround = (days: number | undefined) => {
     if (!Number.isInteger(days) || days! < 1 || days! > 90) refuse(invalid({expectedTurnaroundDays: ['The expected turnaround must be 1 to 90 days.']}));
     return days!;
   };
   const typeTaken = (name: string) => `There's already a specimen type called '${name}'.`;
-  const labTaken = (name: string) => `There's already a lab called '${name}'.`;
 
   on('get', '/api/specimen-types', ({query}) => {
     me();
@@ -355,6 +349,7 @@ function registerSetupLists() {
       id: newId(),
       name: setupName(body.name, db().specimenTypes, undefined, typeTaken),
       expectedTurnaroundDays: turnaround(body.expectedTurnaroundDays),
+      snomedCode: snomedCode(body.snomedCode),
       isArchived: false,
     };
     db().specimenTypes.push(type);
@@ -365,6 +360,7 @@ function registerSetupLists() {
     const type = findType(params.id);
     type.name = setupName(body.name, db().specimenTypes, type.id, typeTaken);
     type.expectedTurnaroundDays = turnaround(body.expectedTurnaroundDays);
+    type.snomedCode = snomedCode(body.snomedCode);
     return typeResponse(type);
   });
   on('delete', '/api/specimen-types/{id}', ({params}) => {
@@ -386,61 +382,18 @@ function registerSetupLists() {
     type.isArchived = false;
     return typeResponse(type);
   });
-
-  on('get', '/api/laboratories', ({query}) => {
-    me();
-    const includeArchived = query.get('includeArchived') === 'true';
-    return db().laboratories.filter((l) => includeArchived || !l.isArchived).sort(byName).map(laboratoryResponse);
-  });
-  on('post', '/api/laboratories', ({body}) => {
-    requirePermission('ManageSetup');
-    const lab: DemoLaboratory = {
-      id: newId(),
-      name: setupName(body.name, db().laboratories, undefined, labTaken),
-      usesMedApp: body.usesMedApp === true,
-      isArchived: false,
-    };
-    db().laboratories.push(lab);
-    return laboratoryResponse(lab);
-  });
-  on('put', '/api/laboratories/{id}', ({params, body}) => {
-    requirePermission('ManageSetup');
-    const lab = findLab(params.id);
-    lab.name = setupName(body.name, db().laboratories, lab.id, labTaken);
-    lab.usesMedApp = body.usesMedApp === true;
-    return laboratoryResponse(lab);
-  });
-  on('delete', '/api/laboratories/{id}', ({params}) => {
-    requirePermission('ManageSetup');
-    const lab = findLab(params.id);
-    if (!laboratoryResponse(lab).canBeDeleted)
-      return problem(409, `Specimens have been sent to '${lab.name}', so it can't be deleted. Archive it instead.`);
-    db().laboratories = db().laboratories.filter((l) => l.id !== lab.id);
-  });
-  on('post', '/api/laboratories/{id}/archive', ({params}) => {
-    requirePermission('ManageSetup');
-    const lab = findLab(params.id);
-    lab.isArchived = true;
-    return laboratoryResponse(lab);
-  });
-  on('post', '/api/laboratories/{id}/restore', ({params}) => {
-    requirePermission('ManageSetup');
-    const lab = findLab(params.id);
-    lab.isArchived = false;
-    return laboratoryResponse(lab);
-  });
 }
 
-/** Specimens, the Lab page, specimen types, labs and results. */
+/** Specimens, the samples page, specimen types, lab tests (`labTests.ts`) and results. */
 export function registerLab() {
   registerSetupLists();
+  registerLabTests();
   registerResults();
 
   on('get', '/api/specimens/search', ({query}) => {
     requirePermission('ViewPatients');
     const items = specimenList({
       view: query.get('View'),
-      laboratoryId: query.get('LaboratoryId'),
       pathwayId: query.get('PathwayId'),
       patientId: query.get('PatientId'),
     });
@@ -491,7 +444,6 @@ export function registerLab() {
       teamId: pathway.teamId,
       stageId: stage.id,
       specimenTypeId: body.specimenTypeId!,
-      laboratoryId: body.laboratoryId!,
       site,
       requestNotes,
       requestingUserId: body.requestingUserId!,
@@ -533,7 +485,6 @@ export function registerLab() {
     const takenAtUtc = Date.parse(body.takenAtUtc) === Date.parse(specimen.takenAtUtc) ? specimen.takenAtUtc : stepTime(body.takenAtUtc, null, 'taken', 'takenAtUtc');
     Object.assign(specimen, {
       specimenTypeId: body.specimenTypeId,
-      laboratoryId: body.laboratoryId,
       requestingUserId: body.requestingUserId,
       site,
       requestNotes,

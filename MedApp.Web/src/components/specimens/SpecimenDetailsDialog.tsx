@@ -8,7 +8,6 @@ import {useAnnounce} from '../../app/announcements';
 import {staffWithPermissionQuery} from '../../api/calendar';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
 import {
-  laboratoriesQuery,
   MAX_REQUEST_NOTES,
   specimenTypesQuery,
   useRecordSpecimen,
@@ -25,7 +24,7 @@ import {AppIcon} from '../shared/icons';
 import {StepTimeFields} from './StepTimeFields';
 
 /** The fields the API's 400 can name, each shown on its field; anything else goes above them. */
-const FIELDS = ['specimenTypeId', 'laboratoryId', 'takenAtUtc', 'site', 'requestNotes', 'requestingUserId'];
+const FIELDS = ['specimenTypeId', 'takenAtUtc', 'site', 'requestNotes', 'requestingUserId'];
 
 /** Who can be a specimen's requesting clinician: holders of this permission (the API's `RequestingClinicianPermission`). */
 export const REQUESTING_PERMISSION = 'SignOffResults' as const;
@@ -52,7 +51,7 @@ function choices(items: readonly {id?: string; name?: string | null; isArchived?
 
 /**
  * Recording a specimen taken at a pathway's stage (Record Specimen), or correcting one's details before it's sent
- * (Edit Specimen): its type and lab (from the setup lists, not archived), the requesting clinician (a holder of
+ * (Edit Specimen): its type (from the setup list, not archived), the requesting clinician (a holder of
  * SignOffResults, starting with you when you are one), when it was taken (now, or up to a week back), and optionally the
  * site and notes for the lab, which are free text in the clinical record. The patient shows as the banner does, and
  * the stage and pathway, so it's recorded on the right one (hazard H-47). A 400 shows on its fields; a 409 or 403 in
@@ -62,16 +61,14 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
   const isEditing = specimen !== undefined;
   const user = useCurrentUser();
   const announce = useAnnounce();
-  // Archived types and labs come too when correcting, so one the specimen already has can stay.
+  // Archived types come too when correcting, so one the specimen already has can stay.
   const types = useQuery({...specimenTypesQuery(isEditing), enabled: isOpen});
-  const labs = useQuery({...laboratoriesQuery(isEditing), enabled: isOpen});
   const staff = useQuery({...staffWithPermissionQuery(REQUESTING_PERMISSION), enabled: isOpen});
   const recordSpecimen = useRecordSpecimen(record?.pathwayId ?? '');
   const actions = useSpecimenActions(specimen?.id ?? '');
   const saving = isEditing ? actions.edit : recordSpecimen;
 
   const [typeId, setTypeId] = useState(specimen?.specimenTypeId ?? '');
-  const [labId, setLabId] = useState(specimen?.laboratoryId ?? '');
   const [requester, setRequester] = useState<string | null>(specimen?.requestingUserId ?? null);
   const [initialTaken] = useState<UkDateTime>(() => ukDateTime(specimen?.takenAtUtc ?? undefined));
   const [taken, setTaken] = useState<UkDateTime>(initialTaken);
@@ -90,12 +87,12 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
 
   const isUnchangedTime = taken.date === initialTaken.date && taken.time === initialTaken.time;
   const takenAtUtc = isUnchangedTime ? (specimen?.takenAtUtc ?? undefined) : (ukDateTimeToUtc(taken) ?? undefined);
-  const isComplete = Boolean(typeId && labId && requestingUserId && taken.date && taken.time);
+  const isComplete = Boolean(typeId && requestingUserId && taken.date && taken.time);
 
   const save = () => {
     setErrors(null);
     setMessage(null);
-    const input = {specimenTypeId: typeId, laboratoryId: labId, takenAtUtc, site, requestNotes, requestingUserId};
+    const input = {specimenTypeId: typeId, takenAtUtc, site, requestNotes, requestingUserId};
     const callbacks = {
       onSuccess: (saved: Specimen) => {
         announce(isEditing ? 'Specimen details saved' : `Specimen ${saved.number ?? ''} recorded`);
@@ -147,15 +144,6 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
           onChange={(value: string) => setTypeId(value)}
           isRequired
           status={types.isError ? {type: 'error', message: 'The specimen types could not be loaded.'} : fieldStatus(errors, 'specimenTypeId')}
-        />
-        <AnchoredSelector
-          label="Lab"
-          placeholder={labs.isPending ? 'Loading labs...' : 'Choose the lab it goes to'}
-          options={choices(labs.data, specimen?.laboratoryId ?? '')}
-          value={labId || undefined}
-          onChange={(value: string) => setLabId(value)}
-          isRequired
-          status={labs.isError ? {type: 'error', message: 'The labs could not be loaded.'} : fieldStatus(errors, 'laboratoryId')}
         />
         <AnchoredSelector
           label="Requesting clinician"

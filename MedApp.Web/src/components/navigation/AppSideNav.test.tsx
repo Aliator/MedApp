@@ -65,9 +65,11 @@ describe('AppSideNav', () => {
     // The GP practice directory is in the Calendar category, for admins; Data Requests in Oversight.
     expect(screen.getByRole('link', {name: 'Practices'})).toHaveAttribute('href', '/practices');
     expect(screen.getByRole('link', {name: 'Data Requests'})).toHaveAttribute('href', '/data-requests');
-    expect(screen.getByRole('link', {name: 'Specimen Types and Labs'})).toHaveAttribute('href', '/admin/specimen-setup');
+    expect(screen.getByRole('link', {name: 'Specimen Types and Lab Tests'})).toHaveAttribute('href', '/admin/specimen-setup');
     expect(screen.getByRole('link', {name: 'Consent Forms'})).toHaveAttribute('href', '/admin/consent-forms');
-    // The lab's worklist is for those who record or process specimens, which the Admin role alone doesn't grant.
+    // The samples worklist is for those who record or process specimens, which the Admin role alone doesn't grant;
+    // the lab's home for lab staff.
+    expect(screen.queryByRole('link', {name: 'Samples'})).not.toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: /audit log/i})).toHaveAttribute('href', '/admin/audit');
     expect(screen.getByRole('link', {name: 'Insights'})).toHaveAttribute('href', '/admin/insights');
@@ -204,19 +206,37 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: 'Practices'})).not.toBeInTheDocument();
   });
 
-  it("has Lab after Referrals for those who record or process specimens, current on a specimen's pages too", async () => {
+  it("has Samples after Referrals for those who record or process specimens, current on a specimen's pages too", async () => {
     const {unmount} = renderWithApp(<AppSideNav />, {user: nurseUser, path: '/specimens/00000051-0000-0000-0000-000000000001'});
 
-    const lab = await screen.findByRole('link', {name: 'Lab'});
-    expect(lab).toHaveAttribute('href', '/lab');
-    expect(lab).toHaveAttribute('aria-current', 'page');
+    const samples = await screen.findByRole('link', {name: 'Samples'});
+    expect(samples).toHaveAttribute('href', '/lab/samples');
+    expect(samples).toHaveAttribute('aria-current', 'page');
     const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
-    expect(names.indexOf('/lab')).toBe(names.indexOf('/referrals') + 1);
+    expect(names.indexOf('/lab/samples')).toBe(names.indexOf('/referrals') + 1);
+    // The lab's home is for lab staff only.
+    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
     unmount();
 
     renderWithApp(<AppSideNav />, {user: staffUser});
     expect(await screen.findByRole('link', {name: /Referrals/})).toBeInTheDocument();
-    expect(screen.queryByRole('link', {name: 'Lab'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'Samples'})).not.toBeInTheDocument();
+  });
+
+  it("leads with the lab's home for lab staff, current on it but not on the samples list", async () => {
+    const labStaff = {...nurseUser, username: 'test-lab', teams: [{id: 'lab', name: 'Lab', kind: 'Lab' as const, role: 'Member' as const}]};
+    const {unmount} = renderWithApp(<AppSideNav />, {user: labStaff, path: '/lab'});
+
+    const home = await screen.findByRole('link', {name: 'Lab'});
+    expect(home).toHaveAttribute('href', '/lab');
+    expect(home).toHaveAttribute('aria-current', 'page');
+    const names = screen.getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(names.indexOf('/lab')).toBeLessThan(names.indexOf('/tasks'));
+    unmount();
+
+    renderWithApp(<AppSideNav />, {user: labStaff, path: '/lab/samples'});
+    expect(await screen.findByRole('link', {name: 'Lab'})).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', {name: 'Samples'})).toHaveAttribute('aria-current', 'page');
   });
 
   it("has Results before Letters for someone who can view patients, current on a result's page, with no count badges", async () => {

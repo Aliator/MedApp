@@ -1,10 +1,8 @@
 import {labSortOf, labViewOf, parseLabSearch} from './labSearch';
 
-const LAB = '00000051-0000-0000-0000-000000000007';
-
 describe('parseLabSearch', () => {
-  it('reads the view, lab and page, whatever their case', () => {
-    expect(parseLabSearch({view: 'inlab', lab: LAB.toUpperCase(), page: '3'})).toEqual({view: 'InLab', lab: LAB, page: 3});
+  it('reads the view and page, whatever their case, ignoring a lab (dropped in MC13)', () => {
+    expect(parseLabSearch({view: 'inlab', lab: 'anything', page: '3'})).toEqual({view: 'InLab', page: 3});
     expect(parseLabSearch({view: 'RejectedAndLost'})).toEqual({view: 'RejectedAndLost'});
     expect(parseLabSearch({view: 'all', sort: 'Number', asc: 'false'})).toEqual({view: 'All', sort: 'number', asc: false});
     expect(parseLabSearch({sort: 'time', asc: 'true'})).toEqual({sort: 'time', asc: true});
@@ -12,7 +10,7 @@ describe('parseLabSearch', () => {
 
   it('drops anything that is not valid', () => {
     expect(parseLabSearch({view: 'Everything', lab: 'northgate', page: '1'})).toEqual({});
-    expect(parseLabSearch({page: 'two', lab: 42, sort: 'site', asc: 'maybe'})).toEqual({});
+    expect(parseLabSearch({page: 'two', lab: 42, sort: 'lab', asc: 'maybe'})).toEqual({});
   });
 });
 
@@ -28,7 +26,7 @@ describe('labSortOf', () => {
   it("marks the view's own time, oldest first (All newest first), or the sort asked for", () => {
     expect(labSortOf({}, 'Expected')).toEqual({sort: 'time', asc: true});
     expect(labSortOf({}, 'All')).toEqual({sort: 'time', asc: false});
-    expect(labSortOf({sort: 'lab'}, 'All')).toEqual({sort: 'lab', asc: true});
+    expect(labSortOf({sort: 'number'}, 'All')).toEqual({sort: 'number', asc: true});
     expect(labSortOf({sort: 'status', asc: false}, 'InLab')).toEqual({sort: 'status', asc: false});
   });
 });

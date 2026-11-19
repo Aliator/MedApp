@@ -87,9 +87,14 @@ export function HospitalRequestsPage({search, onSearchChange}: HospitalRequestsP
       sortable: true,
       width: proportional(1.2, {minWidth: 120}),
       renderCell: (r) => (
-        <Text type="body" weight="semibold" maxLines={1}>
-          <Link href={`/hospital-requests/${r.id}`}>{r.labCaseNumber}</Link>
-        </Text>
+        <VStack gap={0} hAlign="start">
+          <Text type="body" weight="semibold" maxLines={1}>
+            <Link href={`/hospital-requests/${r.id}`}>{r.labCaseNumber}</Link>
+          </Text>
+          <Text type="supporting" color="secondary" maxLines={1}>
+            {r.labTestName}
+          </Text>
+        </VStack>
       ),
     },
     {key: 'patient', header: 'Patient', sortable: true, width: proportional(2, {minWidth: 120}), renderCell: (r) => <SpecimenPatientCell specimen={r} />},

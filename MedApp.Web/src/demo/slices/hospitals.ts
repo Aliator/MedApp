@@ -3,7 +3,7 @@ import {LAB} from '../accounts';
 import {PATIENTS, TEAMS, id} from '../ids';
 import type {BaseState} from '../state';
 import {daysFrom, ukTime} from '../time';
-import {SPECIMEN_TYPES, specimenNumber, type LabSlice} from './lab';
+import {LAB_TESTS, SPECIMEN_TYPES, specimenNumber, type LabSlice} from './lab';
 
 /**
  * The light demo's hospitals and hospital requests (MC18 of `docs/multi-clinic-plan.md`): a nearby hospital sends the
@@ -46,6 +46,10 @@ export interface DemoHospitalRequest {
   reportNeededBy: string | null;
   collectedAtUtc: string | null;
   specimenTypeId: string;
+  /** The test asked for, from the lab's catalogue (MC13). */
+  labTestId: string;
+  /** Where the sample came from (MC14's `SpecimenSource`): always the hospital here. */
+  source: 'Hospital';
   labCaseId: string;
   labCaseNumber: string;
   /** `LabCaseStatus` by name: Open until MC15 adds its steps and report. */
@@ -139,6 +143,8 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
       authoredOn: ago(days + 1, 16, 0),
       collectedAtUtc: ago(days + 1, 11, 15),
       specimenTypeId: SPECIMEN_TYPES.skinBiopsy,
+      labTestId: LAB_TESTS.skinHistology,
+      source: 'Hospital',
       labCaseId: caseId,
       labCaseNumber: specimenNumber(lab.specimenSequence, registeredAtUtc.slice(0, 10)),
       labCaseStatus: 'Open',

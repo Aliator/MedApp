@@ -20,7 +20,9 @@ describe('HospitalRequestPage', () => {
     expect(screen.getByText('Riverside General (ZZR01)')).toBeInTheDocument();
     expect(screen.getByText('Ms A. Example')).toBeInTheDocument();
     expect(screen.getByText('Yes, the request says so')).toBeInTheDocument();
-    expect(screen.getByText('Skin biopsy (punch)')).toBeInTheDocument();
+    expect(screen.getByText('Skin biopsy (punch) (SNOMED CT 309066003)')).toBeInTheDocument();
+    expect(screen.getByText('Skin histology')).toBeInTheDocument();
+    expect(screen.getByText('From the hospital')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Open their record'})).toHaveAttribute('href', `/patients/${testRequest().patientId}`);
     expect(screen.queryByText(NHS_NUMBERS_DIFFER)).not.toBeInTheDocument();
   });

@@ -1,8 +1,8 @@
 import {ALL_IDS} from './ids';
 import {CONSENT, LETTERS, LETTER_TEMPLATES, MDT_ITEMS, MDT_MEETINGS} from './slices/clinical';
-import {LABORATORIES, RESULTS, SPECIMEN_TYPES, SPECIMENS} from './slices/lab';
+import {LAB_TESTS, RESULTS, SPECIMEN_TYPES, SPECIMENS} from './slices/lab';
 
-const LAB_ID_GROUPS = {LABORATORIES, RESULTS, SPECIMEN_TYPES, SPECIMENS};
+const LAB_ID_GROUPS = {LAB_TESTS, RESULTS, SPECIMEN_TYPES, SPECIMENS};
 const CLINICAL_ID_GROUPS = {CONSENT, LETTERS, LETTER_TEMPLATES, MDT_ITEMS, MDT_MEETINGS};
 import {NHS_NUMBERS, seed} from './seed';
 import {thisWeek, today} from './time';

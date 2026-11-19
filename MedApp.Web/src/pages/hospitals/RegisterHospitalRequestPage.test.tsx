@@ -17,6 +17,7 @@ const FIELDS = {
   reportNeededBy: '',
   collected: {date: '', time: ''},
   specimenTypeId: BIOPSY_TYPE,
+  labTestId: 'test',
 };
 const NEW = {firstName: ' Iris ', lastName: 'Example', dateOfBirth: '1990-02-02', nhsNumber: ''};
 
@@ -25,6 +26,7 @@ function renderPage() {
     'GET /api/hospitals': () => json(HOSPITALS.filter((h) => !h.isArchived)),
     'GET /api/specimen-types': () =>
       json([{id: BIOPSY_TYPE, name: 'Skin biopsy (punch)', expectedTurnaroundDays: 14, isArchived: false, canBeDeleted: false}]),
+    'GET /api/lab-tests': () => json([]),
     'POST /api/hospital-requests/patient-matches': () => json([MATCH]),
     'POST /api/hospital-requests': () => json(testRequest(), 201),
   });
@@ -63,6 +65,7 @@ describe('RegisterHospitalRequestPage', () => {
       reportNeededBy: null,
       collectedAtUtc: null,
       specimenTypeId: BIOPSY_TYPE,
+      labTestId: 'test',
     });
     expect(requestBody({...FIELDS, priority: ''}, NEW_PATIENT, NEW)).toMatchObject({
       patientId: null,

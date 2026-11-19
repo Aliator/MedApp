@@ -642,7 +642,6 @@ function ExportContent({data}: {data: PatientExport}) {
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
                     <MetadataListItem label="Pathway">{pathwayTitles.get(specimen.pathwayId) || 'A deleted pathway'}</MetadataListItem>
-                    <MetadataListItem label="Lab">{specimen.laboratoryName}</MetadataListItem>
                     <MetadataListItem label="Requested By">{specimen.requestedBy}</MetadataListItem>
                     <MetadataListItem label="Taken">{`${when(specimen.takenAtUtc)} by ${specimen.takenBy}`}</MetadataListItem>
                     <MetadataListItem label="Site">{specimen.site || '—'}</MetadataListItem>

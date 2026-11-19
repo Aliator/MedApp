@@ -21,6 +21,7 @@ import {
   type CreateHospitalRequest,
   type HospitalPatientMatch,
 } from '../../api/hospitals';
+import {labTestsQuery} from '../../api/labTests';
 import {specimenTypesQuery} from '../../api/specimens';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {DateOfBirthInput} from '../../components/forms/DateOfBirthInput';
@@ -51,6 +52,7 @@ const FIELDS = [
   'reportNeededBy',
   'collectedAtUtc',
   'specimenTypeId',
+  'labTestId',
   'patientId',
   'newPatient.firstName',
   'newPatient.lastName',
@@ -70,6 +72,8 @@ interface RequestFields {
   reportNeededBy: string;
   collected: UkDateTime;
   specimenTypeId: string;
+  /** The test the request asks for, from the lab's catalogue. */
+  labTestId: string;
 }
 
 const EMPTY: RequestFields = {
@@ -83,6 +87,7 @@ const EMPTY: RequestFields = {
   reportNeededBy: '',
   collected: {date: '', time: ''},
   specimenTypeId: '',
+  labTestId: '',
 };
 
 interface NewPatient {
@@ -121,6 +126,7 @@ export function requestBody(fields: RequestFields, choice: string, newPatient: N
     reportNeededBy: fields.reportNeededBy || null,
     collectedAtUtc: ukDateTimeToUtc(fields.collected),
     specimenTypeId: fields.specimenTypeId,
+    labTestId: fields.labTestId,
   };
 }
 
@@ -184,6 +190,7 @@ export function RegisterHospitalRequestPage() {
   const announce = useAnnounce();
   const hospitals = useQuery(hospitalsQuery(false));
   const types = useQuery(specimenTypesQuery(false));
+  const tests = useQuery(labTestsQuery(false));
   const create = useCreateHospitalRequest();
   const find = useFindHospitalPatients();
   const [fields, setFields] = useState<RequestFields>(EMPTY);
@@ -306,11 +313,20 @@ export function RegisterHospitalRequestPage() {
           <AnchoredSelector
             label="Type of sample"
             placeholder={types.isPending ? 'Loading types...' : 'Choose the type on the request'}
-            options={(types.data ?? []).map((t) => ({value: t.id ?? '', label: t.name ?? ''}))}
+            options={(types.data ?? []).map((t) => ({value: t.id ?? '', label: t.snomedCode ? `${t.name} (SNOMED CT ${t.snomedCode})` : (t.name ?? '')}))}
             value={fields.specimenTypeId || undefined}
             onChange={(v: string) => set('specimenTypeId', v)}
             isRequired
             status={fieldStatus(errors, 'specimenTypeId')}
+          />
+          <AnchoredSelector
+            label="Test"
+            placeholder={tests.isPending ? 'Loading tests...' : 'Choose the test the request asks for'}
+            options={(tests.data ?? []).map((t) => ({value: t.id ?? '', label: t.name ?? ''}))}
+            value={fields.labTestId || undefined}
+            onChange={(v: string) => set('labTestId', v)}
+            isRequired
+            status={fieldStatus(errors, 'labTestId')}
           />
         </FormSection>
         <FormSection title="Patient" useGrid={false}>

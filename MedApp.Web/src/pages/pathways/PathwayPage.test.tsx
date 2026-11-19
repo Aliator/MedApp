@@ -68,7 +68,7 @@ describe('PathwayPage', () => {
       'GET /api/specimens/search': () =>
         json(
           pageOf([
-            {id: 'sp-1', number: 'MA26-000123', stageId: 's1', specimenTypeName: 'Wound swab', laboratoryName: 'Riverside lab', status: 'Reported', takenAtUtc: '2026-11-01T10:00:00Z'},
+            {id: 'sp-1', number: 'MA26-000123', stageId: 's1', specimenTypeName: 'Wound swab', status: 'Reported', takenAtUtc: '2026-11-01T10:00:00Z'},
           ]),
         ),
     });

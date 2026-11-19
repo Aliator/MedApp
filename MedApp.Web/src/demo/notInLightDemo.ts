@@ -37,7 +37,7 @@ export const notInLightDemo: Record<string, string> = {
 
   // Pathways (the stage library, templates, stages, notes).
 
-  // Lab: specimens, specimen types, labs and results (and referrals).
+  // Lab: specimens, specimen types, lab tests and results (and referrals).
   'POST /api/specimens/{id}/report': 'No file uploads in the light demo: a specimen’s report is a file the lab attaches.',
   'POST /api/results/external': 'No files in the light demo: a result from elsewhere is an attached file marked as one.',
 

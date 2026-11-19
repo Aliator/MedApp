@@ -25,7 +25,7 @@ export type SaveSubject =
   | 'working hours'
   | 'opening hours'
   | 'specimen type'
-  | 'lab'
+  | 'lab test'
   | 'role'
   | 'practice'
   | 'letter template'

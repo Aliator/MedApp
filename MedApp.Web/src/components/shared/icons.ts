@@ -351,7 +351,7 @@ export const AppIcon = {
   DnaFollowUp: remix(RiChatFollowUpLine),
   // Specimens: taken at a stage, sent to the lab and back with its report
   Specimens: remix(RiTestTubeLine),
-  /** The lab's worklist (the side nav's Lab), and the specimen types and labs (setup). */
+  /** The lab's home (the side nav's Lab), and the specimen types and lab tests (setup). */
   Lab: remix(RiFlaskLine),
   SpecimenSent: remix(RiTruckLine),
   SpecimenReceived: remix(RiMicroscopeLine),

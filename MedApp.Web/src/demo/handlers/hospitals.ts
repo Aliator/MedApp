@@ -104,6 +104,10 @@ function requestResponse(request: DemoHospitalRequest): Schemas['HospitalRequest
     collectedAtUtc: request.collectedAtUtc,
     specimenTypeId: request.specimenTypeId,
     specimenTypeName: state.specimenTypes.find((t) => t.id === request.specimenTypeId)?.name ?? null,
+    specimenTypeSnomedCode: state.specimenTypes.find((t) => t.id === request.specimenTypeId)?.snomedCode ?? null,
+    labTestId: request.labTestId,
+    labTestName: state.labTests.find((t) => t.id === request.labTestId)?.name ?? null,
+    source: request.source,
     labCaseId: request.labCaseId,
     labCaseNumber: request.labCaseNumber,
     labCaseStatus: request.labCaseStatus,
@@ -124,6 +128,8 @@ function requestSummary(request: DemoHospitalRequest): Schemas['HospitalRequestS
     patientNhsNumber: response.patient?.nhsNumber ?? null,
     hospitalPatientNumber: response.hospitalPatientNumber,
     priority: response.priority,
+    labTestName: response.labTestName,
+    source: response.source,
     isCancerPathway: response.isCancerPathway,
     reportNeededBy: response.reportNeededBy,
     registeredAtUtc: response.registeredAtUtc,
@@ -259,6 +265,8 @@ export function registerHospitals() {
     else if (hospital.isArchived) errors.hospitalId = [`'${hospital.name}' is archived.`];
     const type = db().specimenTypes.find((t) => t.id === body.specimenTypeId);
     if (!type || type.isArchived) errors.specimenTypeId = ['Choose the type of sample.'];
+    const test = db().labTests.find((t) => t.id === body.labTestId);
+    if (!test || test.isArchived) errors.labTestId = ['Choose the test the request asks for.'];
     const number = body.hospitalPatientNumber?.trim() ?? '';
     if (!number) errors.hospitalPatientNumber = ["Enter the hospital's patient number."];
     else if (number.length > MAX_NUMBER) errors.hospitalPatientNumber = [`At most ${MAX_NUMBER} characters.`];
@@ -291,6 +299,8 @@ export function registerHospitals() {
       reportNeededBy: body.reportNeededBy || null,
       collectedAtUtc: body.collectedAtUtc || null,
       specimenTypeId: type!.id,
+      labTestId: test!.id,
+      source: 'Hospital',
       labCaseId: newId(),
       labCaseNumber: specimenNumber(state.specimenSequence),
       labCaseStatus: 'Open',

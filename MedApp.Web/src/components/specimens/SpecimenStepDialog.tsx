@@ -158,7 +158,6 @@ export function SpecimenStepDialog({step, specimen, onClose}: SpecimenStepDialog
           <MetadataListItem label="Specimen">{specimen.number}</MetadataListItem>
           <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
-          <MetadataListItem label="Lab">{specimen.laboratoryName}</MetadataListItem>
           <MetadataListItem label="Taken">{formatDateTime(specimen.takenAtUtc ?? '')}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
