@@ -88,8 +88,12 @@ const STICKY_HEADER = {
   // Above what the page holds (Astryx's tables and focus rings use up to 3), below the app's overlays (500 and up).
   zIndex: 10,
   backgroundColor: 'var(--color-background-surface)',
-  paddingBlock: 'var(--spacing-3)',
-  marginBlock: 'calc(-1 * var(--spacing-3))',
+  // From the very top of the page's region (its 24px inset above the title, given back with a negative margin), so it
+  // rests where it sticks: the title never moves as the page scrolls (the owner, 19 November 2026).
+  paddingBlockStart: 'var(--spacing-6)',
+  marginBlockStart: 'calc(-1 * var(--spacing-6))',
+  paddingBlockEnd: 'var(--spacing-3)',
+  marginBlockEnd: 'calc(-1 * var(--spacing-3))',
   paddingInline: 'var(--spacing-6)',
   marginInline: 'calc(-1 * var(--spacing-6))',
 } as const;
@@ -107,22 +111,22 @@ function scrollingAncestor(element: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Where the sticky header sticks, and whether it's stuck. A sticky element stops at the inside of its scroller's
- * padding (the main area has some), so it's given that back to stick at the very edge; and one pixel more, so that while
- * it's stuck a pixel is out of view, which is how it knows (its line, `STUCK_LINE`).
+ * Where the sticky header sticks, and whether the page has scrolled under it. A sticky element stops at the inside of
+ * its scroller's padding (the main area has some), so it's given that back to stick at the very edge, where it rests
+ * too. It shows its line (`STUCK_LINE`) once the page has scrolled at all.
  */
 function useStickyHeader(ref: RefObject<HTMLElement | null>): {top: number; isStuck: boolean} {
-  const [top, setTop] = useState(-1);
+  const [top, setTop] = useState(0);
   const [isStuck, setIsStuck] = useState(false);
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
     const scroller = scrollingAncestor(element);
-    setTop(-1 - (scroller ? parseFloat(getComputedStyle(scroller).paddingTop) || 0 : 0));
-    if (typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => setIsStuck(entry.intersectionRatio < 1), {threshold: [1]});
-    observer.observe(element);
-    return () => observer.disconnect();
+    setTop(-(scroller ? parseFloat(getComputedStyle(scroller).paddingTop) || 0 : 0));
+    if (!scroller) return;
+    const onScroll = () => setIsStuck(scroller.scrollTop > 0);
+    scroller.addEventListener('scroll', onScroll, {passive: true});
+    return () => scroller.removeEventListener('scroll', onScroll);
   }, [ref]);
   return {top, isStuck};
 }
