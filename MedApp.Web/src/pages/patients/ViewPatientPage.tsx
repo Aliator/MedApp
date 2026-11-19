@@ -23,7 +23,6 @@ import {TwoColumns} from '../../components/pages/TwoColumns';
 import {LogDataRequestDialog} from '../../components/dataRequests/LogDataRequestDialog';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
-import {PatientBanner} from '../../components/patients/PatientBanner';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
 import {PatientTimeline} from '../../components/pathways/PatientTimeline';
@@ -100,7 +99,6 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
       isLoading={isPending}
       loadingMessage="Loading patient..."
       fill={patient !== undefined}
-      banner={patient && <PatientBanner patient={patient} />}
       message={
         error && !(error instanceof ApiError && error.status === 404) ? (
           <AlertMessage message="The patient could not be loaded. Please try again." />
@@ -123,8 +121,10 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
               {
                 key: 'details',
                 title: 'Details',
-                isOpen: open.details,
-                onToggle: () => toggle('details'),
+                // Never folds: who the patient is (Personal Information, first) replaces the banner here (the owner, 19 November 2026).
+                isOpen: true,
+                canFold: false,
+                onToggle: () => {},
                 children: (
                   <Section variant="transparent" padding={6}>
                     <VStack gap={6}>
