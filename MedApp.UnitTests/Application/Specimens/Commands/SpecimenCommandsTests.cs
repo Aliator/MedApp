@@ -25,10 +25,10 @@ namespace MedApp.UnitTests.Application.Specimens.Commands;
 public sealed class RecordSpecimenHandlerTests : SpecimenTestBase
 {
     private RecordSpecimenHandler Handler =>
-        new(Pathways.Object, Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Options, Teams.Object, Access.Object, Clock);
+        new(Pathways.Object, Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Options, Boundary.Object, Teams.Object, Access.Object, Clock);
 
     private RecordSpecimenCommand Command(PatientPathway pathway, DateTime? takenAt = null, Guid? requesting = null, int stage = 1) => new(
-        pathway.Id, pathway.StageAt(stage).Id, Biopsy.Id, InHouse.Id, takenAt, "  left forearm ", " ", requesting ?? Nurse.UserId, Nurse);
+        pathway.Id, pathway.StageAt(stage).Id, Biopsy.Id, null, takenAt, "  left forearm ", " ", requesting ?? Nurse.UserId, Nurse);
 
     [Test]
     public async Task Handle_FirstSample_PassesThePathwayToTheLabInTheSameSave()
@@ -201,7 +201,7 @@ public sealed class RecordSpecimenHandlerTests : SpecimenTestBase
 [TestFixture]
 public sealed class EditSpecimenHandlerTests : SpecimenTestBase
 {
-    private EditSpecimenHandler Handler => new(Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Clock);
+    private EditSpecimenHandler Handler => new(Repository.Object, Holders.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock);
 
     [Test]
     public async Task Handle_Taken_ChangesItAndAuditsTheFieldsByName()
@@ -211,7 +211,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         Repository.Setup(r => r.GetTypeAsync(urine.Id, It.IsAny<CancellationToken>())).ReturnsAsync(urine);
 
         await Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, urine.Id, InHouse.Id, specimen.TakenAtUtc, "right forearm", specimen.RequestNotes, Admin.UserId, 3, Nurse), Cts.Token);
+            specimen.Id, urine.Id, null, specimen.TakenAtUtc, "right forearm", specimen.RequestNotes, Admin.UserId, 3, Nurse), Cts.Token);
 
         specimen.SpecimenTypeId.Should().Be(urine.Id);
         specimen.Site.Should().Be("right forearm");
@@ -229,7 +229,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen());
 
         await Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, Biopsy.Id, InHouse.Id, specimen.TakenAtUtc, specimen.Site, specimen.RequestNotes, specimen.RequestingUserId, 3, Nurse), Cts.Token);
+            specimen.Id, Biopsy.Id, null, specimen.TakenAtUtc, specimen.Site, specimen.RequestNotes, specimen.RequestingUserId, 3, Nurse), Cts.Token);
 
         SavedAudit.Should().BeEmpty();
         specimen.Version.Should().Be(3);
@@ -241,7 +241,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
 
         var act = () => Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, Biopsy.Id, InHouse.Id, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
+            specimen.Id, Biopsy.Id, null, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*before it's sent*");
     }
@@ -252,7 +252,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen());
 
         var act = () => Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, Biopsy.Id, InHouse.Id, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 2, Nurse), Cts.Token);
+            specimen.Id, Biopsy.Id, null, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 2, Nurse), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(SpecimenWorkflow.ChangedMeanwhileMessage);
     }
@@ -264,7 +264,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         Biopsy.IsArchived = true;
 
         var act = () => Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, Biopsy.Id, InHouse.Id, specimen.TakenAtUtc, "elsewhere", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
+            specimen.Id, Biopsy.Id, null, specimen.TakenAtUtc, "elsewhere", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
 
         await act.Should().NotThrowAsync();
     }
@@ -276,7 +276,7 @@ public sealed class EditSpecimenHandlerTests : SpecimenTestBase
         specimen.Patient.RestrictedAtUtc = Now;
 
         var act = () => Handler.Handle(new EditSpecimenCommand(
-            specimen.Id, Biopsy.Id, InHouse.Id, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
+            specimen.Id, Biopsy.Id, null, specimen.TakenAtUtc, "x", null, specimen.RequestingUserId, 3, Nurse), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.RestrictedMessage);
     }
@@ -290,7 +290,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen());
 
-        var response = await new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var response = await new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenSentCommand(specimen.Id, null, " BATCH-7 ", 3, Nurse), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.Sent);
@@ -308,7 +308,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(takenAtUtc: Now.AddHours(-2)));
 
-        var act = () => new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenSentCommand(specimen.Id, Now.AddHours(-3), null, 3, Nurse), Cts.Token);
 
         await act.Should().ThrowAsync<ValidationException>();
@@ -320,7 +320,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen());
         specimen.Patient.RestrictedAtUtc = Now;
 
-        await new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenSentHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenSentCommand(specimen.Id, null, null, 3, Nurse), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.Sent);
@@ -331,7 +331,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen());
 
-        var act = () => new MarkSpecimenReceivedHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenReceivedHandler(Repository.Object, Pathways.Object, LabCases.Object, Receipt, Boundary.Object, Teams.Object, Identity.Object, QrCodes.Object, Clock)
             .Handle(new MarkSpecimenReceivedCommand(specimen.Id, null, null, 3, LabStaff), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage("*as sent*");
@@ -342,7 +342,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
 
-        await new MarkSpecimenReceivedHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenReceivedHandler(Repository.Object, Pathways.Object, LabCases.Object, Receipt, Boundary.Object, Teams.Object, Identity.Object, QrCodes.Object, Clock)
             .Handle(new MarkSpecimenReceivedCommand(specimen.Id, null, "LAB-99", 3, LabStaff), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.Received);
@@ -357,7 +357,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
         specimen.Patient.AnonymisedAtUtc = Now;
 
-        var act = () => new MarkSpecimenReceivedHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenReceivedHandler(Repository.Object, Pathways.Object, LabCases.Object, Receipt, Boundary.Object, Teams.Object, Identity.Object, QrCodes.Object, Clock)
             .Handle(new MarkSpecimenReceivedCommand(specimen.Id, null, null, 3, LabStaff), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(PatientRules.AnonymisedMessage);
@@ -369,7 +369,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Received));
         specimen.RequestingUserId = Admin.UserId;
 
-        await new RejectSpecimenHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Clock)
+        await new RejectSpecimenHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new RejectSpecimenCommand(specimen.Id, "insufficientSample", "Synthetic: too little", 3, LabStaff), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.RejectedByLab);
@@ -393,7 +393,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen());
 
-        var act = () => new RejectSpecimenHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new RejectSpecimenHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new RejectSpecimenCommand(specimen.Id, "Leaked", null, 3, LabStaff), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>();
@@ -414,7 +414,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
 
-        await new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenLostCommand(specimen.Id, "Synthetic: not in the bag", 3, Nurse), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.Lost);
@@ -426,7 +426,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
 
-        await new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenLostCommand(specimen.Id, "Synthetic: not in the bag", 3, LabStaff), Cts.Token);
 
         var notification = Sent.Should().ContainSingle().Subject;
@@ -439,7 +439,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Sent));
 
-        var act = () => new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenLostHandler(Repository.Object, Notifications.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenLostCommand(specimen.Id, "x", 3, Staff), Cts.Token);
 
         await act.Should().ThrowAsync<ForbiddenException>();
@@ -450,7 +450,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(recordedAtUtc: Now.AddHours(-23)));
 
-        await new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenEnteredInErrorCommand(specimen.Id, "Synthetic: wrong patient", 3, Nurse), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.EnteredInError);
@@ -462,7 +462,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(recordedAtUtc: Now.AddHours(-25)));
 
-        var act = () => new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenEnteredInErrorCommand(specimen.Id, "x", 3, Nurse), Cts.Token);
 
         await act.Should().ThrowAsync<ForbiddenException>().WithMessage(SpecimenWorkflow.EnteredInErrorNotAllowedMessage);
@@ -474,7 +474,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Received, recordedAtUtc: Now.AddDays(-10)));
         specimen.Patient.RestrictedAtUtc = Now;
 
-        await new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        await new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenEnteredInErrorCommand(specimen.Id, "x", 3, Corrector), Cts.Token);
 
         specimen.Status.Should().Be(SpecimenStatus.EnteredInError);
@@ -485,7 +485,7 @@ public sealed class SpecimenStepHandlersTests : SpecimenTestBase
     {
         var specimen = Given(CreateSpecimen(status: SpecimenStatus.Reported));
 
-        var act = () => new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Clock)
+        var act = () => new MarkSpecimenEnteredInErrorHandler(Repository.Object, Identity.Object, QrCodes.Object, Boundary.Object, Teams.Object, Clock)
             .Handle(new MarkSpecimenEnteredInErrorCommand(specimen.Id, "x", 3, Corrector), Cts.Token);
 
         await act.Should().ThrowAsync<ConflictException>().WithMessage(SpecimenWorkflow.ClosedMessage(SpecimenStatus.Reported));

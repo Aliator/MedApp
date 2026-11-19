@@ -143,7 +143,7 @@ public sealed class SpecimenMapperTests
 
         response.Number.Should().Be(Number);
         response.StageName.Should().Be(ConsultationStage);
-        response.PathwayTitle.Should().Be(specimen.Pathway.Title);
+        response.PathwayTitle.Should().Be(specimen.Pathway!.Title);
         response.SpecimenTypeName.Should().Be(BiopsyName);
         response.ExpectedTurnaroundDays.Should().Be(BiopsyDays);
         response.TakenByUsername.Should().Be(Staff.Username);
@@ -224,10 +224,12 @@ public sealed class SpecimenMapperTests
     }
 
     [Test]
-    public void ToResponse_TypesAndLabs_CanBeDeletedOnlyWhenUnused()
+    public void ToResponse_Types_CanBeDeletedOnlyWhenUnused_AndCarryTheirSnomedCode()
     {
         SpecimenMapper.ToResponse(Biopsy(), inUse: true).CanBeDeleted.Should().BeFalse();
-        SpecimenMapper.ToResponse(InHouseLab(), inUse: false).Should().BeEquivalentTo(new { CanBeDeleted = true, UsesMedApp = true, Name = InHouseLabName });
+        var type = Biopsy();
+        type.SnomedCode = "309066003";
+        SpecimenMapper.ToResponse(type, inUse: false).Should().BeEquivalentTo(new { CanBeDeleted = true, SnomedCode = "309066003", Name = BiopsyName });
     }
 }
 

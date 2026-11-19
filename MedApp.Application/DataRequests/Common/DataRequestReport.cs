@@ -265,7 +265,16 @@ public static class DataRequestReport
             foreach (var r in export.Results)
                 Bullet(md, $"{r.Title}, reported {Words.Time(r.ReportedAtUtc)}: {Words.Humanise(r.Status)}" +
                            (r.SignedOffAtUtc is null ? "" : $", signed off by {r.SignedOffBy} ({Words.Humanise(r.Action)})"),
-                    r.ActionDetail);
+                    string.Join("\n", new[] { r.ReportText, r.ActionDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
+            md.AppendLine();
+        }
+
+        if (export.LabCases.Count > 0)
+        {
+            Heading(md, "Lab cases");
+            foreach (var c in export.LabCases)
+                Bullet(md, $"{c.Number}{(c.LabTestName is { } test ? $", {test}" : "")}, opened {Words.Time(c.OpenedAtUtc)}: {Words.Humanise(c.Status)}",
+                    string.Join("\n", new[] { c.ReportText, c.RepeatDetail, c.ErrorDetail }.Where(v => !string.IsNullOrWhiteSpace(v))));
             md.AppendLine();
         }
     }

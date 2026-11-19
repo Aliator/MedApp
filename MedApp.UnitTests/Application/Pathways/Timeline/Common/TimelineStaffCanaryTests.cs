@@ -325,7 +325,7 @@ public sealed class TimelineStaffCanaryTests
         var change = new SpecimenChange(reported, reported.Pathway, Staff, Now);
         change.Take();
         change.EditDetails(
-            SpecimensTestConstants.Urine(), SpecimensTestConstants.PartnerLab(), reported.TakenAtUtc.AddHours(-1),
+            SpecimensTestConstants.Urine(), SpecimensTestConstants.Histology(), reported.TakenAtUtc.AddHours(-1),
             $"{Canary} (edited)", $"{Canary} (edited)", OtherUserId, Staff.Username, OtherUsername);
         change.Send(Now, Canary.Length > 50 ? null : Canary);
         change.Receive(Now, Canary);
@@ -505,7 +505,8 @@ public sealed class TimelineStaffCanaryTests
         response.Kind.Should().Be(nameof(PatientTimelineKind.Specimens));
         response.SpecimenNumber.Should().Be(SpecimensTestConstants.Number);
         response.SpecimenTypeName.Should().Be(SpecimensTestConstants.UrineName);
-        response.LaboratoryName.Should().Be(SpecimensTestConstants.PartnerLabName);
+        // MC13 dropped the labs list: entries since name the test, never a lab (older ones keep theirs, as written).
+        response.LaboratoryName.Should().BeNull();
         response.Changes.Single(c => c.Field == SpecimenChange.SpecimenTypeField)
             .Should().BeEquivalentTo(new { From = SpecimensTestConstants.BiopsyName, To = SpecimensTestConstants.UrineName });
         response.Changes.Single(c => c.Field == SpecimenChange.RequestingUserField)

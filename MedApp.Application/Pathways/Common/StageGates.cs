@@ -66,8 +66,8 @@ public static class StageGates
 
         var each = open
             .OrderBy(s => s.TakenAtUtc).ThenBy(s => s.Number)
-            .Select(s => $"{s.Number} ({s.SpecimenType?.Name ?? "specimen"}, {SpecimenWorkflow.Describe(s.Status)})");
-        var count = open.Count == 1 ? "a specimen is" : $"{open.Count} specimens are";
+            .Select(s => $"{s.Number} ({s.SpecimenType?.Name ?? "sample"}, {SpecimenWorkflow.Describe(s.Status)})");
+        var count = open.Count == 1 ? "a sample is" : $"{open.Count} samples are";
         return $"The pathway's last stage can't be finished while {count} still with the lab: {string.Join("; ", each)}. " +
                "Record each one's report, or mark it rejected, lost or entered in error.";
     }
@@ -88,6 +88,18 @@ public static class StageGates
     /// Whether finishing this stage would leave none of the pathway's stages to do, on any route (MC8). A choice node
     /// never is: recording its outcome adds that outcome's stages (or ends the route, which leaves the others).
     /// </summary>
+    /// <summary>
+    /// MC16: a lab stage isn't finished by hand while its lab case is open (409, no override). Authorising the case's
+    /// report puts its results on the stage; the lab then finishes the stage, which sends the pathway back.
+    /// </summary>
+    public static string? WhyLabCaseOpen(PatientPathwayStage stage, Guid? labTeamId) =>
+        Lab.Common.LabStages.IsLabStage(stage, labTeamId) && Lab.Common.LabStages.OpenCaseOf(stage) is { } open
+            ? LabCaseOpenMessage(open.Number)
+            : null;
+
+    public static string LabCaseOpenMessage(string number) =>
+        $"Lab case {number} is still open: authorise its report first, then finish this stage.";
+
     public static bool IsLastToFinish(PatientPathway pathway, PatientPathwayStage stage) =>
         stage.ChoiceKind is null && pathway.Stages.All(s => s.Id == stage.Id || !PathwayWorkflow.IsToDo(s));
 

@@ -11,8 +11,8 @@ public static class SpecimensTestConstants
 {
     public const string BiopsyName = "Skin biopsy (punch)";
     public const string UrineName = "Urine";
-    public const string InHouseLabName = "Centre laboratory";
-    public const string PartnerLabName = "Northgate partner lab";
+    public const string HistologyName = "Histology";
+    public const string BloodsName = "Full blood count";
     public const string Number = "MA26-000123";
     public const int BiopsyDays = 14;
 
@@ -48,21 +48,58 @@ public static class SpecimensTestConstants
         LastUpdated = Now.AddDays(-30),
     };
 
-    public static Laboratory InHouseLab() => new()
+    /// <summary>A histology test (MC13): target 7, limit 10, at risk 2 days before; three required steps and the optional ones.</summary>
+    public static MedApp.Domain.Lab.LabTest Histology()
     {
-        Id = Guid.Parse("1ab00000-0000-4000-8000-000000000001"),
-        Name = InHouseLabName,
-        UsesMedApp = true,
-        CreatedAt = Now.AddDays(-30),
-        LastUpdated = Now.AddDays(-30),
-    };
+        var id = Guid.Parse("1ab00000-0000-4000-8000-000000000001");
+        return new MedApp.Domain.Lab.LabTest
+        {
+            Id = id,
+            Name = HistologyName,
+            Kind = MedApp.Domain.Lab.LabTestKind.Histology,
+            TargetDays = 7,
+            LimitDays = 10,
+            AtRiskDays = 2,
+            CreatedAt = Now.AddDays(-30),
+            LastUpdated = Now.AddDays(-30),
+            Steps =
+            [
+                Step(id, 1, 0, "Grossing", MedApp.Domain.Lab.LabStepKind.Standard),
+                Step(id, 2, 1, "Processing", MedApp.Domain.Lab.LabStepKind.Standard),
+                Step(id, 3, 2, "Special stains", MedApp.Domain.Lab.LabStepKind.ExtraTests, optional: true),
+                Step(id, 4, 3, "Sent for second opinion", MedApp.Domain.Lab.LabStepKind.SentForSecondOpinion, optional: true),
+                Step(id, 5, 4, "Second opinion returned", MedApp.Domain.Lab.LabStepKind.SecondOpinionReturned, optional: true),
+            ],
+        };
+    }
 
-    public static Laboratory PartnerLab() => new()
+    /// <summary>A blood test (MC13) with one step and no optional ones.</summary>
+    public static MedApp.Domain.Lab.LabTest Bloods()
     {
-        Id = Guid.Parse("1ab00000-0000-4000-8000-000000000002"),
-        Name = PartnerLabName,
-        CreatedAt = Now.AddDays(-30),
-        LastUpdated = Now.AddDays(-30),
+        var id = Guid.Parse("1ab00000-0000-4000-8000-000000000002");
+        return new MedApp.Domain.Lab.LabTest
+        {
+            Id = id,
+            Name = BloodsName,
+            Kind = MedApp.Domain.Lab.LabTestKind.Haematology,
+            TargetDays = 2,
+            LimitDays = 3,
+            AtRiskDays = 1,
+            CreatedAt = Now.AddDays(-30),
+            LastUpdated = Now.AddDays(-30),
+            Steps = [Step(id, 6, 0, "Analysed", MedApp.Domain.Lab.LabStepKind.Standard)],
+        };
+    }
+
+    private static MedApp.Domain.Lab.LabTestStep Step(
+        Guid testId, int n, int position, string name, MedApp.Domain.Lab.LabStepKind kind, bool optional = false) => new()
+    {
+        Id = Guid.Parse($"1ab50000-0000-4000-8000-{n:D12}"),
+        LabTestId = testId,
+        Position = position,
+        Name = name,
+        Kind = kind,
+        IsOptional = optional,
     };
 
     /// <summary>
@@ -87,7 +124,8 @@ public static class SpecimensTestConstants
             Pathway = pathway,
             StageId = pathway.StageAt(1).Id,
             SpecimenType = Biopsy(),
-            Laboratory = InHouseLab(),
+            Source = SpecimenSource.Clinic,
+            RequestingTeamId = pathway.TeamId,
             Site = "left forearm",
             RequestNotes = "Synthetic request notes.",
             RequestingUserId = Nurse.UserId,
@@ -98,7 +136,6 @@ public static class SpecimensTestConstants
             Version = 3,
         };
         specimen.SpecimenTypeId = specimen.SpecimenType.Id;
-        specimen.LaboratoryId = specimen.Laboratory.Id;
 
         if (status is not SpecimenStatus.Taken and not SpecimenStatus.EnteredInError and not SpecimenStatus.Lost)
         {

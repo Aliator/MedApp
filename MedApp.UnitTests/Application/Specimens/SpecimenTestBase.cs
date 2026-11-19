@@ -56,7 +56,17 @@ public abstract class SpecimenTestBase
     protected CancellationTokenSource Cts { get; private set; } = null!;
 
     protected SpecimenType Biopsy { get; private set; } = null!;
-    protected Laboratory InHouse { get; private set; } = null!;
+    protected MedApp.Domain.Lab.LabTest Histology { get; private set; } = null!;
+
+    /// <summary>The team walls at one record: seen (the tests' actors are the system's, which sees every team).</summary>
+    protected Mock<MedApp.Application.Common.Teams.ITeamBoundary> Boundary { get; private set; } = null!;
+
+    /// <summary>Lab cases: none open, unless a test says so; what's tracked is kept.</summary>
+    protected Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository> LabCases { get; private set; } = null!;
+
+    protected List<MedApp.Application.Lab.Common.LabCaseChange> TrackedCases { get; } = [];
+
+    protected MedApp.Application.Lab.Common.LabReceipt Receipt => new(LabCases.Object, Repository.Object, Options);
 
     [SetUp]
     public void SetUpSpecimenMocks()
@@ -73,13 +83,35 @@ public abstract class SpecimenTestBase
         Sent.Clear();
         Tokens.Clear();
         Biopsy = SpecimensTestConstants.Biopsy();
-        InHouse = SpecimensTestConstants.InHouseLab();
+        Histology = SpecimensTestConstants.Histology();
+        TrackedCases.Clear();
+        Boundary = new Mock<MedApp.Application.Common.Teams.ITeamBoundary>();
+        LabCases = new Mock<MedApp.Application.Lab.Repositories.ILabCaseRepository>();
+        LabCases.Setup(l => l.GetOpenForStagesAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        LabCases.Setup(l => l.GetTestAsync(Histology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Histology);
+        LabCases.Setup(l => l.Track(It.IsAny<MedApp.Application.Lab.Common.LabCaseChange>(), It.IsAny<bool>()))
+            .Callback((MedApp.Application.Lab.Common.LabCaseChange change, bool _) =>
+            {
+                TrackedCases.Add(change);
+                SavedAudit.AddRange(change.AuditEntries);
+            });
+        LabCases.Setup(l => l.Track(It.IsAny<MedApp.Domain.Results.Result?>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>()))
+            .Callback((MedApp.Domain.Results.Result? result, IEnumerable<PatientPathwayAuditEntry> audit) =>
+            {
+                if (result is not null)
+                    SavedResults.Add(result);
+                SavedAudit.AddRange(audit);
+            });
+        LabCases.Setup(l => l.SaveAsync(It.IsAny<CancellationToken>()))
+            .Callback((CancellationToken ct) => Tokens.Add(ct))
+            .Returns(Task.CompletedTask);
 
         Repository = new Mock<ISpecimenRepository>();
         Repository.Setup(r => r.NextNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync(123);
         Repository.Setup(r => r.GetTypeAsync(Biopsy.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Biopsy);
-        Repository.Setup(r => r.GetLaboratoryAsync(InHouse.Id, It.IsAny<CancellationToken>())).ReturnsAsync(InHouse);
-        Repository.Setup(r => r.GetForStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        Repository.Setup(r => r.GetLabTestAsync(Histology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Histology);
+        Repository.Setup(r => r.GetForStageAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Repository
             .Setup(r => r.AddAsync(It.IsAny<Specimen>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
             .Callback((Specimen specimen, IEnumerable<PatientPathwayAuditEntry> audit, CancellationToken ct) =>

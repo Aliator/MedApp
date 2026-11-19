@@ -23,7 +23,8 @@ public sealed record SearchPatientsQuery(
     DateOnly? DateOfBirthTo,
     string? NhsNumber = null,
     Guid? TeamId = null,
-    TeamScope? Scope = null)
+    TeamScope? Scope = null,
+    bool HideHospitalOnly = false)
     : IRequest<PagedResponse<PatientResponse>>
 {
     /// <summary>The viewer's team walls (the system's outside a request): here only who may pick which team.</summary>

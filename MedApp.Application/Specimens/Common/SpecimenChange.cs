@@ -167,6 +167,16 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway? pathway, P
         Record(PatientPathwayAuditAction.SpecimenReported, new { from = from.ToString(), to = Reported.ToString(), attachmentId });
     }
 
+    /// <summary>Reported by its lab case's authorised report (MC15), now: the results are the case's, with no file.</summary>
+    public void ReportInCase(Guid labCaseId)
+    {
+        var from = specimen.Status;
+        specimen.Status = Reported;
+        specimen.ReportedAtUtc = nowUtc;
+        specimen.ReportedByUserId = actor.UserId;
+        Record(PatientPathwayAuditAction.SpecimenReported, new { from = from.ToString(), to = Reported.ToString(), labCaseId });
+    }
+
     /// <summary>The lab rejected it: the reason is kept by name in the audit, its detail only on the specimen.</summary>
     public void Reject(SpecimenRejectionReason reason, string? detail)
     {

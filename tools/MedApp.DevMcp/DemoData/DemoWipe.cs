@@ -54,8 +54,10 @@ public static class DemoWipe
                 // (foreign keys), so they go first.
                 await db.Results.ExecuteDeleteAsync(cancellationToken);
                 await db.Specimens.ExecuteDeleteAsync(cancellationToken);
+                // Lab cases (their steps cascade) after the results and samples that name them, then the tests.
+                await db.LabCases.ExecuteDeleteAsync(cancellationToken);
+                await db.LabTests.ExecuteDeleteAsync(cancellationToken);
                 await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
-                await db.Laboratories.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
                 await db.Appointments.ExecuteDeleteAsync(cancellationToken);
                 // Clinic sessions (after the appointments booked into them), then the patterns that made them; both

@@ -79,7 +79,8 @@ public sealed class PatientRepository(MedAppDbContext context) : IPatientReposit
         var matching = context.Patients
             .AsNoTracking()
             .Filter(query)
-            .InTeam(query.TeamId, context.PatientPathways, context.Referrals, context.Appointments);
+            .InTeam(query.TeamId, context.PatientPathways, context.Referrals, context.Appointments)
+            .HospitalOnlyHidden(query.HideHospitalOnly, context.PatientPathways, context.Referrals, context.Appointments, context.LabCases);
 
         var totalCount = await matching.CountAsync(cancellationToken);
 

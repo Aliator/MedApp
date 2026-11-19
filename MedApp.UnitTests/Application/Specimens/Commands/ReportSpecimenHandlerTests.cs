@@ -30,7 +30,7 @@ public sealed class ReportSpecimenHandlerTests : SpecimenTestBase
 
     private ReportSpecimenHandler Handler => new(
         Repository.Object, _store, new MemoryStaging(), _scanner.Object, Mock.Of<IThumbnailGenerator>(),
-        Identity.Object, QrCodes.Object, Notifications.Object, Clock);
+        Identity.Object, QrCodes.Object, Notifications.Object, Boundary.Object, Teams.Object, Clock);
 
     private static ReportSpecimenCommand Command(Specimen specimen, byte[]? file = null, string name = "report.pdf", int version = 3) =>
         new(specimen.Id, name, null, new MemoryStream(file ?? AttachmentsTestConstants.Pdf), version, LabStaff);

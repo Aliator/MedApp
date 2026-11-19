@@ -71,8 +71,15 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
             OpenedByUserId = actor.UserId,
             Version = 0,
         };
-        if (pathway?.Patient is { } patient)
+        // Its navigations as read, for the response (never saved through it: they're tracked already).
+        if ((pathway?.Patient ?? samples.FirstOrDefault()?.Patient) is { } patient)
             labCase.Patient = patient;
+        if (samples.FirstOrDefault()?.RequestingTeam is { } clinic)
+            labCase.RequestingTeam = clinic;
+        else if (pathway?.Team is { } team && team.Id == requestingTeamId)
+            labCase.RequestingTeam = team;
+        if (pathway is not null)
+            labCase.Pathway = pathway;
 
         var change = new LabCaseChange(labCase, pathway, actor, nowUtc);
         change.Record(PatientPathwayAuditAction.LabCaseOpened, new
@@ -100,6 +107,8 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
             sample.LabCaseId = labCase.Id;
             sample.LabCase = labCase;
             sample.LabTestId ??= labCase.LabTestId;
+            if (!labCase.Specimens.Contains(sample))
+                labCase.Specimens.Add(sample);
         }
 
         if (!LabCaseRules.IsReceived(labCase))
@@ -220,10 +229,11 @@ public sealed class LabCaseChange(LabCase labCase, PatientPathway? pathway, Path
         labCase.ErrorDetail = detail;
         labCase.EnteredInErrorAtUtc = nowUtc;
         labCase.EnteredInErrorByUserId = actor.UserId;
-        foreach (var sample in samples)
+        foreach (var sample in samples.ToList())
         {
             sample.LabCaseId = null;
             sample.LabCase = null;
+            labCase.Specimens.Remove(sample);
         }
 
         Record(PatientPathwayAuditAction.LabCaseEnteredInError, new { });

@@ -17,12 +17,18 @@ namespace MedApp.Application.Patients.Queries.SearchPatients;
 /// as which filters and how many matched, never the terms typed, which could themselves be a patient's details. The
 /// picker alone is a view, not a search.
 /// </summary>
-public sealed class SearchPatientsHandler(IPatientRepository repository, IActivityLog activityLog)
+public sealed class SearchPatientsHandler(
+    IPatientRepository repository,
+    IActivityLog activityLog,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams)
     : IRequestHandler<SearchPatientsQuery, PagedResponse<PatientResponse>>
 {
     public async Task<PagedResponse<PatientResponse>> Handle(SearchPatientsQuery request, CancellationToken cancellationToken)
     {
         TeamPicker.EnsureCanPick(request.TeamId, request.Teams);
+        // MC18: patients known only through a hospital's lab case are the lab's (and admins') to find.
+        var labTeamId = request.Teams.SeesAllTeams ? null : (await teams.GetLabAsync(cancellationToken))?.Id;
+        request = request with { HideHospitalOnly = !MedApp.Application.Lab.Common.LabWalls.SeesAll(request.Teams, labTeamId) };
         var result = await repository.SearchAsync(request, cancellationToken);
 
         var filters = PatientSearch.FiltersUsed(request);

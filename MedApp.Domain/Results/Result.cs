@@ -54,6 +54,7 @@ public sealed class Result
 
     /// <summary>The lab case whose authorised report made it (MC15), else null. Its report is then the results the lab entered.</summary>
     public Guid? LabCaseId { get; init; }
+    public MedApp.Domain.Lab.LabCase? LabCase { get; set; }
 
     /// <summary>
     /// A lab case's results, as entered when its report was authorised (free text, clinical; the full report file is a

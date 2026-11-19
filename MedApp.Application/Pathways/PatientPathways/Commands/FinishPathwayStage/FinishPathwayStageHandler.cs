@@ -46,6 +46,10 @@ public sealed class FinishPathwayStageHandler(
         if (PathwayWorkflow.WhyStageCantBeEdited(pathway, stage) is { } reason)
             throw new ConflictException(reason);
 
+        // MC16: a lab stage waits for its lab case's report to be authorised (no override).
+        if (StageGates.WhyLabCaseOpen(stage, (await teams.GetLabAsync(cancellationToken))?.Id) is { } labCaseOpen)
+            throw new ConflictException(labCaseOpen);
+
         // The gates with no override (StageGates): the last stage waits for the pathway's open specimens.
         if (StageGates.IsLastToFinish(pathway, stage)
             && StageGates.WhyCantFinish(

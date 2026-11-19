@@ -39,6 +39,7 @@ public static class PatientExportMapper
             .Concat(record.PatientMessages.Select(m => m.RequestedByUserId).OfType<Guid>())
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
             .Concat(record.Results.SelectMany(Results.Common.ResultMapper.PeopleIn))
+            .Concat(record.LabCases.SelectMany(Lab.Common.LabCaseMapper.PeopleIn))
             .Concat(record.ConsentRecords.SelectMany(Consent.Common.ConsentMapper.PeopleIn))
             .Distinct();
 
@@ -110,7 +111,10 @@ public static class PatientExportMapper
                             SkippedBy = s.SkippedByUserId is null ? null : Username(s.SkippedByUserId),
                             SkipReason = s.SkipReason?.ToString(),
                             SkipDetail = s.SkipDetail,
-                            Branch = s.Outcome
+                            Branch = s.Outcome,
+                            ResultText = s.ResultText,
+                            ResultEnteredBy = s.ResultEnteredByUserId is null ? null : Username(s.ResultEnteredByUserId),
+                            ResultEnteredAtUtc = s.ResultEnteredAtUtc
                         })
                         .ToList()
                 })
@@ -434,6 +438,43 @@ public static class PatientExportMapper
                     EnteredInErrorAtUtc = r.EnteredInErrorAtUtc,
                     EnteredInErrorBy = r.EnteredInErrorByUserId is null ? null : Username(r.EnteredInErrorByUserId),
                     ErrorDetail = r.ErrorDetail,
+                    ReportText = r.ReportText,
+                })
+                .ToList(),
+            // Lab cases (MC15), with their free text: the patient is entitled to it. Staff by username only.
+            LabCases = record.LabCases
+                .Select(c => new ExportedLabCaseResponse
+                {
+                    Id = c.Id,
+                    Number = c.Number,
+                    Status = c.Status.ToString(),
+                    Source = c.Source.ToString(),
+                    LabTestName = c.LabTest?.Name,
+                    PathwayId = c.PathwayId,
+                    OpenedAtUtc = c.OpenedAtUtc,
+                    OpenedBy = Username(c.OpenedByUserId),
+                    ReceivedAtUtc = c.ReceivedAtUtc,
+                    Steps = c.Steps
+                        .OrderBy(s => s.Sequence)
+                        .Select(s => new ExportedLabCaseStepResponse
+                        {
+                            Name = Lab.Common.LabCaseRules.StepName(c, s),
+                            Outcome = s.Outcome?.ToString(),
+                            Detail = s.Detail,
+                            AtUtc = s.AtUtc,
+                            By = Username(s.ByUserId),
+                            EnteredInErrorAtUtc = s.EnteredInErrorAtUtc,
+                            ErrorDetail = s.ErrorDetail,
+                        })
+                        .ToList(),
+                    ReportText = c.ReportText,
+                    ReportedAtUtc = c.ReportedAtUtc,
+                    ReportedBy = c.ReportedByUserId is null ? null : Username(c.ReportedByUserId),
+                    RepeatDetail = c.RepeatDetail,
+                    RepeatRequestedAtUtc = c.RepeatRequestedAtUtc,
+                    ErrorDetail = c.ErrorDetail,
+                    EnteredInErrorAtUtc = c.EnteredInErrorAtUtc,
+                    EnteredInErrorBy = c.EnteredInErrorByUserId is null ? null : Username(c.EnteredInErrorByUserId),
                 })
                 .ToList(),
             // Consent records, with their details: the patient is entitled to them. Staff by username only.

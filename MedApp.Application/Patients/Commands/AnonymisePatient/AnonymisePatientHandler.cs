@@ -77,6 +77,13 @@ public sealed partial class AnonymisePatientHandler(
                 $"received), so their record can't be anonymised until {(openSpecimens == 1 ? "it's" : "they're")} reported, " +
                 "rejected, lost or entered in error.");
 
+        // An open lab case (MC15) is the lab's work in progress: it must end first, as its samples must.
+        var openCases = record.LabCases.Count(c => c.Status == Domain.Lab.LabCaseStatus.Open);
+        if (openCases > 0)
+            throw new ConflictException(
+                $"This patient has {openCases} lab case{(openCases == 1 ? "" : "s")} still open, so their record can't be " +
+                $"anonymised until {(openCases == 1 ? "it's" : "they're")} reported or marked entered in error.");
+
         var awaitingResults = record.Results.Count(r => r.IsAwaitingSignOff);
         if (awaitingResults > 0)
             throw new ConflictException(

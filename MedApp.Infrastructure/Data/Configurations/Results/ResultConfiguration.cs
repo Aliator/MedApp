@@ -27,7 +27,7 @@ public sealed class ResultConfiguration : IEntityTypeConfiguration<Result>
         builder.Property(x => x.ReportText).HasMaxLength(MedApp.Domain.Lab.LabCase.MaxReportTextLength);
 
         // The lab case whose report made it (MC15): a case with a result is never deleted.
-        builder.HasOne<MedApp.Domain.Lab.LabCase>()
+        builder.HasOne(x => x.LabCase)
             .WithMany()
             .HasForeignKey(x => x.LabCaseId)
             .OnDelete(DeleteBehavior.Restrict);
