@@ -182,5 +182,19 @@ public enum NotificationKind
     /// A pathway was handed to your team (MC7, the relay): a stage your team works became current. A fixed title
     /// ("Pathway handed over"); the message names only who passed it, never the patient or the stage.
     /// </summary>
-    PathwayHandedOver = 44
+    PathwayHandedOver = 44,
+
+    // 45 to 48 are the lab's (MC7, MC15, MC19).
+
+    /// <summary>
+    /// Another team sent your team a consult (MC25), to the asked team's members who work pathways. A fixed title
+    /// ("Consult requested"); the message names who sent it and their team, never the question or the patient.
+    /// </summary>
+    ConsultRequested = 49,
+
+    /// <summary>
+    /// The asked team replied to your team's consult, to whoever sent it and the pathway's assignees. A fixed title
+    /// ("Consult replied"); the message names who replied and their team, never the reply or the patient.
+    /// </summary>
+    ConsultReplied = 50
 }

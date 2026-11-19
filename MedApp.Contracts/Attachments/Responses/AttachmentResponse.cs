@@ -57,4 +57,13 @@ public sealed class AttachmentResponse
     public DateTime? DeletedAtUtc { get; set; }
 
     public string? DeletedByUsername { get; set; }
+
+    /// <summary>Marked as a clinical photo (MC27).</summary>
+    public bool IsClinicalPhoto { get; set; }
+
+    /// <summary>
+    /// Whether the signed-in user may mark it as a clinical photo, or unmark it: a live picture on a pathway, and they
+    /// attach files. Marking also needs the pathway's valid photo consent, checked when they try (a 409).
+    /// </summary>
+    public bool CanMarkClinicalPhoto { get; set; }
 }

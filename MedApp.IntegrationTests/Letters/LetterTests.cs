@@ -250,7 +250,7 @@ public sealed class LetterTests : IntegrationTest
 
         var refused = await FinishStageAsync(_clinician.Client, pathway.Id, pathway.Stages[0].Id);
         refused.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        (await refused.Content.ReadAsStringAsync()).Should().Contain("discharge summary");
+        (await refused.Content.ReadAsStringAsync()).Should().Contain("end of care letter");
 
         var letterTemplate = await CreateLetterTemplateAsync("DischargeSummary");
         var letter = await Ok(_clinician.Client.PostAsJsonAsync(Letters, new CreateLetterRequest { TemplateId = letterTemplate, PathwayId = pathway.Id }), HttpStatusCode.Created);

@@ -47,7 +47,7 @@ public static class ResultWorkflow
     public const string ReportFileMessage = "This file is a result's report, so it can't be deleted on its own.";
 
     public const string EnteredInErrorNotAllowedMessage =
-        "Only whoever reported this result can mark it entered in error, within 24 hours of reporting it. After that, ask an admin.";
+        "Only whoever reported this result can mark it entered in error, within 24 hours of reporting it. After that, ask someone who can correct records.";
 
     public const string ResponsibleNotClinicianMessage =
         "Choose a clinician whose roles allow signing off results.";

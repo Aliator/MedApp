@@ -29,6 +29,8 @@ public sealed class AttachmentRepository(MedAppDbContext context) : IAttachmentR
         await context.SaveChangesAsync(ct);
     }
 
+    public Task SaveAsync(CancellationToken ct) => context.SaveChangesAsync(ct);
+
     public async Task AddAuditAsync(PatientPathwayAuditEntry audit, CancellationToken ct)
     {
         context.PatientPathwayAuditEntries.Add(audit);

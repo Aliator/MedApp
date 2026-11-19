@@ -3,6 +3,7 @@ using MedApp.API.Attachments;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Attachments.Commands.DeleteAttachment;
 using MedApp.Application.Attachments.Commands.DownloadAttachment;
+using MedApp.Application.Attachments.Commands.SetClinicalPhoto;
 using MedApp.Application.Attachments.Commands.UploadAttachment;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Queries.GetAttachments;
@@ -117,6 +118,20 @@ public sealed class AttachmentsController(IMediator mediator) : ControllerBase
         await mediator.Send(new DeleteAttachmentCommand(id, User.ToPathwayActor(), CanCorrectRecords), ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Marks a picture on a pathway as a clinical photo, or unmarks it (MC27). Marking needs the pathway's valid consent
+    /// to clinical photography (a 409 without). A clinical photo is shown as any picture is, never inline at full size.
+    /// </summary>
+    [HttpPut("{id:guid}/clinical-photo")]
+    [ProducesResponseType(typeof(AttachmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [RequirePermission(Permission.AttachFiles)]
+    public async Task<IActionResult> SetClinicalPhoto(Guid id, [FromBody] SetClinicalPhotoRequest request, CancellationToken ct) =>
+        Ok(await mediator.Send(new SetClinicalPhotoCommand(id, request.IsClinicalPhoto, User.ToPathwayActor(), CanCorrectRecords), ct));
 
     private FileStreamResult Send(AttachmentDownload download)
     {

@@ -88,7 +88,7 @@ public sealed class LetterRulesTests : LetterHandlerTestBase
         LetterWorkflow.Describe(LetterStatus.AwaitingApproval).Should().Be("awaiting approval");
         LetterWorkflow.Describe(LetterStatus.Draft).Should().Be("a draft");
         LetterWorkflow.Describe(LetterStatus.Withdrawn).Should().Be("withdrawn");
-        LetterWorkflow.KindInMessage(LetterKind.DischargeSummary).Should().Be("discharge summary");
+        LetterWorkflow.KindInMessage(LetterKind.DischargeSummary).Should().Be("end of care letter");
         LetterWorkflow.KindInMessage(LetterKind.InformationRequest).Should().Be("request for more information");
     }
 
@@ -186,7 +186,7 @@ public sealed class LetterRulesTests : LetterHandlerTestBase
         StageGates.WhyLetterMissing(stage, []).Should().BeNull("the stage needs no letter");
 
         stage.NeedsLetterKind = LetterKind.DischargeSummary;
-        StageGates.WhyLetterMissing(stage, []).Should().Contain("a discharge summary").And.Contain("None has been written");
+        StageGates.WhyLetterMissing(stage, []).Should().Contain("an end of care letter").And.Contain("None has been written");
 
         var draft = OnPathway(kind: LetterKind.DischargeSummary);
         StageGates.WhyLetterMissing(stage, [draft]).Should().Contain("still a draft");
