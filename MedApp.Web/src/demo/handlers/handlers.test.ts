@@ -2,6 +2,7 @@ import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
 import {db} from '../store';
+import {auditEntries} from './adminLogs';
 
 const isCurrent = (stage: {isCurrent: boolean}) => stage.isCurrent;
 
@@ -188,6 +189,33 @@ describe('the light demo handlers', () => {
     expect(pathway.stages.filter(isCurrent).map((s: {id: string}) => s.id)).toEqual([review.id]);
     expect(pathway.stages.find(isCurrent)).toMatchObject({handedOverFromTeamName: 'Lab'});
     expect(db().pathways.find((p) => p.id === PATHWAYS.forkedTests)!.handovers.filter((h) => h.stageId === review.id)).toHaveLength(1);
+  });
+
+  it('adds a template’s branch on new information, with a reason kept out of the audit log (MC10)', async () => {
+    startLightDemo(STAFF);
+    const url = `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`;
+    let pathway = (await call('GET', url)).body;
+    const stage = (name: string) => pathway.stages.find((s: {name: string}) => s.name === name);
+    const histology = stage('Histology (lab)');
+    // Listed in the template's order, none chosen; the melanoma route may follow histology or the review only.
+    expect(pathway.addableBranches.map((b: {name: string}) => b.name)).toEqual(['Melanoma route', 'Repeat biopsy']);
+    const melanoma = pathway.addableBranches[0];
+    expect(melanoma.afterStageIds).toEqual([histology.id, stage('Results and team review').id]);
+    const add = {templateBranchId: melanoma.templateBranchId, afterStageId: histology.id};
+    expect((await call('POST', `${url}/branches`, {...add, reason: ' '})).status).toBe(400);
+    const reason = 'Histology shows a melanoma';
+    pathway = (await call('POST', `${url}/branches`, {...add, reason})).body;
+    const [excision, followUp] = pathway.branchAdditions[0].stageIds;
+    expect(pathway.stages.find((s: {id: string}) => s.id === excision).predecessorIds).toEqual([histology.id]);
+    // It runs beside what's left, and the last stage waits for it.
+    expect(stage('Discharge letter to GP').predecessorIds).toContain(followUp);
+    expect(pathway.stages.at(-1).name).toBe('Discharge letter to GP');
+    expect(pathway.branchAdditions[0]).toMatchObject({name: 'Melanoma route', reason, addedByUsername: STAFF.username});
+    // Not repeatable: once is all.
+    expect((await call('POST', `${url}/branches`, {...add, reason})).status).toBe(409);
+    const entry = auditEntries().find((e) => e.action === 'BranchAdded' && e.patientPathwayId === PATHWAYS.histologyToFinish);
+    expect(entry?.details).toContain('Melanoma route');
+    expect(entry?.details).not.toContain(reason);
   });
 
   it('skips an optional stage with a reason, and reinstates it', async () => {

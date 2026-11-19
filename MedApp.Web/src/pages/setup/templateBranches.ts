@@ -1,4 +1,5 @@
 import type {TemplateStageOptions} from '../../api/pathwaySetup';
+import type {OrderLink} from '../../api/pathwayRoutes';
 import {MAX_BRANCH_LENGTH} from '../../api/stageSkips';
 
 /**
@@ -90,4 +91,43 @@ export function stageOptionsToSend(
     branch: branchName(r) || null,
     ...(isLabs(r) ? {ownerTeamId: labTeamId} : {}),
   }));
+}
+
+/** The route editor's links (MC9): each row's predecessors, by row key. */
+export type Routes = Record<string, string[]>;
+
+/** Routes from a template's links (by 1-based order) onto the editor's rows. */
+export function routesFromLinks(rows: readonly {key: string}[], links: readonly OrderLink[]): Routes {
+  return Object.fromEntries(
+    rows.map((row, i) => [
+      row.key,
+      links.filter((l) => l.toStageOrder === i + 1).flatMap((l) => (rows[(l.fromStageOrder ?? 0) - 1] ? [rows[(l.fromStageOrder ?? 0) - 1].key] : [])),
+    ]),
+  );
+}
+
+/**
+ * Routes kept valid as rows move, come and go: a row follows only rows above it (so there are no cycles), and one left
+ * following none (but the first) follows the row above, as a new stage at the end does.
+ */
+export function tidyRoutes(rows: readonly {key: string}[], routes: Readonly<Routes>): Routes {
+  return Object.fromEntries(
+    rows.map((row, i) => {
+      const above = new Set(rows.slice(0, i).map((r) => r.key));
+      const kept = (routes[row.key] ?? []).filter((key) => above.has(key));
+      return [row.key, i === 0 ? [] : kept.length > 0 ? kept : [rows[i - 1].key]];
+    }),
+  );
+}
+
+/** What a save sends as `links`: each row's predecessors, by 1-based order, in order. */
+export function linksFromRoutes(rows: readonly {key: string}[], routes: Readonly<Routes>): OrderLink[] {
+  const order = new Map(rows.map((r, i) => [r.key, i + 1]));
+  return rows.flatMap((row, i) =>
+    (routes[row.key] ?? [])
+      .map((key) => order.get(key) ?? 0)
+      .filter((from) => from > 0)
+      .sort((a, b) => a - b)
+      .map((from) => ({fromStageOrder: from, toStageOrder: i + 1})),
+  );
 }
