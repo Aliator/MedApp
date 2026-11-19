@@ -163,6 +163,15 @@ export function usePathwayActions(id: string) {
         unwrap(api.POST(`${PATHWAY}/stages/{stageId}/reinstate`, {...stage(stageId), body: {reason: reason.trim()}})),
       onSuccess,
     }),
+    /**
+     * Adds one of the template's addable branches on new information (MC10), after the stage chosen, with the
+     * clinician's reason. Never suggested: the clinician chooses the branch and where it goes.
+     */
+    addBranch: useMutation({
+      mutationFn: (input: {templateBranchId: string; afterStageId: string; reason: string}) =>
+        unwrap(api.POST(`${PATHWAY}/branches`, {params: {path: {id}}, body: {...input, reason: input.reason.trim()}})),
+      onSuccess,
+    }),
     changeStatus: useMutation({
       mutationFn: (change: {status: string; reason?: string}) =>
         unwrap(api.POST(`${PATHWAY}/status`, {params: {path: {id}}, body: change})),

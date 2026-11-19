@@ -42,6 +42,8 @@ export interface DemoStage {
   /** `StageSkipReason` by name: BranchNotChosen, NotNeeded, PatientDeclined or Other. */
   skipReason: string | null;
   skipDetail: string | null;
+  /** The branch addition that added it (MC10, a template's addable branch), or none for a stage from the template. */
+  branchAdditionId?: string | null;
   /** The team that works it (the relay, MC7): the template's choice, or null for the pathway's own team. */
   ownerTeamId: string | null;
   /** When it became the current stage, or null if it hasn't yet. */
@@ -51,6 +53,21 @@ export interface DemoStage {
   /** When the receiving team picked it up (or started or finished it), after a handover. */
   pickedUpAtUtc: string | null;
   pickedUpByUserId: string | null;
+}
+
+/**
+ * A template's addable branch added to a pathway on new information (MC10, `PathwayBranchAddition`): which, after which
+ * stage, the stages it added, and the clinician's reason (free text: kept here, never in the audit log).
+ */
+export interface DemoBranchAddition {
+  id: string;
+  templateBranchId: string;
+  name: string;
+  afterStageId: string;
+  stageIds: string[];
+  reason: string;
+  addedByUserId: string;
+  addedAtUtc: string;
 }
 
 /** A link from one stage of a pathway to the next (`PatientPathwayStageLinks`): a fork has several from a stage, a join several to it. */
@@ -104,6 +121,8 @@ export interface DemoPathway {
   stages: DemoStage[];
   /** How its stages lead to each other (MC8, tree pathways): copied from the template's links, by stage ID. */
   links: DemoStageLink[];
+  /** Branches added on new information (MC10); none when it has had none. */
+  branchAdditions?: DemoBranchAddition[];
   assignments: {userId: string; assignedByUserId: string; assignedAtUtc: string}[];
   notes: DemoNote[];
   /** Each handover between teams (the relay), for the audit log: by IDs and team names, never free text. */

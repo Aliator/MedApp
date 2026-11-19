@@ -1,7 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
-import {PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
 import {PathwayTemplateEditorPage, startingStopKey, stopStageOrder} from './PathwayTemplateEditorPage';
 import {BRANCH_WITHOUT_POINT_MESSAGE} from './templateBranches';
 
@@ -473,8 +472,8 @@ describe('PathwayTemplateEditorPage', () => {
     });
   });
 
-  it('shows a template with routes side by side read-only, each stage with the ones it comes after (MC8)', async () => {
-    renderEditor('t1', {
+  it('opens a template with routes side by side in the route editor, and saves its links (MC9)', async () => {
+    const {user, fetch} = renderEditor('t1', {
       [`GET ${BASE}/templates/t1`]: () =>
         json({
           ...template,
@@ -487,13 +486,22 @@ describe('PathwayTemplateEditorPage', () => {
             {fromStageOrder: 3, toStageOrder: 4},
           ],
         }),
+      [`PATCH ${BASE}/templates/t1`]: () => json(template),
     });
 
-    const list = within(await screen.findByRole('list', {name: 'Stages in order'}));
-    expect(screen.getByText(PARALLEL_ROUTES_LOCKED)).toBeInTheDocument();
-    expect(list.getByText('After 2. Scan and 3. Scan')).toBeInTheDocument();
-    expect(list.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Add Consultation'})).toHaveAttribute('aria-disabled', 'true');
+    await screen.findByRole('list', {name: 'Stages in order'});
+    expect(screen.queryByRole('button', {name: 'Draw Routes'})).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', {name: /4\. Consultation comes after/})).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Save'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
+
+    await waitFor(() => expect(sent(fetch, 'PATCH')).toBeDefined());
+    expect((await sent(fetch, 'PATCH')!.json()).links).toEqual([
+      {fromStageOrder: 1, toStageOrder: 2},
+      {fromStageOrder: 1, toStageOrder: 3},
+      {fromStageOrder: 2, toStageOrder: 4},
+      {fromStageOrder: 3, toStageOrder: 4},
+    ]);
   });
 
   it('goes back to the list for an unknown template', async () => {

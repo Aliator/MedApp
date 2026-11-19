@@ -2,7 +2,15 @@ import type {Schemas} from '../../api/client';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {andList, chainLinks, hasParallelRoutes, PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
+import {
+  andList,
+  chainLinks,
+  hasParallelRoutes,
+  MAX_BRANCH_REASON_LENGTH,
+  PARALLEL_ROUTES_LOCKED,
+  templateGraphProblems,
+} from '../../api/pathwayRoutes';
+import {MAX_BRANCH_LENGTH} from '../../api/stageSkips';
 import {ownerAccess, pathwayLinks, teamName, templateStages} from '../seed';
 import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
@@ -254,6 +262,40 @@ const branchResponses = (pathway: DemoPathway, stage: DemoStage): Schemas['Patie
     stageNamesToDo: branch.stages.filter(isToDo).map((s) => s.name),
   }));
 
+/** The stages from the template, in order (none added on new information): a stage's place is its template stage order. */
+const fromTemplate = (pathway: DemoPathway) => inOrder(pathway).filter((s) => !s.branchAdditionId);
+
+/** The stage that ends the pathway: the one nothing comes after. */
+const endStage = (pathway: DemoPathway) => inOrder(pathway).filter((s) => successorsOf(pathway, s).length === 0).at(-1);
+
+/** The template's addable branches (MC10), in the template's order. */
+const addableBranchesOf = (pathway: DemoPathway) => db().templates.find((t) => t.id === pathway.templateId)?.addableBranches ?? [];
+
+/**
+ * Where a template's addable branch can be added now (MC10): after a template stage it may follow (any but the last
+ * when it names none), not skipped, while the pathway can be worked and its last stage is still to do; nowhere once
+ * it's been added, unless it repeats.
+ */
+function afterStagesFor(pathway: DemoPathway, branch: Schemas['PathwayTemplateBranchResponse']): DemoStage[] {
+  const end = endStage(pathway);
+  if (!canWorkOnStages(pathway) || !end || !isToDo(end)) return [];
+  if (!branch.isRepeatable && (pathway.branchAdditions ?? []).some((a) => a.templateBranchId === branch.id)) return [];
+  const allowed = branch.attachAfterStageOrders ?? [];
+  return fromTemplate(pathway).filter((s, i) => s.id !== end.id && !isSkipped(s) && (allowed.length === 0 || allowed.includes(i + 1)));
+}
+
+/** A pathway's addable branches as its page lists them: in the template's order, never suggested or pre-selected. */
+function addableBranchResponses(pathway: DemoPathway, canWork: boolean): Schemas['PatientPathwayAddableBranchResponse'][] {
+  return addableBranchesOf(pathway).map((branch) => ({
+    templateBranchId: branch.id,
+    name: branch.name,
+    stageNames: (branch.stages ?? []).map((s) => s.name ?? ''),
+    afterStageIds: canWork ? afterStagesFor(pathway, branch).map((s) => s.id) : [],
+    isRepeatable: branch.isRepeatable ?? false,
+    timesAdded: (pathway.branchAdditions ?? []).filter((a) => a.templateBranchId === branch.id).length,
+  }));
+}
+
 /** A pathway as the API answers it, for the signed-in person. */
 export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayResponse'] {
   // Only the pathway's own team changes it (the team walls): admins and the lab read it.
@@ -267,6 +309,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
   const workable = can('WorkPathways') && (mine || worksCurrent) && canWorkOnStages(pathway);
   const notes = can('WorkPathways') && (mine || worksCurrent);
   const referral = pathway.referralId ? db().referrals.find((r) => r.id === pathway.referralId) : undefined;
+  const addable = addableBranchResponses(pathway, canWork);
   return {
     id: pathway.id,
     patientId: pathway.patientId,
@@ -315,6 +358,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       choosesBranch: stage.choosesBranch,
       branch: stage.branch,
       predecessorIds: predecessorsOf(pathway, stage).map((s) => s.id),
+      branchAdditionId: stage.branchAdditionId ?? null,
       branches: branchResponses(pathway, stage),
       needsBranchChoice: stage.choosesBranch && stage.chosenBranch === null,
       state: isDone(stage) ? 'Completed' : isSkipped(stage) ? 'Skipped' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
@@ -359,6 +403,19 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       .filter((note) => !note.deleted)
       .sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc))
       .map((note) => noteResponse(note, pathway)),
+    canAddBranch: addable.some((b) => (b.afterStageIds ?? []).length > 0),
+    addableBranches: addable,
+    // The reason is the clinician's own words: on the pathway (as a note is), never in the audit log.
+    branchAdditions: (pathway.branchAdditions ?? []).map((a) => ({
+      id: a.id,
+      templateBranchId: a.templateBranchId,
+      name: a.name,
+      afterStageId: a.afterStageId,
+      stageIds: a.stageIds,
+      reason: a.reason,
+      addedByUsername: usernameOf(a.addedByUserId),
+      addedAtUtc: a.addedAtUtc,
+    })),
   };
 }
 
@@ -683,6 +740,48 @@ export function registerPathways() {
     pickUp(stage, viewer.id);
     afterStageDone(pathway);
     reachNext(pathway, stageTeamOf(pathway, stage), viewer.id);
+    touch(pathway);
+    return pathwayResponse(pathway);
+  });
+
+  // A template's addable branch, added on new information (MC10): only from the template's list, with a reason, never
+  // suggested. Its stages run after the stage chosen, side by side with what's left, and join before the last stage.
+  on('post', '/api/pathways/patient-pathways/{id}/branches', ({params, body}) => {
+    const viewer = me();
+    requirePermission('WorkPathways');
+    // Only the pathway's own team adds a branch (the lab works its stages, but the route is the clinic's choice).
+    const pathway = pathwayToChange(params.id);
+    if (!canWorkOnStages(pathway)) return problem(409, 'This pathway can’t be worked on while it’s on hold or closed.');
+    const reason = body.reason?.trim() ?? '';
+    if (!reason) return invalid({reason: ['Say why the branch is being added.']});
+    if (reason.length > MAX_BRANCH_REASON_LENGTH) return invalid({reason: [`At most ${MAX_BRANCH_REASON_LENGTH} characters.`]});
+    const branch = addableBranchesOf(pathway).find((b) => b.id === body.templateBranchId);
+    if (!branch) return invalid({templateBranchId: ['Choose one of the template’s branches.']});
+    const after = pathway.stages.find((s) => s.id === body.afterStageId);
+    if (!after) return invalid({afterStageId: ['Choose the stage it comes after.']});
+    if (!afterStagesFor(pathway, branch).some((s) => s.id === after.id))
+      return problem(409, `The '${branch.name}' branch can’t be added after the '${after.name}' stage.`);
+    const end = endStage(pathway)!;
+    const additionId = newId();
+    const added = (branch.stages ?? []).map((spec, i) => addedStage(pathway, findDefinition(spec.stageDefinitionId ?? ''), end.stageOrder + i, additionId));
+    end.stageOrder += added.length;
+    pathway.stages.push(...added);
+    [after, ...added].forEach((from, i) => pathway.links.push({fromStageId: from.id, toStageId: (added[i] ?? end).id}));
+    pathway.branchAdditions = [
+      ...(pathway.branchAdditions ?? []),
+      {
+        id: additionId,
+        templateBranchId: branch.id ?? '',
+        name: branch.name ?? '',
+        afterStageId: after.id,
+        stageIds: added.map((s) => s.id),
+        reason,
+        addedByUserId: viewer.id,
+        addedAtUtc: nowUtc(),
+      },
+    ];
+    // Added after a finished stage, its first stage is current at once: reached, and handed over if another team's.
+    reachNext(pathway, stageTeamOf(pathway, after), viewer.id);
     touch(pathway);
     return pathwayResponse(pathway);
   });
@@ -1032,6 +1131,44 @@ function definitionResponse(definition: DemoStageDefinition): Schemas['PatientPa
   return {...definition, templateCount, canBeDeleted: templateCount === 0};
 }
 
+/**
+ * A stage added with a branch (MC10): plain, with its definition's gates, as a template's stage is copied. Its owner
+ * (the relay, MC7) is the one the template gives the same definition (the lab for a lab stage), else the pathway's team.
+ */
+function addedStage(pathway: DemoPathway, definition: DemoStageDefinition, stageOrder: number, branchAdditionId: string): DemoStage {
+  return {
+    id: newId(),
+    stageDefinitionId: definition.id,
+    stageOrder,
+    name: definition.name ?? '',
+    description: definition.description ?? null,
+    visitRequirement: (definition.visitRequirement as DemoStage['visitRequirement']) ?? 'None',
+    needsLetterKind: definition.needsLetterKind ?? null,
+    needsConsent: definition.needsConsent ?? false,
+    waitsForResults: definition.waitsForResults ?? false,
+    isOptional: false,
+    choosesBranch: false,
+    branch: null,
+    chosenBranch: null,
+    unlocked: false,
+    notes: null,
+    startedAtUtc: null,
+    startedByUserId: null,
+    completedAtUtc: null,
+    completedByUserId: null,
+    skippedAtUtc: null,
+    skippedByUserId: null,
+    skipReason: null,
+    skipDetail: null,
+    branchAdditionId,
+    ownerTeamId: fromTemplate(pathway).find((s) => s.stageDefinitionId === definition.id && s.ownerTeamId)?.ownerTeamId ?? null,
+    reachedAtUtc: null,
+    handedOverFromTeamId: null,
+    pickedUpAtUtc: null,
+    pickedUpByUserId: null,
+  };
+}
+
 function findDefinition(id: string): DemoStageDefinition {
   const definition = db().stageDefinitions.find((d) => d.id === id);
   if (!definition) refuse(notFound('The stage'));
@@ -1090,6 +1227,43 @@ function whyTemplateInvalid(stages: Schemas['PathwayTemplateStageResponse'][]): 
   return null;
 }
 
+/**
+ * A template's addable branches as saved (MC10), or a 400: each named (unique, ignoring case, at most
+ * `MAX_BRANCH_LENGTH`), with at least one stage from the library, following only stages before the last. A branch
+ * keeps its ID when it's sent back with it.
+ */
+function addableBranchList(
+  sent: Schemas['PathwayTemplateBranchRequest'][],
+  template: Schemas['PathwayTemplateResponse'],
+  stageCount: number,
+): Schemas['PathwayTemplateBranchResponse'][] | DemoReply {
+  const names = new Set<string>();
+  const result: Schemas['PathwayTemplateBranchResponse'][] = [];
+  for (const branch of sent) {
+    const name = branch.name?.trim() ?? '';
+    if (!name) return invalid({addableBranches: ['Give each branch a name.']});
+    if (name.length > MAX_BRANCH_LENGTH) return invalid({addableBranches: [`A branch name must not exceed ${MAX_BRANCH_LENGTH} characters.`]});
+    if (names.has(name.toLowerCase())) return invalid({addableBranches: ['Each branch needs a different name.']});
+    names.add(name.toLowerCase());
+    const ids = branch.stageDefinitionIds ?? [];
+    if (ids.length === 0) return invalid({addableBranches: [`Add at least one stage to the '${name}' branch.`]});
+    const definitions = ids.map((id) => db().stageDefinitions.find((d) => d.id === id));
+    if (definitions.some((d) => !d)) return invalid({addableBranches: [`A stage in the '${name}' branch isn’t in the stage library.`]});
+    const after = [...new Set(branch.attachAfterStageOrders ?? [])].sort((a, b) => a - b);
+    if (after.some((o) => o < 1 || o >= stageCount))
+      return invalid({addableBranches: [`The '${name}' branch can follow only a stage before the last.`]});
+    const kept = template.addableBranches?.find((b) => b.id === branch.id);
+    result.push({
+      id: kept?.id ?? newId(),
+      name,
+      stages: definitions.map((d) => ({stageDefinitionId: d!.id, name: d!.name})),
+      attachAfterStageOrders: after,
+      isRepeatable: branch.isRepeatable ?? false,
+    });
+  }
+  return result;
+}
+
 function findTemplate(id: string) {
   const template = db().templates.find((t) => t.id === id);
   if (!template) refuse(notFound('The template'));
@@ -1136,14 +1310,24 @@ function registerSetupOfPathways() {
       options?.map((o) => ({...o, ownerTeamId: o.ownerTeamId === teamId ? null : o.ownerTeamId})),
       clockStop,
     );
-    const why = whyTemplateInvalid(stages);
-    if (why) return why;
-    // Routes side by side (MC8) are drawn only in the route editor (MC9): until then, such a template's stages keep theirs.
+    // Routes drawn in the route editor (MC9) come as links, checked by the graph rules (`TemplateGraphRules`); a list
+    // has its branch rules. A template with routes side by side changes its stages only with its links.
+    const links = body.links?.map((l) => ({fromStageOrder: l.fromStageOrder, toStageOrder: l.toStageOrder})) ?? null;
     const parallel = hasParallelRoutes(template);
-    const optionsOf = (list: Schemas['PathwayTemplateStageResponse'][]) =>
-      JSON.stringify(list.map((s) => [s.stageDefinitionId, s.isOptional, s.choosesBranch, s.branch ?? null]));
-    if (parallel && optionsOf(stages) !== optionsOf(template.stages ?? []))
-      return invalid({stageDefinitionIdsInOrder: [PARALLEL_ROUTES_LOCKED]});
+    if (links) {
+      if (stages.length === 0) return invalid({stageDefinitionIdsInOrder: ['Add at least one stage.']});
+      const [first] = [...templateGraphProblems(stages, links).entries()].sort(([a], [b]) => a - b);
+      if (first) return invalid({links: [`Stage ${first[0] + 1}: ${first[1]}`]});
+    } else {
+      const why = whyTemplateInvalid(stages);
+      if (why) return why;
+      const optionsOf = (list: Schemas['PathwayTemplateStageResponse'][]) =>
+        JSON.stringify(list.map((s) => [s.stageDefinitionId, s.isOptional, s.choosesBranch, s.branch ?? null]));
+      if (parallel && optionsOf(stages) !== optionsOf(template.stages ?? []))
+        return invalid({stageDefinitionIdsInOrder: [PARALLEL_ROUTES_LOCKED]});
+    }
+    const branches = body.addableBranches ? addableBranchList(body.addableBranches, template, stages.length) : (template.addableBranches ?? []);
+    if (branches instanceof DemoReply) return branches;
     Object.assign(template, {
       name,
       teamId,
@@ -1152,7 +1336,8 @@ function registerSetupOfPathways() {
       clockStopStageOrder: clockStop ?? null,
       stageDefinitionIdsInOrder: ids,
       stages,
-      links: parallel ? template.links : chainLinks(stages),
+      links: links ?? (parallel ? template.links : chainLinks(stages)),
+      addableBranches: branches,
     });
     return null;
   };

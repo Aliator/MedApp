@@ -47,6 +47,7 @@ import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/pathways/StageVisit';
 import {BranchChoice, ReinstateStageDialog, SkipStageDialog} from '../../components/pathways/StageSkipDialogs';
+import {AddBranchDialog} from '../../components/pathways/AddBranchDialog';
 import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
@@ -70,6 +71,7 @@ type Dialog =
   | {kind: 'unlock'; stage: PathwayStage}
   | {kind: 'skip'; stage: PathwayStage}
   | {kind: 'reinstate'; stage: PathwayStage}
+  | {kind: 'addBranch'}
   | {kind: 'assign'}
   | {kind: 'unassign'; userId: string; username: string}
   | {kind: 'delete'}
@@ -636,6 +638,22 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
               }
             />
           )}
+          {dialog?.kind === 'addBranch' && pathway && (
+            <AddBranchDialog
+              pathway={pathway}
+              isProcessing={actions.addBranch.isPending}
+              onCancel={close}
+              onConfirm={(input, fail) =>
+                actions.addBranch.mutate(input, {
+                  onSuccess: () => {
+                    announce('Branch added');
+                    close();
+                  },
+                  onError: fail,
+                })
+              }
+            />
+          )}
           {dialog?.kind === 'reinstate' && (
             <ReinstateStageDialog
               key={dialog.stage.id}
@@ -794,12 +812,25 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   }
 
   /**
-   * Edit Details, View Patient, Assign Staff (AssignPathways) and the pathway's Audit Log (ViewAudit). Book Appointment
-   * is under Appointments.
+   * Edit Details, Add Branch (a template's branch on new information, MC10, when one can be added), View Patient,
+   * Assign Staff (AssignPathways) and the pathway's Audit Log (ViewAudit). Book Appointment is under Appointments.
    */
   function footer(pathway: Pathway) {
     return (
       <>
+        {pathway.canAddBranch && (
+          <Button
+            label="Add Branch"
+            tooltip="Add one of the template's branches because of new information"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Add} />}
+            onClick={() => {
+              setActionError(null);
+              setDialog({kind: 'addBranch'});
+            }}
+            isDisabled={isBusy}
+          />
+        )}
         {pathway.canEditDetails && (
           <Button
             label="Edit Details"
@@ -877,6 +908,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         renderFiles={filesFor}
         instructions={instructions}
         renderVisit={(stage) => <StageVisitTokens stage={stage} appointments={appointments} />}
+        branchAdditions={pathway.branchAdditions ?? []}
       />
     );
   }

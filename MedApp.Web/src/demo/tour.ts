@@ -1,7 +1,7 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, USERS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
@@ -234,6 +234,23 @@ export const TOUR: TourStep[] = [
     whyNot: (state) =>
       state.pathways.find((p) => p.id === PATHWAYS.branchToChoose)?.stages.some((s) => s.chosenBranch)
         ? `You've chosen this pathway's branch already in your copy of the demo. ${RESET_HINT}`
+        : null,
+  },
+  {
+    key: 'added-branch',
+    title: 'Add the melanoma route',
+    steps: [
+      'Opens Priya Holloway’s skin lesion pathway. Say her histology has just shown a melanoma: new information.',
+      'Choose Add Branch. Its template lists the branches that may be added, in its own order: nothing is suggested or chosen for you.',
+      'Choose Melanoma route, the stage it comes after (Histology or the review) and say why. The reason stays on the pathway; the audit log records only which branch.',
+      'Its stages run beside what’s left, indented in Stages, and the discharge letter waits for them.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.histologyToFinish}`,
+    buttonLabel: 'Open the pathway to add a branch to',
+    whyNot: (state) =>
+      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.branchAdditions?.some((a) => a.templateBranchId === TEMPLATE_BRANCHES.melanomaRoute)
+        ? `You've added the melanoma route already in your copy of the demo. ${RESET_HINT}`
         : null,
   },
   {
