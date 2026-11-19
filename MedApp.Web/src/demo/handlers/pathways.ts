@@ -1235,19 +1235,24 @@ function findDefinition(id: string): DemoStageDefinition {
   return definition;
 }
 
-/** A template's stages from its definitions in order, with each one's options (optional, a choice node's kind and outcomes). */
+/**
+ * A template's stages from its definitions in order, with each one's options (optional, a choice node's kind and
+ * outcomes). A stage still at its place keeps its description (the seed's reviewed templates write their own notes there).
+ */
 function templateStageList(
   ids: string[],
   options: Schemas['PathwayTemplateStageOptionsRequest'][] | null | undefined,
   clockStopStageOrder: number | null | undefined,
+  kept: readonly Schemas['PathwayTemplateStageResponse'][] = [],
 ): Schemas['PathwayTemplateStageResponse'][] {
   return ids.map((id, i) => {
     const definition = findDefinition(id);
+    const same = kept.find((s) => s.stageOrder === i + 1 && s.stageDefinitionId === id);
     return {
       stageOrder: i + 1,
       stageDefinitionId: id,
       name: definition.name,
-      description: definition.description,
+      description: same ? same.description : definition.description,
       snomedCode: definition.snomedCode,
       snomedTerm: definition.snomedTerm,
       isArchived: definition.isArchived,
@@ -1356,6 +1361,7 @@ function registerSetupOfPathways() {
       ids,
       options?.map((o) => ({...o, ownerTeamId: o.ownerTeamId === teamId ? null : o.ownerTeamId})),
       clockStop,
+      template.stages ?? [],
     );
     // Routes drawn in the route editor (MC9) come as links, checked by the graph rules (`TemplateGraphRules`); a list
     // has its branch rules. A template with routes side by side changes its stages only with its links.

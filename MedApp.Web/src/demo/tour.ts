@@ -20,8 +20,6 @@ export interface TourStep {
   path?: string;
   /** Opens the notepad beside the page. */
   opensNotepad?: boolean;
-  /** Stays on the Read Me, on its own (closing any half view), for steps that start from it. */
-  staysOnReadMe?: boolean;
   /** Its steps are numbered, as they're done in order. */
   isNumbered?: boolean;
   /** Synthetic sample text shown under the steps to select or copy (the notepad's notes), one line each. */
@@ -59,11 +57,11 @@ export const TOUR: TourStep[] = [
       'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
       'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
       'With two pages open, the side nav folds to its icons: open it from the side with the expand button (Expand sidebar) at the bottom of the icon rail.',
-      'To keep it open in half views, turn off Fold the side nav in half view in Account Settings.',
+      'Fold the side nav in half view is on unless you turn it off, in Account Settings: the button below opens it on the left, beside this Read Me.',
     ],
     isNumbered: true,
-    staysOnReadMe: true,
-    buttonLabel: 'Start here, on the Read Me',
+    path: '/account',
+    buttonLabel: 'Open Account Settings',
   },
   {
     key: 'pin-patient',
@@ -140,6 +138,7 @@ export const TOUR: TourStep[] = [
     steps: [
       'Opens Ellis Varden’s suspected skin cancer pathway: his dermoscopy was uncertain, so its Take biopsy stage is next, and needs a visit.',
       'Choose Book Visit on that stage, pick who and a free time, and book it. It shows on the stage, the timeline and the Calendar.',
+      'Pin the pathway: while it’s open it shows in the side nav under Pathways. Open its row’s menu (the … at the end of the row) and choose Pin. You’ll come back to it from there with the notepad later.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.biopsyToBook}`,
@@ -461,15 +460,15 @@ export const TOUR: TourStep[] = [
     steps: [
       `As ${STAFF.fullName} (switch above if you’re not her), copy the sample notes below: select them, or choose Copy the Notes.`,
       'Open the notepad with the button below: it opens beside this page and stays open as you move around the app. Paste the notes into it; it saves as you type, and each account has its own.',
-      'Open Ilona Petrova’s pathway, Psoriasis, new care plan (Patients, then Ilona Petrova, then the pathway).',
-      'In the notepad, choose Add Note to Pathway, check it’s her pathway, and add it. The pathway then shows the note under Notes, by you.',
+      'Open Ellis Varden’s pathway, Changing mole, left forearm, from its pin under Pathways in the side nav (you pinned it when booking his visit). Not pinned? Patients, then Ellis Varden, then the pathway.',
+      'In the notepad, choose Add Note to Pathway, check it’s his pathway, and add it. The pathway then shows the note under Notes, by you.',
       'Shift-click Notepad in the side nav to open it in the half view on the right instead.',
     ],
     isNumbered: true,
     sampleText: [
       'Seen in clinic today.',
-      'Plaques on both elbows, unchanged since the last visit.',
-      'Patient happy with the care plan; review in 8 weeks.',
+      'Mole on the left forearm, 6 mm, as in the referral photo.',
+      'Biopsy explained; patient happy to go ahead.',
     ],
     opensNotepad: true,
     buttonLabel: 'Open the notepad',

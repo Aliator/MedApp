@@ -152,15 +152,17 @@ describe('the Read Me tour', () => {
     expect(newForLab.map((p: {id: string}) => p.id)).toContain(PATHWAYS.biopsyToBook);
   });
 
-  it('has the notepad step copy sample notes into a Dermatology pathway in progress that she can add notes to', async () => {
+  it('has the notepad step copy sample notes into the pathway pinned when booking, which she can add notes to', async () => {
     const step = TOUR.find((s) => s.key === 'notepad')!;
     expect(step).toMatchObject({opensNotepad: true, isNumbered: true});
     expect(step.path).toBeUndefined();
     expect(step.sampleText!.length).toBeGreaterThan(0);
     expect(step.steps.join(' ')).toMatch(/Add Note to Pathway/);
-    const pathway = seed().pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
+    const pathway = seed().pathways.find((p) => p.id === PATHWAYS.biopsyToBook)!;
     expect(step.steps.join(' ')).toContain(pathway.title);
-    expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.ilonaPetrova});
+    expect(step.steps.join(' ')).toMatch(/from its pin/);
+    expect(TOUR.find((s) => s.key === 'book')!.steps.join(' ')).toMatch(/choose Pin/);
+    expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.ellisVarden});
     startLightDemo(STAFF);
     expect((await call('GET', `/api/pathways/patient-pathways/${pathway.id}`)).body.canAddNotes).toBe(true);
   });
