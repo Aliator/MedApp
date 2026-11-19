@@ -54,6 +54,7 @@ public abstract class IntegrationTest
     public async Task ResetAsync()
     {
         Clock.Reset();
+        _clinicStaff = null;
         await TestEnvironment.ResetDatabaseAsync();
         Api.Emails.Clear();
         Api.Letters.Clear();
@@ -99,7 +100,34 @@ public abstract class IntegrationTest
         return client;
     }
 
-    protected static Task<HttpClient> SignInAsAdminAsync() => SignInAsync(AdminUsername, AdminPassword);
+    protected static async Task<HttpClient> SignInAsAdminAsync()
+    {
+        var client = await SignInAsync(AdminUsername, AdminPassword);
+        AdminClients.AddOrUpdate(client, AdminUsername);
+        return client;
+    }
+
+    /// <summary>The clients signed in as the first admin (<see cref="SignInAsAdminAsync"/>).</summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<HttpClient, string> AdminClients = new();
+
+    private static StaffAccount? _clinicStaff;
+
+    /// <summary>Whether a client is signed in as the first admin.</summary>
+    protected static bool IsAdmin(HttpClient client) => AdminClients.TryGetValue(client, out _);
+
+    /// <summary>
+    /// The test's own member of clinic staff (<see cref="CreateClinicStaffAsync"/>, in General), made the first time
+    /// it's asked for.
+    /// </summary>
+    protected static async Task<StaffAccount> ClinicStaffAsync() => _clinicStaff ??= await CreateClinicStaffAsync();
+
+    /// <summary>
+    /// Who does a helper's clinical work: the client given, unless it's the admin's, as admins are read only (decisions
+    /// 182 and 208 of <c>docs/multi-clinic-plan.md</c>): then the test's clinic staff (<see cref="ClinicStaffAsync"/>)
+    /// does it, in General. A test checking that admins are refused calls the API itself, not a helper.
+    /// </summary>
+    protected static async Task<HttpClient> ClinicalAsync(HttpClient client) =>
+        IsAdmin(client) ? (await ClinicStaffAsync()).Client : client;
 
     /// <summary>
     /// The name of a role holding every permission staff can hold (all but the Administrator-only ones, setup included),
@@ -199,6 +227,7 @@ public abstract class IntegrationTest
     {
         firstName ??= UniqueName("First");
         lastName ??= UniqueName("Last");
+        client = await ClinicalAsync(client);
         var response = await client.PostAsJsonAsync("/api/patients", new CreatePatientRequest
         {
             FirstName = firstName,
@@ -257,6 +286,7 @@ public abstract class IntegrationTest
         DateOnly? dueDate = null,
         string priority = "Medium")
     {
+        client = await ClinicalAsync(client);
         var response = await client.PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
         {
             PatientId = patientId,
@@ -284,13 +314,14 @@ public abstract class IntegrationTest
     /// Uploads a file as the web app does: its bytes as the body, its name percent-encoded in a header, and what it's
     /// attached to (<c>patientId=…</c>, <c>pathwayId=…</c> or <c>stageId=…</c>) in the query.
     /// </summary>
-    protected static Task<HttpResponseMessage> UploadAttachmentAsync(HttpClient client, string target, byte[] bytes, string fileName)
+    protected static async Task<HttpResponseMessage> UploadAttachmentAsync(HttpClient client, string target, byte[] bytes, string fileName)
     {
+        client = await ClinicalAsync(client);
         var content = new ByteArrayContent(bytes);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/attachments?{target}") { Content = content };
         request.Headers.Add("X-File-Name", Uri.EscapeDataString(fileName));
-        return client.SendAsync(request);
+        return await client.SendAsync(request);
     }
 
     protected static async Task<MedApp.Contracts.Attachments.Responses.AttachmentResponse> UploadAttachmentOkAsync(
@@ -302,23 +333,23 @@ public abstract class IntegrationTest
 
     protected static string StageUrl(Guid pathwayId, Guid stageId) => $"{PathwayUrl(pathwayId)}/stages/{stageId}";
 
-    protected static Task<HttpResponseMessage> PutStageNotesAsync(HttpClient client, Guid pathwayId, Guid stageId, string notes) =>
-        client.PutAsJsonAsync($"{StageUrl(pathwayId, stageId)}/notes", new UpdatePathwayStageNotesRequest { Notes = notes });
+    protected static async Task<HttpResponseMessage> PutStageNotesAsync(HttpClient client, Guid pathwayId, Guid stageId, string notes) =>
+        await (await ClinicalAsync(client)).PutAsJsonAsync($"{StageUrl(pathwayId, stageId)}/notes", new UpdatePathwayStageNotesRequest { Notes = notes });
 
     /// <summary>Finishes a stage with a POST that has no body, as before stages could involve a visit.</summary>
-    protected static Task<HttpResponseMessage> FinishStageAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
-        client.PostAsync($"{StageUrl(pathwayId, stageId)}/finish", null);
+    protected static async Task<HttpResponseMessage> FinishStageAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
+        await (await ClinicalAsync(client)).PostAsync($"{StageUrl(pathwayId, stageId)}/finish", null);
 
     /// <summary>Finishes a stage with a body: an admin finishing a Required stage without its visit, and why.</summary>
-    protected static Task<HttpResponseMessage> FinishStageAsync(
+    protected static async Task<HttpResponseMessage> FinishStageAsync(
         HttpClient client,
         Guid pathwayId,
         Guid stageId,
         FinishPathwayStageRequest request) =>
-        client.PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/finish", request);
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/finish", request);
 
-    protected static Task<HttpResponseMessage> PostPathwayStatusAsync(HttpClient client, Guid pathwayId, string status, string? reason = null) =>
-        client.PostAsJsonAsync($"{PathwayUrl(pathwayId)}/status", new ChangePatientPathwayStatusRequest { Status = status, Reason = reason });
+    protected static async Task<HttpResponseMessage> PostPathwayStatusAsync(HttpClient client, Guid pathwayId, string status, string? reason = null) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{PathwayUrl(pathwayId)}/status", new ChangePatientPathwayStatusRequest { Status = status, Reason = reason });
 
     // Calendars and appointments.
 
@@ -359,7 +390,7 @@ public abstract class IntegrationTest
     }
 
     /// <summary>Records an appointment after the event (a walk-in): the response, whatever it is.</summary>
-    protected static Task<HttpResponseMessage> PostPastAppointmentAsync(
+    protected static async Task<HttpResponseMessage> PostPastAppointmentAsync(
         HttpClient client,
         Guid patientId,
         Guid staffUserId,
@@ -369,7 +400,7 @@ public abstract class IntegrationTest
         Guid? pathwayId = null,
         Guid? stageId = null,
         string? notes = null) =>
-        client.PostAsJsonAsync("/api/appointments/past", new RecordPastAppointmentRequest
+        await (await ClinicalAsync(client)).PostAsJsonAsync("/api/appointments/past", new RecordPastAppointmentRequest
         {
             PatientId = patientId,
             PathwayId = pathwayId,
@@ -511,7 +542,7 @@ public abstract class IntegrationTest
     protected static string AppointmentUrl(Guid appointmentId) => $"/api/appointments/{appointmentId}";
 
     /// <summary>Books a new appointment straight away (a member of staff, a start and an end): the response, whatever it is.</summary>
-    protected static Task<HttpResponseMessage> PostBookingAsync(
+    protected static async Task<HttpResponseMessage> PostBookingAsync(
         HttpClient client,
         Guid patientId,
         Guid staffUserId,
@@ -520,7 +551,7 @@ public abstract class IntegrationTest
         Guid? pathwayId = null,
         Guid? stageId = null,
         string? notes = null) =>
-        client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
+        await (await ClinicalAsync(client)).PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = patientId,
             PathwayId = pathwayId,
@@ -549,6 +580,7 @@ public abstract class IntegrationTest
         Guid? pathwayId = null,
         Guid? stageId = null)
     {
+        client = await ClinicalAsync(client);
         var response = await client.PostAsJsonAsync("/api/appointments", new CreateAppointmentRequest
         {
             PatientId = patientId,
@@ -559,14 +591,14 @@ public abstract class IntegrationTest
     }
 
     /// <summary>Books a Requested appointment (as the caller saw it): the response, whatever it is.</summary>
-    protected static Task<HttpResponseMessage> PostBookAsync(
+    protected static async Task<HttpResponseMessage> PostBookAsync(
         HttpClient client,
         Guid appointmentId,
         Guid staffUserId,
         DateTime startUtc,
         int minutes = AppointmentMinutes,
         string expectedStatus = "Requested") =>
-        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/book", new BookAppointmentRequest
         {
             StaffUserId = staffUserId,
             StartUtc = startUtc,
@@ -579,11 +611,11 @@ public abstract class IntegrationTest
         HttpClient client, Guid appointmentId, Guid staffUserId, DateTime startUtc, int minutes = AppointmentMinutes) =>
         PostBookAsync(client, appointmentId, staffUserId, startUtc, minutes, "Booked");
 
-    protected static Task<HttpResponseMessage> PostOutcomeAsync(HttpClient client, Guid appointmentId, string outcome) =>
-        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/outcome", new RecordAppointmentOutcomeRequest { Outcome = outcome });
+    protected static async Task<HttpResponseMessage> PostOutcomeAsync(HttpClient client, Guid appointmentId, string outcome) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/outcome", new RecordAppointmentOutcomeRequest { Outcome = outcome });
 
-    protected static Task<HttpResponseMessage> PostCancelAsync(HttpClient client, Guid appointmentId, string reason) =>
-        client.PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/cancel", new CancelAppointmentRequest { Reason = reason });
+    protected static async Task<HttpResponseMessage> PostCancelAsync(HttpClient client, Guid appointmentId, string reason) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{AppointmentUrl(appointmentId)}/cancel", new CancelAppointmentRequest { Reason = reason });
 
     protected static async Task<AppointmentResponse> GetAppointmentAsync(HttpClient client, Guid appointmentId) =>
         await (await client.GetAsync(AppointmentUrl(appointmentId))).ReadAsAsync<AppointmentResponse>();
