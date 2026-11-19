@@ -7,7 +7,7 @@ const whoami = (body: unknown, status = 200) => {
   return new QueryClient().fetchQuery(whoamiQuery);
 };
 
-const signedOut = {isAuthenticated: false, username: '', roles: [], permissions: [], mustChangePassword: false, mustSetUpTwoFactor: false};
+const signedOut = {isAuthenticated: false, username: '', roles: [], permissions: [], mustChangePassword: false, mustSetUpTwoFactor: false, teams: []};
 
 describe('whoamiQuery', () => {
   it('reads who is signed in, their roles, and what their roles allow (only permissions it knows, each once)', async () => {
@@ -25,6 +25,9 @@ describe('whoamiQuery', () => {
       permissions: ['UseApp', 'ViewPatients'],
       mustChangePassword: false,
       mustSetUpTwoFactor: false,
+      // Worked out from the roles when the API doesn't say (an admin is in no team).
+      accountType: 'Admin',
+      teams: [],
     });
   });
 
@@ -36,6 +39,8 @@ describe('whoamiQuery', () => {
       permissions: [],
       mustChangePassword: true,
       mustSetUpTwoFactor: false,
+      accountType: 'Staff',
+      teams: [],
     });
   });
 
@@ -54,6 +59,8 @@ describe('whoamiQuery', () => {
       permissions: [],
       mustChangePassword: false,
       mustSetUpTwoFactor: false,
+      accountType: 'Staff',
+      teams: [],
     });
   });
 

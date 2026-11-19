@@ -1,10 +1,12 @@
 import {QueryClient} from '@tanstack/react-query';
+import {call, startLightDemo} from '../test/lightDemo';
 import {createAppRouter} from '../router';
 import {accountTypeOfPerson, ADMIN, DEMO_ACCOUNTS, LAB, STAFF} from './accounts';
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
 import {seed} from './seed';
+import {db} from './store';
 import {TOUR} from './tour';
 
 /** Every page in the app's route tree, as a pattern (`/pathways/$id` matches `/pathways/<any id>`). */
@@ -96,8 +98,27 @@ describe('the Read Me tour', () => {
     expect(LAB.permissions).toContain('ProcessSpecimens');
     // The admin's steps are what an admin does: reading every team's list is one (the team walls).
     for (const step of TOUR.filter((s) => s.account === ADMIN.username))
-      expect(['account-types', 'meeting', 'insights', 'on-hold-overdue']).toContain(step.key);
+      expect(['account-types', 'draw-routes', 'meeting', 'insights', 'on-hold-overdue']).toContain(step.key);
     expect(byKey('team-walls').account).toBe(STAFF.username);
+  });
+
+  it('runs the relay in order: Dermatology hands Ellis Varden’s pathway over, and it is new for the lab', async () => {
+    const keys = TOUR.map((step) => step.key);
+    const relay = ['relay-hand-over', 'relay-arrives', 'finish-stage', 'relay-back'].map((key) => keys.indexOf(key));
+    expect(relay).toEqual([...relay].sort((a, b) => a - b));
+    expect(relay[3] - relay[0]).toBe(3);
+    const handOver = TOUR.find((step) => step.key === 'relay-hand-over')!;
+    expect(handOver.whyNot!(seed())).toBeNull();
+
+    startLightDemo(STAFF);
+    const path = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`;
+    const biopsy = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
+    expect(biopsy.name).toBe('Biopsy or sample');
+    expect((await call('POST', `${path}/stages/${biopsy.id}/finish`, {withoutVisit: true, reason: 'Done in clinic'})).status).toBe(200);
+    expect(handOver.whyNot!(db())).toMatch(/already/);
+    db().user = LAB.username;
+    const newForLab = (await call('GET', '/api/pathways/patient-pathways/search?View=NewForUs')).body.items;
+    expect(newForLab.map((p: {id: string}) => p.id)).toContain(PATHWAYS.biopsyToBook);
   });
 
   it('opens a patient to pin, and says when they are pinned already', () => {

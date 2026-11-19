@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, PEOPLE, STAFF, type DemoMembership} from '../accounts';
+import {ADMIN, CARROW, PEOPLE, STAFF, type DemoMembership} from '../accounts';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, STAGES, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
@@ -352,7 +352,7 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
   });
   const clinicPatterns: DemoClinicPattern[] = [
     pattern(CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, clock(9), clock(12), 20),
-    pattern(CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, TEAMS.diabetes, clock(13, 30), clock(15, 30), 15),
+    pattern(CLINIC_PATTERNS.adminDiabetes, CARROW.id, MORE_ROOMS.roomA, TEAMS.diabetes, clock(13, 30), clock(15, 30), 15),
   ];
   // The sessions the patterns made for this week and the next two, and a one-off session.
   const session = (
@@ -386,7 +386,7 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
     const tuesday = addDays(thisMonday, week * 7 + 1);
     clinicSessions.push(
       session(101 + week, CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, tuesday, [9, 0], [12, 0], 20),
-      session(201 + week, CLINIC_PATTERNS.adminDiabetes, ADMIN.id, MORE_ROOMS.roomA, TEAMS.diabetes, tuesday, [13, 30], [15, 30], 15),
+      session(201 + week, CLINIC_PATTERNS.adminDiabetes, CARROW.id, MORE_ROOMS.roomA, TEAMS.diabetes, tuesday, [13, 30], [15, 30], 15),
     );
   }
   clinicSessions.push(

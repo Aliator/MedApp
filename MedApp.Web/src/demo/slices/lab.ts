@@ -1,4 +1,4 @@
-import {ADMIN, STAFF} from '../accounts';
+import {CARROW, LAB, STAFF} from '../accounts';
 import {APPOINTMENTS, MORE_APPOINTMENTS, PATHWAYS, USERS, id} from '../ids';
 import type {BaseState, DemoNotification} from '../state';
 import {daysFrom, today, ukTime} from '../time';
@@ -293,10 +293,10 @@ export function seedLab(state: BaseState): LabSlice {
       sentByUserId: STAFF.id,
       courierReference: 'BATCH-0412',
       receivedAtUtc: plusMinutes(priyaTaken, 24 * 60),
-      receivedByUserId: ADMIN.id,
+      receivedByUserId: LAB.id,
       labReference: 'EVP-55120',
       reportedAtUtc: ago(2, 14, 0),
-      reportedByUserId: ADMIN.id,
+      reportedByUserId: LAB.id,
       reportAttachmentId: REPORT_FILES.priya,
       version: 4,
     }),
@@ -306,10 +306,10 @@ export function seedLab(state: BaseState): LabSlice {
       sentAtUtc: plusMinutes(harrietTaken, 240),
       sentByUserId: STAFF.id,
       receivedAtUtc: plusMinutes(harrietTaken, 24 * 60),
-      receivedByUserId: ADMIN.id,
+      receivedByUserId: LAB.id,
       labReference: 'EVP-54871',
       reportedAtUtc: ago(14, 14, 0),
-      reportedByUserId: ADMIN.id,
+      reportedByUserId: LAB.id,
       reportAttachmentId: REPORT_FILES.harriet,
       version: 4,
     }),
@@ -328,7 +328,7 @@ export function seedLab(state: BaseState): LabSlice {
       sentByUserId: STAFF.id,
       rejectionReason: 'InsufficientSample',
       closedAtUtc: ago(3, 9, 0),
-      closedByUserId: ADMIN.id,
+      closedByUserId: LAB.id,
       version: 3,
     }),
     specimen(SPECIMENS.ilonaBlood, PATHWAYS.followUpBooked, 2, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(3, 11, 0), STAFF.id, {
@@ -337,7 +337,7 @@ export function seedLab(state: BaseState): LabSlice {
       sentAtUtc: ago(3, 13, 0),
       sentByUserId: STAFF.id,
       receivedAtUtc: ago(2, 10, 0),
-      receivedByUserId: ADMIN.id,
+      receivedByUserId: LAB.id,
       labReference: 'CL-20931',
       version: 3,
     }),
@@ -345,16 +345,16 @@ export function seedLab(state: BaseState): LabSlice {
     specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 3, SPECIMEN_TYPES.skinScraping, LABORATORIES.valley, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
       site: 'Right elbow',
     }),
-    specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(59, 9, 30), ADMIN.id, {
-      requestingUserId: ADMIN.id,
+    specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, LABORATORIES.centre, ago(59, 9, 30), CARROW.id, {
+      requestingUserId: CARROW.id,
       status: 'Reported',
       sentAtUtc: ago(59, 12, 0),
-      sentByUserId: ADMIN.id,
+      sentByUserId: CARROW.id,
       receivedAtUtc: ago(58, 10, 0),
-      receivedByUserId: ADMIN.id,
+      receivedByUserId: LAB.id,
       labReference: 'CL-18822',
       reportedAtUtc: ago(55, 15, 0),
-      reportedByUserId: ADMIN.id,
+      reportedByUserId: LAB.id,
       reportAttachmentId: REPORT_FILES.grace,
       version: 4,
     }),
@@ -390,7 +390,7 @@ export function seedLab(state: BaseState): LabSlice {
       reportFileName: 'blood-results.pdf',
       status: 'SignedOff',
       signedOffAtUtc: ago(52, 11, 0),
-      signedOffByUserId: ADMIN.id,
+      signedOffByUserId: CARROW.id,
       action: 'PatientInformed',
       version: 2,
     }),
@@ -404,7 +404,7 @@ export function seedLab(state: BaseState): LabSlice {
       reportFileName: 'gp-blood-tests.pdf',
       reportedAtUtc: ago(1, 11, 30),
       reportedByUserId: USERS.sandiford,
-      responsibleUserId: ADMIN.id,
+      responsibleUserId: CARROW.id,
     }),
   ];
 
@@ -414,7 +414,7 @@ export function seedLab(state: BaseState): LabSlice {
       userId: STAFF.id,
       kind: 'ResultReady',
       title: 'Result ready',
-      message: `${ADMIN.username} reported a Skin biopsy (punch) specimen.`,
+      message: `${LAB.username} reported a Skin biopsy (punch) specimen.`,
       pathwayId: PATHWAYS.histologyToFinish,
       subjectId: RESULTS.priyaBiopsy,
       createdAtUtc: ago(2, 14, 0),
@@ -422,7 +422,7 @@ export function seedLab(state: BaseState): LabSlice {
     },
     {
       id: id(0xe5, 102),
-      userId: ADMIN.id,
+      userId: CARROW.id,
       kind: 'ResultReady',
       title: 'Result ready',
       message: 'b.sandiford recorded a result from another service.',
