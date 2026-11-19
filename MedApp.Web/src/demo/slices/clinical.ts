@@ -1,6 +1,6 @@
 import type {Schemas} from '../../api/client';
 import {dayOfWeek, nextWeekday} from '../../utils/calendarSlots';
-import {ADMIN, STAFF} from '../accounts';
+import {CARROW, HALLWORTH, STAFF} from '../accounts';
 import {id, MEETINGS, PATHWAYS, TEAMS, USERS} from '../ids';
 import type {BaseState, DemoPathway} from '../state';
 import {daysFrom, nowUtc, today, ukTime} from '../time';
@@ -275,7 +275,7 @@ export function seedClinical(state: BaseState): ClinicalSlice {
 
   const dispatch = (sent?: {daysAgo: number}) =>
     sent
-      ? {dispatchStatus: 'Sent' as const, method: 'Post', sentOn: daysFrom(-sent.daysAgo), sentAtUtc: ago(sent.daysAgo, 16, 0), sentByUserId: ADMIN.id}
+      ? {dispatchStatus: 'Sent' as const, method: 'Post', sentOn: daysFrom(-sent.daysAgo), sentAtUtc: ago(sent.daysAgo, 16, 0), sentByUserId: USERS.marsh}
       : {dispatchStatus: 'NotSent' as const, method: null, sentOn: null, sentAtUtc: null, sentByUserId: null};
   const patientRecipient = (n: number, position: number, pathwayId: string, sent?: {daysAgo: number}): DemoLetterRecipient => {
     const patient = state.patients.find((p) => p.id === pathway(pathwayId).patientId)!;
@@ -377,8 +377,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       clinicBody('Post-menopausal bleeding, under investigation.', 'Referred for a first clinic visit.', 'Her first visit is booked.'),
       {
         status: 'Approved',
-        authorUserId: ADMIN.id,
-        approverUserId: ADMIN.id,
+        authorUserId: HALLWORTH.id,
+        approverUserId: HALLWORTH.id,
         createdAt: ago(3, 10, 0),
         lastUpdated: ago(1, 10, 30),
         approvedAtUtc: ago(1, 10, 30),
@@ -392,8 +392,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       `Dear colleague,\n\n${RE_LINE}\n\nWe have discharged {{patient.name}} from our care.\n\n## Summary of care\n\nDiabetes reviewed after a change of medicine.\n\n## For the GP\n\nPlease continue the current medicines and review annually.`,
       {
         status: 'Approved',
-        authorUserId: ADMIN.id,
-        approverUserId: ADMIN.id,
+        authorUserId: CARROW.id,
+        approverUserId: CARROW.id,
         createdAt: ago(4, 10, 0),
         lastUpdated: ago(3, 16, 0),
         approvedAtUtc: ago(3, 12, 0),
@@ -428,7 +428,6 @@ export function seedClinical(state: BaseState): ClinicalSlice {
     organiserUserId: USERS.whitlock,
     organiserUsername: 'j.whitlock',
     attendees: [
-      {userId: ADMIN.id, username: ADMIN.username, reply: 'Accepted', repliedAtUtc: ago(6, 9, 0)},
       {userId: STAFF.id, username: STAFF.username, reply: 'Accepted', repliedAtUtc: ago(6, 9, 30)},
       {userId: USERS.sandiford, username: 'b.sandiford', reply: 'Accepted', repliedAtUtc: ago(6, 10, 0)},
       {userId: USERS.hallworth, username: 't.hallworth', reply: 'NoReply', repliedAtUtc: null},

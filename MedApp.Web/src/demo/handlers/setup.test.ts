@@ -1,6 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {addDays, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, STAFF} from '../accounts';
+import {ADMIN, HALLWORTH, STAFF} from '../accounts';
 import {PATHWAYS, PATIENTS, ROOMS, TEAMS, USERS} from '../ids';
 import {CLINIC_SESSIONS, DAY_TEMPLATES, MONITORING_RULES, PRACTICES, ROLES} from '../slices/setup';
 import {db} from '../store';
@@ -83,7 +83,7 @@ describe('the light demo’s setup and admin handlers', () => {
   });
 
   it('books into a clinic slot, and cancelling the session lists the patient to tell', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(HALLWORTH);
     const session = (await call('GET', `/api/clinics/sessions/${CLINIC_SESSIONS.hallworthNextWeek}`)).body;
     expect(session.session).toMatchObject({slotCount: 9, freeSlotCount: 9, roomName: 'Clinic room 1'});
     const slot = session.slots[0];
@@ -95,6 +95,8 @@ describe('the light demo’s setup and admin handlers', () => {
       clinicSessionId: CLINIC_SESSIONS.hallworthNextWeek,
     });
     expect(booked.body).toMatchObject({status: 'Booked', roomId: ROOMS.clinicRoom1, clinicSessionId: CLINIC_SESSIONS.hallworthNextWeek});
+    // Booking is the team's; cancelling a session is the admin's (ManageClinics).
+    db().user = ADMIN.username;
     const cancel = `/api/clinics/sessions/${CLINIC_SESSIONS.hallworthNextWeek}/cancel`;
     expect((await call('POST', cancel, {reason: 'Off sick', expectedLastUpdated: 'stale'})).status).toBe(409);
     const cancelled = (await call('POST', cancel, {reason: 'Off sick', expectedLastUpdated: session.session.lastUpdated})).body;
@@ -137,14 +139,18 @@ describe('the light demo’s setup and admin handlers', () => {
     expect(unconfirmed.status).toBe(400);
     expect(unconfirmed.body.errors.confirmOpenPathways).toBeDefined();
     expect((await call('PUT', restriction, {set: true, reason: 'Patient asked', confirmOpenPathways: true})).body.isRestricted).toBe(true);
+    // The admin is read only (a 403); staff are refused because the record is restricted.
+    expect((await call('PATCH', `/api/patients/${PATIENTS.ellisVarden}`, {firstName: 'E'})).status).toBe(403);
+    db().user = STAFF.username;
     expect((await call('PATCH', `/api/patients/${PATIENTS.ellisVarden}`, {firstName: 'E'})).status).toBe(409);
+    db().user = ADMIN.username;
     const log = (await call('GET', `/api/activity/search?PatientId=${PATIENTS.ellisVarden}`)).body;
     expect(log.items[0]).toMatchObject({action: 'PatientRestricted', patientName: 'Ellis Varden'});
     expect((await call('POST', `/api/patients/${PATIENTS.ellisVarden}/anonymise`, {reason: 'ErasureRequest', confirmation: 'Ellis Varden'})).status).toBe(409);
   });
 
   it('keeps a GP practice that isn’t listed on the patient only, never with a directory one, and exports it', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(STAFF);
     const unlisted = {name: ' Nowhereville Health Centre ', addressLines: ['2 Pretend Road', ' '], postcode: 'zz9 9zz', phone: ''};
     const created = await call('POST', '/api/patients', {firstName: 'Ada', lastName: 'Synthetic', dateOfBirth: '1980-05-17', unlistedPractice: unlisted});
     expect(created.body.unlistedPractice).toEqual({name: 'Nowhereville Health Centre', addressLines: ['2 Pretend Road'], postcode: 'ZZ9 9ZZ', phone: null});
@@ -154,7 +160,9 @@ describe('the light demo’s setup and admin handlers', () => {
     expect((await call('POST', '/api/patients', {firstName: 'B', lastName: 'C', dateOfBirth: '1980-05-17', unlistedPractice: {name: ' '}})).status).toBe(400);
 
     const patient = `/api/patients/${created.body.id}`;
+    db().user = ADMIN.username;
     expect((await call('GET', `${patient}/export`)).body.patient.unlistedPractice.name).toBe('Nowhereville Health Centre');
+    db().user = STAFF.username;
     const directory = (await call('PATCH', patient, {practiceId: PRACTICES.exampleLane})).body;
     expect(directory).toMatchObject({practiceId: PRACTICES.exampleLane});
     expect(directory.unlistedPractice).toBeUndefined();

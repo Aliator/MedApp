@@ -53,7 +53,8 @@ describe('UsersPage', () => {
     renderUsers();
 
     const row = await rowOf('a.hartwell');
-    expect(within(row).getByText('Admin')).toBeInTheDocument();
+    // Admin twice: the account type and the role.
+    expect(within(row).getAllByText('Admin')).toHaveLength(2);
     expect(screen.getByText('3 users in the system')).toBeInTheDocument();
   });
 

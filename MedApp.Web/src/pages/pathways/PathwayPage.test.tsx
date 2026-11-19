@@ -1,11 +1,16 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {useState} from 'react';
-import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, seniorClinicianUser, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, withAnnouncements} from '../../test/render';
+import {adminUser, calls, findAlert, isDisabled, json, managerUser, mockApi, nurseUser, openAlertDetails, seniorClinicianUser, openDialog, pageOf, renderWithApp, staffUser, expectAnnounced, userWithRoles, withAnnouncements} from '../../test/render';
+import type {CurrentUser} from '../../auth/auth';
 import {NOT_ASSIGNED_MESSAGE, PathwayPage, PathwayView, finishedMessage, progressWords} from './PathwayPage';
 import {richText, typeRichText} from '../../test/richText';
 import {testAppointment, testRequested} from '../../test/calendar';
 
 const id = 'proc-1';
+/** Assigns work (AssignPathways) and works on pathways too; admins are read only. */
+const leadUser = userWithRoles('test-lead', 'All staff (before roles)', 'Manager');
+/** Staff who may also delete a cancelled pathway (DeletePathways, which admins no longer hold). */
+const deleterUser: CurrentUser = {...staffUser, username: 'test-deleter', permissions: [...staffUser.permissions, 'DeletePathways']};
 const pathway = {
   id,
   patientId: 'patient-1',
@@ -402,12 +407,12 @@ describe('PathwayPage: working on it', () => {
     expect(openDialog()).toBeNull();
   });
 
-  it("never asks an admin whether it's assigned to them", async () => {
+  it("never asks someone who assigns work whether it's assigned to them", async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working({assignments: []})),
       [`PUT ${PATH}/stages/s2/notes`]: () => json(working({assignments: []})),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: leadUser});
 
     await typeRichText(await screen.findByRole('textbox', {name: 'Notes'}), ' More.');
     await user.click(screen.getByRole('button', {name: 'Save Notes'}));
@@ -507,12 +512,12 @@ describe('PathwayPage: working on it', () => {
     expect(screen.queryByRole('button', {name: 'Unlock Stage'})).not.toBeInTheDocument();
   });
 
-  it('lets an admin unlock a finished stage', async () => {
+  it('lets a senior clinician unlock a finished stage', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`POST ${PATH}/stages/s1/unlock`]: () => json(working()),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: seniorClinicianUser});
 
     await openStages(user);
     await user.click(await screen.findByRole('button', {name: /^1\. Consultation/}));
@@ -604,7 +609,7 @@ describe('PathwayPage: working on it', () => {
       'GET /api/calendar/staff': () => json([{userId: 'u3', username: 'k.other'}]),
       [`POST ${PATH}/assignments/u3`]: () => json({title: 'k.other can no longer be assigned.'}, 409),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: managerUser});
 
     await user.click(await screen.findByRole('button', {name: 'Assign Staff'}));
     await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'k.other'}));
@@ -619,7 +624,7 @@ describe('PathwayPage: working on it', () => {
       [`GET ${PATH}`]: () => json(working()),
       'GET /api/calendar/staff': () => json([{userId: 'u3', username: 'k.other'}]),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: managerUser});
 
     await user.click(await screen.findByRole('button', {name: 'Assign Staff'}));
     await user.click(await within(openDialog()!).findByRole('checkbox', {name: 'k.other'}));
@@ -645,12 +650,12 @@ describe('PathwayPage: working on it', () => {
     expect(stage).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('lets an admin unassign staff', async () => {
+  it('lets a manager unassign staff', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(working()),
       [`DELETE ${PATH}/assignments/u1`]: () => json(working({assignments: []})),
     });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: managerUser});
 
     await user.click(await screen.findByRole('button', {name: 'Unassign test-user'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Unassign'}));
@@ -799,7 +804,7 @@ describe('PathwayPage details and deleting', () => {
     expect(screen.queryByRole('link', {name: 'Edit Details'})).not.toBeInTheDocument();
   });
 
-  it("offers Delete only to admins, and only when the API allows it", async () => {
+  it("offers Delete only to holders of DeletePathways, and only when the API allows it", async () => {
     mockApi({[`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true}))});
     renderWithApp(<PathwayView id={id} isNarrow={false} />, {user: staffUser});
     await screen.findByRole('heading', {name: 'Details', level: 2});
@@ -812,7 +817,7 @@ describe('PathwayPage details and deleting', () => {
       [`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true})),
       [`DELETE ${PATH}`]: () => new Response(null, {status: 204}),
     });
-    const {user, router} = renderWithApp(<PathwayView id={id} isNarrow={false} />, {user: adminUser});
+    const {user, router} = renderWithApp(<PathwayView id={id} isNarrow={false} />, {user: deleterUser});
 
     await user.click(await screen.findByRole('button', {name: 'Delete Pathway'}));
     const dialog = within(openDialog()!);
@@ -829,7 +834,7 @@ describe('PathwayPage details and deleting', () => {
       [`GET ${PATH}`]: () => json(working({status: 'Cancelled', canBeDeleted: true})),
       [`DELETE ${PATH}`]: () => json({title: 'Only cancelled or archived pathways can be deleted.'}, 409),
     });
-    const {user} = renderWithApp(<PathwayView id={id} isNarrow={false} />, {user: adminUser});
+    const {user} = renderWithApp(<PathwayView id={id} isNarrow={false} />, {user: deleterUser});
 
     await user.click(await screen.findByRole('button', {name: 'Delete Pathway'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Pathway'}));

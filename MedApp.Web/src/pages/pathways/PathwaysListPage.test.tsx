@@ -139,8 +139,8 @@ describe('PathwaysListPage', () => {
         `&TeamIds=${SKIN_ID}&TeamIds=${FEET_ID}&StageDefinitionIds=${HISTOLOGY_ID}`,
     ]);
     await vi.waitFor(() => expect(searchBar()).toHaveTextContent(/Stage reached: is\s*Histology \(lab\)/));
-    // Several are counted in the token ("2 items"); their names are in its popover.
-    expect(searchBar()).toHaveTextContent(/Team: is any of\s*2 items/);
+    // Two short team names fit in the token, so it names them rather than counting them.
+    expect(searchBar()).toHaveTextContent(/Team: is any of\s*Dermatology, Biomechanics/);
   });
 
   it('names a chosen stage that is not in the list as "Selected stage"', async () => {

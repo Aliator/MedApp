@@ -78,9 +78,11 @@ describe('the team walls in the light demo', () => {
     const day = ukDateOf(gynaecology.startUtc!);
     const calendar = (await call('GET', `/api/calendar?StaffUserId=${USERS.hallworth}&From=${day}&To=${day}`)).body;
     expect(calendar.appointments.map((a: {id: string}) => a.id)).not.toContain(gynaecology.id);
-    expect(calendar.otherTeamsBusy).toEqual([
+    // Margaret's Gynaecology first visit is with him that day too.
+    expect(calendar.otherTeamsBusy).toContainEqual(
       {staffUserId: USERS.hallworth, username: 't.hallworth', startUtc: gynaecology.startUtc, endUtc: gynaecology.endUtc, what: 'Busy'},
-    ]);
+    );
+    expect(calendar.otherTeamsBusy.every((busy: {what: string}) => busy.what === 'Busy')).toBe(true);
     expect(JSON.stringify(calendar)).not.toContain(PATIENTS.priyaHolloway);
     expect((await call('GET', `/api/appointments/${gynaecology.id}/messages`)).status).toBe(404);
 

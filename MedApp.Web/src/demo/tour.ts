@@ -1,7 +1,7 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
-import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, USERS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
@@ -79,64 +79,48 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'account-types',
-    title: 'Admin, clinic admin and staff',
+    title: 'Who’s who: three accounts',
     steps: [
-      'Opens the Users page as the admin. Each account has a type, worked out from its roles and teams.',
-      'Admin: the overview, Insights, accounts, setup, and every team’s records to read, but no clinical changes. Open any pathway as the admin: it has no Finish Stage or Add Note. Someone who also does clinical work has a second, staff account.',
-      `Staff: in a team, a clinic or the lab. Their team decides what they see, and their roles what they do. ${LAB.fullName} is staff in the lab.`,
-      `Clinic admin: staff who also look after their own clinic. ${STAFF.fullName} is Dermatology’s. For now she works as any clinician does; a clinic admin’s extras (an oversight tab, the team’s own setup) come later.`,
-      'Edit teams on a user’s row sets their teams, and which clinics they’re the clinic admin of. An admin is in no team.',
+      'Opens Users as the admin. Each account has a type, worked out from its roles and teams.',
+      'Admin: accounts, setup, Insights and every team’s records to read, but no clinical changes (a pathway has no Finish Stage or Add Note for them). In no team.',
+      `Staff: in a team, a clinic or the lab. The team decides what they see, their roles what they do. ${LAB.fullName} is staff in the lab.`,
+      'Edit teams on a user’s row sets their teams, and which clinics they’re the clinic admin of.',
     ],
     account: ADMIN.username,
     path: '/admin/users',
     buttonLabel: 'Open Users as the admin',
   },
   {
-    key: 'meeting',
-    title: 'Arrange a meeting',
+    key: 'clinic-admin',
+    title: 'Clinic admin and staff',
     steps: [
-      'As the admin, choose New, then New meeting, on the Calendar.',
-      `Invite ${STAFF.fullName} (${STAFF.username}), pick one of the suggested times, and save.`,
-      'Then do the next step to see it on her calendar.',
-    ],
-    account: ADMIN.username,
-    path: '/calendar',
-    buttonLabel: 'Open the Calendar as the admin',
-  },
-  {
-    key: 'meeting-seen',
-    title: 'See the meeting as the person invited',
-    steps: [
-      `Switches to ${STAFF.fullName} and opens her calendar.`,
-      'The meeting is on it, and the bell (top left) has the invitation. Open it to accept or decline.',
+      `${STAFF.fullName} is Dermatology’s clinic admin: staff who also look after their own clinic.`,
+      'For now she works exactly as any Dermatology clinician does, and sees only what her team sees.',
+      'Her extras come later: an oversight tab for the clinic, and the clinic’s own templates and letter templates.',
     ],
     account: STAFF.username,
-    path: '/calendar',
-    buttonLabel: `Open ${STAFF.fullName}'s calendar`,
+    path: '/',
+    buttonLabel: `Open Home as ${STAFF.fullName}`,
   },
   {
-    key: 'book',
-    title: 'Book an appointment',
+    key: 'team-walls',
+    title: 'Other clinics: a summary only',
     steps: [
-      'Opens Ellis Varden’s skin lesion pathway: its Biopsy or sample stage needs a visit.',
-      'Choose Book Visit on that stage, pick who and a free time, and book it.',
-      'It shows on the stage, on the patient’s timeline and on the Calendar.',
+      `As ${STAFF.fullName}, open Priya Holloway. Patients are centre-wide: anyone can find anyone.`,
+      'Her Gynaecology pathway shows under In other clinics as one line (the clinic, its status, since when): no title, stages, notes or link.',
+      'Pathways, referrals, appointments, letters, results, consent and MDT items belong to a team. Another team’s by its link answers “not found”, and lists, counts and Insights leave it out.',
+      'The admin reads every team’s, and changes nothing clinical.',
     ],
     account: STAFF.username,
-    path: `/pathways/${PATHWAYS.biopsyToBook}`,
-    buttonLabel: 'Open the pathway to book its visit',
-    whyNot: (state) =>
-      state.appointments.some((a) => a.pathwayId === PATHWAYS.biopsyToBook && a.stageName === 'Biopsy or sample' && a.status === 'Booked')
-        ? `You've booked this visit already in your copy of the demo. ${RESET_HINT}`
-        : null,
+    path: `/patients/${PATIENTS.priyaHolloway}`,
+    buttonLabel: 'Open the patient as the dermatologist',
   },
   {
     key: 'triage',
     title: 'Triage a referral',
     steps: [
-      `As ${STAFF.fullName}, a dermatologist, open Oliver Maddox's urgent referral to Dermatology.`,
-      'Choose Accept, pick a template and a priority (nothing is chosen for you), check, and confirm.',
-      'MedApp opens the new pathway. Reject and Redirect work the same way.',
+      `As ${STAFF.fullName}, open Oliver Maddox's urgent referral to Dermatology.`,
+      'Choose Accept, pick a template and a priority (nothing is chosen for you), check, and confirm. MedApp opens the new pathway.',
     ],
     account: STAFF.username,
     path: `/referrals/${REFERRALS.dermatologyToTriage}`,
@@ -147,12 +131,52 @@ export const TOUR: TourStep[] = [
         : `You've triaged this referral already in your copy of the demo: it opens with the decision. ${RESET_HINT}`,
   },
   {
-    key: 'finish-stage',
-    title: 'The relay: the lab finishes its stage',
+    key: 'book',
+    title: 'Book an appointment',
     steps: [
-      `As ${LAB.fullName}, in the lab, open Priya Holloway’s pathway, at Histology (lab). Stages belong to a team: this one is the lab’s, so the lab works it and adds notes, and Dermatology waits.`,
-      'Write a note if you like, then choose Finish Stage. The next stage, Dermatology’s, becomes current: the pathway is handed back, and Dermatology’s staff are told (the bell).',
-      'The lab keeps reading the pathway, but can’t change it now.',
+      'Opens Ellis Varden’s skin lesion pathway: its Biopsy or sample stage needs a visit.',
+      'Choose Book Visit on that stage, pick who and a free time, and book it. It shows on the stage, the timeline and the Calendar.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.biopsyToBook}`,
+    buttonLabel: 'Open the pathway to book its visit',
+    whyNot: (state) =>
+      state.appointments.some((a) => a.pathwayId === PATHWAYS.biopsyToBook && a.stageName === 'Biopsy or sample' && a.status === 'Booked')
+        ? `You've booked this visit already in your copy of the demo. ${RESET_HINT}`
+        : null,
+  },
+  {
+    key: 'relay-hand-over',
+    title: 'The relay, 1: hand a stage to the lab',
+    steps: [
+      'Stages belong to a team. On Ellis Varden’s pathway, Biopsy or sample is Dermatology’s; the next, Histology (lab), is the lab’s.',
+      'Choose Finish Stage on Biopsy or sample (say why, if the visit hasn’t happened yet). The pathway is handed to the lab, and the lab is told.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.biopsyToBook}`,
+    buttonLabel: 'Open the pathway to hand over',
+    whyNot: (state) =>
+      state.pathways.find((p) => p.id === PATHWAYS.biopsyToBook)?.stages.find((s) => s.name === 'Biopsy or sample')?.completedAtUtc
+        ? `You've finished Biopsy or sample already in your copy of the demo: it's with the lab. ${RESET_HINT}`
+        : null,
+  },
+  {
+    key: 'relay-arrives',
+    title: 'The relay, 2: it arrives in the lab',
+    steps: [
+      `Switches to ${LAB.fullName}. My Worklist’s New for us lists what has just reached the lab, Ellis Varden’s too once handed over.`,
+      'Open one and choose Pick Up on its lab stage: it leaves New for us. The bell has the handover.',
+    ],
+    account: LAB.username,
+    path: '/tasks?view=newForUs',
+    buttonLabel: 'Open New for us as the lab',
+  },
+  {
+    key: 'finish-stage',
+    title: 'The relay, 3: the lab hands it back',
+    steps: [
+      'Opens Priya Holloway’s pathway at Histology (lab). The lab works it and adds notes; Dermatology waits.',
+      'Choose Finish Stage. The next stage is Dermatology’s, so the pathway goes back, and Dermatology is told. The lab keeps reading it.',
     ],
     account: LAB.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
@@ -164,11 +188,10 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'relay-back',
-    title: 'Back from the lab',
+    title: 'The relay, 4: back from the lab',
     steps: [
-      `As ${STAFF.fullName}, My Worklist’s team views show work passed between the clinic and the lab: Our turn, New for us, Awaiting the lab and Back from the lab.`,
-      'Back from the lab lists Dermatology’s pathways the lab has handed back, not picked up yet. Open one and choose Pick Up on its current stage (or just start it): it leaves the list.',
-      'Awaiting the lab lists the ones at a lab stage. The lab has the same views for its side.',
+      `As ${STAFF.fullName}, Back from the lab lists Dermatology’s pathways the lab has handed back, not picked up yet.`,
+      'Open one and choose Pick Up (or just start the stage): it leaves the list. Our turn and Awaiting the lab are beside it.',
     ],
     account: STAFF.username,
     path: '/tasks?view=backFromLab',
@@ -178,9 +201,8 @@ export const TOUR: TourStep[] = [
     key: 'sign-off',
     title: 'Sign off a result',
     steps: [
-      `As ${STAFF.fullName}, open Priya Holloway’s biopsy result: the lab’s report, waiting for her sign-off.`,
-      'Choose Sign Off and say what’s been done about it. Nothing is chosen for you, and MedApp never reads or flags a result.',
-      'Her Results and team review stage waits for it: it can’t be finished while a result awaits sign-off.',
+      `Opens Priya Holloway’s biopsy result, waiting for ${STAFF.fullName}’s sign-off.`,
+      'Choose Sign Off and say what’s been done. Nothing is chosen for you; her review stage waits for it.',
     ],
     account: STAFF.username,
     path: `/results/${LAB_IDS.priyaResult}`,
@@ -194,39 +216,30 @@ export const TOUR: TourStep[] = [
     key: 'lab',
     title: 'The specimen worklist',
     steps: [
-      'The Lab page: specimens to send, expected at the lab, in the lab, overdue and reported.',
-      'Open one to mark it sent, received, rejected or lost; each step follows the specimen’s status. Find one by its number with the search.',
+      'The Lab page: specimens to send, expected, in the lab, overdue and reported. Open one to mark it received, rejected or lost.',
       'A pathway’s last stage can’t be finished while any of its specimens is still with the lab.',
-      `As ${LAB.fullName}, staff in the lab team: the lab receives and processes them, which admins don’t.`,
     ],
     account: LAB.username,
     path: '/lab',
     buttonLabel: 'Open the Lab worklist',
   },
   {
-    key: 'consent',
-    title: 'Record consent, then finish the stage',
+    key: 'fork',
+    title: 'A pathway that forks',
     steps: [
-      'Opens Harriet Quill’s pathway at Treatment: the excision was done this morning.',
-      'Choose Finish Stage first: it’s refused, because the stage needs a consent record. That’s a stage gate, with no override.',
-      'In the Consent card, record the consent: the form, who signed and the date. MedApp records what you say; it never judges capacity.',
-      'Now Finish Stage works.',
+      'Opens Aisha Khoury’s pathway: after the first visit it forks, so Histology and Lab tests are current side by side.',
+      'Stages shows the tree: each route indented under the fork, meeting again at the review, which starts once both are done.',
     ],
     account: STAFF.username,
-    path: `/pathways/${PATHWAYS.consentToRecord}`,
-    buttonLabel: 'Open the pathway that needs consent',
-    whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Treatment')?.completedAtUtc
-        ? `You've finished Treatment already in your copy of the demo. ${RESET_HINT}`
-        : null,
+    path: `/pathways/${PATHWAYS.forkedTests}`,
+    buttonLabel: 'Open the forked pathway',
   },
   {
     key: 'branch',
     title: 'Choose a branch',
     steps: [
-      'Opens Felix Moreton’s pathway at its first visit, a branch point: biopsy first, or treat directly.',
-      'Choose Finish Stage and pick the branch. Nothing is chosen for you. The other branch’s stages are skipped.',
-      'Follow-up is optional: skip it with a reason when you reach it.',
+      'Opens Felix Moreton’s pathway at a branch point: biopsy first, or treat directly.',
+      'Choose Finish Stage and pick the branch (nothing is chosen for you). The other branch’s stages are skipped.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.branchToChoose}`,
@@ -238,12 +251,11 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'added-branch',
-    title: 'Add the melanoma route',
+    title: 'Add a branch on new information',
     steps: [
-      'Opens Priya Holloway’s skin lesion pathway. Say her histology has just shown a melanoma: new information.',
-      'Choose Add Branch. Its template lists the branches that may be added, in its own order: nothing is suggested or chosen for you.',
-      'Choose Melanoma route, the stage it comes after (Histology or the review) and say why. The reason stays on the pathway; the audit log records only which branch.',
-      'Its stages run beside what’s left, indented in Stages, and the discharge letter waits for them.',
+      'Opens Priya Holloway’s pathway. Say her histology has shown a melanoma.',
+      'Choose Add Branch, then Melanoma route (its template lists what may be added; nothing is suggested), the stage it comes after, and why.',
+      'Its stages run beside what’s left, and the discharge letter waits for them. The reason stays on the pathway, never in the audit log.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
@@ -254,14 +266,37 @@ export const TOUR: TourStep[] = [
         : null,
   },
   {
+    key: 'draw-routes',
+    title: 'Draw a template’s routes',
+    steps: [
+      'Opens the Skin lesion template, a list of stages, as the admin (setup is the admin’s).',
+      'Choose Draw Routes: each stage then says what it comes after, so stages can run side by side and meet again. Leave without saving if you’re only looking.',
+    ],
+    account: ADMIN.username,
+    path: `/admin/pathway-templates/${TEMPLATES.skinLesion}`,
+    buttonLabel: 'Open the template editor',
+  },
+  {
+    key: 'consent',
+    title: 'Record consent, then finish the stage',
+    steps: [
+      'Opens Harriet Quill’s pathway at Treatment. Finish Stage is refused first: the stage needs a consent record (a stage gate).',
+      'Record the consent in the Consent card (the form, who signed, the date); then Finish Stage works. MedApp never judges capacity.',
+    ],
+    account: STAFF.username,
+    path: `/pathways/${PATHWAYS.consentToRecord}`,
+    buttonLabel: 'Open the pathway that needs consent',
+    whyNot: (state) =>
+      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Treatment')?.completedAtUtc
+        ? `You've finished Treatment already in your copy of the demo. ${RESET_HINT}`
+        : null,
+  },
+  {
     key: 'mdt',
     title: 'Record an MDT outcome',
     steps: [
-      'Opens this morning’s skin MDT: the pathways listed for the team to discuss.',
-      'Choose Record Outcome on Ellis Varden’s item, tick who was there and write the team’s outcome. MedApp never suggests one.',
-      'Whoever has the pathway is told in their notifications.',
-      'The MDT list is reached from the Calendar page, by its MDT button.',
-      `As ${STAFF.fullName}: recording the outcome is clinical work, which admins don’t do.`,
+      'Opens this morning’s skin MDT (also reached from the Calendar’s MDT button).',
+      'Choose Record Outcome on Ellis Varden’s item, tick who was there and write the outcome. MedApp never suggests one; whoever has the pathway is told.',
     ],
     account: STAFF.username,
     path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,
@@ -274,46 +309,36 @@ export const TOUR: TourStep[] = [
   {
     key: 'timeline',
     title: 'A patient’s timeline',
-    steps: [
-      'Opens Priya Holloway: everything that happened to her, newest first, across her pathways, appointments and referrals.',
-      'Filter it by kind (stages, appointments, referrals) with the chips above it.',
-    ],
+    steps: ['Opens Priya Holloway: everything that happened to her, newest first. Filter it by kind with the chips above it.'],
     path: `/patients/${PATIENTS.priyaHolloway}`,
     buttonLabel: 'Open the patient’s timeline',
   },
   {
-    key: 'team-walls',
-    title: 'Team walls between clinics',
+    key: 'meeting',
+    title: 'Arrange a meeting',
     steps: [
-      `As ${STAFF.fullName}, a dermatologist, open Priya Holloway. Patients are centre-wide: anyone can find anyone.`,
-      'Her Gynaecology pathway shows only as “A pathway in Gynaecology, in progress since …”, under Upcoming: no title, stages, notes or link. Its appointments and letters don’t show either.',
-      'Pathways, referrals, appointments, letters, results, consent and MDT items belong to a team. Opening another team’s by its link answers “not found”, as if it weren’t there, and lists, home page counts and Insights leave it out.',
-      'A referral registered for another clinic goes to that clinic: whoever registered it doesn’t keep it, and one redirected to another team leaves the old team’s list.',
-      `The lab (${LAB.fullName}) sees all of a pathway once one of its stages is reached or a sample is passed to it, keeps reading it afterwards, and can’t look up any other. The admin reads everything and changes nothing clinical.`,
+      'As the admin, choose New, then New meeting, on the Calendar.',
+      `Invite ${STAFF.fullName}, pick a suggested time, and save. The next step shows it on her calendar.`,
     ],
-    account: STAFF.username,
-    path: `/patients/${PATIENTS.priyaHolloway}`,
-    buttonLabel: 'Open the patient as the dermatologist',
+    account: ADMIN.username,
+    path: '/calendar',
+    buttonLabel: 'Open the Calendar as the admin',
   },
   {
-    key: 'busy-calendar',
-    title: 'Another team’s appointments are busy time',
-    steps: [
-      `As ${STAFF.fullName}, open Tom Hallworth’s calendar. He also works in Gynaecology.`,
-      'His Gynaecology appointment (the next weekday; go to next week if it isn’t in this one) shows only as “Busy, another team”: no patient, nothing to open. His Dermatology ones show in full.',
-      'It still counts as busy when suggesting free times, so nobody is double-booked. Booking needs a clinician in the appointment’s team.',
-    ],
+    key: 'meeting-seen',
+    title: 'See the meeting as the person invited',
+    steps: [`Switches to ${STAFF.fullName}: the meeting is on her calendar, and the bell has the invitation to accept or decline.`],
     account: STAFF.username,
-    path: `/calendar?staff=${USERS.hallworth}&view=week`,
-    buttonLabel: 'Open Tom Hallworth’s calendar',
+    path: '/calendar',
+    buttonLabel: `Open ${STAFF.fullName}'s calendar`,
   },
   {
     key: 'team-calendar',
-    title: 'Any team’s calendar',
+    title: 'Team calendars and busy time',
     steps: [
       `As ${LAB.fullName}, the Team view shows Dermatology’s calendar: anyone can look at any team’s, picked in Team.`,
-      `Go to the day of the Skin cancer team meeting (two weekdays ahead). On ${STAFF.fullName}’s column it shows only as “Meeting, another team”: no title, no one invited, nothing to open.`,
-      'Meetings are arranged only with your own team, except an MDT. The admin arranges any.',
+      'Another team’s appointments show only as “Busy, another team” (unless their pathway was passed to you, as Harriet Quill’s was to the lab), and the Skin cancer team meeting (two weekdays ahead) as “Meeting, another team”.',
+      'Busy time still counts when suggesting free times. Meetings are only with your own team, except an MDT.',
     ],
     account: LAB.username,
     path: `/calendar?view=team&team=${TEAMS.dermatology}`,
@@ -321,9 +346,9 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'on-hold-overdue',
-    title: 'On hold and overdue',
+    title: 'Every clinic’s pathways, and the clinic picker',
     steps: [
-      'As the admin, the Pathways list shows every team’s open pathways, with their status, target date and progress.',
+      'As the admin, Pathways lists every team’s open pathways. The clinic picker narrows it to one clinic; staff in several clinics pick among their own.',
       'Samuel Okafor’s is on hold; Margaret Fenwick’s is overdue. Sort and filter with the bar above the list.',
     ],
     account: ADMIN.username,
