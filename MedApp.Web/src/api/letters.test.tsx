@@ -113,6 +113,8 @@ describe('recipients', () => {
       postcode: 'ZZ1 1ZZ',
       email: null,
     });
+    // A hospital (MC28) is typed in as someone else is, and keeps its kind.
+    expect(toRecipientRequest({...emptyRecipient('Hospital'), name: 'Riverside General', addressLines: '1 Way'})).toMatchObject({kind: 'Hospital', name: 'Riverside General'});
   });
 
   it('reads a saved recipient, giving an unknown kind as Other and a key of its own when it has no ID', () => {

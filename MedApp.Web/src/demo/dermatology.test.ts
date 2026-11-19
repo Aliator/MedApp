@@ -29,7 +29,10 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
     expect(triage[0]).toMatchObject({snomedCode: '225390008', snomedTerm: 'Triage', visitRequirement: 'None'});
     expect(state.stageDefinitions.find((d) => d.name === 'Take biopsy')).toMatchObject({needsConsent: true, visitRequirement: 'Required'});
     expect(state.stageDefinitions.find((d) => d.name === 'Letter to GP and discharge')?.needsLetterKind).toBe('DischargeSummary');
-    expect(state.stageDefinitions.find((d) => d.name === 'Urgent hospital referral')?.needsLetterKind).toBe('ClinicLetter');
+    // A referral letter to the hospital is an onward referral (MC28); one to the GP stays a clinic letter.
+    expect(state.stageDefinitions.find((d) => d.name === 'Urgent hospital referral')?.needsLetterKind).toBe('OnwardReferral');
+    expect(state.stageDefinitions.find((d) => d.name === 'Refer to hospital')?.needsLetterKind).toBe('OnwardReferral');
+    expect(state.stageDefinitions.find((d) => d.name === 'Refer to GP')?.needsLetterKind).toBe('ClinicLetter');
     expect(state.stageDefinitions.find((d) => d.name === 'Histology result')?.waitsForResults).toBe(true);
     // An existing library stage of the same name is reused.
     expect(state.stageDefinitions.filter((d) => d.name === 'Agree care plan')).toHaveLength(1);

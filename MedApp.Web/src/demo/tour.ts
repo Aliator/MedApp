@@ -526,7 +526,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   },
   {
     title: 'File uploads',
-    full: 'Attach files to patients, pathways and referrals, with thumbnails, type checks from the contents, and virus scanning.',
+    full: 'Attach files to patients, pathways and referrals, with thumbnails, type checks from the contents, and virus scanning; mark a picture as a clinical photo, only with the patient’s consent to clinical photography (the consent form is here).',
   },
   {
     title: 'Sharing',

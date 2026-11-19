@@ -28,6 +28,7 @@ export const notInLightDemo: Record<string, string> = {
   'GET /api/attachments/{id}/content': 'No files in the light demo.',
   'GET /api/attachments/{id}/thumbnail': 'No files in the light demo.',
   'DELETE /api/attachments/{id}': 'No files in the light demo.',
+  'PUT /api/attachments/{id}/clinical-photo': 'No files in the light demo: a clinical photo is an attached picture marked as one (its consent form is seeded).',
 
   // NHS links: no national services from a static site.
   'GET /api/fhir/metadata': 'FHIR is for other systems, not a page; no server in the light demo.',

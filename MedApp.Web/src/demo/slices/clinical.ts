@@ -14,7 +14,8 @@ import {daysFrom, nowUtc, today, ukTime} from '../time';
 /** A letter's recipient, as stored. */
 export interface DemoLetterRecipient {
   id: string;
-  kind: 'GpPractice' | 'Patient' | 'Referrer' | 'Other';
+  /** `LetterRecipientKind` by name: a hospital (MC28) is typed in, as someone else is. */
+  kind: 'GpPractice' | 'Patient' | 'Referrer' | 'Other' | 'Hospital';
   practiceId: string | null;
   name: string | null;
   addressLines: string | null;
@@ -149,6 +150,12 @@ export const LETTER_TEMPLATES = {
   dischargeSummary: id(0xe6, 2),
   /** A reply to a Dermatology referral. */
   referralResponse: id(0xe6, 3),
+  /** Dermatology's letter to the GP after the results review (MC28). */
+  dermatologyResultsToGp: id(0xe6, 4),
+  /** Dermatology's discharge letter (MC28). */
+  dermatologyDischarge: id(0xe6, 5),
+  /** Dermatology's onward referral to the hospital (MC28, `OnwardReferral`). */
+  dermatologyOnwardReferral: id(0xe6, 6),
 } as const;
 
 /** Letters (kind 0xe7; their recipients are 0xe8). */
@@ -161,6 +168,8 @@ export const LETTERS = {
   toSend: id(0xe7, 3),
   /** Ilona Petrova's clinic letter about her care plan: approved and sent to everyone. */
   sent: id(0xe7, 4),
+  /** Harriet Quill's onward referral to the hospital (MC28): Nadia Thornbury's draft, for Refer to hospital. */
+  onwardReferral: id(0xe7, 5),
 } as const;
 
 /** The MDT added to the base seed's (kind 0xe9; `MEETINGS.skinMdt` is made a Dermatology MDT too). */
@@ -191,6 +200,8 @@ export const CONSENT = {
   adultFormOld: id(0xeb, 2),
   /** A best interests form, never used (so it can be deleted). */
   bestInterestsForm: id(0xeb, 3),
+  /** The photo consent form (MC27): a valid record on it lets a picture be marked a clinical photo, and a photographs stage finish. */
+  photographyForm: id(0xeb, 4),
   /** Priya Holloway's consent to her biopsy: Valid. */
   priyaValid: id(0xeb, 0x101),
   /** Ellis Varden's consent to his biopsy, withdrawn by the patient. */
@@ -215,6 +226,10 @@ export const CLINICAL_IDS = {
   letterToSend: LETTERS.toSend,
   /** n.thornbury's draft. */
   letterDraft: LETTERS.draft,
+  /** Harriet Quill's onward referral to the hospital: n.thornbury's draft. */
+  onwardReferralLetter: LETTERS.onwardReferral,
+  /** The Clinical photography consent form. */
+  photographyConsentForm: CONSENT.photographyForm,
 } as const;
 
 /** A letter's recipient's fixed ID: the letter's number, then its position. */
@@ -227,7 +242,10 @@ const LETTERHEAD = 'Community Specialist Centre (synthetic)\n1 Example Way\nExam
 const CLOSING = 'Yours sincerely,\n\n\n{{author.name}}\n{{author.jobTitle}}';
 const RE_LINE = '**Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}**';
 
-const TEMPLATE_SPECS: [string, string, string, string | null, string][] = [
+/** The onward referral's opening: who the patient is and where they're registered, all from merge fields. */
+const ONWARD_REFERRAL_OPENING = `Dear colleague,\n\n${RE_LINE}\n\n{{patient.address}}\n\nRegistered with {{practice.name}}. Last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}.\n\nPlease see {{patient.name}} for the treatment below.`;
+
+const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
   [LETTER_TEMPLATES.clinicLetter, 'Clinic letter', 'ClinicLetter', null, `Dear colleague,\n\n${RE_LINE}\n\n## Diagnosis\n\n## What we found\n\n## Plan`],
   [
     LETTER_TEMPLATES.dischargeSummary,
@@ -243,10 +261,35 @@ const TEMPLATE_SPECS: [string, string, string, string | null, string][] = [
     TEAMS.dermatology,
     `Dear colleague,\n\n${RE_LINE}\n\nThank you for your referral, received on {{referral.receivedDate}}.\n\n## Our decision`,
   ],
+  // Dermatology's own (MC28): merge fields copy identity and administrative details only; the clinical text is the author's.
+  [
+    LETTER_TEMPLATES.dermatologyResultsToGp,
+    'Results review letter to GP',
+    'ClinicLetter',
+    TEAMS.dermatology,
+    `Dear colleague,\n\n${RE_LINE}\n\nWe went through {{patient.name}}'s results with them on {{appointment.lastAttendedDate}}.\n\n## Results\n\n## What we discussed\n\n## Plan`,
+  ],
+  [
+    LETTER_TEMPLATES.dermatologyDischarge,
+    'Dermatology discharge letter',
+    'DischargeSummary',
+    TEAMS.dermatology,
+    `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}} was last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}, and we have discharged them to your care.\n\n## Summary of care\n\n## Advice given\n\n## For the GP`,
+  ],
+  [
+    LETTER_TEMPLATES.dermatologyOnwardReferral,
+    'Onward referral to hospital',
+    'OnwardReferral',
+    TEAMS.dermatology,
+    `${ONWARD_REFERRAL_OPENING}\n\n## Reason for referral\n\n## Findings and results\n\n## What we are asking for`,
+  ],
 ];
 
 /** The GP practice copied onto seeded letters (synthetic; the demo's directory has no practices). */
 const GP = {name: 'Example Lane Surgery (synthetic)', addressLines: '1 Example Lane\nExampleton', postcode: 'ZZ1 1ZZ'};
+
+/** The hospital an onward referral goes to (the hospitals slice's invented Riverside General), its address typed in. */
+const HOSPITAL = {name: 'Riverside General (demo), Dermatology surgery', addressLines: '1 Riverside Way\nExampleton', postcode: 'ZZ3 3ZZ'};
 
 /**
  * The day today's MDT is on (08:00 to 08:45 UK time): today if that has already started (a weekday after 09:00), else
@@ -407,6 +450,21 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       },
       {daysAgo: 3},
     ),
+    // Harriet Quill's onward referral to the hospital (MC28), at Refer to hospital: a draft, so the stage still waits for it.
+    letter(
+      5,
+      PATHWAYS.referredToHospital,
+      LETTER_TEMPLATES.dermatologyOnwardReferral,
+      `${ONWARD_REFERRAL_OPENING}\n\n## Reason for referral\n\nExcision of a basal cell carcinoma, left temple.\n\n## Findings and results\n\nA nodular lesion of about 6 mm. The biopsy was reported as a nodular basal cell carcinoma (synthetic report).\n\n## What we are asking for\n\nSurgical excision. Please send us the surgery details once it's done.`,
+      {
+        status: 'Draft',
+        authorUserId: STAFF.id,
+        createdAt: ago(1, 15, 0),
+        lastUpdated: ago(1, 15, 30),
+        version: 2,
+        recipients: [{id: recipientId(5, 0), kind: 'Hospital', practiceId: null, ...HOSPITAL, email: null, ...dispatch()}, gpRecipient(5, 1)],
+      },
+    ),
   ];
   state.notifications.push({
     id: id(0xe7, 0x101),
@@ -499,6 +557,8 @@ export function seedClinical(state: BaseState): ClinicalSlice {
       createdAt: ago(60),
       lastUpdated: ago(60),
     },
+    // The photo consent form (MC27): unused, so it can still be deleted.
+    {id: CONSENT.photographyForm, name: 'Clinical photography', formVersion: '1.0', isArchived: false, createdAt: ago(60), lastUpdated: ago(60)},
   ];
   const priya = pathway(PATHWAYS.histologyToFinish);
   const ellis = pathway(PATHWAYS.biopsyToBook);

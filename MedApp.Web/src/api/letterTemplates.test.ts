@@ -24,6 +24,7 @@ describe('letter templates', () => {
       'Referral response',
       'Request for more information',
       'Appointment letter',
+      'Onward referral to hospital',
       'Other',
     ]);
     expect(letterKindLabel('InformationRequest')).toBe('Request for more information');

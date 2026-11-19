@@ -378,6 +378,47 @@ describe('Attachments', () => {
     });
   });
 
+  describe('clinical photos', () => {
+    const photo = (fields: Partial<Attachment> = {}) =>
+      attachment({fileName: 'lesion.jpg', contentType: 'image/jpeg', typeName: 'JPEG image', attachedTo: 'Pathway', pathwayId, canMarkClinicalPhoto: true, ...fields});
+
+    it('marks a picture as a clinical photo, and says so; a marked one shows its token and can be unmarked', async () => {
+      withAnnouncements();
+      const picture = photo();
+      const fetch = mockList([picture, photo({fileName: 'before.jpg', isClinicalPhoto: true})], {
+        [`PUT ${LIST}/${picture.id}/clinical-photo`]: () => json({...picture, isClinicalPhoto: true}),
+      });
+      const {user} = render({pathwayId});
+
+      expect(await screen.findByText('Clinical photo')).toBeInTheDocument();
+      expect(screen.getByRole('button', {name: 'Unmark before.jpg as a clinical photo'})).toBeInTheDocument();
+      await user.click(screen.getByRole('button', {name: 'Mark lesion.jpg as a clinical photo'}));
+
+      await expectAnnounced('lesion.jpg marked as a clinical photo');
+      const sent = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
+      expect(await sent.json()).toEqual({isClinicalPhoto: true});
+    });
+
+    it("shows the API's refusal when there's no valid photo consent", async () => {
+      const picture = photo();
+      mockList([picture], {
+        [`PUT ${LIST}/${picture.id}/clinical-photo`]: () =>
+          json({title: "This pathway has no valid consent to clinical photography: record it from the pathway's Consent card first.", status: 409}, 409),
+      });
+      const {user} = render({pathwayId});
+
+      await user.click(await screen.findByRole('button', {name: 'Mark lesion.jpg as a clinical photo'}));
+      expect(await findAlert(/lesion\.jpg could not be marked\. This pathway has no valid consent to clinical photography/)).toBeInTheDocument();
+    });
+
+    it("isn't offered where the API doesn't allow it, or while the record is locked", async () => {
+      mockList([photo({canMarkClinicalPhoto: false}), photo({fileName: 'other.jpg'})]);
+      render({pathwayId}, {isLocked: true});
+      expect(await screen.findByText('lesion.jpg')).toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: /as a clinical photo$/})).not.toBeInTheDocument();
+    });
+  });
+
   it('in a narrow window or half view, puts the buttons under the details', async () => {
     mockList([attachment()]);
     render({patientId}, {isNarrow: true});
