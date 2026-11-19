@@ -40,6 +40,14 @@ export const TEMPLATES = {
   lesionWithBloods: id(0xd2, 6),
 } as const;
 
+/** The skin lesion template's addable branches (MC10): routes a clinician may add on new information, never suggested. */
+export const TEMPLATE_BRANCHES = {
+  /** Wide excision and follow-up, after histology or the review: the tour adds it to Priya Holloway's pathway. */
+  melanomaRoute: id(0xfc, 1),
+  /** Another biopsy and its histology, after any stage, as often as needed. */
+  repeatBiopsy: id(0xfc, 2),
+} as const;
+
 /** Stage definitions (the stage library), shared by the templates. */
 export const STAGES = {
   /** Every definition below; the ones after `clinicReview` came with the light demo's second seed. */

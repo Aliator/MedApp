@@ -5,7 +5,8 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
-import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
+import {AnchoredMultiSelector, AnchoredSelector} from '../../components/forms/AnchoredSelector';
+import {Button} from '@astryxdesign/core/Button';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
@@ -30,10 +31,15 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {stageDescription} from '../../components/pathways/SnomedConcept';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
-import {afterWords, hasParallelRoutes, PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
+import {chainLinks, hasParallelRoutes, routeDepths, templateGraphProblems} from '../../api/pathwayRoutes';
+import {AddableBranchesEditor, branchesToSend, templateBranchRows, type BranchRow} from './AddableBranchesEditor';
 import {
   isAfterBranchPoint,
+  linksFromRoutes,
   PLAIN_STAGE,
+  routesFromLinks,
+  tidyRoutes,
+  type Routes,
   stageOptionProblems,
   stageOptionsToSend,
   type StageOptionsInput,
@@ -178,8 +184,12 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
  * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
  * refuse in them shows on the stage. Saving asks first, then goes back to the list.
  *
- * A template with routes side by side (MC8, tree pathways) shows its stages read-only, each with the stages it comes
- * after, until the route editor (MC9) draws them: its name, team, retention class and clock stop still change.
+ * The route editor (MC9): Draw Routes turns the list into routes, where each stage says what it Comes after (any
+ * stages above it), so routes can run side by side (a fork) and meet again (a join); a branch point's stages straight
+ * after it each start a named branch. Stages indent by how deep in the routes they sit. A template with routes side
+ * by side opens this way. The graph rules (`templateGraphProblems`) show on each stage before saving.
+ *
+ * Branches added on new information (MC10): the template's addable branches, edited below the stages.
  *
  * Wide, the stages and the definitions to add sit side by side; narrow, they're one form card. Either way the
  * cards scroll, not the page.
@@ -217,7 +227,21 @@ function TemplateEditor({
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {sensitivity: 'base'}));
   const backToList = () => void navigate({to: BACK});
   const usedBy = template?.pathwayCount ?? 0;
-  const hasRoutes = template !== null && hasParallelRoutes(template);
+  // The route editor (MC9): each row's predecessors by key, or null while the stages are a plain list.
+  const [rawRoutes, setRoutes] = useState<Routes | null>(() =>
+    template !== null && hasParallelRoutes(template) ? routesFromLinks(stages, template.links ?? []) : null,
+  );
+  const routes = rawRoutes && tidyRoutes(stages, rawRoutes);
+  const links = routes ? linksFromRoutes(stages, routes) : null;
+  const depths = links ? routeDepths(stages.length, links) : [];
+  const drawRoutes = () =>
+    setRoutes(
+      routesFromLinks(
+        stages,
+        chainLinks(stages.map((s, i) => ({stageOrder: i + 1, choosesBranch: s.choosesBranch, branch: s.branch}))),
+      ),
+    );
+  const [branches, setBranches] = useState<BranchRow[]>(() => templateBranchRows(template, stages));
 
   const reorderable = useMemo(
     () =>
@@ -240,7 +264,7 @@ function TemplateEditor({
   const change = (key: string, options: Partial<StageOptionsInput>) =>
     setStages((current) => current.map((s) => (s.key === key ? {...s, ...options} : s)));
   // What the API would refuse in the stages' options, said on each stage before saving (the API's check is the last word).
-  const optionProblems = stageOptionProblems(stages);
+  const optionProblems = links ? templateGraphProblems(stages, links) : stageOptionProblems(stages);
   // The relay (MC7): a stage can be the lab's, unless the template is the lab's own. A template that had one sends
   // every stage's options, so one cleared is cleared.
   const labTeamId = teams.find((t) => t.kind === 'Lab')?.id ?? null;
@@ -261,6 +285,10 @@ function TemplateEditor({
         clockStopStageOrder: stopOrder,
         // Only when a stage has an option: a template without any saves exactly as before.
         ...(stageOptions ? {stageOptions} : {}),
+        // Routes drawn (MC9) send every link; a list sends none, and the API links it as a list.
+        ...(links ? {links} : {}),
+        // Only when it has, or had, any: a template without them saves exactly as before.
+        ...(branches.length > 0 || (template?.addableBranches ?? []).length > 0 ? {addableBranches: branchesToSend(branches, stages)} : {}),
         // A new template always has one; a saved one sends it only when it changed, so a template keeps an archived one.
         ...(teamId && teamId !== startingTeam ? {teamId} : {}),
         // Only when it changed: a saved template's class also changes its existing pathways'.
@@ -333,36 +361,40 @@ function TemplateEditor({
     </>
   );
 
-  const stageList = hasRoutes ? (
-    <VStack gap={3}>
-      <AlertMessage status="info" message={PARALLEL_ROUTES_LOCKED} />
-      <List hasDividers aria-label="Stages in order">
-        {stages.map((stage, i) => {
-          const definition = byId.get(stage.definitionId);
-          return (
-            <ListItem
-              key={stage.key}
-              label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}${optionWords(stage)}`}
-              description={
-                <VStack as="span" gap={1}>
-                  {stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
-                  <Text type="supporting" color="secondary">
-                    {afterWords(i + 1, template) ?? 'The first stage'}
-                  </Text>
-                </VStack>
-              }
-              endContent={
-                <HStack gap={2} vAlign="center">
-                  {stage.key === stopKey && <Token size="sm" label="Stops the clock" color="blue" />}
-                  <VisitRequirementToken requirement={definition?.visitRequirement} />
-                </HStack>
-              }
-            />
-          );
-        })}
-      </List>
-    </VStack>
-  ) : stages.length === 0 ? (
+  const stageLabel = (stage: StageRow, i: number) => `${i + 1}. ${byId.get(stage.definitionId)?.name ?? 'Unknown stage'}`;
+
+  // Draw Routes (MC9): from a list, each stage then says what it comes after.
+  const routesControl = routes ? (
+    <Text type="supporting" color="secondary">
+      Routes: each stage starts when every stage it comes after is finished or skipped. Stages after a fork run side by side.
+    </Text>
+  ) : (
+    stages.length > 1 && (
+      <HStack gap={2}>
+        <Button
+          label="Draw Routes"
+          tooltip="Let stages run side by side and meet again"
+          variant="secondary"
+          size="sm"
+          onClick={drawRoutes}
+          isDisabled={save.isPending}
+        />
+      </HStack>
+    )
+  );
+
+  const branchesEditor = (
+    <AddableBranchesEditor
+      branches={branches}
+      onChange={setBranches}
+      stages={stages.map((stage, i) => ({key: stage.key, label: stageLabel(stage, i)}))}
+      definitions={available}
+      byId={byId}
+      isDisabled={save.isPending}
+    />
+  );
+
+  const stageList = stages.length === 0 ? (
       <EmptyState
         title="No stages yet"
         description={isNarrow ? 'Add stages from the list below.' : 'Add stages from All Stages, beside this.'}
@@ -372,14 +404,20 @@ function TemplateEditor({
       <List reorderable={reorderable} hasDividers aria-label="Stages in order">
         {stages.map((stage, i) => {
           const definition = byId.get(stage.definitionId);
-          const afterBranchPoint = isAfterBranchPoint(stages, i);
-          // A stage in a branch sits indented under the branch point before it, so the branches read as groups.
+          const before = routes?.[stage.key] ?? [];
+          // With routes, a stage straight after a branch point names the branch it starts.
+          const afterBranchPoint = routes
+            ? stages.some((other) => other.choosesBranch && before.includes(other.key))
+            : isAfterBranchPoint(stages, i);
+          // A stage in a branch sits indented under the branch point before it, so the branches read as groups; with
+          // routes, by how deep in them it sits.
           const isInBranch = afterBranchPoint && !stage.choosesBranch && stage.branch.trim() !== '';
+          const indent = routes ? (depths[i + 1] ?? 0) : isInBranch ? 1 : 0;
           return (
             <ListItem
               key={stage.key}
               itemKey={stage.key}
-              style={isInBranch ? BRANCH_INDENT : undefined}
+              style={indent > 0 ? {marginInlineStart: `calc(${indent} * var(--spacing-8))`} : undefined}
               label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}`}
               description={
                 <StageOptionFields
@@ -387,6 +425,19 @@ function TemplateEditor({
                   description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
                   canBeInBranch={afterBranchPoint}
                   canBeLabs={canBeLabs}
+                  comesAfter={
+                    routes &&
+                    i > 0 && (
+                      <AnchoredMultiSelector
+                        label={`${i + 1}. ${definition?.name ?? 'Stage'} comes after`}
+                        size="sm"
+                        options={stages.slice(0, i).map((other, n) => ({value: other.key, label: stageLabel(other, n)}))}
+                        value={before}
+                        onChange={(keys) => setRoutes({...routes, [stage.key]: keys})}
+                        isDisabled={save.isPending}
+                      />
+                    )
+                  }
                   problem={optionProblems.get(i)}
                   isDisabled={save.isPending}
                   onChange={(options) => change(stage.key, options)}
@@ -430,7 +481,7 @@ function TemplateEditor({
                 icon={<Icon icon={AppIcon.Add} />}
                 variant="ghost"
                 size="sm"
-                isDisabled={save.isPending || hasRoutes}
+                isDisabled={save.isPending}
                 onClick={() => add(definition.id ?? '')}
               />
             </HStack>
@@ -461,7 +512,6 @@ function TemplateEditor({
 
   const stagesTitle = `Stages (${stages.length})`;
 
-  const stageLabel = (stage: StageRow, i: number) => `${i + 1}. ${byId.get(stage.definitionId)?.name ?? 'Unknown stage'}`;
   const clockStopField = (
     <AnchoredSelector
       label="Clock-stop stage"
@@ -524,8 +574,12 @@ function TemplateEditor({
               {details}
             </FormSection>
             <FormSection title={stagesTitle} useGrid={false}>
+              {routesControl}
               {stageList}
               {clockStopField}
+            </FormSection>
+            <FormSection title="Branches Added on New Information" useGrid={false}>
+              {branchesEditor}
             </FormSection>
             <FormSection title="Add Stages" useGrid={false}>
               {definitionList}
@@ -540,8 +594,12 @@ function TemplateEditor({
                 {details}
               </FormSection>
               <FormSection title={stagesTitle} useGrid={false}>
+                {routesControl}
                 {stageList}
                 {clockStopField}
+              </FormSection>
+              <FormSection title="Branches Added on New Information" useGrid={false}>
+                {branchesEditor}
               </FormSection>
             </>,
           )}
@@ -552,9 +610,6 @@ function TemplateEditor({
   );
 }
 
-/** Indents a stage in a branch under its branch point (a layout value the list has no prop for). */
-const BRANCH_INDENT = {marginInlineStart: 'var(--spacing-8)'} as const;
-
 interface StageOptionFieldsProps {
   stage: StageOptionsInput;
   /** The definition's description and SNOMED CT concept, as the row showed before options. */
@@ -563,6 +618,8 @@ interface StageOptionFieldsProps {
   canBeInBranch: boolean;
   /** The template isn't the lab's, so a stage can be the lab's to work (the relay). */
   canBeLabs?: boolean;
+  /** With routes (MC9), the stages it comes after. */
+  comesAfter?: ReactNode;
   /** What the API would refuse in its options, if anything. */
   problem?: string;
   isDisabled: boolean;
@@ -575,12 +632,13 @@ interface StageOptionFieldsProps {
  * for a stage after a branch point, the Branch it's in (left empty, it always runs). Any problem the API would refuse
  * shows under them. Plain stages show just the two boxes, unticked.
  */
-function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false, problem, isDisabled, onChange}: StageOptionFieldsProps) {
+function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false, comesAfter, problem, isDisabled, onChange}: StageOptionFieldsProps) {
   // The branch field stays while it has a name, so one left after its branch point moved can still be cleared.
   const hasBranchField = (canBeInBranch && !stage.choosesBranch) || stage.branch !== '';
   return (
     <VStack as="span" gap={2}>
       {description}
+      {comesAfter}
       <HStack as="span" gap={4} vAlign="center" wrap="wrap">
         <CheckboxInput
           label="Optional"

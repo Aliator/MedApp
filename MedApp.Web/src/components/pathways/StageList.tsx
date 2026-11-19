@@ -4,8 +4,9 @@ import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
+import type {Schemas} from '../../api/client';
 import {needsLetterWords} from '../../api/letters';
-import {waitsForWords} from '../../api/pathwayRoutes';
+import {stageDepths, waitsForWords} from '../../api/pathwayRoutes';
 import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
@@ -210,12 +211,33 @@ export interface StageListProps {
   renderVisit?: (stage: PathwayStage) => ReactNode;
   /** Each stage's files, under its notes; nothing shows none. */
   renderFiles?: (stage: PathwayStage) => ReactNode;
+  /** The branches added to the pathway on new information (MC10), so their stages say so, and the first says why. */
+  branchAdditions?: readonly PathwayBranchAddition[];
 }
+
+/** A branch added to a pathway on new information (MC10). */
+export type PathwayBranchAddition = Schemas['PatientPathwayBranchAdditionResponse'];
+
+/** What a stage added with a branch says under its title: which branch, and on its first stage, who added it, when and why. */
+export function addedWords(stage: PathwayStage, additions: readonly PathwayBranchAddition[]): string | null {
+  const addition = additions.find((a) => a.id === stage.branchAdditionId);
+  if (!addition) return null;
+  if (addition.stageIds?.[0] !== stage.id) return `Added with the ${addition.name} branch.`;
+  const when = addition.addedAtUtc ? ` on ${formatDateTime(addition.addedAtUtc)}` : '';
+  return `Added with the ${addition.name} branch by ${addition.addedByUsername ?? 'unknown'}${when}: ${addition.reason}`;
+}
+
+/** Indents a stage on a route after a fork or branch point, one step for each (the tree view's outline, MC9). */
+const indentFor = (depth: number) =>
+  depth > 0 ? {paddingInlineStart: `calc(var(--spacing-6) + ${depth} * var(--spacing-8))`} : undefined;
 
 /**
  * A pathway's stages in order (a topological order: routes side by side are listed one after the other), read-only. Each stage folds: its header shows its number, name and state, and
  * opening it shows who started and finished it, its instructions and its notes. The current stage starts open
  * (unless `isCurrentOpen` is false) and the others closed, so the page leads with the work in hand.
+ *
+ * The tree view (MC9): an indented outline, each stage on a route after a fork or branch point indented under it and
+ * back out at the join, with its status; a stage added with a branch (MC10) says so.
  */
 export function StageList({
   stages,
@@ -226,25 +248,43 @@ export function StageList({
   instructions,
   renderVisit,
   renderFiles,
+  branchAdditions = [],
 }: StageListProps) {
+  const depths = stageDepths(stages);
   return (
     <VStack gap={0}>
       {[...stages]
         .sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0))
         .map((stage, index) => (
-          <Section key={stage.id} variant="transparent" paddingBlock={4} paddingInline={6} dividers={index > 0 ? ['top'] : []}>
+          <Section
+            key={stage.id}
+            variant="transparent"
+            paddingBlock={4}
+            paddingInline={6}
+            dividers={index > 0 ? ['top'] : []}
+            style={indentFor(depths.get(stage.id ?? '') ?? 0)}>
             <Collapsible
               defaultIsOpen={isCurrentOpen && (stage.isCurrent ?? false)}
               isOpen={openStageIds ? openStageIds.includes(stage.id ?? '') : undefined}
               onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
-              trigger={<StageTitle stage={stage} extra={renderVisit?.(stage)} />}>
+              trigger={
+                <StageTitle
+                  stage={stage}
+                  extra={
+                    <>
+                      {stage.branchAdditionId && <Token size="sm" label="Added branch" color="purple" />}
+                      {renderVisit?.(stage)}
+                    </>
+                  }
+                />
+              }>
               <StageDetails
                 stage={stage}
                 work={renderWork?.(stage)}
                 instructions={instructions}
                 files={renderFiles?.(stage)}
-                waitsFor={waitsForWords(stage, stages)}
+                waitsFor={[addedWords(stage, branchAdditions), waitsForWords(stage, stages)].filter(Boolean).join(' ') || null}
               />
             </Collapsible>
           </Section>

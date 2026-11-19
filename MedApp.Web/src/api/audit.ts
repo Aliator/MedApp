@@ -53,6 +53,7 @@ export const AUDIT_ACTIONS = [
   'MdtWithdrawn',
   'StageHandedOver',
   'StagePickedUp',
+  'BranchAdded',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -95,6 +96,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   MdtWithdrawn: 'Withdrawn from MDT',
   StageHandedOver: 'Stage handed over',
   StagePickedUp: 'Stage picked up',
+  BranchAdded: 'Branch added',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -227,6 +229,13 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     // The relay (MC7): which team passed the stage to which, by the teams' names.
     case 'StageHandedOver':
       return text(d.from) && text(d.to) ? `${text(d.from)} → ${text(d.to)}` : '';
+    // A template's branch added on new information (MC10): which, and how many stages; the reason is on the pathway.
+    case 'BranchAdded': {
+      const count = Array.isArray(d.stageIds) ? d.stageIds.length : 0;
+      return [text(d.branch) ? `Added ${text(d.branch)}` : null, count > 0 ? `${count} ${count === 1 ? 'stage' : 'stages'}` : null]
+        .filter(Boolean)
+        .join(': ');
+    }
     // A skipped stage to run again: how it had been skipped, and why it's reinstated.
     case 'StageReinstated': {
       const was = text(d.skipReason) ? `Was skipped (${skipReasonLabel(text(d.skipReason)).toLowerCase()})` : '';
