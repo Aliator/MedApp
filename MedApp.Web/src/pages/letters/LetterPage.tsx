@@ -46,7 +46,7 @@ import {RecipientList} from '../../components/letters/RecipientList';
 import {RecipientsEditor} from '../../components/letters/RecipientsEditor';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -95,8 +95,8 @@ const TEXT_FIELDS = ['letterhead', 'body', 'closing', 'largePrint'];
 const PRESERVE_LINES = {whiteSpace: 'pre-wrap'} as const;
 
 /**
- * One letter (`/letters/$id`, decisions 100 to 105): the patient's banner and flags, then the letter and, beside it,
- * its details and recipients (one card of folding sections in a narrow window).
+ * One letter (`/letters/$id`, decisions 100 to 105): Details (the patient first, never folding) above the letter and,
+ * beside them, its recipients (one card of folding sections in a narrow window); the patient's flags in the message.
  *
  * - **A draft its author can edit** (`canEdit`): the letterhead, the body (Markdown, with the template's headings to
  *   fill in) and closing, large print, and the recipients (`RecipientsEditor`), saved together with Save (or Ctrl+S)
@@ -120,7 +120,7 @@ export function LetterPage({id}: {id: string}) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [saveErrors, setSaveErrors] = useState<ValidationErrors | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [open, setOpen] = useState({letter: true, details: true, recipients: true});
+  const [open, setOpen] = useState({letter: true, recipients: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const formRef = useRef<HTMLElement>(null);
   const isMissing = error instanceof ApiError && error.status === 404;
@@ -189,7 +189,7 @@ export function LetterPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading letter..."
       fill={letter !== undefined}
-      banner={letter?.patient && <PatientBanner patient={letter.patient} />}
+      // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Letter not found. It may have been discarded." />
@@ -212,11 +212,11 @@ export function LetterPage({id}: {id: string}) {
       dialogs={letter && dialogs(letter)}>
       {letter &&
         (isNarrow ? (
-          <FoldingCard sections={[letterSection(letter), detailsSection(letter), recipientsSection(letter)]} footerActions={footer(letter)} />
+          <FoldingCard sections={[detailsSection(letter), letterSection(letter), recipientsSection(letter)]} footerActions={footer(letter)} />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[letterSection(letter)]} footerActions={footer(letter)} />}
-            end={<FoldingCard sections={[detailsSection(letter), recipientsSection(letter)]} />}
+            start={<FoldingCard sections={[detailsSection(letter), letterSection(letter)]} footerActions={footer(letter)} />}
+            end={<FoldingCard sections={[recipientsSection(letter)]} />}
           />
         ))}
     </Page>
@@ -404,17 +404,7 @@ export function LetterPage({id}: {id: string}) {
   }
 
   function detailsSection(letter: Letter): FoldingSection {
-    return {
-      key: 'details',
-      title: 'Details',
-      isOpen: open.details,
-      onToggle: () => toggle('details'),
-      children: (
-        <Section variant="transparent" padding={6}>
-          <LetterDetails letter={letter} />
-        </Section>
-      ),
-    };
+    return patientDetailsSection({patientId: letter.patientId, patient: letter.patient, patientName: letter.patientName}, <LetterDetails letter={letter} />);
   }
 
   function recipientsSection(letter: Letter): FoldingSection {

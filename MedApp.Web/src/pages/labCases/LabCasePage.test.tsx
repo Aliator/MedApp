@@ -1,6 +1,7 @@
 import {screen, within} from '@testing-library/react';
 import {json, mockApi, openDialog, renderWithApp, userWithRoles} from '../../test/render';
 import {CASE_ID, testCase, testClock, testHospitalCase} from '../../test/labCases';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import {LabCasePage} from './LabCasePage';
 
 const labUser = userWithRoles('test-lab', 'Lab');
@@ -16,7 +17,7 @@ describe('LabCasePage', () => {
     const {user} = renderPage(() => json(testCase()));
 
     expect(await screen.findByRole('heading', {name: 'Lab Case MA26-000300', level: 1})).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: /Ahmed, Freya/})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     const steps = within(screen.getByRole('list', {name: 'Steps'}));
     expect(steps.getByText('Sample adequate? Adequate')).toBeInTheDocument();
     expect(steps.getByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();

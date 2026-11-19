@@ -1,6 +1,7 @@
 import {screen} from '@testing-library/react';
 import {json, mockApi, renderWithApp, userWithRoles} from '../../test/render';
 import {REQUEST_ID, testRequest} from '../../test/hospitals';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import {HospitalRequestPage, NHS_NUMBERS_DIFFER} from './HospitalRequestPage';
 
 const labUser = userWithRoles('test-lab', 'Lab');
@@ -11,11 +12,11 @@ function renderPage(answer: () => Response) {
 }
 
 describe('HospitalRequestPage', () => {
-  it('shows the patient banner over the request’s own numbers, what was asked, and the lab case', async () => {
+  it('shows the patient, first in Details, over the request’s own numbers, what was asked, and the lab case', async () => {
     renderPage(() => json(testRequest()));
 
     expect(await screen.findByRole('heading', {name: 'Lab Case MA26-000201', level: 1})).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: /Ashdown, Wilfred/})).toBeInTheDocument();
+    expectPatientFirstInDetails(/Ashdown, Wilfred/);
     expect(screen.getByText('From Riverside General, hospital number RG-204817')).toBeInTheDocument();
     expect(screen.getByText('Riverside General (ZZR01)')).toBeInTheDocument();
     expect(screen.getByText('Ms A. Example')).toBeInTheDocument();

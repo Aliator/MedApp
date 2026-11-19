@@ -18,7 +18,7 @@ import {LabClockDetails} from '../../components/labCases/LabClock';
 import {SurgeryDetailsDialog} from '../../components/labCases/SurgeryDetailsDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {hasPatientFlags, PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -37,7 +37,7 @@ const PRESERVE_LINES = {whiteSpace: 'pre-wrap'} as const;
 const stepLabel = (step: LabCaseStep) => (step.kind === 'Outcome' ? `${step.name} ${labOutcomeLabel(step.outcome)}` : (step.name ?? ''));
 
 /**
- * One lab case (`/lab/cases/$id`, MC15): the patient's banner, then what the case needs next, its details, its steps
+ * One lab case (`/lab/cases/$id`, MC15): its Details first (the patient at the top, never folding), then what the case needs next, its steps
  * (each with who and when, the outcome recorded at each choice, and any marked entered in error), its samples and its
  * report. **What's next** is the next step (Record), a choice with each outcome a button of its own, in a fixed order
  * and none chosen or suggested (decision 191), or the results (Enter Results and Authorise, for holders of
@@ -53,7 +53,7 @@ export function LabCasePage({id}: {id: string}) {
   const canProcess = useCan('ProcessSpecimens');
   const [dialog, setDialog] = useState<LabCaseDialogKind | null>(null);
   const [isAddingSurgery, setAddingSurgery] = useState(false);
-  const [open, setOpen] = useState({next: true, clock: true, details: true, steps: true, samples: true, report: true, surgery: true});
+  const [open, setOpen] = useState({next: true, clock: true, steps: true, samples: true, report: true, surgery: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const close = () => setDialog(null);
@@ -68,7 +68,7 @@ export function LabCasePage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading lab case..."
       fill={labCase !== undefined}
-      banner={labCase?.patient && <PatientBanner patient={labCase.patient} />}
+      // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Lab case not found. It may have been deleted, or it's another team's." />
@@ -113,10 +113,10 @@ export function LabCasePage({id}: {id: string}) {
       }>
       {labCase &&
         (isNarrow ? (
-          <FoldingCard sections={[next(labCase), clock(labCase), details(labCase), steps(labCase), samples(labCase), report(labCase), ...surgery(labCase)]} />
+          <FoldingCard sections={[details(labCase), next(labCase), clock(labCase), steps(labCase), samples(labCase), report(labCase), ...surgery(labCase)]} />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[next(labCase), clock(labCase), details(labCase), report(labCase), ...surgery(labCase)]} />}
+            start={<FoldingCard sections={[details(labCase), next(labCase), clock(labCase), report(labCase), ...surgery(labCase)]} />}
             end={<FoldingCard sections={[steps(labCase), samples(labCase)]} />}
           />
         ))}
@@ -144,7 +144,7 @@ export function LabCasePage({id}: {id: string}) {
     return section('clock', 'Clock', <LabClockDetails clock={c.clock} />);
   }
   function details(c: LabCase) {
-    return section('details', 'Details', <CaseDetails labCase={c} />);
+    return patientDetailsSection({patientId: c.patientId, patient: c.patient}, <CaseDetails labCase={c} />);
   }
   function steps(c: LabCase) {
     return section('steps', 'Steps', <CaseSteps labCase={c} onOpen={setDialog} />);
