@@ -8,6 +8,8 @@ namespace MedApp.E2ETests.Users;
 [TestFixture]
 public sealed class UserTests : E2ETest
 {
+    protected override E2EAccount SignedInAs => E2EAccount.Admin;
+
     /// <summary>The dialog's Done ignores presses for a second after the password appears (a double-click guard).</summary>
     private const int DoneHoldMs = 1100;
 
@@ -47,10 +49,10 @@ public sealed class UserTests : E2ETest
         var row = Main.GetByRole(AriaRole.Row).Filter(new() { HasText = username });
         await row.GetByRole(AriaRole.Button, new() { Name = "Edit roles" }).ClickAsync();
         var roles = Page.GetByRole(AriaRole.Dialog, new() { Name = "Edit Roles" });
-        await roles.GetByRole(AriaRole.Checkbox, new() { Name = "All staff (before roles)", Exact = true }).CheckAsync();
+        await roles.GetByRole(AriaRole.Checkbox, new() { Name = "Nurse", Exact = true }).CheckAsync();
         await roles.GetByRole(AriaRole.Button, new() { Name = "Save Roles" }).ClickAsync();
         await Expect(roles).ToBeHiddenAsync();
-        await Expect(row).ToContainTextAsync("All staff (before roles)");
+        await Expect(row).ToContainTextAsync("Nurse");
 
         // The new user, in a browser of their own, signs in with the password they were given...
         var options = ContextOptions();
@@ -70,7 +72,7 @@ public sealed class UserTests : E2ETest
         await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^Password you were given") }).FillAsync(firstPassword);
         await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^New password") }).FillAsync(ChosenPassword);
         await page.GetByRole(AriaRole.Textbox, new() { NameRegex = new Regex("^Confirm new password") }).FillAsync(ChosenPassword);
-        await page.GetByRole(AriaRole.Button, new() { Name = "Change password" }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Change Password" }).ClickAsync();
 
         // ...then they're in the app.
         var account = page.GetByRole(AriaRole.Navigation, new() { Name = "Side navigation" })
@@ -88,7 +90,7 @@ public sealed class UserTests : E2ETest
     public async Task DeleteUser_ConfirmedWithYourPassword_RemovesTheAccount()
     {
         var username = NewUsername();
-        await Api.CreateUserAsync(username, "All staff (before roles)");
+        await Api.CreateUserAsync(username, "Nurse");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         await OpenAsync("/admin/users");
         await SearchUsersAsync(username);

@@ -14,7 +14,7 @@ public sealed class MyTasksTests : E2ETest
         var (template, stages) = await CreateTemplateAsync(1);
         var patient = await CreatePatientAsync();
         var pathway = await CreatePathwayAsync(patient.Id, template.Id);
-        await Api.AssignAsync(pathway.Id, await Api.UserIdOfAsync(E2ESettings.Username!));
+        await Api.AssignAsync(pathway.Id, Staff.UserId);
         var title = Uri.EscapeDataString(pathway.Title);
 
         // Not started: the list's default.

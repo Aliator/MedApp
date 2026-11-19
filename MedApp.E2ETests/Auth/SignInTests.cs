@@ -4,11 +4,13 @@ using Microsoft.Playwright;
 
 namespace MedApp.E2ETests.Auth;
 
-/// <summary>Signing in and out through the login page.</summary>
+/// <summary>Signing in and out through the login page, as the E2E admin.</summary>
 [TestFixture]
 public sealed class SignInTests : E2ETest
 {
     protected override bool IsSignedIn => false;
+
+    protected override E2EAccount SignedInAs => E2EAccount.Admin;
 
     [Test]
     public async Task SignIn_RightPassword_OpensTheAppAndSignOutReturnsToLogin()
@@ -40,7 +42,7 @@ public sealed class SignInTests : E2ETest
     {
         // An account of its own, so a wrong password never counts towards locking out the E2E account.
         var username = E2EData.UniqueName("Login").Replace(' ', '-').ToLowerInvariant();
-        await Api.CreateUserAsync(username, "All staff (before roles)");
+        await Api.CreateUserAsync(username, "Nurse");
         Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
         await OpenAsync("/login");
 
