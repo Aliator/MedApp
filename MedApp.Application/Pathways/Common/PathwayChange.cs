@@ -523,6 +523,14 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
             AddedAtUtc = nowUtc
         };
 
+        // A pathway from before links is a chain: its links are written first, so the branch doesn't break it.
+        if (pathway.Links.Count == 0)
+        {
+            var ordered = pathway.Stages.OrderBy(s => s.StageOrder).ToList();
+            foreach (var (from, to) in ordered.Zip(ordered.Skip(1)))
+                AddLink(from, to);
+        }
+
         var last = pathway.Stages.Count == 0 ? 0 : pathway.Stages.Max(s => s.StageOrder);
         var previous = after;
         foreach (var (spec, index) in branch.Stages.Select((s, i) => (s, i)))
@@ -532,9 +540,7 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
                 pathway, spec, nowUtc, last + 1 + index, fromTemplate: false, branchAdditionId: addition.Id, ownerTeamId: owner);
             pathway.Stages.Add(stage);
             _newStages.Add(stage);
-            var link = new PatientPathwayStageLink { PatientPathwayId = pathway.Id, FromStageId = previous.Id, ToStageId = stage.Id };
-            pathway.Links.Add(link);
-            _newLinks.Add(link);
+            AddLink(previous, stage);
             addition.StageIds.Add(stage.Id);
             previous = stage;
         }
@@ -594,6 +600,13 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
             SetStatus(InProgress, null, automatic: true);
 
         return stage.Name;
+    }
+
+    private void AddLink(PatientPathwayStage from, PatientPathwayStage to)
+    {
+        var link = new PatientPathwayStageLink { PatientPathwayId = pathway.Id, FromStageId = from.Id, ToStageId = to.Id };
+        pathway.Links.Add(link);
+        _newLinks.Add(link);
     }
 
     /// <summary>Grows the pathway from its plan, keeping the stages and links added to save with the change.</summary>
