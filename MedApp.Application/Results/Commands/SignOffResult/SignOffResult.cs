@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Common;
@@ -39,8 +40,13 @@ public sealed class SignOffResultValidator : AbstractValidator<SignOffResultComm
 /// action is the clinician's record: MedApp never checks it fits the result. Signed off is final. If it isn't the
 /// responsible clinician, they're told (<c>ResultSignedOffByOther</c>), after the save.
 /// </summary>
+/// <remarks>
+/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; any
+/// team that sees it (its own, or one its pathway was passed to, such as the lab) may act on it, by its permissions.
+/// </remarks>
 public sealed class SignOffResultHandler(
     IResultRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     IPermissionHolders permissionHolders,
     INotificationSender notifications,
@@ -50,6 +56,8 @@ public sealed class SignOffResultHandler(
     public async Task<ResultResponse> Handle(SignOffResultCommand request, CancellationToken cancellationToken)
     {
         var result = await repository.GetForUpdateOrThrowAsync(request.ResultId, cancellationToken);
+        // Behind the viewer's team wall: a 404, as for one that isn't there (recorded).
+        await boundary.EnsureResultVisibleAsync(result, request.Actor.Teams, cancellationToken);
         if (ResultWorkflow.WhyCantProgress(result) is { } why)
             throw new ConflictException(why);
         ResultWorkflow.EnsureVersion(result, request.ExpectedVersion);

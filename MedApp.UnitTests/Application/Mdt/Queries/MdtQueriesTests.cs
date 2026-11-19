@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Mdt.Common;
 using MedApp.Application.Mdt.Queries.GetMdtItemsAwaitingMeeting;
 using MedApp.Application.Mdt.Queries.GetMdtMeetingList;
@@ -43,9 +44,9 @@ public sealed class MdtQueriesTests
         var meeting = CreateMdt(Now.AddDays(1));
         var first = CreateItem(meeting);
         var second = CreateItem(meeting);
-        _repository.Setup(r => r.GetMeetingRowAsync(meeting.Id, It.IsAny<CancellationToken>()))
+        _repository.Setup(r => r.GetMeetingRowAsync(meeting.Id, It.IsAny<TeamScope>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MdtMeetingRow(meeting, Team.Name, 2, 2));
-        _repository.Setup(r => r.GetForMeetingAsync(meeting.Id, It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
+        _repository.Setup(r => r.GetForMeetingAsync(meeting.Id, It.IsAny<TeamScope>(), It.IsAny<CancellationToken>())).ReturnsAsync([first, second]);
 
         var response = await new GetMdtMeetingListHandler(_repository.Object, _identity.Object, _activity, _clock)
             .Handle(new GetMdtMeetingListQuery(meeting.Id, Clinician), _token);
@@ -72,7 +73,7 @@ public sealed class MdtQueriesTests
     {
         var item = CreateItem(null);
         item.MeetingCancelledStartUtc = Now.AddDays(-1);
-        _repository.Setup(r => r.GetAwaitingMeetingAsync(Team.Id, It.IsAny<CancellationToken>())).ReturnsAsync([item]);
+        _repository.Setup(r => r.GetAwaitingMeetingAsync(Team.Id, It.IsAny<TeamScope>(), It.IsAny<CancellationToken>())).ReturnsAsync([item]);
 
         var response = await new GetMdtItemsAwaitingMeetingHandler(_repository.Object, _activity, _clock)
             .Handle(new GetMdtItemsAwaitingMeetingQuery(Team.Id, Clinician), _token);
@@ -89,7 +90,7 @@ public sealed class MdtQueriesTests
         pathways.Setup(p => p.GetByIdAsync(item.PathwayId, It.IsAny<CancellationToken>())).ReturnsAsync(item.Pathway);
         _repository.Setup(r => r.GetForPathwayAsync(item.PathwayId, It.IsAny<CancellationToken>())).ReturnsAsync([item]);
 
-        var response = await new GetPathwayMdtItemsHandler(_repository.Object, pathways.Object, _activity, _clock)
+        var response = await new GetPathwayMdtItemsHandler(_repository.Object, pathways.Object, new TeamWallsTestBoundary().Boundary, _activity, _clock)
             .Handle(new GetPathwayMdtItemsQuery(item.PathwayId, Clinician), _token);
 
         response.Should().ContainSingle();
@@ -103,7 +104,7 @@ public sealed class MdtQueriesTests
     {
         var meeting = CreateMdt(Now.AddDays(1));
         _repository
-            .Setup(r => r.GetMeetingsAsync(null, Now.AddDays(-GetMdtMeetingsHandler.DaysBack), Now.AddDays(GetMdtMeetingsHandler.DaysAhead), _token))
+            .Setup(r => r.GetMeetingsAsync(null, Now.AddDays(-GetMdtMeetingsHandler.DaysBack), Now.AddDays(GetMdtMeetingsHandler.DaysAhead), TeamScope.System, _token))
             .ReturnsAsync([new MdtMeetingRow(meeting, Team.Name, 1, 3)]);
 
         var response = await new GetMdtMeetingsHandler(_repository.Object, _identity.Object, _clock)

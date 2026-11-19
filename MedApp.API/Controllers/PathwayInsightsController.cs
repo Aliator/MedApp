@@ -16,7 +16,8 @@ public sealed class PathwayInsightsController(IMediator mediator) : ControllerBa
 {
     /// <summary>
     /// An overview of pathway work over the last few UK weeks: open, in progress, overdue and completed counts against
-    /// last week, overdue work by assignee and priority, average time at each stage, and weekly throughput.
+    /// last week, overdue work by assignee and priority, average time at each stage, and weekly throughput. Only the
+    /// caller's teams' pathways (an admin's: every team's), narrowed to one of them by <c>TeamId</c> (another is a 400).
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(PathwayInsightsResponse), StatusCodes.Status200OK)]
@@ -24,5 +25,5 @@ public sealed class PathwayInsightsController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewInsights)]
     public async Task<IActionResult> GetPathwayInsights([FromQuery] GetPathwayInsightsRequest request, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPathwayInsightsQuery(request.Weeks, request.TemplateId, request.TeamId), ct));
+        Ok(await mediator.Send(new GetPathwayInsightsQuery(request.Weeks, request.TemplateId, request.TeamId, User.ToTeamScope()), ct));
 }

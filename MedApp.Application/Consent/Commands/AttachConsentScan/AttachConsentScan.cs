@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -27,16 +28,20 @@ public sealed class AttachConsentScanValidator : AbstractValidator<AttachConsent
 /// Attaches the scan: 409 if the record has one, isn't Valid, can't change (restricted or anonymised), or has changed
 /// since the caller's version; 400 unless the file is live, on the pathway (or one of its stages) and no other record's
 /// scan. No audit entry of its own: the file's <c>AttachmentAdded</c> is its history.
+/// <para>Only the pathway's own team changes its consent: another team's is a 404 (behind the viewer's wall,
+/// recorded) or a 409 (seen, as an admin or the lab do: <see cref="ConsentRecords.GetForChangeOrThrowAsync"/>).</para>
 /// </summary>
 public sealed class AttachConsentScanHandler(
     IConsentRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     TimeProvider timeProvider)
     : IRequestHandler<AttachConsentScanCommand, ConsentRecordResponse>
 {
     public async Task<ConsentRecordResponse> Handle(AttachConsentScanCommand request, CancellationToken cancellationToken)
     {
-        var record = await repository.GetForUpdateOrThrowAsync(request.ConsentRecordId, cancellationToken);
+        var record = await repository.GetForChangeOrThrowAsync(
+            request.ConsentRecordId, boundary, request.Actor.Teams, cancellationToken);
         if (ConsentWorkflow.WhyCantAttachScan(record) is { } why)
             throw new ConflictException(why);
         ConsentWorkflow.EnsureVersion(record, request.ExpectedVersion);

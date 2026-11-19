@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Insights.Common;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Application.Teams.Repositories;
@@ -10,7 +11,9 @@ namespace MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 
 /// <summary>
 /// Gathers the insights' totals from the repository (each aggregated in SQL), one query after another as they share
-/// a DbContext, then shapes them for the page (<see cref="PathwayInsightsMapper"/>).
+/// a DbContext, then shapes them for the page (<see cref="PathwayInsightsMapper"/>). Only the viewer's teams' pathways
+/// count (an admin's: every team's, or the one picked); a team picked that isn't theirs is a 400 on <c>TeamId</c>
+/// (<see cref="TeamPicker"/>).
 /// </summary>
 public sealed class GetPathwayInsightsHandler(
     IPathwayInsightsRepository repository,
@@ -22,12 +25,13 @@ public sealed class GetPathwayInsightsHandler(
 {
     public async Task<PathwayInsightsResponse> Handle(GetPathwayInsightsQuery request, CancellationToken cancellationToken)
     {
+        TeamPicker.EnsureCanPick(request.TeamId, request.Teams);
         if (request.TemplateId is { } templateId && await stagesRepository.GetPathwayTemplateByIdAsync(templateId, cancellationToken) is null)
             throw new NotFoundException($"Template '{templateId}' was not found.");
         if (request.TeamId is { } teamId && await teamRepository.GetAsync(teamId, cancellationToken) is null)
             throw new NotFoundException($"Team '{teamId}' was not found.");
 
-        var scope = new InsightsScope(request.TemplateId, request.TeamId);
+        var scope = new InsightsScope(request.TemplateId, request.TeamId, InsightsScope.TeamsOf(request.Teams));
 
         var period = InsightsPeriod.For(timeProvider.GetUtcNow().UtcDateTime, request.Weeks);
         var now = period.NowUtc;

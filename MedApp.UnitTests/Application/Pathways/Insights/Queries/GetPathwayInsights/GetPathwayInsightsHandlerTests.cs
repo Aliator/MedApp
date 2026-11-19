@@ -1,7 +1,9 @@
 using AutoFixture;
 using FluentAssertions;
 using MedApp.Application.Common.Exceptions;
+using FluentValidation;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Insights.Common;
 using MedApp.Application.Pathways.Insights.Queries.GetPathwayInsights;
 using MedApp.Application.Pathways.Repositories;
@@ -174,5 +176,62 @@ public sealed class GetPathwayInsightsHandlerTests
 
         await act.Should().ThrowAsync<NotFoundException>().WithMessage($"Team '{unknown}' was not found.");
         _repository.VerifyNoOtherCalls();
+    }
+
+    // The team walls (MC5) and the clinic picker (MC6), as the light demo's insightsTeams and pickedTeam.
+
+    private static readonly Guid OtherTeam = Guid.Parse("0000005e-0000-0000-0000-0000000000d2");
+
+    [Test]
+    public async Task Handle_Staff_CountsOnlyTheirOwnTeamsPathways()
+    {
+        var staff = new TeamScope(Staff.UserId, [TeamId, OtherTeam], seesAllTeams: false);
+
+        await Handle(new GetPathwayInsightsQuery(4, null, Scope: staff));
+
+        _repository.Verify(r => r.GetStatusCountsAsync(
+            It.Is<InsightsScope>(s => s.TeamId == null && s.TeamIds!.OrderBy(id => id).SequenceEqual(new[] { TeamId, OtherTeam }.OrderBy(id => id))),
+            Now, It.IsAny<CancellationToken>()));
+        _repository.Verify(r => r.GetStatusCountsAsync(It.Is<InsightsScope>(s => s.TeamIds == null), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_StaffInNoTeam_CountNothing()
+    {
+        await Handle(new GetPathwayInsightsQuery(4, null, Scope: new TeamScope(Staff.UserId, [], seesAllTeams: false)));
+
+        _repository.Verify(r => r.GetStatusCountsAsync(It.Is<InsightsScope>(s => s.TeamIds != null && s.TeamIds.Count == 0), Now, It.IsAny<CancellationToken>()));
+    }
+
+    [Test]
+    public async Task Handle_StaffPickingOneOfTheirTeams_CountsThatTeamWithinTheirs()
+    {
+        var staff = new TeamScope(Staff.UserId, [TeamId, OtherTeam], seesAllTeams: false);
+
+        await Handle(new GetPathwayInsightsQuery(4, null, TeamId, staff));
+
+        _repository.Verify(r => r.GetStatusCountsAsync(It.Is<InsightsScope>(s => s.TeamId == TeamId && s.TeamIds!.Contains(TeamId)), Now, It.IsAny<CancellationToken>()));
+    }
+
+    [Test]
+    public async Task Handle_StaffPickingAnotherTeam_IsA400OnTeamId_AndCountsNothing()
+    {
+        var act = () => Handle(new GetPathwayInsightsQuery(4, null, TeamId, new TeamScope(Staff.UserId, [OtherTeam], seesAllTeams: false)));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should()
+            .ContainSingle(e => e.PropertyName == "TeamId" && e.ErrorMessage == TeamPicker.NotYourTeam);
+        _repository.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Handle_AnAdmin_CountsEveryTeam_OrAnyOnePicked()
+    {
+        var admin = new TeamScope(Admin.UserId, [], seesAllTeams: true);
+
+        await Handle(new GetPathwayInsightsQuery(4, null, Scope: admin));
+        await Handle(new GetPathwayInsightsQuery(4, null, TeamId, admin));
+
+        _repository.Verify(r => r.GetStatusCountsAsync(InsightsScope.Everything, Now, It.IsAny<CancellationToken>()));
+        _repository.Verify(r => r.GetStatusCountsAsync(new InsightsScope(null, TeamId), Now, It.IsAny<CancellationToken>()));
     }
 }

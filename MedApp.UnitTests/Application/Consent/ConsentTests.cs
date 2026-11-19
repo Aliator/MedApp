@@ -38,6 +38,7 @@ public sealed class ConsentTests
     private readonly List<PatientPathwayAuditEntry> _saved = [];
     private readonly List<CancellationToken> _tokens = [];
     private CancellationTokenSource _cts = null!;
+    private TeamWallsTestBoundary _walls = null!;
 
     [SetUp]
     public void SetUp()
@@ -46,6 +47,7 @@ public sealed class ConsentTests
         _saved.Clear();
         _tokens.Clear();
         _cts = new CancellationTokenSource();
+        _walls = new TeamWallsTestBoundary();
         _repository = new Mock<IConsentRepository>();
         _repository.Setup(r => r.GetFormAsync(ConsentTestConstants.Form().Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ConsentTestConstants.Form());
@@ -99,7 +101,7 @@ public sealed class ConsentTests
         return file;
     }
 
-    private RecordConsentHandler RecordHandler() => new(_pathways.Object, _repository.Object, _identity.Object, _clock);
+    private RecordConsentHandler RecordHandler() => new(_pathways.Object, _walls.Boundary, _repository.Object, _identity.Object, _clock);
 
     private static RecordConsentCommand Record(PatientPathway pathway, Guid? scan = null, DateOnly? signedOn = null, string signedBy = "Patient") =>
         new(pathway.Id, pathway.StageAt(1).Id, ConsentTestConstants.Form().Id, signedOn ?? Today, signedBy, scan, ConsentTestConstants.Recorder);
@@ -294,7 +296,7 @@ public sealed class ConsentTests
     public async Task Withdraw_Valid_RecordsTheDateAndDetail_OnlyOnTheRecord()
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord());
-        var handler = new WithdrawConsentHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new WithdrawConsentHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         var response = await handler.Handle(new WithdrawConsentCommand(record.Id, Today, " Synthetic: changed their mind. ", 1, ConsentTestConstants.Recorder), _cts.Token);
 
@@ -313,7 +315,7 @@ public sealed class ConsentTests
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord());
         record.Patient.RestrictedAtUtc = Now;
-        var handler = new WithdrawConsentHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new WithdrawConsentHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await handler.Handle(new WithdrawConsentCommand(record.Id, Today, "Synthetic.", 1, ConsentTestConstants.Recorder), _cts.Token);
 
@@ -325,7 +327,7 @@ public sealed class ConsentTests
     {
         var stale = GivenRecord(ConsentTestConstants.CreateRecord());
         var withdrawn = GivenRecord(ConsentTestConstants.CreateRecord(status: ConsentStatus.Withdrawn));
-        var handler = new WithdrawConsentHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new WithdrawConsentHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await FluentActions.Invoking(() => handler.Handle(new WithdrawConsentCommand(stale.Id, Today, "x", 9, ConsentTestConstants.Recorder), _cts.Token))
             .Should().ThrowAsync<ConflictException>().WithMessage(ConsentWorkflow.ChangedMeanwhileMessage);
@@ -337,7 +339,7 @@ public sealed class ConsentTests
     public async Task Withdraw_BeforeItWasSigned_IsA400()
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord());
-        var handler = new WithdrawConsentHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new WithdrawConsentHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await FluentActions.Invoking(() => handler.Handle(new WithdrawConsentCommand(record.Id, Today.AddDays(-1), "x", 1, ConsentTestConstants.Recorder), _cts.Token))
             .Should().ThrowAsync<ValidationException>();
@@ -351,7 +353,7 @@ public sealed class ConsentTests
         var pathway = CreatePathway(PatientPathwayStatus.InProgress);
         var scan = GivenFileOn(pathway);
         var record = GivenRecord(ConsentTestConstants.CreateRecord(pathway, scanAttachmentId: scan.Id, recordedAtUtc: Now.AddDays(-3)));
-        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await handler.Handle(new MarkConsentEnteredInErrorCommand(record.Id, "Synthetic: wrong patient.", 1, ConsentTestConstants.Corrector), _cts.Token);
 
@@ -365,7 +367,7 @@ public sealed class ConsentTests
     public async Task EnteredInError_RecorderAfter24Hours_IsForbidden()
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord(recordedAtUtc: Now.AddDays(-2)));
-        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await FluentActions.Invoking(() => handler.Handle(new MarkConsentEnteredInErrorCommand(record.Id, "x", 1, ConsentTestConstants.Recorder), _cts.Token))
             .Should().ThrowAsync<ForbiddenException>();
@@ -376,7 +378,7 @@ public sealed class ConsentTests
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord());
         record.Patient.AnonymisedAtUtc = Now;
-        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new MarkConsentEnteredInErrorHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await FluentActions.Invoking(() => handler.Handle(new MarkConsentEnteredInErrorCommand(record.Id, "x", 1, ConsentTestConstants.Corrector), _cts.Token))
             .Should().ThrowAsync<ConflictException>();
@@ -390,7 +392,7 @@ public sealed class ConsentTests
         var pathway = CreatePathway(PatientPathwayStatus.InProgress);
         var scan = GivenFileOn(pathway);
         var record = GivenRecord(ConsentTestConstants.CreateRecord(pathway));
-        var handler = new AttachConsentScanHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new AttachConsentScanHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         var response = await handler.Handle(new AttachConsentScanCommand(record.Id, scan.Id, 1, ConsentTestConstants.Recorder), _cts.Token);
 
@@ -404,7 +406,7 @@ public sealed class ConsentTests
     public async Task AttachScan_AlreadyHasOne_IsAConflict()
     {
         var record = GivenRecord(ConsentTestConstants.CreateRecord(scanAttachmentId: Guid.NewGuid()));
-        var handler = new AttachConsentScanHandler(_repository.Object, _identity.Object, _clock);
+        var handler = new AttachConsentScanHandler(_repository.Object, _walls.Boundary, _identity.Object, _clock);
 
         await FluentActions.Invoking(() => handler.Handle(new AttachConsentScanCommand(record.Id, Guid.NewGuid(), 1, ConsentTestConstants.Recorder), _cts.Token))
             .Should().ThrowAsync<ConflictException>();
@@ -419,7 +421,7 @@ public sealed class ConsentTests
         var record = ConsentTestConstants.CreateRecord(pathway);
         _repository.Setup(r => r.GetForPathwayAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync([record]);
         var activity = new RecordingActivityLog();
-        var handler = new GetPathwayConsentRecordsHandler(_pathways.Object, _repository.Object, _identity.Object, activity, _clock);
+        var handler = new GetPathwayConsentRecordsHandler(_pathways.Object, _walls.Boundary, _repository.Object, _identity.Object, activity, _clock);
 
         var list = await handler.Handle(new GetPathwayConsentRecordsQuery(pathway.Id, ConsentTestConstants.Corrector), _cts.Token);
 
@@ -436,7 +438,7 @@ public sealed class ConsentTests
     [Test]
     public async Task GetPathwayConsentRecords_UnknownPathway_IsNotFound()
     {
-        var handler = new GetPathwayConsentRecordsHandler(_pathways.Object, _repository.Object, _identity.Object, new RecordingActivityLog(), _clock);
+        var handler = new GetPathwayConsentRecordsHandler(_pathways.Object, _walls.Boundary, _repository.Object, _identity.Object, new RecordingActivityLog(), _clock);
         await FluentActions.Invoking(() => handler.Handle(new GetPathwayConsentRecordsQuery(Guid.NewGuid(), ConsentTestConstants.Recorder), _cts.Token))
             .Should().ThrowAsync<NotFoundException>();
     }

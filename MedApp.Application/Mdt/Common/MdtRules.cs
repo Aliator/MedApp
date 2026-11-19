@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Calendar;
@@ -76,13 +77,21 @@ public static class MdtRules
             throw new ConflictException(NotStartedMessage);
     }
 
-    /// <summary>Whether the viewer can withdraw it: they work on pathways, it's open and the record isn't anonymised.</summary>
+    /// <summary>
+    /// Whether the viewer can withdraw it: they work on pathways, it's their team's MDT's (<see cref="MdtWalls"/>), it's
+    /// open and the record isn't anonymised.
+    /// </summary>
     public static bool CanWithdraw(MdtItem item, PathwayActor viewer) =>
-        viewer.Has(Permission.WorkPathways) && item.IsOpen && !PatientRules.IsAnonymised(item.Patient);
+        viewer.Has(Permission.WorkPathways) && TeamAccess.CanChangeTeam(item.TeamId, viewer.Teams)
+        && item.IsOpen && !PatientRules.IsAnonymised(item.Patient);
 
-    /// <summary>Whether the viewer can move it to another meeting: they work on pathways, it's open and the record can change.</summary>
+    /// <summary>
+    /// Whether the viewer can move it to another meeting: they work on pathways, it's their team's MDT's, it's open and the
+    /// record can change.
+    /// </summary>
     public static bool CanDefer(MdtItem item, PathwayActor viewer) =>
-        viewer.Has(Permission.WorkPathways) && item.IsOpen && PatientRules.CanChange(item.Patient);
+        viewer.Has(Permission.WorkPathways) && TeamAccess.CanChangeTeam(item.TeamId, viewer.Teams)
+        && item.IsOpen && PatientRules.CanChange(item.Patient);
 
     /// <summary>Whether the viewer can record its outcome: they hold RecordMdtOutcomes, and it can be recorded now.</summary>
     public static bool CanRecordOutcome(MdtItem item, PathwayActor viewer, DateTime nowUtc) =>
