@@ -233,7 +233,7 @@ describe('StageList, held by the page', () => {
   });
 });
 
-describe('StageList: skipped stages and branches', () => {
+describe('StageList: skipped stages and choice nodes', () => {
   it('strikes a skipped stage through, saying why, who skipped it and when, with its detail', async () => {
     const {user} = renderWithApp(
       <StageList
@@ -249,8 +249,7 @@ describe('StageList: skipped stages and branches', () => {
             skipReason: 'Other',
             skipDetail: 'Seen at another hospital',
           }),
-          stage({id: 's1', stageOrder: 1, name: 'Biopsy', choosesBranch: true}),
-          stage({id: 's3', stageOrder: 3, name: 'Follow-up', branch: 'Benign', state: 'Skipped', skippedAtUtc: '2026-11-03T14:30:00Z', skipReason: 'BranchNotChosen'}),
+          stage({id: 's1', stageOrder: 1, name: 'Biopsy', choiceKind: 'LabResult', outcome: 'Benign'}),
         ]}
       />,
     );
@@ -259,12 +258,35 @@ describe('StageList: skipped stages and branches', () => {
     expect(physio.className).not.toBe(screen.getByText('1. Biopsy').className);
     expect(screen.getByText('Skipped: Other')).toBeInTheDocument();
     expect(screen.getByText('Optional')).toBeInTheDocument();
-    expect(screen.getByText('Branch point')).toBeInTheDocument();
-    expect(screen.getByText('Branch: Benign')).toBeInTheDocument();
-    expect(screen.getByText('Skipped: Another branch was chosen')).toBeInTheDocument();
+    expect(screen.getByText('Choice: lab result')).toBeInTheDocument();
+    expect(screen.getByText('Outcome: Benign')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', header('2. Physio')));
     expect(screen.getByText('Skipped by b.user, 3 Nov 2026, 14:30: Other')).toBeVisible();
     expect(screen.getByText('Detail: Seen at another hospital')).toBeVisible();
+  });
+});
+
+describe('StageList: the lab’s result', () => {
+  it('shows the lab’s result on its stage and on the lab result choice node after it', async () => {
+    const {user} = renderWithApp(
+      <StageList
+        stages={[
+          stage({id: 'lab', stageOrder: 1, name: 'Histology', state: 'Completed', result: {text: 'No dysplasia.', enteredByUsername: 'r.aldous'}}),
+          stage({
+            id: 'review',
+            stageOrder: 2,
+            name: 'Results review',
+            choiceKind: 'LabResult',
+            predecessorIds: ['lab'],
+            outcomes: [{name: 'Benign'}, {name: 'Malignant'}],
+          }),
+        ]}
+      />,
+    );
+
+    await user.click(await screen.findByRole('button', header('2. Results review')));
+    expect(screen.getByText('Result from Histology')).toBeVisible();
+    expect(screen.getByText(/records one outcome \(Benign or Malignant\)/)).toBeVisible();
   });
 });

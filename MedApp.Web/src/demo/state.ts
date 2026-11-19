@@ -25,12 +25,14 @@ export interface DemoStage {
   /** Waits for the pathway's results to be signed off before it's finished (the results gate), from its definition. */
   waitsForResults: boolean;
   isOptional: boolean;
-  /** A branch point: finishing it chooses one of the branches after it. */
-  choosesBranch: boolean;
-  /** The branch it's in, or null. */
-  branch: string | null;
-  /** A branch point's chosen branch, once it's been finished (it changes only by reinstating a stage). */
-  chosenBranch: string | null;
+  /** A choice node's kind (`Assessment` or `LabResult`): finishing it records one of its outcomes. Null for a plain stage. */
+  choiceKind: string | null;
+  /** A choice node's outcome, as the clinician recorded it when finishing it (never chosen by MedApp), or null. */
+  outcome: string | null;
+  /** Its place in the template (the pathway's plan), or null for a stage added with a branch (MC10). */
+  templateStageOrder: number | null;
+  /** The result the lab entered as it finished its stage (free text, kept on the pathway like a note), or null. */
+  result?: {text: string; enteredByUserId: string; enteredAtUtc: string} | null;
   /** A finished stage reopened by someone who can unlock stages: editable until it's finished again. */
   unlocked: boolean;
   notes: string | null;
@@ -40,7 +42,7 @@ export interface DemoStage {
   completedByUserId: string | null;
   skippedAtUtc: string | null;
   skippedByUserId: string | null;
-  /** `StageSkipReason` by name: BranchNotChosen, NotNeeded, PatientDeclined or Other. */
+  /** `StageSkipReason` by name: NotNeeded, PatientDeclined or Other (BranchNotChosen is no longer made: pathways grow). */
   skipReason: string | null;
   skipDetail: string | null;
   /** The branch addition that added it (MC10, a template's addable branch), or none for a stage from the template. */
@@ -69,6 +71,20 @@ export interface DemoBranchAddition {
   reason: string;
   addedByUserId: string;
   addedAtUtc: string;
+}
+
+/** A template stage as a pathway keeps it in its plan: the stage it becomes, and a choice node's outcomes. */
+export interface DemoPlanStage extends Omit<DemoStage, 'id'> {
+  outcomes: Schemas['PathwayTemplateOutcomeResponse'][];
+}
+
+/**
+ * The template's full tree, copied when the pathway is made (as the API's pathway keeps its template's stages): the
+ * pathway grows from it as outcomes are recorded (`grownStageOrders`).
+ */
+export interface DemoPlan {
+  stages: DemoPlanStage[];
+  links: Schemas['PathwayTemplateLinkResponse'][];
 }
 
 /** A link from one stage of a pathway to the next (`PatientPathwayStageLinks`): a fork has several from a stage, a join several to it. */
@@ -120,8 +136,10 @@ export interface DemoPathway {
   createdAt: string;
   lastUpdated: string;
   stages: DemoStage[];
-  /** How its stages lead to each other (MC8, tree pathways): copied from the template's links, by stage ID. */
+  /** How its stages lead to each other (MC8, tree pathways): the template's links among the stages it has, by stage ID. */
   links: DemoStageLink[];
+  /** The template's whole tree, which the pathway's stages grow from (choice nodes). */
+  plan: DemoPlan;
   /** Branches added on new information (MC10); none when it has had none. */
   branchAdditions?: DemoBranchAddition[];
   assignments: {userId: string; assignedByUserId: string; assignedAtUtc: string}[];

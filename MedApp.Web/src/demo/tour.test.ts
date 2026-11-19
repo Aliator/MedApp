@@ -99,7 +99,7 @@ describe('the Read Me tour', () => {
     expect(LAB.permissions).toContain('ProcessSpecimens');
     // The admin's steps are what an admin does: reading every team's list is one (the team walls).
     for (const step of TOUR.filter((s) => s.account === ADMIN.username))
-      expect(['account-types', 'draw-routes', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
+      expect(['account-types', 'draw-routes', 'assessment-only', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
     expect(byKey('team-walls').account).toBe(STAFF.username);
   });
 

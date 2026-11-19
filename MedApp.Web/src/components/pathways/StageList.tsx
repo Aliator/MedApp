@@ -6,19 +6,19 @@ import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
 import type {Schemas} from '../../api/client';
 import {needsLetterWords} from '../../api/letters';
-import {stageDepths, waitsForWords} from '../../api/pathwayRoutes';
+import {choiceKindLabel, stageDepths, waitsForWords} from '../../api/pathwayRoutes';
 import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
 import {RichText} from '../shared/RichText';
 import {SnomedConcept} from './SnomedConcept';
 
-/** A stage that was skipped: an optional one, or one in a branch the clinician didn't choose. */
+/** A stage that was skipped: an optional one (or, before choice nodes, one in a branch the clinician didn't choose). */
 export const isSkipped = (stage: PathwayStage) => stage.state === 'Skipped';
 
 /**
- * What a stage's state looks like: finished, skipped (and why), under way or waiting; and whether it's optional, a
- * branch point or in a branch.
+ * What a stage's state looks like: finished, skipped (and why), under way or waiting; and whether it's optional, or a
+ * choice node (its kind, and the outcome recorded).
  */
 export function StageStateTokens({stage}: {stage: PathwayStage}) {
   return (
@@ -35,8 +35,8 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       {stage.isCurrent && <Token size="sm" label="Current stage" color="blue" />}
       {stage.state === 'Completed' && !stage.isLocked && <Token size="sm" label="Unlocked for editing" color="orange" />}
       {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
-      {stage.choosesBranch && <Token size="sm" label="Branch point" color="purple" />}
-      {stage.branch && <Token size="sm" label={`Branch: ${stage.branch}`} color="purple" />}
+      {stage.choiceKind && <Token size="sm" label={`Choice: ${choiceKindLabel(stage.choiceKind).toLowerCase()}`} color="purple" />}
+      {stage.outcome && <Token size="sm" label={`Outcome: ${stage.outcome}`} color="purple" />}
       {/* The relay: a stage another team works (the lab's), named on it wherever the pathway is seen. */}
       {stage.ownerTeamName && (
         <Token size="sm" label={`Worked by ${stage.ownerTeamName}`} color="orange" />
@@ -140,6 +140,37 @@ export interface StageDetailsProps {
   files?: ReactNode;
   /** A join's words (`waitsForWords`): the stages before it that must each be finished or skipped first. */
   waitsFor?: string | null;
+  /** The lab's results on the stages straight before it (`resultsBefore`), for a lab result choice node to show. */
+  resultsBefore?: readonly PathwayStage[];
+}
+
+/** The stages straight before a stage that carry the lab's result: what its lab result choice node is recorded from. */
+export const resultsBefore = (stage: PathwayStage, stages: readonly PathwayStage[]) =>
+  stages.filter((s) => s.result?.text && stage.predecessorIds?.includes(s.id ?? ''));
+
+/** A choice node's line: its kind and the outcomes the clinician records one of ("Records one of: Benign or Malignant"). */
+export function choiceWords(stage: PathwayStage): string | null {
+  if (!stage.choiceKind) return null;
+  if (stage.outcome) return `${choiceKindLabel(stage.choiceKind)}: the outcome recorded was ${stage.outcome}.`;
+  const names = (stage.outcomes ?? []).map((o) => o.name ?? '');
+  const either = names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+  return `${choiceKindLabel(stage.choiceKind)}: finishing it records one outcome (${either}), and that outcome's stages are added.`;
+}
+
+/** The lab's result on a stage: who entered it and when, then its text as written. */
+export function StageResult({stage, title}: {stage: PathwayStage; title?: string}) {
+  if (!stage.result?.text) return null;
+  return (
+    <VStack gap={1}>
+      <Text type="body" weight="semibold">
+        {title ?? 'Result'}
+      </Text>
+      <Text type="supporting" color="secondary">
+        {`Entered by ${stage.result.enteredByUsername ?? 'unknown'}${stage.result.enteredAtUtc ? `, ${formatDateTime(stage.result.enteredAtUtc)}` : ''}`}
+      </Text>
+      <Text type="body">{stage.result.text}</Text>
+    </VStack>
+  );
 }
 
 /** What a stage that waits for results says, under its title. */
@@ -149,7 +180,7 @@ export const WAITS_FOR_RESULTS_WORDS = 'Waits for results: every result on the p
  * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
  * the pathway was made), who started and finished it, instructions (which fold), notes and files.
  */
-export function StageDetails({stage, work, instructions, files, waitsFor}: StageDetailsProps) {
+export function StageDetails({stage, work, instructions, files, waitsFor, resultsBefore: before = []}: StageDetailsProps) {
   return (
     <VStack gap={3}>
       {stage.description && (
@@ -182,6 +213,16 @@ export function StageDetails({stage, work, instructions, files, waitsFor}: Stage
           {waitsFor}
         </Text>
       )}
+      {/* A choice node (an assessment or a lab result): the clinician records its outcome; MedApp never chooses one. */}
+      {choiceWords(stage) && (
+        <Text type="body" weight="semibold">
+          {choiceWords(stage)}
+        </Text>
+      )}
+      {before.map((s) => (
+        <StageResult key={s.id} stage={s} title={`Result from ${s.name}`} />
+      ))}
+      <StageResult stage={stage} />
       <StageActivity stage={stage} />
       {stage.instructions && <StageInstructions stage={stage} folding={instructions} />}
       {work ?? <StageNotes notes={stage.notes ?? ''} />}
@@ -285,6 +326,7 @@ export function StageList({
                 instructions={instructions}
                 files={renderFiles?.(stage)}
                 waitsFor={[addedWords(stage, branchAdditions), waitsForWords(stage, stages)].filter(Boolean).join(' ') || null}
+                resultsBefore={stage.choiceKind === 'LabResult' ? resultsBefore(stage, stages) : []}
               />
             </Collapsible>
           </Section>
