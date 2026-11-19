@@ -64,6 +64,10 @@ export const AUDIT_ACTIONS = [
   'LabReportSent',
   'SurgeryDetailsAdded',
   'LabCaseClosed',
+  'ConsultRequested',
+  'ConsultReplied',
+  'ConsultClosed',
+  'ConsultWithdrawn',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -116,6 +120,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   LabReportSent: 'Lab report sent to the hospital',
   SurgeryDetailsAdded: 'Surgery details added',
   LabCaseClosed: 'Lab case closed',
+  ConsultRequested: 'Consult asked',
+  ConsultReplied: 'Consult replied',
+  ConsultClosed: 'Consult closed',
+  ConsultWithdrawn: 'Consult withdrawn',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -274,6 +282,12 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     // MC20: the hospital it went to (an admin-written name) and how; surgery details hold no text here.
     case 'LabReportSent':
       return [text(d.number), text(d.hospital) ? `to ${text(d.hospital)}` : null].filter(Boolean).join(' ');
+    // MC25: which team asked which, by the teams' names; never the question or the reply.
+    case 'ConsultRequested':
+    case 'ConsultReplied':
+    case 'ConsultClosed':
+    case 'ConsultWithdrawn':
+      return text(d.askingTeam) && text(d.askedTeam) ? `${text(d.askingTeam)} → ${text(d.askedTeam)}` : '';
     case 'SurgeryDetailsAdded':
       return [text(d.number), d.noSurgeryExpected === true ? 'no surgery expected' : null].filter(Boolean).join(': ');
     default:

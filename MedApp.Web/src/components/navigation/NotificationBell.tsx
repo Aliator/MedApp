@@ -116,6 +116,8 @@ const KIND_ICONS: Record<string, IconType> = {
   ResultReassigned: AppIcon.Reassign,
   ResultSignedOffByOther: AppIcon.SignOff,
   MdtOutcomeRecorded: AppIcon.Mdt,
+  ConsultRequested: AppIcon.Question,
+  ConsultReplied: AppIcon.Question,
   DataRequestDueSoon: AppIcon.DataRequests,
   MonitoredReferralNotTriaged: AppIcon.Referrals,
   MonitoredResultNotSignedOff: AppIcon.Results,

@@ -1,6 +1,7 @@
 import {registerAccount} from './account';
 import {registerCalendar} from './calendar';
 import {registerClinical} from './clinical';
+import {registerConsults} from './consults';
 import {registerDataRequests} from './dataRequests';
 import {registerHospitals} from './hospitals';
 import {registerLab} from './lab';
@@ -25,4 +26,5 @@ export function registerHandlers() {
   registerSetup();
   registerDataRequests();
   registerHospitals();
+  registerConsults();
 }

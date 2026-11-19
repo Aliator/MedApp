@@ -15,6 +15,7 @@ import {me, teamIdsOf} from './common';
  * - **A pathway** is seen in full by admins (`ViewAllTeams`, read only), and by a team with a live grant
  *   (`pathwayAccess`): its own team (`Owner`), and the lab once a sample is passed to it (`StageOwner`, kept after
  *   hand-back). A lab member invited to an MDT reads the pathways listed on it (`hasMdtGrant`, MC21), read only.
+ *   A team asked a consult (MC25) reads it, read only, while the consult is open (a `Consult` grant, `consultReadOnly`).
  *   Anyone else sees it only as a summary line on the patient (`otherTeamPathways`).
  * - **Its records** (appointments, letters, results, consent, specimens, MDT items) follow it; one without a
  *   pathway follows its own team. **A referral** is its current team's (and its pathway's, once accepted): redirected,
@@ -69,6 +70,16 @@ export function hasMdtGrant(pathwayId: string, scope: TeamScope): boolean {
     return item.status === 'Listed' || item.status === 'Deferred' || (meeting.endUtc ?? '') > now;
   });
 }
+
+/** Whether the viewer's teams read a pathway only through an open consult asked of them (MC25), not as its owner or a stage's. */
+export function readsThroughConsult(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope = myScope()): boolean {
+  const live = db().pathwayAccess.filter((a) => a.pathwayId === pathway.id && a.endedAtUtc === null && scope.teamIds.includes(a.teamId));
+  return live.length > 0 && live.every((a) => a.reason === 'Consult');
+}
+
+/** Why a team asked a consult reads a pathway but can't change it. */
+export const consultReadOnly = (pathway: Pick<DemoPathway, 'teamId'>) =>
+  `Your team was asked a consult by ${teamName(pathway.teamId) ?? 'another team'}: you can read this pathway until they close it, and reply in Consults.`;
 
 /** Whether the viewer's team owns a pathway, so may change it (admins read only, the lab only reads it). */
 export const canChangePathway = (pathway: Pick<DemoPathway, 'teamId'>, scope: TeamScope = myScope()) =>
@@ -181,7 +192,8 @@ export function passToLab(pathway: DemoPathway) {
 export function grantStageOwner(pathway: DemoPathway, teamId: string) {
   if (teamId === pathway.teamId) return;
   const access = db().pathwayAccess;
-  if (access.some((a) => a.pathwayId === pathway.id && a.teamId === teamId)) return;
+  // A consult's grant (MC25) ends when it closes, so it doesn't count: the stage owner's is kept.
+  if (access.some((a) => a.pathwayId === pathway.id && a.teamId === teamId && a.reason !== 'Consult')) return;
   access.push({pathwayId: pathway.id, patientId: pathway.patientId, teamId, reason: 'StageOwner', startedAtUtc: nowUtc(), endedAtUtc: null});
 }
 

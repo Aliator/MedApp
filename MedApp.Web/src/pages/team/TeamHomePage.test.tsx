@@ -28,6 +28,7 @@ function mockLists() {
     },
     'GET /api/results/search': () => pageOf([result]),
     'GET /api/appointments/search': () => pageOf([toBook]),
+    'GET /api/consults/incoming': () => json([]),
   });
 }
 
@@ -43,6 +44,7 @@ describe('TeamHomePage', () => {
       'Back from the lab',
       'Results to sign off',
       'Appointments to book',
+      'Consults for your team',
     ]);
     expect(await screen.findByRole('link', {name: 'Freya Ahmed'})).toHaveAttribute('href', '/referrals/ref-1');
     expect(screen.getByText(/^Dermatology · Received 2 Nov/)).toBeInTheDocument();
@@ -76,7 +78,7 @@ describe('TeamHomePage', () => {
     renderWithApp(<TeamHomePage />, {user: reader});
 
     expect(await screen.findByRole('heading', {name: 'Team', level: 1})).toBeInTheDocument();
-    expect(screen.getAllByRole('heading', {level: 2}).map((h) => h.textContent)).toEqual(['My pathways', 'Back from the lab']);
+    expect(screen.getAllByRole('heading', {level: 2}).map((h) => h.textContent)).toEqual(['My pathways', 'Back from the lab', 'Consults for your team']);
     await screen.findByRole('link', {name: 'Skin lesion review'});
     const paths = fetch.mock.calls.map(([r]) => new URL((r as Request).url).pathname);
     expect(paths).not.toContain('/api/referrals/search');
