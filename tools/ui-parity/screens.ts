@@ -10,6 +10,11 @@ export interface Screen {
   /** Signed out (login screens). Default: signed in. */
   signedOut?: boolean;
   /**
+   * Captured as a member of staff, for a screen that needs clinical access (admins are read only, and records sit behind
+   * team walls): the clinic's or the lab's account (README.md). Default: the parity admin. Skipped without that account.
+   */
+  as?: 'clinic' | 'lab';
+  /**
    * Steps after the page loads, such as opening a dialog. Selectors are role/label based so the same
    * steps work in both apps while the labels match; branch on `app` only where the two genuinely differ.
    * These screens never confirm a destructive action: dialogs are only opened.
@@ -50,7 +55,7 @@ async function openFirstSpecimen(page: Page) {
   const first = page.getByRole('table').getByRole('link', { name: /^[A-Z]+\d{2}-\d+$/ }).first();
   if (await first.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
     await first.click();
-    await page.getByRole('heading', { name: /^Specimen /, level: 1 }).waitFor();
+    await page.getByRole('heading', { name: /^Sample /, level: 1 }).waitFor();
     await settle(page);
   }
 }
@@ -219,6 +224,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'calendar-book-dialog',
+    as: 'clinic',
     title: 'Book Appointment from New: who, with whom and how long beside the free days and times (not saved)',
     path: '/calendar',
     prepare: async (page) => {
@@ -230,6 +236,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'calendar-book-clinic-slots',
+    as: 'clinic',
     title: 'Book Appointment from New, on Clinic slots: the sessions with free slots in the next four weeks (not saved)',
     path: '/calendar',
     prepare: async (page) => {
@@ -293,6 +300,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'calendar-record-past-dialog',
+    as: 'clinic',
     title: 'Record Past Appointment from New: who, with whom, the day in the last 30 days, start, length, outcome and notes (not saved)',
     path: '/calendar',
     prepare: async (page) => {
@@ -367,15 +375,17 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'requires-appointment', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
+  { name: 'requires-appointment', as: 'clinic', title: 'Requires Appointment: appointments asked for but not yet booked, soonest due first', path: '/calendar/requires-appointment' },
   {
     name: 'requires-appointment-dna',
+    as: 'clinic',
     title: 'Requires Appointment, Did not attend: missed appointments with no later one, oldest first, with their follow-up',
     path: '/calendar/requires-appointment?view=didNotAttend',
   },
-  { name: 'my-tasks', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
+  { name: 'my-tasks', as: 'clinic', title: 'My Worklist: my task lists (the Blazor app home page)', path: '/tasks' },
   {
     name: 'my-tasks-narrow',
+    as: 'clinic',
     title: 'My Worklist on a narrow window: the same list, with its search',
     path: '/tasks',
     prepare: async (page) => {
@@ -385,6 +395,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'my-tasks-favourites',
+    as: 'clinic',
     title: "My Worklist's favourites open (the star beside the search): Not started, Started, ...",
     path: '/tasks',
     prepare: async (page) => {
@@ -392,7 +403,7 @@ export const screens: Screen[] = [
       await page.getByRole('menuitem', { name: 'Started', exact: true }).waitFor();
     },
   },
-  { name: 'my-tasks-started', title: 'My Worklist, the started ones (from the favourites)', path: '/tasks?progress=started' },
+  { name: 'my-tasks-started', as: 'clinic', title: 'My Worklist, the started ones (from the favourites)', path: '/tasks?progress=started' },
   { name: 'account', title: 'Account', path: '/account' },
   {
     name: 'notifications',
@@ -415,9 +426,10 @@ export const screens: Screen[] = [
       await page.getByRole('dialog', { name: 'Keyboard shortcuts' }).waitFor();
     },
   },
-  { name: 'patients-list', title: 'Patients list, page 1', path: '/patients' },
+  { name: 'patients-list', as: 'clinic', title: 'Patients list, page 1', path: '/patients' },
   {
     name: 'patients-search',
+    as: 'clinic',
     title: 'Patients search: its filters as tokens, and the field list open to add another',
     path: '/patients?last=bennett&dobFrom=1950-01-01',
     prepare: async (page) => {
@@ -425,10 +437,11 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'patients-sorted', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
-  { name: 'patient-view', title: 'View patient: details and files beside the timeline (what is due, filters, the feed by day)', path: (d) => `/patients/${d.patientId}` },
+  { name: 'patients-sorted', as: 'clinic', title: 'Patients sorted by date of birth, newest first', path: '/patients?sort=DateOfBirth&asc=false' },
+  { name: 'patient-view', as: 'clinic', title: 'View patient: details and files beside the timeline (what is due, filters, the feed by day)', path: (d) => `/patients/${d.patientId}` },
   {
     name: 'patient-view-narrow',
+    as: 'clinic',
     title: 'View patient on a narrow window: one card, Details, Files and Timeline folding',
     path: (d) => `/patients/${d.patientId}`,
     prepare: async (page) => {
@@ -438,6 +451,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'patient-timeline-filtered',
+    as: 'clinic',
     title: 'View patient, the timeline filtered to stages',
     path: (d) => `/patients/${d.patientId}`,
     prepare: async (page) => {
@@ -445,10 +459,11 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'patient-pathways', title: "A patient's pathways", path: (d) => `/patients/${d.patientId}/pathways` },
-  { name: 'pathways-list', title: 'All pathways, page 1', path: '/pathways' },
+  { name: 'patient-pathways', as: 'clinic', title: "A patient's pathways", path: (d) => `/patients/${d.patientId}/pathways` },
+  { name: 'pathways-list', as: 'clinic', title: 'All pathways, page 1', path: '/pathways' },
   {
     name: 'pathways-search',
+    as: 'clinic',
     title: 'Pathways search: "is any of" and "is not any of" tokens, and the field list open',
     path: '/pathways?status=InProgress,Blocked&priority=!Low',
     prepare: async (page) => {
@@ -458,33 +473,39 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathways-stage-reached',
+    as: 'clinic',
     title: 'Pathways waiting for histology: the Stage reached and Team filters ("Waiting for histology")',
     path: (d) => `/pathways?mine=false${d.stageId ? `&stage=${d.stageId}` : ''}${d.teamId ? `&team=${d.teamId}` : ''}`,
   },
-  { name: 'referrals-list', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
+  { name: 'referrals-list', as: 'clinic', title: 'Referrals: the inbox of referrals awaiting triage, longest wait first', path: '/referrals' },
   {
     name: 'referrals-waiting',
+    as: 'clinic',
     title: 'Referrals: the waiting list (accepted, the clock not stopped), longest wait first, with each wait and target date',
     path: '/referrals?view=waiting',
   },
   {
     name: 'referrals-paused',
+    as: 'clinic',
     title: 'Referrals: the paused clocks, by review date, past ones flagged Review overdue (hazard H-42)',
     path: '/referrals?view=paused',
   },
   {
     name: 'referral-register',
+    as: 'clinic',
     title: 'Register referral for a patient: the banner, their referrals awaiting triage, and the details from the letter',
     path: (d) => `/referrals/new?patientId=${d.patientId}`,
   },
   {
     name: 'referral-view',
+    as: 'clinic',
     title: 'A referral: the banner, its details, the letter, triage and its history (the first in the list of all)',
     path: '/referrals?view=all',
     prepare: async (page) => openFirstReferral(page),
   },
   {
     name: 'referral-withdraw',
+    as: 'clinic',
     title: 'Withdrawing a referral: the dialog asks why, showing the patient and the referral (only opened, never confirmed)',
     path: '/referrals',
     prepare: async (page) => {
@@ -499,12 +520,13 @@ export const screens: Screen[] = [
   },
   {
     name: 'referral-accept',
+    as: 'clinic',
     title:
       "Accepting a referral: the patient, the team's templates by name, an empty priority beside the one asked for (only opened, never confirmed; the page alone if the account can't triage it)",
     path: '/referrals',
     prepare: async (page) => {
       await openFirstReferral(page);
-      // Only a member of the referral's team with Triage referrals sees Accept; the admin role doesn't have it.
+      // Only a member of the referral's team with Triage referrals sees Accept (the clinic account; admins are read only).
       const accept = page.getByRole('button', { name: 'Accept', exact: true });
       if (await accept.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
         await accept.click();
@@ -513,20 +535,22 @@ export const screens: Screen[] = [
       }
     },
   },
-  { name: 'letters-list', title: 'Letters: the views of letters to write, approve and send, as tabs', path: '/letters' },
+  { name: 'letters-list', as: 'clinic', title: 'Letters: the views of letters to write, approve and send, as tabs', path: '/letters' },
   {
     name: 'letter-view',
+    as: 'clinic',
     title: 'A letter: the banner, the letter, its details and its recipients (the first found in To send, Sent, Awaiting my approval or My drafts)',
     path: '/letters',
     prepare: async (page) => openFirstLetter(page),
   },
-  { name: 'pathway-view', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
+  { name: 'pathway-view', as: 'clinic', title: 'Pathway page: details, current stage and files beside the stages', path: (d) => `/pathways/${d.pathwayId}` },
   {
     name: 'pathway-record-specimen',
+    as: 'clinic',
     title: "Record Specimen from a pathway's Specimens section: the patient, stage, type, lab, requester and when (only opened, never saved; needs RecordSpecimens and a stage that can take one)",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
-      const record = page.getByRole('button', { name: 'Record Specimen' }).first();
+      const record = page.getByRole('button', { name: 'Record Sample' }).first();
       if (await record.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false)) {
         await record.click();
         await waitVisible(page, DIALOG);
@@ -536,6 +560,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-referral-wait',
+    as: 'clinic',
     title:
       "A pathway from a referral: its Referral and wait section, with the clock (day N of the target, Breached, Paused), the pauses and Pause or Resume Clock (the waiting list's first)",
     path: '/referrals?view=waiting',
@@ -543,6 +568,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-pause-clock',
+    as: 'clinic',
     title:
       "Pausing a referral's waiting-time clock from its pathway: the patient, why (a fixed choice), a detail and the review date (only opened, never confirmed)",
     path: '/referrals?view=waiting',
@@ -558,6 +584,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-notes',
+    as: 'clinic',
     title: "Pathway page with its Notes, on the right under Stages: Add Note, then the notes newest first, each with who and when",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -567,6 +594,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-open',
+    as: 'clinic',
     title: "The notepad docked on the right of a pathway's page (opened from the side nav), the page beside it (narrow below 1,784 px)",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -577,6 +605,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-add-note',
+    as: 'clinic',
     title: "The notepad's Add Note to Pathway confirmation: the patient as the banner shows them, the pathway, the text, and Remove it from the notepad (only opened, never confirmed)",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -596,6 +625,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'notepad-half',
+    as: 'clinic',
     title: "The notepad in a half view (the side nav's Notepad row's menu), beside a pathway: the notepad filling the right half",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -607,6 +637,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-narrow',
+    as: 'clinic',
     title: 'Pathway page on a narrow window: one card, Details (never folded) and Current stage open, Stages folded into their progress bar',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -616,6 +647,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-narrow-stages',
+    as: 'clinic',
     title: 'Pathway page on a narrow window, Stages opened from their progress bar: the sections scroll together',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -626,6 +658,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-stage-files',
+    as: 'clinic',
     title: "Pathway page, the current stage's files opened under its notes (the pathway's own files are open by default)",
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -635,6 +668,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-new',
+    as: 'clinic',
     title: "New pathway for a patient, a template chosen: its stages listed and its name as the title",
     path: (d) => `/pathways/new?patientId=${d.patientId}`,
     prepare: async (page) => {
@@ -645,6 +679,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-new-narrow',
+    as: 'clinic',
     title: 'New pathway on a narrow window: one form card that scrolls, its footer pinned',
     path: (d) => `/pathways/new?patientId=${d.patientId}`,
     prepare: async (page) => {
@@ -656,6 +691,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-visit',
+    as: 'clinic',
     title:
       "Pathway page with its Appointments in the details and, if its current stage involves a visit, the Visit part above the notes (the parity data's first pathway: it shows a visit only when the demo data gives that pathway's stage one)",
     path: (d) => `/pathways/${d.pathwayId}`,
@@ -666,6 +702,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-branches',
+    as: 'clinic',
     title: "Pathway page of a template that branches: its stages' Optional, Branch point and Branch tokens, and skipped ones struck through with the reason",
     path: (d) => `/pathways/${d.branchingPathwayId}`,
     prepare: async (page, { data }) => {
@@ -732,9 +769,10 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'pathway-edit', title: "Edit a pathway's details", path: (d) => `/pathways/${d.pathwayId}/edit` },
+  { name: 'pathway-edit', as: 'clinic', title: "Edit a pathway's details", path: (d) => `/pathways/${d.pathwayId}/edit` },
   {
     name: 'pathway-block',
+    as: 'clinic',
     title: 'Put Pathway on Hold dialog, asking for a reason (not confirmed)',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -745,6 +783,7 @@ export const screens: Screen[] = [
   },
   {
     name: 'pathway-finish',
+    as: 'clinic',
     title: 'Finish stage confirmation (not confirmed)',
     path: (d) => `/pathways/${d.pathwayId}`,
     prepare: async (page) => {
@@ -753,9 +792,10 @@ export const screens: Screen[] = [
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'patient-add', title: 'Add patient, empty', path: '/patients/add' },
+  { name: 'patient-add', as: 'clinic', title: 'Add patient, empty', path: '/patients/add' },
   {
     name: 'patient-add-errors',
+    as: 'clinic',
     title: 'Add patient submitted empty (validation errors)',
     path: '/patients/add',
     prepare: async (page) => {
@@ -767,9 +807,10 @@ export const screens: Screen[] = [
       await settle(page);
     },
   },
-  { name: 'patient-edit', title: 'Edit patient', path: (d) => `/patients/${d.patientId}/edit` },
+  { name: 'patient-edit', as: 'clinic', title: 'Edit patient', path: (d) => `/patients/${d.patientId}/edit` },
   {
     name: 'patient-delete-confirm',
+    as: 'clinic',
     title: 'Delete patient confirmation (not confirmed)',
     path: (d) => `/patients/${d.patientId}/edit`,
     prepare: async (page) => {
@@ -966,20 +1007,22 @@ export const screens: Screen[] = [
     title: 'Add Specimen Type dialog: a name and the expected turnaround in days (not saved)',
     path: '/admin/specimen-setup',
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Add Specimen Type' }).click();
+      await page.getByRole('button', { name: 'Add Sample Type' }).click();
       await waitVisible(page, DIALOG);
     },
   },
-  { name: 'lab', title: "Lab: find a specimen by its number, and the views of where specimens are (the account's default view)", path: '/lab' },
-  { name: 'lab-in-the-lab', title: 'Lab: the In the lab view, received and not yet reported, oldest first', path: '/lab?view=InLab' },
+  { name: 'lab', as: 'lab', title: "Lab: find a specimen by its number, and the views of where specimens are (the account's default view)", path: '/lab' },
+  { name: 'lab-in-the-lab', as: 'lab', title: 'Lab: the In the lab view, received and not yet reported, oldest first', path: '/lab?view=InLab' },
   {
     name: 'specimen-view',
+    as: 'lab',
     title: "A specimen's page: the banner, its details, steps with turnaround, report and the others from its stage (the first reported in the last week)",
     path: '/lab?view=Reported',
     prepare: async (page) => openFirstSpecimen(page),
   },
   {
     name: 'specimen-label',
+    as: 'lab',
     title: "A specimen's label to print: its number as text and QR code, and the patient's identifiers (the first reported in the last week)",
     path: '/lab?view=Reported',
     prepare: async (page) => {
@@ -987,18 +1030,20 @@ export const screens: Screen[] = [
       const label = page.getByRole('link', { name: 'Print Label' });
       if (await label.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false)) {
         await label.click();
-        await page.getByRole('heading', { name: 'Specimen Label', level: 1 }).waitFor();
+        await page.getByRole('heading', { name: 'Sample Label', level: 1 }).waitFor();
         await settle(page);
       }
     },
   },
   {
     name: 'results-list',
+    as: 'clinic',
     title: "Results: awaiting sign-off, needing a clinician and signed off, as tabs (everyone's awaiting sign-off, oldest report first)",
     path: '/results?view=Awaiting',
   },
   {
     name: 'result-view',
+    as: 'clinic',
     title: "A result's page: the banner, where it came from, who reported it and who signs it off, the report to download, and its sign-off (the first awaiting sign-off; nothing changed)",
     path: '/results?view=Awaiting',
     prepare: async (page) => openFirstResult(page),

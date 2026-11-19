@@ -3,7 +3,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { test } from '@playwright/test';
 import { screens } from './screens';
-import { readData, settle, useSettings, type ProjectMeta } from './shared';
+import { isSignedIn, readData, settle, storageStateFor, useSettings, type ProjectMeta } from './shared';
 
 /**
  * The accessibility audit: axe (WCAG 2.2 AA and below) on every screen of the React app, in each mode and with a
@@ -34,9 +34,11 @@ for (const variant of VARIANTS) {
   for (const screen of screens) {
     test.describe(`${variant.name} ${screen.name}`, () => {
       if (screen.signedOut) test.use({ storageState: { cookies: [], origins: [] } });
+      else if (screen.as) test.use({ storageState: storageStateFor(screen.as) });
 
       test(screen.title, async ({ page }, info) => {
         const { app } = info.project.metadata as ProjectMeta;
+        test.skip(!!screen.as && !isSignedIn(app, screen.as), `No ${screen.as} account: set it in .env (README.md).`);
         await useSettings(page, { ...variant.settings, ...screen.settings }, { signedIn: !screen.signedOut });
         await page.goto(typeof screen.path === 'function' ? screen.path(readData(app)) : screen.path);
         await settle(page);
