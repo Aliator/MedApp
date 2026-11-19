@@ -15,6 +15,7 @@ import {
   withAnnouncements,
 } from '../../test/render';
 import {approvedLetter, LETTER_ID, LETTER_PDF_ID, patientRecipient, practiceRecipient, testLetter} from '../../test/letters';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import type {Letter} from '../../api/letters';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {bodyHeadings, LetterPage} from './LetterPage';
@@ -56,7 +57,7 @@ describe('LetterPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Discharge summary', level: 1})).toBeInTheDocument();
     expect(screen.getByText('Dermatology discharge · Draft')).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     expect(screen.getByRole('link', {name: 'Download Preview'})).toHaveAttribute('href', `/api/letters/${LETTER_ID}/preview`);
     expect(screen.getByRole('link', {name: 'Skin check'})).toHaveAttribute('href', '/pathways/00000061-0000-0000-0000-000000000003');
 
@@ -295,8 +296,10 @@ describe('LetterPage', () => {
     expect(await screen.findByRole('heading', {name: 'Diagnosis'})).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Letter'}));
     await waitFor(() => expect(screen.queryByRole('heading', {name: 'Diagnosis'})).not.toBeInTheDocument());
+    // Details, first with the patient, never folds.
+    expectPatientFirstInDetails();
     await user.click(screen.getByRole('heading', {name: 'Details'}));
-    await waitFor(() => expect(screen.queryByText('Dermatology discharge')).not.toBeInTheDocument());
+    expect(screen.getByText('Dermatology discharge')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Recipients'}));
     await waitFor(() => expect(screen.queryByRole('list', {name: 'Recipients'})).not.toBeInTheDocument());
   });

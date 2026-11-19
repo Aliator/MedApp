@@ -8,9 +8,10 @@ import {hospitalRequestQuery, labCaseStatusLabel, type HospitalRequest} from '..
 import {LabRequestPriorityToken} from '../../components/hospitals/HospitalRequestCells';
 import {Page} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {hasPatientFlags, PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
+import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {formatDate, formatDateTime} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
@@ -67,8 +68,8 @@ function CaseDetails({request}: {request: HospitalRequest}) {
 }
 
 /**
- * A hospital request and its lab case (`/hospital-requests/{id}`, MC18). The patient banner (the record's name, date of
- * birth and NHS number) sits over the request's own numbers, the hospital's patient number and the NHS number it gave,
+ * A hospital request and its lab case (`/hospital-requests/{id}`, MC18). Details, first and never folding, shows the
+ * patient (the record's name, date of birth and NHS number) over the request's own numbers, the hospital's patient number and the NHS number it gave,
  * so both can be checked against each other on every case (hazard H-72); when the NHS numbers differ, it says so. Then
  * what the hospital asked (priority, cancer pathway, dates, as given) and the lab case it opened. Opening it is recorded
  * as viewing the case. Hospital cases are the lab's: anyone else gets a 404.
@@ -86,7 +87,7 @@ export function HospitalRequestPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading hospital request..."
       fill={request !== undefined}
-      banner={request?.patient && <PatientBanner patient={request.patient} />}
+      // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Hospital request not found. It may have been deleted, or it's another team's." />
@@ -101,11 +102,23 @@ export function HospitalRequestPage({id}: {id: string}) {
       {request && (
         <TwoColumns
           start={
-            <PanelCard title="The Request">
-              <Section variant="transparent">
-                <RequestDetails request={request} />
-              </Section>
-            </PanelCard>
+            <FoldingCard
+              sections={[
+                patientDetailsSection({patientId: request.patientId, patient: request.patient}),
+                {
+                  key: 'request',
+                  title: 'The Request',
+                  isOpen: true,
+                  canFold: false,
+                  onToggle: () => {},
+                  children: (
+                    <Section variant="transparent" padding={6}>
+                      <RequestDetails request={request} />
+                    </Section>
+                  ),
+                },
+              ]}
+            />
           }
           end={
             <VStack gap={4} hAlign="stretch">

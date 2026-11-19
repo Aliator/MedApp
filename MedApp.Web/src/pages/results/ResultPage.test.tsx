@@ -3,6 +3,7 @@ import type {Result} from '../../api/results';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {alertLabelName, calls, expectAnnounced, json, mockApi, nurseUser, openDialog, renderWithApp, seniorClinicianUser, withAnnouncements} from '../../test/render';
 import {RESULT_ID, RESULT_PATHWAY_ID, RESULT_REPORT_ID, RESULT_SPECIMEN_ID, SIGN_OFF_HOLDERS, testResult} from '../../test/results';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import {ResultPage} from './ResultPage';
 
 const RESULT = `GET /api/results/${RESULT_ID}`;
@@ -23,7 +24,7 @@ describe('ResultPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', {name: 'Skin biopsy (punch) report', level: 1})).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     expect(screen.getAllByText('Awaiting sign-off').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', {name: 'Sample MA26-000123'})).toHaveAttribute('href', `/specimens/${RESULT_SPECIMEN_ID}`);
     expect(screen.getByRole('link', {name: 'Skin lesion review'})).toHaveAttribute('href', `/pathways/${RESULT_PATHWAY_ID}`);
@@ -175,12 +176,13 @@ describe('ResultPage', () => {
 });
 
 describe('ResultPage, folding', () => {
-  it('hides and shows its sections', async () => {
+  it('hides and shows its sections, but never Details', async () => {
     const {user} = renderPage();
 
-    await user.click(await screen.findByRole('button', {name: 'Hide details'}));
-    expect(await screen.findByRole('button', {name: 'Show details'})).toHaveAttribute('aria-expanded', 'false');
-    await user.click(screen.getByRole('button', {name: 'Show details'}));
-    expect(await screen.findByRole('button', {name: 'Hide details'})).toHaveAttribute('aria-expanded', 'true');
+    await user.click(await screen.findByRole('button', {name: 'Hide report'}));
+    expect(await screen.findByRole('button', {name: 'Show report'})).toHaveAttribute('aria-expanded', 'false');
+    await user.click(screen.getByRole('button', {name: 'Show report'}));
+    expect(await screen.findByRole('button', {name: 'Hide report'})).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('button', {name: /details/})).not.toBeInTheDocument();
   });
 });

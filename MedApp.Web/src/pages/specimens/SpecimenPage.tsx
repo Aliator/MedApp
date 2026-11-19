@@ -25,7 +25,7 @@ import {labClockLine} from '../../components/labCases/LabClock';
 import {OpenLabCaseDialog} from '../../components/labCases/OpenLabCaseDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {hasPatientFlags, PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
@@ -113,7 +113,7 @@ function useOffered(specimen: Specimen | undefined) {
 }
 
 /**
- * One specimen (`/specimens/$id`): the patient's banner, then its details (type, lab, status, when the report is
+ * One specimen (`/specimens/$id`): its Details, with the patient first (never folding), then its details (type, lab, status, when the report is
  * expected and Overdue at lab, who asked for it, where it was taken and the notes for the lab), its steps with who and
  * when, the turnaround between them, the report (a download, with its thumbnail for a picture) and the other specimens
  * its stage took. Print Label and Print Request Sheet open the print views. The steps it can take next are offered as
@@ -129,7 +129,7 @@ export function SpecimenPage({id}: {id: string}) {
   const {data: specimen, error, isPending} = useQuery(specimenQuery(id));
   const offered = useOffered(specimen);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [open, setOpen] = useState({details: true, steps: true, report: true, others: true});
+  const [open, setOpen] = useState({steps: true, report: true, others: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
 
@@ -144,7 +144,7 @@ export function SpecimenPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading sample..."
       fill={specimen !== undefined}
-      banner={specimen?.patient && <PatientBanner patient={specimen.patient} />}
+      // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Sample not found. It may have been deleted." />
@@ -193,7 +193,7 @@ export function SpecimenPage({id}: {id: string}) {
   }
 
   function details(specimen: Specimen) {
-    return section('details', 'Details', <SpecimenDetails specimen={specimen} />);
+    return patientDetailsSection({patientId: specimen.patientId, patient: specimen.patient}, <SpecimenDetails specimen={specimen} />);
   }
 
   function steps(specimen: Specimen) {

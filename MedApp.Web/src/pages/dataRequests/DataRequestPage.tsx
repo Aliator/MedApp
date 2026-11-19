@@ -32,7 +32,7 @@ import {
 } from '../../components/dataRequests/DataRequestDialogs';
 import {DataRequestReviewDialog} from '../../components/dataRequests/DataRequestReviewDialog';
 import {Page} from '../../components/pages/Page';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
@@ -77,7 +77,7 @@ export function outcomeWords(request: DataRequest): string | null {
 }
 
 /**
- * One data request (`/data-requests/$id`): the patient's banner, then the request (when it was received and who
+ * One data request (`/data-requests/$id`): Details (the patient, first and never folding), then the request (when it was received and who
  * asked), its due date (the first, and any extension with its reason), the identity check, the review (who,
  * when, and what was withheld with why) and how it ended.
  *
@@ -123,7 +123,7 @@ export function DataRequestPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading data request..."
       fill={request !== undefined}
-      banner={bannerPatient && <PatientBanner patient={bannerPatient} />}
+      // No banner: the patient is in Details, first and never folding (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Data request not found." />
@@ -136,7 +136,16 @@ export function DataRequestPage({id}: {id: string}) {
       actions={request && headerActions(request)}
       dialogs={request && dialogs(request)}>
       {request && (
-        <FoldingCard sections={[requestSection(request), dueSection(request), identitySection(request), reviewSection(request), outcomeSection(request)]} />
+        <FoldingCard
+          sections={[
+            patientDetailsSection({patientId: request.patientId, patient: bannerPatient, patientName: request.patientName}),
+            requestSection(request),
+            dueSection(request),
+            identitySection(request),
+            reviewSection(request),
+            outcomeSection(request),
+          ]}
+        />
       )}
     </Page>
   );

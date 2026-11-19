@@ -14,6 +14,7 @@ import {
   withAnnouncements,
 } from '../../test/render';
 import {REPORT_ID, SPECIMEN_ID, SPECIMEN_PATHWAY_ID, testSpecimen, testSummary} from '../../test/specimens';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import {SpecimenPage, specimenSteps} from './SpecimenPage';
 
 const SPECIMEN = `GET /api/specimens/${SPECIMEN_ID}`;
@@ -68,7 +69,7 @@ describe('SpecimenPage', () => {
 
     expect(await screen.findByRole('heading', {name: 'Sample MA26-000123', level: 1})).toBeInTheDocument();
     expect(screen.getAllByText('Skin biopsy (punch)')[0]).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     expect(screen.getAllByText('Taken').length).toBeGreaterThan(0);
     expect(screen.getByText('7 Nov 2026, 09:00 (5 days)')).toBeInTheDocument();
     expect(screen.getAllByText('dr.synthetic').length).toBeGreaterThan(0);

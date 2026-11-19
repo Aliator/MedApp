@@ -18,7 +18,7 @@ import {useCan, useCurrentUser} from '../../auth/auth';
 import {DownloadLink} from '../../components/attachments/Attachments';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
-import {PatientBanner} from '../../components/patients/PatientBanner';
+import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {hasPatientFlags, PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {ageWords, NeedsClinicianToken, ResultStatusToken} from '../../components/results/ResultCells';
 import {
@@ -46,7 +46,7 @@ const REPORT_THUMBNAIL = {width: 'var(--spacing-32)', height: 'var(--spacing-32)
 const PRESERVE_LINES = {whiteSpace: 'pre-wrap'} as const;
 
 /**
- * One result (`/results/$id`; decisions 91 to 97): the patient's banner and flags, then its details (where it came
+ * One result (`/results/$id`; decisions 91 to 97): the patient's flags, then Details (the patient first, never folding) and its details (where it came
  * from, linking to its specimen and pathway; who reported it, when and how many days ago; the responsible clinician,
  * with Needs a clinician; the status), the report (its thumbnail for a picture, and Download with its file name; never
  * shown inline), and its sign-off (seen, signed off with what was done, or entered in error). What the caller may do
@@ -60,7 +60,7 @@ export function ResultPage({id}: {id: string}) {
   const {data: result, error, isPending} = useQuery(resultQuery(id));
   const [dialog, setDialog] = useState<Dialog>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [open, setOpen] = useState({details: true, report: true, signOff: true});
+  const [open, setOpen] = useState({report: true, signOff: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const close = () => setDialog(null);
@@ -74,7 +74,7 @@ export function ResultPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading result..."
       fill={result !== undefined}
-      banner={result?.patient && <PatientBanner patient={result.patient} />}
+      // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
           <AlertMessage message="Result not found. It may have been deleted." />
@@ -124,7 +124,7 @@ export function ResultPage({id}: {id: string}) {
   }
 
   function details(result: Result) {
-    return section('details', 'Details', <ResultDetails result={result} />);
+    return patientDetailsSection({patientId: result.patientId, patient: result.patient}, <ResultDetails result={result} />);
   }
 
   function report(result: Result) {

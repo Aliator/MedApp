@@ -41,7 +41,7 @@ import {DueDateCell, PriorityToken, StatusToken, statusLabel} from '../../compon
 import {useOfferToNotepad} from '../../components/notepad/NotepadContext';
 import {NoteDeletionRequestDialog} from '../../components/pathways/NoteDeletionRequestDialog';
 import {PathwayNotes} from '../../components/pathways/PathwayNotes';
-import {PathwayPatient} from '../../components/pathways/PathwayPatient';
+import {DetailsPatient} from '../../components/patients/DetailsPatient';
 import {PathwayMdt} from '../../components/mdt/PathwayMdt';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
 import {labCaseOpenWords, resultsBefore, StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
@@ -130,7 +130,7 @@ interface Booking {
  * scrolls on its own, so the page itself never does; a narrow window has one card instead (see PathwayView).
  *
  * It has no `PatientBanner` (the owner's decision, 18 November 2026): the patient's name, date of birth and NHS number
- * are at the top of Details (`PathwayPatient`), which never folds and is always first, so the patient is the first
+ * are at the top of Details (`DetailsPatient`), which never folds and is always first, so the patient is the first
  * thing on the page (hazards H-01 and H-02). The patient's flags stay in the page's message.
  *
  * Staff save the current stage's notes, finish it, and change the status (block, cancel, complete, archive), as
@@ -745,7 +745,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       <>
         <Section variant="transparent" padding={6}>
           <VStack gap={4}>
-            <PathwayPatient patientId={pathway.patientId ?? ''} patient={pathway.patient} patientName={pathway.patientName} />
+            <DetailsPatient patientId={pathway.patientId ?? ''} patient={pathway.patient} patientName={pathway.patientName} />
             <HStack gap={2} vAlign="center">
             <StatusToken status={pathway.status ?? ''} />
             <PriorityToken priority={pathway.priority ?? ''} />

@@ -92,14 +92,20 @@ export function PatientBanner({patient, isCompact = false}: {patient: BannerPati
         ) : (
           <Text color="secondary">No NHS number</Text>
         )}
-        {(patient.isRestricted || patient.isDisputed || patient.isAnonymised) && (
-          <HStack gap={2} wrap="wrap">
-            {patient.isRestricted && <Token label="Restricted" color="orange" size="sm" icon={<Icon icon={AppIcon.Lock} size="sm" />} />}
-            {patient.isDisputed && <Token label="Disputed" color="blue" size="sm" icon={<Icon icon={AppIcon.Info} size="sm" />} />}
-            {patient.isAnonymised && <Token label="Anonymised" color="gray" size="sm" icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-          </HStack>
-        )}
+        <PatientFlagTokens patient={patient} />
       </HStack>
     </Card>
+  );
+}
+
+/** The small Restricted, Disputed and Anonymised tokens, as the banner and `DetailsPatient` show them; nothing without flags. */
+export function PatientFlagTokens({patient}: {patient: Pick<BannerPatient, 'isRestricted' | 'isDisputed' | 'isAnonymised'>}) {
+  if (!patient.isRestricted && !patient.isDisputed && !patient.isAnonymised) return null;
+  return (
+    <HStack gap={2} wrap="wrap">
+      {patient.isRestricted && <Token label="Restricted" color="orange" size="sm" icon={<Icon icon={AppIcon.Lock} size="sm" />} />}
+      {patient.isDisputed && <Token label="Disputed" color="blue" size="sm" icon={<Icon icon={AppIcon.Info} size="sm" />} />}
+      {patient.isAnonymised && <Token label="Anonymised" color="gray" size="sm" icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+    </HStack>
   );
 }

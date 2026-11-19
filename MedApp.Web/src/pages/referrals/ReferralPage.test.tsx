@@ -14,6 +14,7 @@ import {
   withAnnouncements,
 } from '../../test/render';
 import {DERMATOLOGY_ID, REFERRAL_ID, REFERRAL_PATIENT_ID, TEAMS, testReferral, testReferralSummary} from '../../test/referrals';
+import {expectPatientFirstInDetails} from '../../test/patientDetails';
 import {ReferralPage, triageWords} from './ReferralPage';
 
 const REFERRAL = `GET /api/referrals/${REFERRAL_ID}`;
@@ -48,7 +49,7 @@ describe('ReferralPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', {name: 'Referral to Dermatology', level: 1})).toBeInTheDocument();
-    expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
+    expectPatientFirstInDetails();
     expect(screen.getAllByText('Awaiting triage').length).toBeGreaterThan(0);
     expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getAllByText('2 November 2026').length).toBeGreaterThan(0);
@@ -204,13 +205,14 @@ describe('ReferralPage', () => {
     await waitFor(() => expect(screen.queryByText(CHANGED)).not.toBeInTheDocument());
   });
 
-  it('folds each of its sections in a narrow window', async () => {
+  it('folds each of its sections but Details, first with the patient, in a narrow window', async () => {
     const {user} = renderPage(testReferral(), {}, true);
 
     await screen.findByRole('heading', {name: 'Details'});
+    expectPatientFirstInDetails();
     expect(screen.getByText('A synthetic reason for referral.')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Details'}));
-    await waitFor(() => expect(screen.queryByText('A synthetic reason for referral.')).not.toBeInTheDocument());
+    expect(screen.getByText('A synthetic reason for referral.')).toBeInTheDocument();
     expect(screen.getByText('This referral has no waiting-time clock.')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Waiting time'}));
     await waitFor(() => expect(screen.queryByText('This referral has no waiting-time clock.')).not.toBeInTheDocument());

@@ -2,16 +2,18 @@ import {QueryClient} from '@tanstack/react-query';
 import {createRouter} from '@tanstack/react-router';
 import {screen} from '@testing-library/react';
 import {routeTree} from '../routeTree.gen';
+import {expectPatientFirstInDetails} from '../test/patientDetails';
 import {adminUser, json, mockFetch, pageOf, renderApp} from '../test/render';
 
 /**
- * Every page about one patient shows their banner (the control for the wrong-patient hazards H-01 and H-02). This
+ * Every page about one patient shows who they are (the control for the wrong-patient hazards H-01 and H-02). This
  * renders each such route through the real router, and fails if a new route under a patient, a pathway, a referral, a
  * specimen or a result isn't listed here, so a page can't be added without it.
  *
- * The one exception is the pathway page (`WITHOUT_BANNER`): the owner removed its banner (18 November 2026), and it
- * shows the patient's name, date of birth and NHS number at the top of its Details instead, which never fold and come
- * first (`PathwayPatient`; hazard log, H-01 and H-02). That's checked here too.
+ * Forms, lists about one patient and printouts show the banner (`PAGES`). View pages (`WITHOUT_BANNER`) don't: the owner
+ * removed it (18 and 19 November 2026), and they show the patient's name, date of birth and NHS number at the top of
+ * their Details instead, which never fold and come first (`DetailsPatient`; hazard log, H-01 and H-02). That's checked
+ * here too.
  */
 
 const patientId = '0000000b-0000-4000-8000-000000000001';
@@ -125,13 +127,10 @@ const PAGES: Record<string, string> = {
   '/patients/$id/pathways': `/patients/${patientId}/pathways`,
   '/pathways/$id/edit': `/pathways/${pathwayId}/edit`,
   '/pathways/new': `/pathways/new?patientId=${patientId}`,
-  '/referrals/$id': `/referrals/${referralId}`,
   '/referrals/$id/edit': `/referrals/${referralId}/edit`,
   // Once the patient is chosen (from their page, after adding them, or found on the page itself).
   '/referrals/new': `/referrals/new?patientId=${patientId}`,
-  '/specimens/$id': `/specimens/${specimenId}`,
   '/specimens/$id/print': `/specimens/${specimenId}/print?sheet=request`,
-  '/results/$id': `/results/${resultId}`,
 };
 
 /** Pages about one patient without the banner, with the reason: they show the patient another way, checked below. */
@@ -140,6 +139,10 @@ const WITHOUT_BANNER: Record<string, string> = {
   '/pathways/$id': `/pathways/${pathwayId}`,
   // Personal Information comes first in its Details, which never fold (the owner's decision, 19 November 2026).
   '/patients/$id': `/patients/${patientId}`,
+  // View pages with the patient at the top of their Details (the owner's decision, 19 November 2026).
+  '/referrals/$id': `/referrals/${referralId}`,
+  '/specimens/$id': `/specimens/${specimenId}`,
+  '/results/$id': `/results/${resultId}`,
 };
 
 function answerApi() {
@@ -195,6 +198,16 @@ describe('the patient banner', {timeout: 30_000}, () => {
     // Details is the first section heading on the page, and holds who the patient is.
     expect(screen.getAllByRole('heading', {level: 2})[0]).toBe(details);
     expect(screen.getByRole('link', {name: /Ahmed, Freya/})).toBeInTheDocument();
+    expect(screen.getByText(/^1 December 1976/)).toBeInTheDocument();
+    expect(screen.getByText('999 000 0018')).toBeInTheDocument();
+  });
+
+  it.each(['/referrals/$id', '/specimens/$id', '/results/$id'])('is replaced on %s by the patient at the top of its Details, first, never folding', async (route) => {
+    answerApi();
+    renderApp({path: WITHOUT_BANNER[route], user: adminUser});
+
+    await screen.findByRole('heading', {name: 'Details', level: 2}, {timeout: 15_000});
+    expectPatientFirstInDetails();
     expect(screen.getByText(/^1 December 1976/)).toBeInTheDocument();
     expect(screen.getByText('999 000 0018')).toBeInTheDocument();
   });
