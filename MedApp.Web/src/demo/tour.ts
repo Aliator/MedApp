@@ -95,8 +95,7 @@ export const TOUR: TourStep[] = [
     steps: [
       'Opens Samuel Okafor’s record. While it’s open, he shows in the side nav, indented under Patients.',
       'Rest the pointer on his row there and open its menu (the … at the end of the row), then choose Pin.',
-      'Go to another page, Home say: he stays under Patients. Click his name there to open him again. Unpin is in the same menu.',
-      'Pins belong to the account (up to five patients and five pathways), so they follow you to another browser.',
+      'Go to another page, Home say: he stays under Patients. Click his name there to open him again.',
     ],
     path: `/patients/${PATIENTS.samuelOkafor}`,
     buttonLabel: 'Open the patient to pin',
