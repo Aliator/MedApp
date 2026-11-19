@@ -189,6 +189,14 @@ describe('pickSaver', () => {
     expect(pickSaver([other], document.body, document)).toBeNull();
   });
 
+  it('never saves the page behind a dialog over its own half either', () => {
+    const {el, saver} = page();
+    const other = saver('other');
+    el('loose').setAttribute('data-open-dialog', '');
+
+    expect(pickSaver([other], document.body, document)).toBeNull();
+  });
+
   it("with the focus in no form, picks the page's only form, or none of two", () => {
     const {el, saver} = page();
     const other = saver('other');

@@ -4,15 +4,13 @@ import {useEffect, useRef} from 'react';
 import {onPermissionRefused} from '../../api/client';
 import {whoamiQuery} from '../../auth/auth';
 import {isPermission, needsPermissionText} from '../../auth/permissions';
+import {isDialogOpen, OPEN_DIALOG_ATTRIBUTES} from '../modals/openDialogs';
 
 /** The toast's words for a refusal: the API's own, or failing those, the app's copy of what the permission allows. */
 export function permissionRefusedText(permission: string | undefined, message: string | undefined): string {
   if (message) return message;
   return `Your roles don't allow this.${isPermission(permission) ? ` ${needsPermissionText(permission)}` : ''}`;
 }
-
-/** Whether a dialog is open (closed Astryx dialogs stay in the page without `open`). */
-const isDialogOpen = () => document.querySelector('dialog[open]') !== null;
 
 /**
  * Runs `action` once no dialog is open: now, or as soon as the last one closes. Returns a function that cancels it.
@@ -27,7 +25,7 @@ export function whenNoDialogIsOpen(action: () => void): () => void {
     observer.disconnect();
     action();
   });
-  observer.observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: ['open']});
+  observer.observe(document.body, {subtree: true, childList: true, attributes: true, attributeFilter: OPEN_DIALOG_ATTRIBUTES});
   return () => observer.disconnect();
 }
 

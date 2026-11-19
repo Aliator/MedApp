@@ -49,7 +49,7 @@ import {
 import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
-import {useIsNarrowWindow} from '../pages/Page';
+import {useIsNarrowDialog} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {MeetingReplyToken} from './CalendarTokens';
@@ -302,8 +302,8 @@ interface MeetingFormProps {
 /** New Meeting, or Change Meeting (`meeting`). */
 function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: MeetingFormProps) {
   const me = useCurrentUser();
-  // Its size and layout follow the window, as a dialog sits over all of it (not a half view it was opened from).
-  const isNarrow = useIsNarrowWindow();
+  // Its size and layout follow what it sits over: its half of a half view (or the page beside the notepad), or the window.
+  const isNarrow = useIsNarrowDialog();
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const actions = useMeetingActions();
