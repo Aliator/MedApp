@@ -76,7 +76,7 @@ describe('UsersPage email addresses and two-factor', () => {
     await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Reset two-factor'}));
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('heading', {name: 'Reset Two-Factor'})).toBeInTheDocument();
-    expect(dialog.getByText(/turns off their two-factor authentication .* and signs them out everywhere/)).toBeInTheDocument();
+    expect(dialog.getByText(/recovery codes stop working, and they're signed out everywhere/)).toBeInTheDocument();
     expect(calls(fetch)).not.toContain('POST /api/auth/users/a.hartwell/reset-two-factor');
     await user.click(dialog.getByRole('button', {name: 'Reset Two-Factor'}));
 
