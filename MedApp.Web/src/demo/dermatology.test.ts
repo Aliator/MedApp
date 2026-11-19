@@ -8,8 +8,14 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
   const dermatology = state.templates.filter((t) => t.teamId === TEAMS.dermatology);
   const named = (name: string) => dermatology.find((t) => t.name === name)!;
 
-  it('replaces Dermatology’s templates with the ten reviewed ones, each with its retention class', () => {
-    expect(dermatology.map((t) => t.name)).toEqual(DERMATOLOGY_REVIEWED.map((t) => t.template));
+  it('replaces Dermatology’s templates with the ten reviewed ones, then the tour’s relay, each with its retention class', () => {
+    expect(dermatology.map((t) => t.name)).toEqual([...DERMATOLOGY_REVIEWED.map((t) => t.template), 'Skin sample to the lab']);
+    expect(named('Skin sample to the lab')).toMatchObject({id: TEMPLATES.skinSample, retentionClass: 'Standard'});
+    expect(named('Skin sample to the lab').stages!.map((s) => [s.name, s.ownerTeamId])).toEqual([
+      ['Triage', null],
+      ['Testing', TEAMS.lab],
+      ['Results appointment', null],
+    ]);
     expect(named('Suspected skin cancer')).toMatchObject({id: TEMPLATES.suspectedSkinCancer, retentionClass: 'Oncology', teamName: 'Dermatology'});
     expect(named('Eczema assessment').retentionClass).toBe('Standard');
   });

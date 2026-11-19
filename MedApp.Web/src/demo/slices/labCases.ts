@@ -115,6 +115,8 @@ export const LAB_CASES = {
   callumBiopsy: id(0xca, 3),
   /** Aisha Khoury's second biopsy: "Sample adequate?" recorded Insufficient, so closed with a repeat requested (MC22). */
   aishaBiopsy: id(0xca, 4),
+  /** Leah Corrin's skin scraping, the tour's relay: every step done, to report, which finishes her Testing stage. */
+  leahScraping: id(0xca, 5),
   ...HOSPITAL_LAB_CASES,
 } as const;
 
@@ -128,6 +130,8 @@ export const LAB_CASE_IDS = {
   justReceived: LAB_CASES.maya,
   /** Priya Holloway's Histology case: authorising it finishes her pathway's lab stage (MC16). */
   stageToReport: LAB_CASES.priyaBiopsy,
+  /** The tour's relay: Leah Corrin's case, ready for results; authorising it finishes her Testing stage. */
+  relay: LAB_CASES.leahScraping,
   /** Samuel Okafor's earlier hospital case: reported and sent, awaiting the hospital's surgery details (MC20). */
   awaitingSurgeryDetails: LAB_CASES.samuelBiopsy,
   /** Aisha Khoury's second biopsy: closed with a repeat requested, its Take biopsy reopened (MC22). */
@@ -238,6 +242,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   callumResult.labCaseId = LAB_CASES.callumBiopsy;
   callumResult.reportText = callumReport;
   const ilona = sample(SPECIMENS.ilonaBlood);
+  const leah = sample(SPECIMENS.leahScraping);
   const daysAgo = (days: number, hour = 11) => {
     const at = new Date(Date.parse(nowUtc()) - days * 86400_000);
     at.setUTCHours(hour, 0, 0, 0);
@@ -315,6 +320,18 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       report: {text: callumReport, atUtc: callum.reportedAtUtc!, byUserId: LAB.id, resultId: RESULTS.callumBiopsy},
     }),
     aishaCase,
+    // The tour's relay: her sample came with the lab before her Triage was finished, so its case was opened by the
+    // sample and worked up to the results; reaching Testing finds it, and authorising it finishes that stage.
+    make(
+      LAB_CASES.leahScraping,
+      leah.number,
+      [leah],
+      LAB_TESTS.fungalScraping,
+      [...adequate, ...['Microscopy', 'Culture', 'Report'].map((name): StepPlan => ({kind: 'TestStep', testStepId: step(LAB_TESTS.fungalScraping, name)})), noMoreWork],
+      // Worked the afternoon it came in, in working hours.
+      new Date(Date.parse(leah.receivedAtUtc!) + 3.5 * 3600_000).toISOString(),
+      {stageId: labStageAfter(pathwayOf(PATHWAYS.relay), leah.stageId, TEAMS.lab)!.id},
+    ),
     make(
       HOSPITAL_LAB_CASES.wilfred,
       request(HOSPITAL_REQUESTS.wilfredExcision).labCaseNumber,
