@@ -219,7 +219,7 @@ export function registerConsent() {
         type: 'about:blank',
         title: 'Forbidden',
         status: 403,
-        detail: 'Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask an admin.',
+        detail: 'Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.',
       });
     Object.assign(record, {
       status: 'EnteredInError',

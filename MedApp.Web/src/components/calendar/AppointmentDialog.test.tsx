@@ -318,7 +318,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       const {user, fetch} = renderDialog(missed, {
         'GET /api/appointments/appt-1': () => json(shown),
         'POST /api/appointments/appt-1/dna-follow-up': () => {
-          shown = {...missed, dnaFollowUp: 'NoFurtherAppointment', dnaFollowUpDetail: 'Dr Test: discharged to GP.', dnaFollowUpByUsername: 'test-user', dnaFollowUpAtUtc: '2026-11-23T07:00:00Z'};
+          shown = {...missed, dnaFollowUp: 'NoFurtherAppointment', dnaFollowUpDetail: 'Dr Test: back to GP care.', dnaFollowUpByUsername: 'test-user', dnaFollowUpAtUtc: '2026-11-23T07:00:00Z'};
           return json(shown);
         },
       });
@@ -336,14 +336,14 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       await user.click(dialog().getByRole('radio', {name: 'No further appointment'}));
       expect(isDisabled(confirm)).toBe(true);
       expect(dialog().getByText("Say who decided there's to be no further appointment, and why.")).toBeInTheDocument();
-      await user.type(dialog().getByRole('textbox', {name: /Detail/}), ' Dr Test: discharged to GP. ');
+      await user.type(dialog().getByRole('textbox', {name: /Detail/}), ' Dr Test: back to GP care. ');
       await user.click(confirm);
 
       await expectAnnounced('Follow-up recorded: No further appointment');
-      expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/dna-follow-up')).toEqual({decision: 'NoFurtherAppointment', detail: 'Dr Test: discharged to GP.'});
+      expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/dna-follow-up')).toEqual({decision: 'NoFurtherAppointment', detail: 'Dr Test: back to GP care.'});
       // Back on the appointment, with the follow-up recorded.
       expect(await dialog().findByText('No further appointment, by test-user, 23 Nov 2026, 07:00')).toBeInTheDocument();
-      expect(dialog().getByText('Dr Test: discharged to GP.')).toBeInTheDocument();
+      expect(dialog().getByText('Dr Test: back to GP care.')).toBeInTheDocument();
     });
 
     it("shows the API's refusals: a 400 on its field, anything else in its words", async () => {

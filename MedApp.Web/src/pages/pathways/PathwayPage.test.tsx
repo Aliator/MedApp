@@ -104,11 +104,11 @@ describe('PathwayPage', () => {
     const fetch = mockApi({
       [`GET /api/pathways/patient-pathways/${id}`]: () => json(needsLetter),
       'GET /api/letters/search': () =>
-        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Discharge', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
+        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Final letter', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
     });
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByRole('link', {name: 'End of care letter: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(await screen.findByRole('link', {name: 'End of care letter: Final letter'})).toHaveAttribute('href', '/letters/l1');
     expect(screen.getAllByText('Needs an end of care letter, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
     expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
   });
@@ -584,7 +584,7 @@ describe('PathwayPage: working on it', () => {
 
     const heading = await screen.findByRole('heading', {name: 'Referral and wait'});
     expect(screen.getByText('Day 30 of 28')).toBeInTheDocument();
-    expect(screen.getByText('Breached')).toBeInTheDocument();
+    expect(screen.getByText('Wait breached')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Pause Clock'})).toBeInTheDocument();
     await user.click(heading);
     await waitFor(() => expect(screen.queryByText('Day 30 of 28')).not.toBeInTheDocument());
@@ -1173,7 +1173,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
     choiceKind: 'LabResult',
     needsOutcome: true,
     outcomes: [
-      {name: 'Benign', stageNames: ['Discharge letter']},
+      {name: 'Benign', stageNames: ['Final letter']},
       {name: 'Malignant', stageNames: ['Referral to hospital', 'Letter to GP']},
     ],
   };
@@ -1235,7 +1235,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
     expect(calls(fetch)).not.toContain(`POST ${PATH}/stages/s2/finish`);
 
     await user.click(dialog.getByRole('radio', {name: /Benign/}));
-    expect(dialog.getByText('These stages will be added: Discharge letter.')).toBeInTheDocument();
+    expect(dialog.getByText('These stages will be added: Final letter.')).toBeInTheDocument();
     await user.click(finish);
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));

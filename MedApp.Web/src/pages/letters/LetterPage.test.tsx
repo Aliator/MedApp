@@ -56,7 +56,7 @@ describe('LetterPage', () => {
     const {user, fetch} = render(testLetter(), {[`PUT ${BASE}`]: () => json(testLetter({version: 4, body: 'Changed'}))});
 
     expect(await screen.findByRole('heading', {name: 'End of care letter', level: 1})).toBeInTheDocument();
-    expect(screen.getByText('Dermatology discharge · Draft')).toBeInTheDocument();
+    expect(screen.getByText('Dermatology end of care · Draft')).toBeInTheDocument();
     expectPatientFirstInDetails();
     expect(screen.getByRole('link', {name: 'Download Preview'})).toHaveAttribute('href', `/api/letters/${LETTER_ID}/preview`);
     expect(screen.getByRole('link', {name: 'Skin check'})).toHaveAttribute('href', '/pathways/00000061-0000-0000-0000-000000000003');
@@ -189,7 +189,7 @@ describe('LetterPage', () => {
 
     expect(await screen.findByRole('link', {name: 'Download PDF'})).toHaveAttribute('href', `/api/attachments/${LETTER_PDF_ID}/content`);
     expect(screen.queryByRole('link', {name: 'Download Preview'})).not.toBeInTheDocument();
-    expect(screen.getByText('Dermatology discharge · To send')).toBeInTheDocument();
+    expect(screen.getByText('Dermatology end of care · To send')).toBeInTheDocument();
     const recipients = within(screen.getByRole('list', {name: 'Recipients'}));
     expect(recipients.getAllByText('Not sent')).toHaveLength(2);
     expect(recipients.getByText('Letters go to patients by post or by hand, never by email.')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('LetterPage', () => {
     // Details, first with the patient, never folds.
     expectPatientFirstInDetails();
     await user.click(screen.getByRole('heading', {name: 'Details'}));
-    expect(screen.getByText('Dermatology discharge')).toBeInTheDocument();
+    expect(screen.getByText('Dermatology end of care')).toBeInTheDocument();
     await user.click(screen.getByRole('heading', {name: 'Recipients'}));
     await waitFor(() => expect(screen.queryByRole('list', {name: 'Recipients'})).not.toBeInTheDocument());
   });

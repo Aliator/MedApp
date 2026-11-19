@@ -53,7 +53,7 @@ const RESTRICTED_TAKE =
 const RESTRICTED_EDIT =
   "This patient's record is restricted: the sample can still go on to the lab and be reported, but its details can't be changed.";
 const EIE_NOT_ALLOWED =
-  'Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask an admin.';
+  'Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.';
 const MAX_NAME = 100;
 
 const typeOf = (specimen: DemoSpecimen) => db().specimenTypes.find((t) => t.id === specimen.specimenTypeId);

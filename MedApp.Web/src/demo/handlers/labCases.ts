@@ -767,7 +767,7 @@ export function registerLabCases() {
     ensureVersion(body.expectedVersion, c.version, CHANGED_MEANWHILE);
     if (c.status !== 'Open') return problem(409, `This case has been ${STATUS_WORDS[c.status] ?? c.status}, so it can't be changed.`);
     if (!mayMarkCaseEnteredInError(c))
-      return problem(403, 'Only whoever opened this case can mark it entered in error, within 24 hours of opening it. After that, ask an admin.');
+      return problem(403, 'Only whoever opened this case can mark it entered in error, within 24 hours of opening it. After that, ask someone who can correct records.');
     const detail = requiredDetail(body.detail, MAX_DETAIL, 'detail', 'Say what was wrong.');
     c.status = 'EnteredInError';
     c.enteredInError = {atUtc: nowUtc(), byUserId: viewer.id, detail};

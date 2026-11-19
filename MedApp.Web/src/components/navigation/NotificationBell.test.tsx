@@ -431,7 +431,7 @@ describe('NotificationBell', () => {
       id: '0000000c-0000-0000-0000-000000000050',
       kind: 'LetterAwaitingApproval',
       title: 'Letter awaiting approval',
-      message: 'k.ashford submitted a discharge summary for you to approve.',
+      message: 'k.ashford submitted an end of care letter for you to approve.',
       pathwayId,
       subjectId: letterId,
     };

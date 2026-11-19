@@ -260,8 +260,8 @@ describe('describeTimelineEntry', () => {
 
   it('words a branch chosen, with the stages it skipped, and a stage reinstated, with why only for admins', () => {
     expect(
-      describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: 'Treatment', skippedStageNames: ['Discharge letter', 'Follow-up']})),
-    ).toEqual({title: 'Chose the Treatment branch at Biopsy', detail: 'Skipped: Discharge letter, Follow-up'});
+      describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: 'Treatment', skippedStageNames: ['Final letter', 'Follow-up']})),
+    ).toEqual({title: 'Chose the Treatment branch at Biopsy', detail: 'Skipped: Final letter, Follow-up'});
     expect(describeTimelineEntry(entry({action: 'BranchChosen', stageName: 'Biopsy', branch: null, skippedStageNames: []}))).toEqual({
       title: 'Chose a branch at Biopsy',
       detail: '',
@@ -625,7 +625,7 @@ describe('result entries', () => {
 });
 
 const letterEntry = (fields: Partial<TimelineEntry>) =>
-  entry({kind: 'Letters', letterId: 'l1', letterKind: 'DischargeSummary', letterTemplateName: 'Skin discharge', ...fields});
+  entry({kind: 'Letters', letterId: 'l1', letterKind: 'DischargeSummary', letterTemplateName: 'Skin end of care', ...fields});
 
 describe('letter entries', () => {
   it('knows a letter entry', () => {
@@ -635,10 +635,10 @@ describe('letter entries', () => {
   });
 
   it('words each step, with the template, and the comment or reason only when the API sends them (admins)', () => {
-    expect(describeTimelineEntry(letterEntry({action: 'LetterDrafted'}))).toEqual({title: 'End of care letter started', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterDrafted'}))).toEqual({title: 'End of care letter started', detail: 'From Skin end of care'});
     expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', approverUsername: 'd.clinician'}))).toEqual({
       title: 'End of care letter submitted for approval',
-      detail: 'To d.clinician. From Skin discharge',
+      detail: 'To d.clinician. From Skin end of care',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', letterTemplateName: null}))).toEqual({
       title: 'End of care letter submitted for approval',
@@ -646,32 +646,32 @@ describe('letter entries', () => {
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterReturned', reason: 'Add the plan'}))).toEqual({
       title: 'End of care letter returned to its author',
-      detail: 'From Skin discharge. Comment: Add the plan',
+      detail: 'From Skin end of care. Comment: Add the plan',
     });
-    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned'}))).toEqual({title: 'End of care letter returned to its author', detail: 'From Skin discharge'});
-    expect(describeTimelineEntry(letterEntry({action: 'LetterApproved', letterKind: 'Other'}))).toEqual({title: 'General letter approved', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned'}))).toEqual({title: 'End of care letter returned to its author', detail: 'From Skin end of care'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterApproved', letterKind: 'Other'}))).toEqual({title: 'General letter approved', detail: 'From Skin end of care'});
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'GpPractice', dispatchMethod: 'Post', dispatchStatus: 'Sent'}))).toEqual({
       title: 'End of care letter sent to the GP practice',
-      detail: 'Post. From Skin discharge',
+      detail: 'Post. From Skin end of care',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Patient', dispatchMethod: 'HandedToPatient'}))).toEqual({
       title: 'End of care letter sent to the patient',
-      detail: 'Handed to the patient. From Skin discharge',
+      detail: 'Handed to the patient. From Skin end of care',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Other', dispatchMethod: 'SecureEmail', dispatchStatus: 'Failed'}))).toEqual({
       title: "End of care letter couldn't be sent to someone else",
-      detail: 'Secure email from MedApp failed. From Skin discharge',
+      detail: 'Secure email from MedApp failed. From Skin end of care',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: null, dispatchMethod: null, dispatchStatus: 'Failed'}))).toEqual({
       title: "End of care letter couldn't be sent to a recipient",
-      detail: 'Secure email from MedApp failed. From Skin discharge',
+      detail: 'Secure email from MedApp failed. From Skin end of care',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn', reason: 'Wrong plan'}))).toEqual({
       title: 'End of care letter withdrawn',
-      detail: 'From Skin discharge. Reason: Wrong plan',
+      detail: 'From Skin end of care. Reason: Wrong plan',
     });
-    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn'}))).toEqual({title: 'End of care letter withdrawn', detail: 'From Skin discharge'});
-    expect(describeTimelineEntry(letterEntry({action: 'LetterFiled'}))).toEqual({title: 'End of care letter changed', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn'}))).toEqual({title: 'End of care letter withdrawn', detail: 'From Skin end of care'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterFiled'}))).toEqual({title: 'End of care letter changed', detail: 'From Skin end of care'});
   });
 
   it('words asking a referrer for more information, and it arriving', () => {

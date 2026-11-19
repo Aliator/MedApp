@@ -43,7 +43,7 @@ export interface ReferralWaitCardProps {
 
 /**
  * The pathway page's **Referral and wait**: the referral the pathway came from (received, team, a link to it),
- * its waiting-time clock ("Day 84 of 126", Breached, Paused with the review date, Stopped and why: decisions 27 to 38)
+ * its waiting-time clock ("Day 84 of 126", Wait breached, Paused with the review date, Stopped and why: decisions 27 to 38)
  * and every pause. **Pause Clock** (while `canPauseClock`) asks why (Patient chose to wait, Patient unavailable, Other
  * with a detail), and when to review it (tomorrow to 90 days ahead, which becomes the pathway's target date);
  * **Resume Clock** (while `canResumeClock`) asks first. Both send the referral's version the page showed, so a change

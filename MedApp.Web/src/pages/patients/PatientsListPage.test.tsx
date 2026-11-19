@@ -146,8 +146,8 @@ describe('PatientsListPage', () => {
 
     expect(await screen.findByText('1 patient in Dermatology')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/patients/search?PageSize=10&Page=1&Sort=name&Ascending=true&TeamId=${dermatology}`);
-    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
-    await user.click(screen.getByRole('option', {name: 'All clinics'}));
+    await user.click(screen.getByRole('combobox', {name: /^Team/}));
+    await user.click(screen.getByRole('option', {name: 'All teams'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({clinic: undefined, page: undefined});
   });
 });
