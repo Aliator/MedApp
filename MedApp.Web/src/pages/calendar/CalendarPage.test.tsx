@@ -64,8 +64,15 @@ function teamDay(date: string, members: Partial<Calendar>[] = []): TeamCalendar 
       }),
     ],
     everyoneFree: [{startUtc: ukTime(date, '10:00'), endUtc: ukTime(date, '11:00')}],
+    teamMembers: [STAFF_ME, STAFF_OTHER, STAFF_THIRD],
   };
 }
+
+/** The teams the team view's Team picker offers. */
+const TEAMS = [
+  {id: '00000000-0000-0000-0000-0000000000d1', name: 'Dermatology', isArchived: false},
+  {id: '00000000-0000-0000-0000-0000000000d2', name: 'Gynaecology', isArchived: false},
+];
 
 /** Answers the API as the Calendar page asks it: the staff, their templates, the team view and calendars. */
 function answerCalendarApi(calendar: Partial<Calendar> = {}, handlers: Parameters<typeof mockApi>[0] = {}) {
@@ -76,6 +83,7 @@ function answerCalendarApi(calendar: Partial<Calendar> = {}, handlers: Parameter
     'GET /api/calendar/team': (request) => json(teamDay(new URL(request.url).searchParams.get('Date')!)),
     'GET /api/calendar/activity-types': () => json([{id: 'activity-lunch', name: 'Lunch', colour: 'green', isArchived: false}]),
     'GET /api/appointments/search': () => json(pageOf([testAppointment()], 3)),
+    'GET /api/teams': () => json(TEAMS),
     'GET /api/calendar': (request) => {
       const url = new URL(request.url);
       const from = url.searchParams.get('From')!;
@@ -788,7 +796,8 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 
     expect(await screen.findByRole('group', {name: /^b.staff's calendar,/})).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'New'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
+    // Anyone sees a team's calendar (MC11).
+    expect(screen.getByRole('radio', {name: 'Team'})).toBeInTheDocument();
   });
 
   it('offers admins a new meeting, with the person whose calendar it is', async () => {
@@ -1018,22 +1027,26 @@ describe('CalendarPage', {timeout: 30_000}, () => {
     expect(document.querySelectorAll('.mc-col')).toHaveLength(0);
   });
 
-  it('never shows the team view to anyone but admins, and keeps it in a narrow window', async () => {
-    const staff = renderPage({search: {view: 'team'}});
-    expect(await screen.findByRole('group', {name: 'My calendar, 23 to 29 November 2026'})).toBeInTheDocument();
-    expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
-    staff.unmount();
+  it("shows anyone a team's calendar, any team from the Team picker, and keeps it in a narrow window", async () => {
+    const lab = renderPage({user: userWithRoles('test-lab', 'Lab'), search: {view: 'team'}});
+    expect(await screen.findByRole('group', {name: 'Team, Monday 23 November 2026'})).toBeInTheDocument();
+    await lab.user.click(screen.getByRole('combobox', {name: 'Team'}));
+    await lab.user.click(await screen.findByRole('option', {name: 'Gynaecology'}));
+    // Another team starts with everyone in it.
+    expect(lab.onSearchChange).toHaveBeenLastCalledWith({view: 'team', team: TEAMS[1].id, who: undefined});
+    // Someone who can't arrange meetings can't start one from when everyone's free.
+    select('Everyone free, Monday 23 November, 10:00, free');
+    expect(screen.queryByRole('button', {name: 'New meeting'})).not.toBeInTheDocument();
+    lab.unmount();
 
-    // In a narrow window or a half view, people start on a day, and can choose the week.
-    const narrowStaff = renderPage({isNarrow: true});
-    expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
-    expect(screen.getByRole('radio', {name: 'Day'})).toBeChecked();
-    expect(screen.getByRole('radio', {name: 'Week'})).toBeInTheDocument();
-    expect(screen.queryByRole('radio', {name: 'Team'})).not.toBeInTheDocument();
-    narrowStaff.unmount();
+    // A team picked asks for that team.
+    const picked = renderPage({search: {view: 'team', team: TEAMS[1].id}, handlers: {'GET /api/calendar/team': () => json({...teamDay(MONDAY), teamId: TEAMS[1].id, teamName: 'Gynaecology'})}});
+    expect(await screen.findByRole('group', {name: 'Gynaecology team, Monday 23 November 2026'})).toBeInTheDocument();
+    expect(calls(picked.fetch)).toContain(`GET /api/calendar/team?Date=2026-11-23&TeamId=${TEAMS[1].id}`);
+    picked.unmount();
 
-    // Admins can choose the team too.
-    const {user, onSearchChange} = renderPage({user: adminUser, isNarrow: true});
+    // In a narrow window or a half view, people start on a day, and can choose the week or the team.
+    const {user, onSearchChange} = renderPage({isNarrow: true});
     expect(await screen.findByText('My calendar · Monday 23 November 2026')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', {name: 'Team'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({view: 'team'});
@@ -1234,16 +1247,14 @@ describe('CalendarPage', {timeout: 30_000}, () => {
 });
 
 describe('the Calendar page outside React', () => {
-  it('shows the team view only to admins, and a day by default in a narrow window', () => {
+  it('shows the view asked for (the team view to anyone), and a day by default in a narrow window', () => {
+    expect(shownView({view: 'team'})).toBe('team');
     expect(shownView({view: 'team'}, true)).toBe('team');
-    expect(shownView({view: 'team'}, false)).toBe('week');
-    expect(shownView({view: 'team'}, false, true)).toBe('day');
-    expect(shownView({view: 'team'}, true, true)).toBe('team');
-    expect(shownView({}, false)).toBe('week');
+    expect(shownView({})).toBe('week');
     // A narrow window opens on a day, but keeps a week named in the address.
-    expect(shownView({}, false, true)).toBe('day');
-    expect(shownView({view: 'week'}, false, true)).toBe('week');
-    expect(shownView({view: 'day'}, false)).toBe('day');
+    expect(shownView({}, true)).toBe('day');
+    expect(shownView({view: 'week'}, true)).toBe('week');
+    expect(shownView({view: 'day'})).toBe('day');
   });
 
   it('opens the menu for selected time beside it, or below it when the selection is too wide for beside', () => {
@@ -1255,7 +1266,7 @@ describe('the Calendar page outside React', () => {
     expect(selectionMenuPlacement(800)).toBe('below');
   });
 
-  it("preloads the team view's day for admins, or the person's calendar and then their templates", async () => {
+  it("preloads the team view's day, or the person's calendar and then their templates", async () => {
     const fetch = mockApi({
       'GET /api/calendar/team': () => json(teamDay(MONDAY)),
       'GET /api/calendar': () => json(testCalendar({from: MONDAY, today: MONDAY})),
@@ -1265,17 +1276,17 @@ describe('the Calendar page outside React', () => {
     });
     const queryClient = new QueryClient();
 
-    await preloadCalendarPage(queryClient, {view: 'team', who: [STAFF_OTHER.userId]}, true, MONDAY);
+    await preloadCalendarPage(queryClient, {view: 'team', who: [STAFF_OTHER.userId]}, MONDAY);
     await waitFor(() => expect(calls(fetch)).toContain(`GET /api/calendar/team?Date=${MONDAY}&StaffUserIds=${STAFF_OTHER.userId}`));
 
     // The calendar isn't here yet in the browser: its templates wait for the page.
-    await preloadCalendarPage(queryClient, {view: 'team', date: '2026-11-24'}, false, MONDAY);
+    await preloadCalendarPage(queryClient, {date: '2026-11-24'}, MONDAY);
     await waitFor(() => expect(calls(fetch)).toContain('GET /api/calendar?From=2026-11-23&To=2026-11-29'));
     expect(calls(fetch).some((c) => c.includes('-templates'))).toBe(false);
 
     // Once it is, whose it is says whose week templates. Their day templates wait for the page (Apply Template).
     queryClient.setQueryData(['calendar', 'days', 'me', '2026-11-24', '2026-11-24'], testCalendar({from: '2026-11-24', dayCount: 1, today: MONDAY}));
-    await preloadCalendarPage(queryClient, {view: 'day', date: '2026-11-24'}, false, MONDAY);
+    await preloadCalendarPage(queryClient, {view: 'day', date: '2026-11-24'}, MONDAY);
     await waitFor(() => expect(calls(fetch)).toContain(`GET /api/calendar/staff/${STAFF_ME.userId}/week-templates?includeArchived=true`));
     expect(calls(fetch).some((c) => c.includes('/day-templates'))).toBe(false);
     queryClient.clear();
