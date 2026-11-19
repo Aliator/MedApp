@@ -95,6 +95,9 @@ public sealed record PatientRecord
     /// <summary>The patient's lab cases (MC15), with their steps and tests, oldest opened first.</summary>
     public IReadOnlyList<Domain.Lab.LabCase> LabCases { get; init; } = [];
 
+    /// <summary>The hospital requests that brought the patient's samples (MC18), oldest registered first, with their hospitals.</summary>
+    public IReadOnlyList<Domain.Hospitals.HospitalRequest> HospitalRequests { get; init; } = [];
+
     /// <summary>
     /// The patient's MDT items, oldest listed first, with their team, meeting and who was present (items of a
     /// deleted pathway go with it; their history stays in <see cref="PathwayHistory"/>).

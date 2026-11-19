@@ -40,6 +40,7 @@ public static class PatientExportMapper
             .Concat(record.Specimens.SelectMany(Specimens.Common.SpecimenMapper.PeopleIn))
             .Concat(record.Results.SelectMany(Results.Common.ResultMapper.PeopleIn))
             .Concat(record.LabCases.SelectMany(Lab.Common.LabCaseMapper.PeopleIn))
+            .Concat(record.HospitalRequests.Select(r => r.RegisteredByUserId))
             .Concat(record.ConsentRecords.SelectMany(Consent.Common.ConsentMapper.PeopleIn))
             .Distinct();
 
@@ -476,6 +477,44 @@ public static class PatientExportMapper
                     ErrorDetail = c.ErrorDetail,
                     EnteredInErrorAtUtc = c.EnteredInErrorAtUtc,
                     EnteredInErrorBy = c.EnteredInErrorByUserId is null ? null : Username(c.EnteredInErrorByUserId),
+                    HospitalName = Lab.Common.LabCaseMapper.HospitalName(c),
+                    ReportSentAtUtc = c.ReportSentAtUtc,
+                    ReportAddressedTo = c.ReportAddressedTo,
+                    ReportDeliveryMethod = c.ReportDeliveryMethod?.ToString(),
+                    SurgeryDetails = c.SurgeryDetails
+                        .OrderBy(d => d.AddedAtUtc).ThenBy(d => d.Id)
+                        .Select(d => new ExportedSurgeryDetailsResponse
+                        {
+                            SurgeryOn = d.SurgeryOn,
+                            Procedure = d.Procedure,
+                            Outcome = d.Outcome,
+                            NoSurgeryExpected = d.NoSurgeryExpected,
+                            Detail = d.Detail,
+                            AddedAtUtc = d.AddedAtUtc,
+                            AddedBy = Username(d.AddedByUserId),
+                        })
+                        .ToList(),
+                    ClosedAtUtc = c.ClosedAtUtc,
+                })
+                .ToList(),
+            // Hospital requests (MC18), as the hospital gave them.
+            HospitalRequests = record.HospitalRequests
+                .Select(r => new ExportedHospitalRequestResponse
+                {
+                    Id = r.Id,
+                    HospitalName = r.Hospital?.Name,
+                    HospitalPatientNumber = r.HospitalPatientNumber,
+                    NhsNumber = r.NhsNumber,
+                    SurgeonName = r.SurgeonName,
+                    Priority = r.Priority.ToString(),
+                    IsCancerPathway = r.IsCancerPathway,
+                    AuthoredOnUtc = r.AuthoredOnUtc,
+                    ReportNeededBy = r.ReportNeededBy,
+                    CollectedAtUtc = r.CollectedAtUtc,
+                    SpecimenTypeName = r.SpecimenType?.Name,
+                    LabTestName = r.LabTest?.Name,
+                    LabCaseNumber = r.LabCaseNumber,
+                    RegisteredAtUtc = r.RegisteredAtUtc,
                 })
                 .ToList(),
             // Consent records, with their details: the patient is entitled to them. Staff by username only.

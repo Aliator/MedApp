@@ -269,6 +269,28 @@ public static class PatientAnonymiser
                 if (step.ErrorDetail is not null)
                     step.ErrorDetail = Removed(step.ErrorDetail);
             }
+
+            // MC20: whom the report went to (the surgeon's name) and the hospital's surgery details.
+            if (labCase.ReportAddressedTo is not null)
+                labCase.ReportAddressedTo = Removed(labCase.ReportAddressedTo);
+            foreach (var details in labCase.SurgeryDetails)
+            {
+                if (details.Procedure is not null)
+                    details.Procedure = Removed(details.Procedure);
+                if (details.Outcome is not null)
+                    details.Outcome = Removed(details.Outcome);
+                if (details.Detail is not null)
+                    details.Detail = Removed(details.Detail);
+            }
+        }
+
+        // Hospital requests (MC18) keep their hospital, test, priority and dates; the hospital's patient number, the NHS
+        // number as given and the surgeon's name go.
+        foreach (var hospitalRequest in record.HospitalRequests)
+        {
+            hospitalRequest.HospitalPatientNumber = Removed(hospitalRequest.HospitalPatientNumber);
+            hospitalRequest.NhsNumber = null;
+            hospitalRequest.SurgeonName = Removed(hospitalRequest.SurgeonName);
         }
 
         // MDT items: the question and the outcome are free text. Open ones are withdrawn, as the record can't change

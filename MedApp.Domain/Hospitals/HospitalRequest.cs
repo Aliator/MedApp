@@ -40,13 +40,13 @@ public sealed class HospitalRequest
     public Guid TeamId { get; init; }
 
     /// <summary>The hospital's own number for the patient, as the request gave it.</summary>
-    public string HospitalPatientNumber { get; init; } = string.Empty;
+    public string HospitalPatientNumber { get; set; } = string.Empty;
 
     /// <summary>The NHS number as the request gave it (ten digits), if any: the record's may differ, and both are shown.</summary>
-    public string? NhsNumber { get; init; }
+    public string? NhsNumber { get; set; }
 
     /// <summary>The requesting surgeon, as written on the request: the report is addressed to them (MC20).</summary>
-    public string SurgeonName { get; init; } = string.Empty;
+    public string SurgeonName { get; set; } = string.Empty;
 
     public LabRequestPriority Priority { get; init; }
 
