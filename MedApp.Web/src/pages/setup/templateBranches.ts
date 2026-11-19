@@ -1,21 +1,34 @@
 import type {TemplateStageOptions} from '../../api/pathwaySetup';
 import type {OrderLink, TemplateOutcome} from '../../api/pathwayRoutes';
-import type {PathwayTemplate} from '../../api/pathways';
+
+/**
+ * One outcome of a choice node as the editor holds it: its name, and the stages it leads to (by row key; none: it ends
+ * the route, as a referral recorded there does).
+ */
+export interface OutcomeRow {
+  key: string;
+  name: string;
+  nextKeys: string[];
+}
 
 /**
  * A template stage's options as the editor holds them: whether staff may skip it, whether it's a choice node (its kind:
- * an assessment or a lab result, "" for a plain stage), and, for a stage straight after a choice node, the outcome that
- * leads to it ("" when none does yet). Outcomes are saved on their choice node (`outcomesFromRows`).
+ * an assessment or a lab result, "" for a plain stage) and, on a choice node, its outcomes in order, each naming the
+ * stages after it that it leads to (one stage may be led to by several outcomes, and one outcome may lead to several).
  */
 export interface StageOptionsInput {
   isOptional: boolean;
   choiceKind: string;
-  outcome: string;
+  outcomes: OutcomeRow[];
   /** The lab works it (the relay, MC7): its owner is the lab team, not the template's own. */
   byLab?: boolean;
 }
 
-export const PLAIN_STAGE: StageOptionsInput = {isOptional: false, choiceKind: '', outcome: ''};
+let outcomeCount = 0;
+/** A new outcome, with a key of its own. */
+export const outcomeRow = (name = '', nextKeys: string[] = []): OutcomeRow => ({key: `outcome-${++outcomeCount}`, name, nextKeys});
+
+export const PLAIN_STAGE: StageOptionsInput = {isOptional: false, choiceKind: '', outcomes: []};
 
 // The API's words for a list (a template without routes), so the page says what a save would be refused for.
 export const LAST_STAGE_MESSAGE = "The last stage can't be optional.";
@@ -31,30 +44,30 @@ export function stageOptionProblems(rows: readonly StageOptionsInput[]): Map<num
 }
 
 /**
- * A choice node's outcomes from the rows (by its 0-based index): one per outcome name given on the stages straight after
- * it (ignoring case; the first spelling kept), each leading to every such stage, in order. Stages after it with no
- * name are in none (`templateGraphProblems` says so).
+ * A choice node's outcomes as a save sends them (by its 0-based index): each named one, in order, leading to the stages
+ * it names that come straight after the choice node (`links`), in stage order. An unnamed outcome isn't sent: a stage
+ * only it leads to says so (`templateGraphProblems`).
  */
-export function outcomesFromRows(rows: readonly StageOptionsInput[], links: readonly OrderLink[], index: number): TemplateOutcome[] {
-  const outcomes: TemplateOutcome[] = [];
-  const nexts = links.filter((l) => l.fromStageOrder === index + 1).map((l) => l.toStageOrder ?? 0).sort((a, b) => a - b);
-  for (const next of nexts) {
-    const name = rows[next - 1]?.outcome.trim() ?? '';
-    if (!name) continue;
-    const same = outcomes.find((o) => (o.name ?? '').toLowerCase() === name.toLowerCase());
-    if (same) same.nextStageOrders = [...(same.nextStageOrders ?? []), next];
-    else outcomes.push({name, nextStageOrders: [next]});
-  }
-  return outcomes;
+export function outcomesFromRows(
+  rows: readonly (Pick<StageOptionsInput, 'outcomes'> & {key: string})[],
+  links: readonly OrderLink[],
+  index: number,
+): TemplateOutcome[] {
+  const order = new Map(rows.map((r, i) => [r.key, i + 1]));
+  const after = new Set(links.filter((l) => l.fromStageOrder === index + 1).map((l) => l.toStageOrder ?? 0));
+  return (rows[index]?.outcomes ?? [])
+    .filter((o) => o.name.trim() !== '')
+    .map((o) => ({
+      name: o.name.trim(),
+      nextStageOrders: [...new Set(o.nextKeys.map((key) => order.get(key) ?? 0))].filter((next) => after.has(next)).sort((x, y) => x - y),
+    }));
 }
 
-/** Each row's outcome name from a saved template: the name of the outcome of a choice node that leads to it. */
-export function rowOutcomes(template: Pick<PathwayTemplate, 'stages'> | null, count: number): string[] {
-  const names = new Array<string>(count).fill('');
-  for (const stage of template?.stages ?? [])
-    for (const outcome of stage.outcomes ?? [])
-      for (const next of outcome.nextStageOrders ?? []) if (next >= 1 && next <= count) names[next - 1] = outcome.name ?? '';
-  return names;
+/** A saved choice node's outcomes onto the editor's rows: each with the rows it leads to, by key. */
+export function outcomeRows(outcomes: readonly TemplateOutcome[] | null | undefined, rows: readonly {key: string}[]): OutcomeRow[] {
+  return (outcomes ?? []).map((o) =>
+    outcomeRow(o.name ?? '', (o.nextStageOrders ?? []).flatMap((next) => (rows[next - 1] ? [rows[next - 1].key] : []))),
+  );
 }
 
 /**
@@ -63,7 +76,7 @@ export function rowOutcomes(template: Pick<PathwayTemplate, 'stages'> | null, co
  * every stage is plain, so a plain list saves exactly as before. A choice node's outcomes come from `links`.
  */
 export function stageOptionsToSend(
-  rows: readonly StageOptionsInput[],
+  rows: readonly (StageOptionsInput & {key: string})[],
   labTeamId?: string | null,
   always = false,
   links: readonly OrderLink[] | null = null,
@@ -105,14 +118,15 @@ export function tidyRoutes(rows: readonly {key: string}[], routes: Readonly<Rout
   );
 }
 
-/** What a save sends as `links`: each row's predecessors, by 1-based order, in order. */
+/** What a save sends as `links`: each row's predecessors, by 1-based order, sorted by the stage they come from, then to. */
 export function linksFromRoutes(rows: readonly {key: string}[], routes: Readonly<Routes>): OrderLink[] {
   const order = new Map(rows.map((r, i) => [r.key, i + 1]));
-  return rows.flatMap((row, i) =>
-    (routes[row.key] ?? [])
-      .map((key) => order.get(key) ?? 0)
-      .filter((from) => from > 0)
-      .sort((a, b) => a - b)
-      .map((from) => ({fromStageOrder: from, toStageOrder: i + 1})),
-  );
+  return rows
+    .flatMap((row, i) =>
+      [...new Set(routes[row.key] ?? [])]
+        .map((key) => order.get(key) ?? 0)
+        .filter((from) => from > 0)
+        .map((from) => ({fromStageOrder: from, toStageOrder: i + 1})),
+    )
+    .sort((a, b) => a.fromStageOrder - b.fromStageOrder || a.toStageOrder - b.toStageOrder);
 }

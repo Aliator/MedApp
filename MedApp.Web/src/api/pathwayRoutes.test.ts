@@ -87,6 +87,9 @@ describe('route depths and graph rules (MC9)', () => {
     const problems = templateGraphProblems([choice, plain, plain, plain], links([[1, 2], [1, 3], [2, 4]]));
     expect(problems.get(2)).toBe(UNNAMED_OUTCOME_MESSAGE);
     expect(problems.get(0)).toBe(NO_OUTCOMES_MESSAGE);
+    // An outcome that ends the route counts: a discharge recorded at the choice node.
+    const ending = {...choice, outcomes: [...choice.outcomes, {name: 'Discharge', nextStageOrders: []}]};
+    expect(templateGraphProblems([ending, plain, plain], links([[1, 2], [2, 3]])).size).toBe(0);
     expect(templateGraphProblems([plain, plain, plain], links([[1, 3]])).get(1)).toBe(NO_PREDECESSOR_MESSAGE);
     // Routes may end anywhere: a referral, a discharge.
     expect(templateGraphProblems([plain, plain, plain], links([[1, 2], [1, 3]])).size).toBe(0);
