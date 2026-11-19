@@ -1,6 +1,6 @@
 import {searchNow} from '../../app/beforePathways';
 import {CLOSED_REFERRAL_STATUSES, type ReferralSearch, type ReferralStatus} from '../../api/referrals';
-import {parseIdChoice} from '../listSearch';
+import {parseClinic, parseIdChoice} from '../listSearch';
 
 /**
  * The Referrals page's address: its view, page, sort, the patient's name searched for and the teams. The view is
@@ -38,6 +38,8 @@ export interface ReferralsListSearch {
   patient?: string;
   /** Team IDs: an ID choice (see `parseIdChoice`). */
   team?: string;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
 }
 
 const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() || undefined : undefined);
@@ -60,6 +62,7 @@ export function parseReferralsSearch(saved: Record<string, unknown>): ReferralsL
     view: view === 'awaiting' ? undefined : view,
     patient: text(raw.patient),
     team: parseIdChoice(raw.team),
+    clinic: parseClinic(raw.clinic),
   };
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as ReferralsListSearch;
 }

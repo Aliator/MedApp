@@ -342,9 +342,12 @@ describe('parseInsightsSearch', () => {
     expect(parseInsightsSearch({weeks: '12'})).toEqual({});
   });
 
-  it('reads a team by its ID', () => {
+  it('reads the clinic picker’s team by its ID, or all, and an old link’s team as the clinic', () => {
     const team = '0000005A-0000-0000-0000-0000000000AA';
-    expect(parseInsightsSearch({team})).toEqual({team: team.toLowerCase()});
+    expect(parseInsightsSearch({clinic: team})).toEqual({clinic: team.toLowerCase()});
+    expect(parseInsightsSearch({clinic: 'ALL'})).toEqual({clinic: 'all'});
+    expect(parseInsightsSearch({team})).toEqual({clinic: team.toLowerCase()});
+    expect(parseInsightsSearch({clinic: 'Dermatology'})).toEqual({});
   });
 
   it('drops a period it does not offer, and a template or team that is not an ID', () => {

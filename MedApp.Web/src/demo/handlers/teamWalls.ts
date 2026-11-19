@@ -1,6 +1,6 @@
 import type {Schemas} from '../../api/client';
 import type {DemoPerson} from '../accounts';
-import {notFound, problem, refuse} from '../api/http';
+import {invalid, notFound, problem, refuse} from '../api/http';
 import {teamName} from '../seed';
 import type {DemoAppointment, DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
@@ -119,6 +119,20 @@ export function insightsTeams(teamId: string | null, scope: TeamScope = myScope(
   if (scope.seesAllTeams) return (id) => !teamId || id === teamId;
   return (id) => scope.teamIds.includes(id) && (!teamId || id === teamId);
 }
+
+/**
+ * The clinic picker's team (MC6: `TeamId` on the grids' searches), or null for all clinics. An admin may pick any team;
+ * anyone else only one of their own: another is a 400, as the API.
+ */
+export function pickedTeam(query: URLSearchParams, scope: TeamScope = myScope()): string | null {
+  const teamId = query.get('TeamId')?.trim().toLowerCase() || null;
+  if (teamId && !scope.seesAllTeams && !scope.teamIds.some((id) => id.toLowerCase() === teamId))
+    refuse(invalid({teamId: ['Choose one of your own teams, or all of them.']}));
+  return teamId;
+}
+
+/** Whether a record's team is the one picked (always, for all clinics). */
+export const isPickedTeam = (teamId: string | null | undefined, picked: string | null) => !picked || teamId?.toLowerCase() === picked;
 
 /** Refuses a change to a pathway the viewer's team can read but doesn't own (the lab's, after hand-back). */
 export function ensureCanChangePathway(pathway: DemoPathway) {

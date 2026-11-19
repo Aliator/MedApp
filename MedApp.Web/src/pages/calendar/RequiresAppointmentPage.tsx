@@ -24,6 +24,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterField} from '../../components/tables/ListFilterBar';
 import {TextCell} from '../../components/tables/TextCell';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {ukToday} from '../../utils/calendarSlots';
 import {formatAppointmentTime, formatShortDate, ukDay} from '../../utils/dates';
 import {REQUIRES_APPOINTMENT_SORTS, type RequiresAppointmentSearch, type RequiresAppointmentSortColumn} from './calendarSearch';
@@ -45,11 +46,16 @@ export function requiresAppointmentQuery(search: RequiresAppointmentSearch, page
   };
 }
 
-/** The search behind whichever list the page shows: the appointments to book, or the Did not attend list (oldest first). */
-export function requiresAppointmentPageQuery(search: RequiresAppointmentSearch, pageSize?: number): AppointmentSearch {
-  return search.view === 'didNotAttend'
-    ? didNotAttendSearch({page: search.page, pageSize, patient: search.patient})
-    : requiresAppointmentQuery(search, pageSize);
+/**
+ * The search behind whichever list the page shows: the appointments to book, or the Did not attend list (oldest
+ * first); narrowed to the clinic picker's team, if one is picked.
+ */
+export function requiresAppointmentPageQuery(search: RequiresAppointmentSearch, pageSize?: number, teamId?: string): AppointmentSearch {
+  const query =
+    search.view === 'didNotAttend'
+      ? didNotAttendSearch({page: search.page, pageSize, patient: search.patient})
+      : requiresAppointmentQuery(search, pageSize);
+  return teamId ? {...query, TeamId: teamId} : query;
 }
 
 /** What the Did not attend list is, said above it. */
@@ -82,7 +88,8 @@ export interface RequiresAppointmentPageProps {
 export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppointmentPageProps) {
   const {pageSize} = useListSettings();
   const isDidNotAttend = search.view === 'didNotAttend';
-  const {data, isPending, isError} = useQuery(appointmentsQuery(requiresAppointmentPageQuery(search, pageSize)));
+  const clinic = useClinicPicker('appointments', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
+  const {data, isPending, isError} = useQuery(appointmentsQuery(requiresAppointmentPageQuery(search, pageSize, clinic.teamId)));
   const [booking, setBooking] = useState<Appointment | null>(null);
   const [opened, setOpened] = useState<Appointment | null>(null);
   const [followingUp, setFollowingUp] = useState<Appointment | null>(null);
@@ -265,7 +272,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
       label="List"
       style={PRIMARY_TEXT}
       value={isDidNotAttend ? 'didNotAttend' : 'toBook'}
-      onChange={(value) => onSearchChange({view: value === 'didNotAttend' ? 'didNotAttend' : undefined, patient: search.patient})}>
+      onChange={(value) => onSearchChange({view: value === 'didNotAttend' ? 'didNotAttend' : undefined, patient: search.patient, clinic: search.clinic})}>
       <SegmentedControlItem value="toBook" label="To book" />
       <SegmentedControlItem value="didNotAttend" label="Did not attend" />
     </SegmentedControl>
@@ -278,7 +285,12 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
       fill
       backHref="/calendar"
       backLabel="Back to the calendar"
-      actions={listSwitch}
+      actions={
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          {clinic.picker}
+          {listSwitch}
+        </HStack>
+      }
       message={isError && <AlertMessage message="The appointments could not be loaded. Please try again." />}
       dialogs={
         <>
@@ -330,7 +342,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
             <EmptyState
               title="No appointments match your search"
               icon={<Icon icon={AppIcon.Search} size="lg" />}
-              actions={<Button label="Clear Search" variant="secondary" onClick={() => onSearchChange({view: search.view, sort: search.sort, asc: search.asc})} />}
+              actions={<Button label="Clear Search" variant="secondary" onClick={() => onSearchChange({view: search.view, sort: search.sort, asc: search.asc, clinic: search.clinic})} />}
             />
           ) : isDidNotAttend ? (
             <EmptyState title="No missed appointments waiting for a follow-up" icon={<Icon icon={AppIcon.Success} size="lg" />} />

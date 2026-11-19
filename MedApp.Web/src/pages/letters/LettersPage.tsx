@@ -16,6 +16,7 @@ import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {ListFilterBar, type ListFilterFavourite, type ListFilterField, type ListFilterValues} from '../../components/tables/ListFilterBar';
 import {TextCell} from '../../components/tables/TextCell';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 import {formatDateTime} from '../../utils/dates';
 import {defaultLetterView, lettersListQuery, lettersSortOf, type LetterSortColumn, type LettersListSearch, type LettersView} from './lettersSearch';
 
@@ -71,7 +72,8 @@ export function LettersPage({search, onSearchChange}: LettersPageProps) {
   const view = search.view ?? defaultLetterView(user.permissions);
   const page = search.page ?? 1;
   const {pageSize} = useListSettings();
-  const {data, isPending, isError} = useQuery(lettersListQuery(view, search, pageSize));
+  const clinic = useClinicPicker('letters', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
+  const {data, isPending, isError} = useQuery(lettersListQuery(view, search, pageSize, clinic.teamId));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as LetterRow[];
   const isNarrow = useIsNarrow();
@@ -84,6 +86,7 @@ export function LettersPage({search, onSearchChange}: LettersPageProps) {
       patient: typeof values.patient === 'string' ? values.patient : undefined,
       sort: search.sort,
       asc: search.asc,
+      clinic: search.clinic,
     });
 
   const allColumns: DataTableColumn<LetterRow>[] = [
@@ -132,7 +135,12 @@ export function LettersPage({search, onSearchChange}: LettersPageProps) {
   const subtitle = isPending ? 'Loading letters...' : `${viewLabel(view)}: ${total} ${noun}`;
 
   return (
-    <Page title="Letters" subtitle={subtitle} fill message={isError && <AlertMessage message="The letters could not be loaded. Please try again." />}>
+    <Page
+      title="Letters"
+      subtitle={subtitle}
+      fill
+      actions={clinic.picker}
+      message={isError && <AlertMessage message="The letters could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
         columns={columns}
