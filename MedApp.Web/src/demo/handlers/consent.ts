@@ -274,12 +274,30 @@ export function registerConsent() {
   on('post', '/api/consent-forms/{id}/restore', setArchived(false));
 }
 
+/** The consent form whose valid record on a pathway is its photo consent (MC27), by name, any version. */
+export const CLINICAL_PHOTOGRAPHY_FORM = 'Clinical photography';
+
+/** A stage that takes clinical photographs (the Dermatology templates' Take photographs): its gate needs photo consent. */
+export const isPhotoStage = (stage: Pick<DemoStage, 'name'>) => /photograph/i.test(stage.name);
+
+/** A record on the "Clinical photography" form (any version). */
+export const isPhotoConsent = (record: Pick<DemoConsentRecord, 'formName'>) =>
+  record.formName.trim().toLowerCase() === CLINICAL_PHOTOGRAPHY_FORM.toLowerCase();
+
 /**
  * The consent gate (`StageGates.WhyConsentMissing`): a stage that needs consent can't be finished without a Valid
- * record for it. Null when it can. No override.
+ * record for it. A photographs stage needs the patient's consent to clinical photography: a Valid record on the
+ * "Clinical photography" form anywhere on the pathway (MC27, the photo consent a clinical photo needs). Null when it
+ * can. No override.
  */
-export function whyConsentMissing(stage: DemoStage): string | null {
+export function whyConsentMissing(stage: DemoStage, pathwayId?: string): string | null {
   if (!stage.needsConsent) return null;
+  if (isPhotoStage(stage)) {
+    const photo = db().consentRecords.filter((r) => (r.stageId === stage.id || r.pathwayId === pathwayId) && isPhotoConsent(r));
+    if (photo.some((r) => r.status === 'Valid')) return null;
+    const message = `This stage needs the patient's consent to clinical photography before it can be finished: record it on the ${CLINICAL_PHOTOGRAPHY_FORM} form from the pathway's Consent card.`;
+    return photo.some((r) => r.status === 'Withdrawn') ? `${message} The photo consent recorded has been withdrawn.` : message;
+  }
   const forStage = db().consentRecords.filter((r) => r.stageId === stage.id);
   if (forStage.some((r) => r.status === 'Valid')) return null;
   const message = "This stage needs the patient's consent recorded before it can be finished: record it from the pathway's Consent card.";
