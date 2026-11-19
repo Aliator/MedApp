@@ -71,7 +71,7 @@ describe('ReadMePage', () => {
     db().referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
     const {user, router} = renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
 
-    await user.click(await screen.findByRole('button', {name: 'Open the pathway as the lab'}));
+    await user.click(await screen.findByRole('button', {name: 'Open the pathway to add a branch to'}));
     expect(await screen.findByText(/isn’t in your copy of the demo any more/)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/read-me');
 
@@ -80,7 +80,7 @@ describe('ReadMePage', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${REFERRALS.dermatologyToTriage}`));
   });
 
-  it('starts the half-view step on the Read Me itself, closing any half view, with its steps numbered', async () => {
+  it('numbers the half-view step, and opens Account Settings on the left for its fold setting', async () => {
     startLightDemo(ADMIN);
     const halfViews = halfViewsWith('/patients');
     const {user, router} = renderWithApp(
@@ -95,30 +95,12 @@ describe('ReadMePage', () => {
     expect(screen.getByText(/Shift-click Patients in the side nav: it opens on the right again/)).toBeInTheDocument();
     expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) Patients: it opens on the left, and this Read Me moves to the right/)).toBeInTheDocument();
     expect(screen.getByText(/expand button \(Expand sidebar\) at the bottom of the icon rail/)).toBeInTheDocument();
-    expect(screen.getByText(/turn off Fold the side nav in half view in Account Settings/)).toBeInTheDocument();
+    expect(screen.getByText(/Fold the side nav in half view is on unless you turn it off, in Account Settings/)).toBeInTheDocument();
     expect(screen.getByText(/carry on with the tour from it/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Start here, on the Read Me'}));
+    await user.click(screen.getByRole('button', {name: 'Open Account Settings'}));
 
-    expect(halfViews.close).toHaveBeenCalled();
-    expect(halfViews.openOnLeft).not.toHaveBeenCalled();
+    expect(halfViews.openOnLeft).toHaveBeenCalledWith('/account');
     expect(router.state.location.pathname).toBe('/read-me');
-  });
-
-  it('from the Read Me in the right half, the half-view step gives it the whole view', async () => {
-    startLightDemo(ADMIN);
-    const halfViews = halfViewsWith('/read-me');
-    const {user} = renderWithApp(
-      <HalfViewsContext.Provider value={halfViews}>
-        <InHalfPaneContext.Provider value={true}>
-          <ReadMePage />
-        </InHalfPaneContext.Provider>
-      </HalfViewsContext.Provider>,
-      {user: asCurrentUser(ADMIN), path: '/read-me'},
-    );
-
-    await user.click(await screen.findByRole('button', {name: 'Start here, on the Read Me'}));
-
-    expect(halfViews.openFull).toHaveBeenCalledWith('/read-me');
   });
 
   it('opens a step’s page on the left, moving the Read Me on its own to the right, as Ctrl-click does', async () => {
@@ -227,6 +209,6 @@ describe('ReadMePage', () => {
     await user.click(screen.getByRole('button', {name: 'Copy the Notes'}));
 
     expect(await screen.findByRole('button', {name: 'Copied'})).toBeInTheDocument();
-    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Plaques on both elbows, unchanged since the last visit.', 'Patient happy with the care plan; review in 8 weeks.'].join('\n'));
+    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Mole on the left forearm, 6 mm, as in the referral photo.', 'Biopsy explained; patient happy to go ahead.'].join('\n'));
   });
 });
