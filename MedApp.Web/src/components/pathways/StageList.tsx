@@ -13,6 +13,7 @@ import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
 import {AlertMessage} from '../shared/AlertMessage';
+import {ClampedRichText} from '../shared/ClampedRichText';
 import {RichText} from '../shared/RichText';
 import {SnomedConcept} from './SnomedConcept';
 
@@ -38,7 +39,9 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       {stage.isCurrent && <Token size="sm" label="Current stage" color="blue" />}
       {stage.state === 'Completed' && !stage.isLocked && <Token size="sm" label="Unlocked for editing" color="orange" />}
       {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
-      {stage.choiceKind && <Token size="sm" label={`Choice: ${choiceKindLabel(stage.choiceKind).toLowerCase()}`} color="purple" />}
+      {stage.choiceKind && !stage.outcome && (
+        <Token size="sm" label={`Outcome needed: ${choiceKindLabel(stage.choiceKind).toLowerCase()}`} color="purple" />
+      )}
       {stage.outcome && <Token size="sm" label={`Outcome: ${stage.outcome}`} color="purple" />}
       {/* The relay: a stage another team works (the lab's), named on it wherever the pathway is seen. */}
       {stage.ownerTeamName && (
@@ -75,7 +78,7 @@ function StageActivity({stage}: {stage: PathwayStage}) {
   );
 }
 
-/** The stage's notes, formatted (`RichText`), or a note that there are none. */
+/** The stage's notes, formatted and cut to three lines until expanded (`ClampedRichText`), or a note that there are none. */
 export function StageNotes({notes}: {notes: string}) {
   return (
     <VStack gap={1}>
@@ -83,7 +86,7 @@ export function StageNotes({notes}: {notes: string}) {
         Notes
       </Text>
       {notes.trim() ? (
-        <RichText>{notes}</RichText>
+        <ClampedRichText>{notes}</ClampedRichText>
       ) : (
         <Text type="body" color="secondary">
           No notes yet.
@@ -182,7 +185,7 @@ export function StageResult({stage, title}: {stage: PathwayStage; title?: string
  */
 export const labCaseOpenWords = (stage: PathwayStage): string | null =>
   stage.labCaseId && stage.labCaseStatus === 'Open'
-    ? `Lab case ${stage.labCaseNumber ?? ''} is open: authorise its report first, then finish this stage.`
+    ? `Lab case ${stage.labCaseNumber ?? ''} is still open. This stage can be finished once the lab authorises its report.`
     : null;
 
 /** A lab stage's lab case (MC16): its number, linked, and where it stands. */
@@ -194,7 +197,7 @@ export function StageLabCase({stage}: {stage: PathwayStage}) {
       <Link href={`/lab/cases/${stage.labCaseId}`}>{stage.labCaseNumber ?? 'Open the case'}</Link>
       <Text type="body" color="secondary">
         {stage.labCaseStatus === 'Open'
-          ? '(open): authorise its report first, then finish this stage.'
+          ? '(still open): this stage can be finished once the lab authorises its report.'
           : `(${labCaseStatusLabel(stage.labCaseStatus).toLowerCase()})`}
       </Text>
     </HStack>

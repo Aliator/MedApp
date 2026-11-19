@@ -59,7 +59,7 @@ describe('sample words', () => {
     expect(rejectionReasonLabel('InsufficientSample')).toBe('Insufficient sample');
     expect(rejectionReasonLabel('WrongContainer')).toBe('Wrong container');
     expect(rejectionReasonLabel(undefined)).toBe('');
-    expect(SPECIMEN_VIEWS.map(specimenViewLabel)).toEqual(['To receive', 'To send', 'Expected', 'In the lab', 'Overdue', 'Rejected and lost', 'Reported']);
+    expect(SPECIMEN_VIEWS.map(specimenViewLabel)).toEqual(['Not yet received', 'To send', 'On its way', 'In the lab', 'Overdue', 'Rejected and lost', 'Reported']);
     expect(specimenPrintHref(SPECIMEN_ID, 'request')).toBe(`/specimens/${SPECIMEN_ID}/print?sheet=request`);
   });
 });

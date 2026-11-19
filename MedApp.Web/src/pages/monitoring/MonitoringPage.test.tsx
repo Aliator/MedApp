@@ -81,7 +81,7 @@ describe('MonitoringPage', () => {
     expect(preview()).toHaveTextContent('Notify me when anyone finishes a stage on a pathway');
     await pick(user, /Staff member/, 'sam.staff');
     await pick(user, /Stage/, 'Bloods');
-    await pick(user, /Priority/, 'High or higher');
+    await pick(user, /Priority/, 'High or Urgent');
     await pick(user, /Template/, 'Knee review');
     expect(preview()).toHaveTextContent(
       'Notify me when sam.staff finishes Bloods on a High or Urgent priority pathway from the Knee review template',
@@ -316,7 +316,7 @@ describe('MonitoringPage', () => {
     await user.click(await screen.findByRole('button', {name: 'Add Your First Rule'}));
 
     expect(openDialog()).toHaveTextContent('Add Rule');
-    expect(screen.getByText("What staff do that you're told about")).toBeInTheDocument();
+    expect(screen.getByText("Rules for when you're notified about pathway changes and service alerts")).toBeInTheDocument();
   });
 
   it('says when the rules could not be loaded', async () => {

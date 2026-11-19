@@ -155,7 +155,7 @@ describe('RegisterReferralPage', () => {
 
   it('says when the patient could not be loaded', async () => {
     renderPage(REFERRAL_PATIENT_ID, {[PATIENT]: () => json({title: 'Down'}, 500)});
-    expect(await findAlert('The patient could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Patient not loaded')).toBeInTheDocument();
   });
 
   it('cancels back to the list', async () => {

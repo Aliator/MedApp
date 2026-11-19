@@ -151,7 +151,7 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
     <ConfirmDialog
       isOpen={isOpen}
       title="Edit Teams"
-      message={`Tick the teams ${username} works in, and any clinic they're the clinic admin of. An admin is in no team.`}
+      message={`Tick the teams ${username} works in, and any clinic they're the clinic admin of. Admin accounts don't belong to teams.`}
       icon={AppIcon.Teams}
       confirmText="Save Teams"
       confirmDisabled={isLoading || isError || unchanged}

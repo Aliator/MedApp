@@ -24,7 +24,7 @@ export type SaveSubject =
   | 'referral'
   | 'working hours'
   | 'opening hours'
-  | 'specimen type'
+  | 'sample type'
   | 'lab test'
   | 'role'
   | 'practice'

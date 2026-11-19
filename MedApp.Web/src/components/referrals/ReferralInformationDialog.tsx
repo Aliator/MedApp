@@ -15,8 +15,7 @@ export type ReferralInformationStep = 'ask' | 'received';
 const WORDS: Record<ReferralInformationStep, {title: string; message: string; confirm: string}> = {
   ask: {
     title: 'Ask for More Information?',
-    message:
-      "The referral waits, still open, in Information requested until what you asked for arrives. Its clock keeps running. Write the request to the referrer as a letter (Request for more information) from this page. You can still accept, reject or redirect it meanwhile.",
+    message: 'The referral waits in Information requested; its clock keeps running. Send the request as a letter from this page.',
     confirm: 'Ask for More Information',
   },
   received: {
@@ -65,7 +64,7 @@ export function ReferralInformationDialog({step, referral, onCancel, onDone}: Re
       <VStack gap={4} hAlign="stretch">
         {referral.patient && <PatientBanner patient={referral.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
+          <MetadataListItem label="Clinic">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>

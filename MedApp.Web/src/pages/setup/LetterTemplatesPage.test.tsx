@@ -24,7 +24,7 @@ const sent = (fetch: ReturnType<typeof mockApi>, method: string) => fetch.mock.c
 describe('letterTemplateSummary', () => {
   it("gives a template's kind and team, or every team", () => {
     expect(letterTemplateSummary(templates[0])).toBe('Clinic letter · Dermatology');
-    expect(letterTemplateSummary(templates[1])).toBe('Discharge summary · All teams');
+    expect(letterTemplateSummary(templates[1])).toBe('End of care letter · All teams');
   });
 });
 
@@ -38,7 +38,7 @@ describe('LetterTemplatesPage', () => {
       .slice(1)
       .map((r) => within(r).getAllByRole('cell')[0].textContent);
     expect(names).toEqual([
-      'DischargeDischarge summary · All teams',
+      'DischargeEnd of care letter · All teams',
       'Acne follow-upAppointment letter · Dermatology',
       'Skin clinic letterClinic letter · Dermatology',
     ]);
@@ -121,19 +121,19 @@ describe('LetterTemplatesPage', () => {
 
     await user.click(row.getByRole('button', {name: 'Delete letter template'}));
     let dialog = within(openDialog()!);
-    expect(dialog.getByText('Discharge summary · All teams')).toBeInTheDocument();
+    expect(dialog.getByText('End of care letter · All teams')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Cancel'}));
     await waitFor(() => expect(openDialog()).toBeNull());
 
     await user.click(row.getByRole('button', {name: 'Delete letter template'}));
     dialog = within(openDialog()!);
-    await user.click(dialog.getByRole('button', {name: 'Delete'}));
+    await user.click(dialog.getByRole('button', {name: 'Delete Letter Template'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     await expectAnnounced('Discharge deleted');
     expect(calls(fetch)).toContain(`DELETE ${BASE}/l2`);
 
     await user.click(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Delete letter template'}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Delete Letter Template'}));
     expect(await findAlert('A letter has been written from it since: archive it instead.')).toBeInTheDocument();
     expect(openDialog()).toBeNull();
   });

@@ -150,7 +150,7 @@ export function NewPathwayPage({patientId}: NewPathwayPageProps) {
         ) : problem.message ? (
           <AlertMessage label="Pathway not added" message={problem.message} />
         ) : templates.error ? (
-          <AlertMessage label="Templates not loaded" message="The templates could not be loaded. Please try again." />
+          <AlertMessage label="Templates not loaded" />
         ) : (
           // The patient's restricted, disputed or anonymised banners, as on every page about the patient (hazard H-22).
           patient.data && <PatientFlagBanners patient={patient.data} />

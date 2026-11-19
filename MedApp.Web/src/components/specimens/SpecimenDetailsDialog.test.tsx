@@ -68,7 +68,7 @@ describe('SpecimenDetailsDialog', () => {
     expect(dialog().getByRole('textbox', {name: /Time taken/})).toHaveValue('14:05');
     expect(isDisabled(dialog().getByRole('button', {name: 'Record Sample'}))).toBe(true);
 
-    await choose(user, /Specimen type/, 'Skin biopsy (punch)');
+    await choose(user, /Sample type/, 'Skin biopsy (punch)');
     await user.type(dialog().getByRole('textbox', {name: /Site/}), 'Left forearm');
     await user.type(dialog().getByRole('textbox', {name: /Notes for the lab/}), 'Please process today');
     await user.click(dialog().getByRole('button', {name: 'Record Sample'}));
@@ -93,7 +93,7 @@ describe('SpecimenDetailsDialog', () => {
     const {user, fetch} = renderDialog({}, {[RECORD]: () => answer});
 
     await screen.findByRole('heading', {name: 'Record Sample'});
-    await choose(user, /Specimen type/, 'Wound swab');
+    await choose(user, /Sample type/, 'Wound swab');
     await choose(user, /Requesting clinician/, 'dr.synthetic');
     const time = dialog().getByRole('textbox', {name: /Time taken/});
     await user.clear(time);
@@ -131,12 +131,12 @@ describe('SpecimenDetailsDialog', () => {
     );
 
     expect(await screen.findByRole('heading', {name: 'Edit Sample MA26-000123'})).toBeInTheDocument();
-    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Specimen type/})).toHaveTextContent('Old type (archived)'));
+    await waitFor(() => expect(dialog().getByRole('combobox', {name: /Sample type/})).toHaveTextContent('Old type (archived)'));
     expect(dialog().getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('Deleted user');
     expect(dialog().getByRole('textbox', {name: /Site/})).toHaveValue('Left forearm');
     expect(dialog().getByRole('combobox', {name: /Taken on/})).toHaveValue('2 November 2026');
 
-    await choose(user, /Specimen type/, 'Skin biopsy (punch)');
+    await choose(user, /Sample type/, 'Skin biopsy (punch)');
     await user.click(dialog().getByRole('button', {name: 'Save'}));
 
     await expectAnnounced('Sample details saved');
@@ -160,7 +160,7 @@ describe('SpecimenDetailsDialog', () => {
         'GET /api/calendar/staff': () => json({}, 500),
       },
     );
-    expect(await screen.findByText('The specimen types could not be loaded.')).toBeInTheDocument();
+    expect(await screen.findByText('The sample types could not be loaded.')).toBeInTheDocument();
     expect(await screen.findByText('The staff could not be loaded.')).toBeInTheDocument();
   });
 });

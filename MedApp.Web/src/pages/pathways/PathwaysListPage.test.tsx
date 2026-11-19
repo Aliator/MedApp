@@ -327,6 +327,6 @@ describe('PathwaysListPage', () => {
   it('says when the pathways cannot be loaded', async () => {
     renderList({}, {body: {title: 'Server error'}, status: 500});
 
-    await findAlert('The pathways could not be loaded. Please try again.');
+    await findAlert('Pathways not loaded');
   });
 });

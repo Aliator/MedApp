@@ -48,7 +48,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 25;
+export const SEED_VERSION = 26;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -56,7 +56,7 @@ export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
   {id: ACTIVITY_TYPES.admin, name: 'Admin time', colour: 'gray', isArchived: false, canBeDeleted: false},
   {id: ACTIVITY_TYPES.lunch, name: 'Lunch', colour: 'green', isArchived: false, canBeDeleted: false},
   {id: ACTIVITY_TYPES.triage, name: 'Triage', colour: 'orange', isArchived: false, canBeDeleted: false},
-  {id: ACTIVITY_TYPES.minorSurgery, name: 'Minor surgery', colour: 'purple', isArchived: false, canBeDeleted: false},
+  {id: ACTIVITY_TYPES.procedureList, name: 'Procedure list', colour: 'purple', isArchived: false, canBeDeleted: false},
 ];
 
 export const SITE = {id: SITES.centre, name: 'Community Specialist Centre (synthetic)'};
@@ -350,7 +350,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
       result:
         isLabs && completedAtUtc
           ? {
-              text: results.get(stage.templateStageOrder ?? 0) ?? 'Reported (synthetic): see the full report on the result.',
+              text: results.get(stage.templateStageOrder ?? 0) ?? 'Reported: see the full report on the result.',
               enteredByUserId: worker,
               enteredAtUtc: completedAtUtc,
             }
@@ -513,20 +513,20 @@ export function seed(): DemoState {
     [
       {
         n: 1, id: PATHWAYS.biopsyToBook, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.suspectedSkinCancer,
-        title: 'Changing mole, left forearm', dueIn: 30, priority: 'High', done: 2, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, status: 'InProgress',
+        title: 'Scaly lesion, left forearm', dueIn: 30, priority: 'High', done: 2, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 14, referralId: REFERRALS.ellisAccepted,
-        notes: [{authorUserId: STAFF.id, text: 'Seen in clinic. Plan a punch biopsy within two weeks.', daysAgo: 10}],
+        notes: [{authorUserId: STAFF.id, text: 'Seen in clinic: a non-healing scaly lesion, not pigmented. Plan a punch biopsy within two weeks.', daysAgo: 10}],
       },
       {
         n: 2, id: PATHWAYS.histologyToFinish, patientId: PATIENTS.priyaHolloway, templateId: TEMPLATES.suspectedSkinCancer,
-        title: 'Pigmented lesion, upper back', dueIn: 20, priority: 'High', done: 3, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, started: true, status: 'InProgress',
+        title: 'Non-pigmented lesion, upper back', dueIn: 20, priority: 'High', done: 3, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, started: true, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 28,
       },
       {
         n: 3, id: PATHWAYS.onHold, patientId: PATIENTS.samuelOkafor, templateId: TEMPLATES.skinInfection,
-        title: 'Scaly rash on both hands', dueIn: 40, priority: 'Medium', done: 2, outcomes: {'Infection assessment': 'Sample needed'},
-        started: true, status: 'Blocked',
-        blockedFrom: 'InProgress', assignee: USERS.hallworth, createdDaysAgo: 35,
+        title: 'Scaly rash on both hands', dueIn: 40, priority: 'Medium', done: 3, outcomes: {'Infection assessment': 'Sample needed'},
+        status: 'Blocked',
+        blockedFrom: 'InProgress', assignee: USERS.hallworth, createdDaysAgo: 40,
         notes: [{authorUserId: USERS.hallworth, text: 'On hold while the patient is away for a month.', daysAgo: 3}],
       },
       {
@@ -534,16 +534,16 @@ export function seed(): DemoState {
         title: 'New lesion, right cheek', dueIn: 60, priority: 'Medium', done: 0, status: 'Unassigned', createdDaysAgo: 2,
       },
       {
-        n: 8, id: PATHWAYS.followUpBooked, patientId: PATIENTS.ilonaPetrova, templateId: TEMPLATES.psoriasis,
-        title: 'Psoriasis, new care plan', dueIn: 25, priority: 'Medium', done: 3, outcomes: {'Psoriasis assessment': 'Self-care is enough'},
-        status: 'InProgress',
+        n: 8, id: PATHWAYS.followUpBooked, patientId: PATIENTS.ilonaPetrova, templateId: TEMPLATES.inflammatorySkin,
+        title: 'Itchy rash, arms and legs', dueIn: 25, priority: 'Medium', done: 3, outcomes: {'Skin assessment': 'Blood tests needed'},
+        started: true, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 45,
       },
       {
         n: 9, id: PATHWAYS.referredToHospital, patientId: PATIENTS.harrietQuill, templateId: TEMPLATES.suspectedSkinCancer,
         title: 'Basal cell carcinoma, left temple', dueIn: -3, priority: 'High', done: 5, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 40, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy', 'Histology result': 'Low-risk BCC'},
-        results: {Histology: 'Basal cell carcinoma, nodular type (synthetic report).'},
+        results: {Histology: 'Basal cell carcinoma, nodular type.'},
         notes: [{authorUserId: STAFF.id, text: 'Team review: photograph, then refer to the hospital for excision.', daysAgo: 6}],
       },
       {
@@ -565,7 +565,7 @@ export function seed(): DemoState {
         n: 14, id: PATHWAYS.backFromLab, patientId: PATIENTS.callumAshby, templateId: TEMPLATES.suspectedSkinCancer,
         title: 'Scaly patch, back of the right hand', dueIn: 24, priority: 'Medium', done: 4, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy'}, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 21,
-        results: {Histology: 'Seborrhoeic keratosis, no dysplasia (synthetic report).'},
+        results: {Histology: 'Seborrhoeic keratosis, no dysplasia.'},
       },
       // Photo consent (MC27, the tour's side story in MC29): the dermoscopy was uncertain, so Take photographs is next,
       // and it needs her consent to clinical photography, not recorded yet.
@@ -574,13 +574,20 @@ export function seed(): DemoState {
         title: 'Atypical mole, left shoulder', dueIn: 45, priority: 'Medium', done: 2, outcomes: {'Dermoscopy assessment': 'Uncertain: monitor'},
         status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 12,
       },
-      // The tour's relay (the owner, 19 November 2026), three stages: Triage, started, waiting for her consent (her
-      // sample is already with the lab, its case worked up to the results: `seedLabCases`); the lab's Testing; then a
-      // Results appointment to book.
+      // The tour's relay (the owner, 19 November 2026), three stages: Triage, seen yesterday afternoon, where a skin
+      // scraping was taken with her verbal agreement, never recorded, so it waits for her consent (her sample is already
+      // with the lab, its case worked up to the results: `seedLabCases`); the lab's Testing; then a Results appointment
+      // to book.
       {
         n: 16, id: PATHWAYS.relay, patientId: PATIENTS.leahCorrin, templateId: TEMPLATES.skinSample,
         title: 'Scaly patch, left forearm', dueIn: 21, priority: 'Medium', done: 0, started: true, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 3,
+      },
+      // Ilona Petrova's second pathway: seen this morning at Take skin sample, her scraping taken and not yet sent.
+      {
+        n: 17, id: PATHWAYS.scrapingToSend, patientId: PATIENTS.ilonaPetrova, templateId: TEMPLATES.skinInfection,
+        title: 'Scaly patch, right elbow', dueIn: 40, priority: 'Medium', done: 2, outcomes: {'Infection assessment': 'Sample needed'},
+        started: true, status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 20,
       },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
@@ -592,13 +599,14 @@ export function seed(): DemoState {
     makeReferral(REFERRALS.aishaDermatology, PATIENTS.aishaKhoury, TEAMS.dermatology, 6, 'Medium',
       'Persistent rash on both hands despite emollients.'),
     makeReferral(REFERRALS.ellisAccepted, PATIENTS.ellisVarden, TEAMS.dermatology, 16, 'High',
-      'Mole on the left forearm has changed shape and colour.',
+      'Scaly lesion on the left forearm, not healing for 4 months.',
       {pathwayId: PATHWAYS.biopsyToBook, daysAgo: 14, templateName: 'Suspected skin cancer'}),
   ];
 
   const pathway = (id: string) => pathways.find((p) => p.id === id)!;
-  // The relay's Triage needs her consent on this pathway (the tour's first step records it).
-  pathway(PATHWAYS.relay).stages[0].needsConsent = true;
+  // The relay's Triage, on this pathway, needs a visit (attended yesterday, where her scraping was taken) and her consent
+  // (the tour's first step records it). The template's stage needs neither, as the library's Triage doesn't.
+  Object.assign(pathway(PATHWAYS.relay).stages[0], {visitRequirement: 'Required', needsConsent: true});
   const patientName = (id: string) => {
     const spec = PATIENT_SPECS.find(([key]) => key === id)!;
     return `${spec[1]} ${spec[2]}`;
@@ -649,7 +657,10 @@ export function seed(): DemoState {
     };
   };
   const appointments = [
-    appointment(APPOINTMENTS.ilonaFollowUp, PATHWAYS.followUpBooked, 3, STAFF, weekdayAhead(1), 14, 0, 20, 'Booked'),
+    // To go through her blood results (at Blood results, still to come).
+    appointment(APPOINTMENTS.ilonaFollowUp, PATHWAYS.followUpBooked, 4, STAFF, weekdayAhead(1), 14, 0, 20, 'Booked'),
+    appointment(MORE_APPOINTMENTS.ilonaBloods, PATHWAYS.followUpBooked, 2, STAFF, daysFrom(-4), 9, 45, 15, 'Attended'),
+    appointment(MORE_APPOINTMENTS.ilonaRepeatBloods, PATHWAYS.followUpBooked, 2, STAFF, daysFrom(-3), 10, 45, 15, 'Attended'),
     appointment(APPOINTMENTS.ellisFirstVisit, PATHWAYS.biopsyToBook, 1, STAFF, weekdayBack(10), 9, 30, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaFirstVisit, PATHWAYS.histologyToFinish, 1, STAFF, weekdayBack(20), 9, 0, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, STAFF, weekdayBack(12), 11, 0, 30, 'Attended'),
@@ -657,10 +668,25 @@ export function seed(): DemoState {
     appointment(MORE_APPOINTMENTS.harrietBiopsy, PATHWAYS.referredToHospital, 2, STAFF, weekdayBack(28), 11, 30, 30, 'Attended', ROOMS.procedureRoom),
     appointment(MORE_APPOINTMENTS.harrietResults, PATHWAYS.referredToHospital, 4, STAFF, weekdayBack(0), 9, 0, 20, 'Attended'),
     appointment(MORE_APPOINTMENTS.felixFirstVisit, PATHWAYS.branchToChoose, 1, STAFF, weekdayBack(1), 14, 0, 30, 'Attended'),
+    // The relay's Triage visit, yesterday afternoon (the last weekday's): her skin scraping was taken there.
+    appointment(MORE_APPOINTMENTS.leahTriage, PATHWAYS.relay, 0, STAFF, weekdayBack(1), 15, 0, 30, 'Attended'),
   ];
-  // Pathways whose stage visits were attended had those stages started by the visit.
-  pathway(PATHWAYS.followUpBooked).stages[3].startedAtUtc = ago(2, 9, 0);
-  pathway(PATHWAYS.followUpBooked).stages[3].startedByUserId = STAFF.id;
+  // Ilona Petrova's skin sample visit this morning (or 45 minutes ago, early in the day), never in the future; it
+  // started her Take skin sample stage.
+  const sampleVisit = appointment(MORE_APPOINTMENTS.ilonaSample, PATHWAYS.scrapingToSend, 2, STAFF, on, 9, 0, 15, 'Attended');
+  const sampleVisitStart = Math.min(Date.parse(sampleVisit.startUtc!), Date.now() - 45 * 60000);
+  const sampleVisitEnd = new Date(sampleVisitStart + 15 * 60000).toISOString();
+  Object.assign(sampleVisit, {startUtc: new Date(sampleVisitStart).toISOString(), endUtc: sampleVisitEnd, outcomeAtUtc: sampleVisitEnd});
+  appointments.push(sampleVisit);
+  Object.assign(pathway(PATHWAYS.scrapingToSend).stages[2], {startedAtUtc: sampleVisit.startUtc, startedByUserId: STAFF.id});
+
+  // Samuel Okafor's Take skin sample was finished at the visit his scraping was taken, so the lab's Microbiology has
+  // been current since (waiting for the sample, still on its way, while he's on hold).
+  const samuel = pathway(PATHWAYS.onHold);
+  const [takeSample, microbiology] = [samuel.stages[2], samuel.stages[3]];
+  Object.assign(takeSample, {startedAtUtc: ago(13, 10, 15), completedAtUtc: ago(13, 10, 45)});
+  microbiology.reachedAtUtc = takeSample.completedAtUtc;
+  samuel.handovers.find((h) => h.stageId === microbiology.id)!.atUtc = takeSample.completedAtUtc!;
 
   // This week's and next week's blocks on Nadia Thornbury's calendar.
   const blocks: Schemas['CalendarBlockResponse'][] = [];
@@ -689,7 +715,7 @@ export function seed(): DemoState {
       const date = thisWeek(week + day, on);
       block(STAFF.id, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
       if (day === 2) block(STAFF.id, date, ACTIVITY_TYPES.triage, [9, 0], [10, 30], 'Referral triage');
-      if (day === 1 || day === 3) block(STAFF.id, date, ACTIVITY_TYPES.minorSurgery, [9, 0], [12, 0], 'Minor surgery list');
+      if (day === 1 || day === 3) block(STAFF.id, date, ACTIVITY_TYPES.procedureList, [9, 0], [12, 0], 'Biopsy list');
       if (day === 0 || day === 4) block(STAFF.id, date, ACTIVITY_TYPES.clinic, [13, 30], [17, 0], 'Skin clinic');
     }
   }
@@ -792,7 +818,7 @@ export function seed(): DemoState {
         id: '000000e0-0000-4000-8000-000000000002',
         userId: STAFF.id,
         kind: 'PathwayAssigned',
-        title: 'Pigmented lesion, upper back',
+        title: 'Non-pigmented lesion, upper back',
         message: `${ADMIN.username} assigned you to this pathway.`,
         pathwayId: PATHWAYS.histologyToFinish,
         createdAtUtc: ago(28, 9, 20),

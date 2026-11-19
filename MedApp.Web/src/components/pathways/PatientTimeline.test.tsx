@@ -96,7 +96,7 @@ describe('PatientTimeline', () => {
     mockApi({[`GET ${OVERVIEW}`]: () => json({title: 'Down'}, 500), [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null})});
     renderWithApp(<Harness />, {user: staffUser});
 
-    expect(await findAlert("What's due could not be loaded.")).toBeInTheDocument();
+    expect(await findAlert("What's due not loaded")).toBeInTheDocument();
   });
 
   it('shows the feed by UK day: what happened, to which pathway, when and by whom', async () => {
@@ -163,10 +163,10 @@ describe('PatientTimeline', () => {
     });
     renderWithApp(<Harness />, {user: staffUser});
 
-    const approved = within((await screen.findByText('Discharge summary approved')).closest('li')!);
-    expect(approved.getByRole('link', {name: 'The discharge summary'})).toHaveAttribute('href', '/letters/l1');
+    const approved = within((await screen.findByText('End of care letter approved')).closest('li')!);
+    expect(approved.getByRole('link', {name: 'The end of care letter'})).toHaveAttribute('href', '/letters/l1');
     expect(approved.getByRole('link', {name: 'Knee assessment'})).toHaveAttribute('href', `/pathways/${pathwayId}`);
-    expect(screen.getByText("Discharge summary couldn't be sent to the GP practice")).toBeInTheDocument();
+    expect(screen.getByText("End of care letter couldn't be sent to the GP practice")).toBeInTheDocument();
     const reply = within(screen.getByText('Referral response started').closest('li')!);
     expect(reply.getByRole('link', {name: 'The referral response'})).toHaveAttribute('href', '/letters/l2');
     expect(reply.getByRole('link', {name: 'Referral to Dermatology'})).toHaveAttribute('href', '/referrals/r1');
@@ -344,7 +344,7 @@ describe('PatientTimeline', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Load More'}));
 
-    expect(await findAlert('Older entries could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Older entries not loaded')).toBeInTheDocument();
     expect(screen.getByText('Finished Consultation')).toBeInTheDocument();
     // Longer than the announcer waits before it speaks.
     await new Promise((resolve) => setTimeout(resolve, 300));
@@ -405,10 +405,10 @@ describe('PatientTimeline', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Notes&PathwayIds=${otherPathwayId}`));
     expect(notes).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(screen.getByRole('button', {name: 'Show everything'}));
+    await user.click(screen.getAllByRole('button', {name: 'Show Everything'})[0]);
 
     await waitFor(() => expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'false'));
-    expect(screen.queryByRole('button', {name: 'Show everything'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Show Everything'})).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', {name: 'Notes'}));
     await user.click(screen.getByRole('button', {name: 'Notes'}));
@@ -469,7 +469,7 @@ describe('PatientTimeline', () => {
     const {user} = renderWithApp(<Harness initial={{kinds: ['Blocks'], pathwayIds: []}} />, {user: staffUser});
 
     expect(await screen.findByText('Nothing matches these filters')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Show Everything'}));
+    await user.click(screen.getAllByRole('button', {name: 'Show Everything'})[0]);
 
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20`));
     expect(await screen.findByText('Nothing has happened yet')).toBeInTheDocument();
@@ -479,7 +479,7 @@ describe('PatientTimeline', () => {
     mockApi({[`GET ${OVERVIEW}`]: () => json(overview), [`GET ${TIMELINE}`]: () => json({title: 'Down'}, 500)});
     renderWithApp(<Harness />, {user: staffUser});
 
-    expect(await findAlert('The timeline could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await findAlert('Timeline not loaded')).toBeInTheDocument();
   });
 
   it('gives each kind of entry its own words', async () => {
@@ -518,7 +518,7 @@ describe('PatientTimeline', () => {
       'No longer assigned to other.staff',
       'Put on hold',
       'Taken off hold',
-      'Status changed to discharged',
+      'Status changed to completed',
       'Status changed to cancelled',
       'Saved notes on Consultation',
       'Target date changed',

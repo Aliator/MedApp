@@ -181,7 +181,7 @@ describe('server rendering', () => {
     expect(html).toContain(title);
     expect(html).toContain('Reading the link');
     expect(html).not.toContain('Change Password');
-    expect(html).not.toContain('Confirm email address');
+    expect(html).not.toContain('Confirm Email Address');
     expect(requests).toEqual([]);
   });
 
@@ -279,7 +279,7 @@ describe('server rendering', () => {
 
     const html = await (await page('/admin/settings', 'medapp_session=abc')).text();
 
-    expect(html).toContain("3 admin accounts haven&#x27;t set up an authenticator app; they&#x27;ll be asked to at their next request.");
+    expect(html).toContain("3 admin accounts haven&#x27;t set up an authenticator app. They&#x27;ll be asked to the next time they use MedApp.");
   });
 
   it("renders a signed-in page with its data, fetched as the user with their cookie, in the account's settings", async () => {
@@ -703,7 +703,7 @@ describe('server rendering', () => {
     const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(html).toContain('Discharged this week');
+    expect(html).toContain('Completed this week');
     expect(html).toContain('5 pathways are overdue. k.ashford has the most (3). 2 have nobody assigned.');
     expect(html).toContain('role="img" aria-label="Bar chart. Of 5 overdue, 1 is urgent and 2 high priority."');
     expect(html).not.toContain('recharts-surface');

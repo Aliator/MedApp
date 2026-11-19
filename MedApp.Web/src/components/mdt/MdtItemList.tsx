@@ -117,7 +117,7 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
                       onClick={() => setAsking({item, kind: 'outcome'})} isDisabled={isBusy} />
                   )}
                   {item.canChoosePresenter && (
-                    <Button label="Presenter" variant="ghost" size="sm" icon={<Icon icon={AppIcon.Assign} />}
+                    <Button label="Set Presenter" variant="ghost" size="sm" icon={<Icon icon={AppIcon.Assign} />}
                       onClick={() => setAsking({item, kind: 'presenter'})} isDisabled={isBusy} />
                   )}
                   {item.canDefer && (

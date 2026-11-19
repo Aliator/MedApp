@@ -35,7 +35,7 @@ describe('HospitalRequestsPage', () => {
     expect(screen.getAllByText('RG-204817').length).toBeGreaterThan(0);
     expect(screen.getAllByText('NHS No. 999 103 1375').length).toBeGreaterThan(0);
     expect(screen.getByText('Urgent')).toBeInTheDocument();
-    expect(screen.getByText('Cancer pathway')).toBeInTheDocument();
+    expect(screen.getByText("Hospital's urgent cancer pathway")).toBeInTheDocument();
     expect(screen.getByText('No date given')).toBeInTheDocument();
     expect(screen.getByText('2 requests')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Register Request'})).toBeInTheDocument();

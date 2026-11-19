@@ -59,7 +59,7 @@ describe('result words', () => {
     ]);
     expect(resultActionLabel('ForMdtDiscussion')).toBe('To be discussed at MDT');
     expect(resultActionLabel(undefined)).toBe('');
-    expect(resultSourceLabel('Specimen')).toBe('Specimen report');
+    expect(resultSourceLabel('Specimen')).toBe('Sample report');
     expect(resultSourceLabel('ExternalReport')).toBe('External report');
     expect(RESULT_VIEWS.map((v) => resultViewLabel(v.value))).toEqual([
       'Awaiting my sign-off',

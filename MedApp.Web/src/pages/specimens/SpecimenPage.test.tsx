@@ -232,7 +232,7 @@ describe('SpecimenPage', () => {
     await opens(button('Attach Report'), 'Attach Report');
     await opens(menu(/^Reject/), 'Reject Sample');
     await opens(menu(/^Mark Lost/), 'Mark Lost');
-    await opens(menu(/^Entered in Error/), 'Mark Entered in Error?');
+    await opens(menu(/^Mark Entered in Error/), 'Mark Entered in Error?');
 
     await user.click(screen.getByRole('button', {name: 'Hide steps'}));
     expect(screen.queryByRole('list', {name: 'Steps'})).not.toBeInTheDocument();
@@ -250,7 +250,7 @@ describe('SpecimenPage', () => {
 
   it('says when it could not be loaded', async () => {
     renderPage(() => json({}, 500));
-    expect(await screen.findByText('The sample could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Sample not loaded')).toBeInTheDocument();
   });
 
   it('lists the steps in order, a closed one ending with how it closed', () => {

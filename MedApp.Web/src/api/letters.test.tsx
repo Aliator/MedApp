@@ -44,10 +44,10 @@ function hooks<T>(hook: () => T, queryClient = new QueryClient()) {
 }
 
 describe('letter words', () => {
-  it('words kinds as the API does, with "Letter" for Other, and anything unknown as it came', () => {
+  it('words kinds as the API does, with "General letter" for Other, and anything unknown as it came', () => {
     expect(letterKindWords('ClinicLetter')).toBe('Clinic letter');
     expect(letterKindWords('InformationRequest')).toBe('Request for more information');
-    expect(letterKindWords('Other')).toBe('Letter');
+    expect(letterKindWords('Other')).toBe('General letter');
     expect(letterKindWords('Telegram')).toBe('Telegram');
     expect(letterKindWords(null)).toBe('Letter');
   });
@@ -65,7 +65,7 @@ describe('letter words', () => {
   });
 
   it('words what a stage needs, with the right article', () => {
-    expect(needsLetterWords('DischargeSummary')).toBe('Needs a discharge summary, approved and sent, before it can be finished.');
+    expect(needsLetterWords('DischargeSummary')).toBe('Needs an end of care letter, approved and sent, before it can be finished.');
     expect(needsLetterWords('AppointmentLetter')).toBe('Needs an appointment letter, approved and sent, before it can be finished.');
     expect(needsLetterWords('None')).toBeNull();
     expect(needsLetterWords(null)).toBeNull();

@@ -54,7 +54,7 @@ export function EmailMeACode({send, password}: EmailMeACodeProps) {
       ) : (
         <>
           <Button
-            label="Email me a code"
+            label="Email Me a Code"
             variant="secondary"
             icon={<Icon icon={AppIcon.Email} />}
             isDisabled={password === ''}

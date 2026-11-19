@@ -479,7 +479,7 @@ export function referralEventWords(event: ReferralEvent): {title: string; detail
       };
     default:
       return {
-        title: `${statusLabel(event.action ?? 'Changed')} by ${by}`,
+        title: `Record changed by ${by}`,
         detail: event.toStatus ? `Now ${referralStatusLabel(event.toStatus).toLowerCase()}` : '',
       };
   }
@@ -508,7 +508,7 @@ export const MAX_PAUSE_REVIEW_DAYS = 90;
 
 const STOP_REASON_WORDS: Record<string, string> = {
   StopStageFinished: 'Clock-stop stage finished',
-  PathwayDischarged: 'Discharged',
+  PathwayDischarged: 'Pathway completed',
   PathwayCancelled: 'Pathway cancelled',
   Rejected: 'Rejected',
   RedirectedElsewhere: 'Redirected elsewhere',

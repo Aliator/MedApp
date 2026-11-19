@@ -23,6 +23,6 @@ describe('IncomingConsults', () => {
   it('says when they could not be loaded', async () => {
     mockApi({'GET /api/consults/incoming': () => json({}, 500)});
     renderWithApp(<IncomingConsults title="Consults for the lab" />);
-    expect(await screen.findByText('Consults for the lab could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Consults for the lab not loaded')).toBeInTheDocument();
   });
 });

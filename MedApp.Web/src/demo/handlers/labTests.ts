@@ -26,7 +26,7 @@ function labTestResponse(test: DemoLabTest): Schemas['LabTestResponse'] {
 function checked(body: Schemas['LabTestRequest'], id: string | undefined) {
   const errors: Record<string, string[]> = {};
   const kind = KINDS.find((k) => k === body.kind);
-  if (!kind) errors.kind = [`The kind must be one of: ${KINDS.join(', ')}.`];
+  if (!kind) errors.kind = ['Choose the kind of test.'];
   const target = body.targetDays ?? 0;
   const limit = body.limitDays ?? 0;
   const atRisk = body.atRiskDays ?? 0;
@@ -41,7 +41,7 @@ function checked(body: Schemas['LabTestRequest'], id: string | undefined) {
   steps.forEach((step, i) => {
     const name = step.name?.trim() ?? '';
     if (!name || name.length > MAX_NAME) errors[`steps[${i}].name`] = [`Give step ${i + 1} a name of at most ${MAX_NAME} characters.`];
-    if (!STEP_KINDS.some((k) => k === step.kind)) errors[`steps[${i}].kind`] = [`Step ${i + 1}'s kind must be one of: ${STEP_KINDS.join(', ')}.`];
+    if (!STEP_KINDS.some((k) => k === step.kind)) errors[`steps[${i}].kind`] = [`Choose step ${i + 1}'s kind.`];
   });
   const code = snomedCode(body.snomedCode);
   if (Object.keys(errors).length > 0) refuse(invalid(errors));

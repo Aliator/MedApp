@@ -3,6 +3,7 @@ import {RadioList, RadioListItem} from '@astryxdesign/core/RadioList';
 import {VStack} from '@astryxdesign/core/Stack';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {useQuery} from '@tanstack/react-query';
+import {useNavigate} from '@tanstack/react-router';
 import {useState, type ReactNode} from 'react';
 import {staffWithPermissionQuery} from '../../api/calendar';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
@@ -79,10 +80,14 @@ function useOutcome(failed: string, notDone: string) {
  * Signing a result off (decision 94): what was done, from the six actions in their fixed order, **none chosen to
  * start with** (the clinician chooses; MedApp never suggests one or checks it fits the report), and a detail, required
  * for Other (1,000 characters). Sends the version the page shows. Mount it afresh for each opening, so it starts empty.
+ * A result on a pathway goes back to it once signed off ("Sign Off and Open Pathway", as authorising a lab case does);
+ * one with no pathway stays where it is.
  */
 export function SignOffResultDialog({result, onClose}: ResultDialogProps) {
   const announce = useAnnounce();
+  const navigate = useNavigate();
   const {signOff} = useResultActions(result.id ?? '');
+  const pathwayId = result.pathwayId;
   const outcome = useOutcome('The result could not be signed off.', 'Not signed off');
   const [action, setAction] = useState('');
   const [detail, setDetail] = useState('');
@@ -97,6 +102,7 @@ export function SignOffResultDialog({result, onClose}: ResultDialogProps) {
         onSuccess: () => {
           announce('Result signed off');
           onClose();
+          if (pathwayId) void navigate({to: '/pathways/$id', params: {id: pathwayId}});
         },
         onError: outcome.onError,
       },
@@ -110,7 +116,7 @@ export function SignOffResultDialog({result, onClose}: ResultDialogProps) {
       message="Record what was done about this result. Signing off is final, and it leaves the list of results awaiting sign-off."
       icon={AppIcon.SignOff}
       intent="accent"
-      confirmText="Sign Off"
+      confirmText={pathwayId ? 'Sign Off and Open Pathway' : 'Sign Off'}
       confirmDisabled={!isComplete}
       isProcessing={signOff.isPending}
       hasSaveShortcut
@@ -228,7 +234,7 @@ export function TakeOverResultDialog({result, userId, onClose}: ResultDialogProp
       message={
         result.needsClinician
           ? `${result.responsibleUsername} can no longer sign results off. You become responsible for signing it off.`
-          : `It's ${result.responsibleUsername}'s now. You become responsible for signing it off, and they're no longer.`
+          : `It's ${result.responsibleUsername}'s now. You become responsible for signing it off instead of them.`
       }
       icon={AppIcon.Assign}
       intent="accent"

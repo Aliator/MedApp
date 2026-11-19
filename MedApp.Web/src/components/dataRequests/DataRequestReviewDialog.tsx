@@ -221,7 +221,7 @@ function ReviewItem({
         {choice.isWithheld && (
           <TextArea
             label="Why it's withheld"
-            description="The serious harm it would be likely to cause."
+            description="The serious harm it would be likely to cause, or the third party it would identify."
             value={choice.reason}
             onChange={(reason) => onChange({reason})}
             rows={2}

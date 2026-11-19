@@ -99,7 +99,7 @@ export function ReferralDetailsFields({value, onChange, errors, isDisabled = fal
       <FormSection title="Referral">
         <AnchoredSelector
           label="Clinic"
-          placeholder={teams.isPending ? 'Loading teams...' : 'Choose the team asked for'}
+          placeholder={teams.isPending ? 'Loading clinics...' : 'Choose the clinic'}
           options={options}
           value={value.teamId || undefined}
           onChange={(v: string) => set('teamId', v)}

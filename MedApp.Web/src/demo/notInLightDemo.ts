@@ -39,7 +39,7 @@ export const notInLightDemo: Record<string, string> = {
   // Pathways (the stage library, templates, stages, notes).
 
   // Lab: specimens, specimen types, lab tests and results (and referrals).
-  'POST /api/specimens/{id}/report': 'No file uploads in the light demo: a specimen’s report is a file the lab attaches.',
+  'POST /api/specimens/{id}/report': 'No file uploads in the light demo: a sample’s report is a file the lab attaches.',
   'POST /api/results/external': 'No files in the light demo: a result from elsewhere is an attached file marked as one.',
 
   // Clinical: letters, letter templates, the MDT list, consent forms and records.
@@ -48,8 +48,8 @@ export const notInLightDemo: Record<string, string> = {
   'POST /api/consent-records/{id}/scan': 'No files in the light demo: a consent form’s scan is an uploaded file.',
 
   // Setup and admin: practices, sites, rooms, hours, clinics, teams, roles, users, monitoring, logs, jobs, privacy.
-  'POST /api/auth/users': 'The demo clinic’s people are fixed: no new account can sign in (no real sign-in or passwords).',
-  'DELETE /api/auth/users/{username}': 'The demo clinic’s people are fixed: accounts aren’t deleted.',
+  'POST /api/auth/users': 'The demo centre’s people are fixed: no new account can sign in (no real sign-in or passwords).',
+  'DELETE /api/auth/users/{username}': 'The demo centre’s people are fixed: accounts aren’t deleted.',
   'PUT /api/auth/users/{username}/update-password': 'No passwords in the light demo.',
   'PUT /api/auth/users/{username}/reset-password': 'No passwords in the light demo.',
   'POST /api/auth/users/{username}/reset-two-factor': 'No real sign-in: two-factor isn’t set up in the demo.',

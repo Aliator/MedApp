@@ -45,7 +45,7 @@ describe('AuditLogPage', () => {
     expect(within(row).getByText('k.ashford')).toBeInTheDocument();
     const stageRow = within(screen.getByRole('table')).getByText('Stage finished').closest('tr')!;
     expect(within(stageRow).getByText('Consent')).toBeInTheDocument();
-    expect(screen.getByText('23 entries')).toBeInTheDocument();
+    expect(screen.getByText('Changes to pathways · 23 entries')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1&Ascending=false`]);
   });
 
@@ -105,7 +105,7 @@ describe('AuditLogPage', () => {
   it('says how many entries a search found', async () => {
     renderLog({q: 'knee'}, pageOf([entries[0]], 1));
 
-    expect(await screen.findByText('1 entry found')).toBeInTheDocument();
+    expect(await screen.findByText('Changes to pathways · 1 entry found')).toBeInTheDocument();
   });
 
   it('offers to clear a search that finds nothing, keeping the order', async () => {

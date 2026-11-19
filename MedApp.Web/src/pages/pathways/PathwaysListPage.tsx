@@ -62,7 +62,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'flag', key: 'overdue', label: 'Overdue', operator: 'only'},
   {kind: 'flag', key: 'breached', label: 'Breached', operator: 'only'},
   {kind: 'flag', key: 'mine', label: 'Assigned to me', operator: 'only'},
-  {kind: 'flag', key: 'closed', label: 'Discharged, cancelled and archived', operator: 'included'},
+  {kind: 'flag', key: 'closed', label: 'Completed, cancelled and archived', operator: 'included'},
 ];
 
 /**
@@ -256,7 +256,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
       banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
       message={
         isError ? (
-          <AlertMessage label="Pathways not loaded" message="The pathways could not be loaded. Please try again." />
+          <AlertMessage label="Pathways not loaded" />
         ) : (
           // A patient's pathways carry the patient's banners (restricted, disputed, anonymised).
           patient.data && <PatientFlagBanners patient={patient.data} />
@@ -317,7 +317,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
           ) : (
             <EmptyState
               title={patientId ? 'This patient has no open pathways' : 'No open pathways'}
-              description="Discharged, cancelled and archived pathways are hidden. Search to include them."
+              description="Completed, cancelled and archived pathways are hidden. Search to include them."
               icon={<Icon icon={AppIcon.Pathways} size="lg" />}
             />
           )

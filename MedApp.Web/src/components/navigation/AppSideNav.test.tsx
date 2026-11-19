@@ -65,7 +65,7 @@ describe('AppSideNav', () => {
     // The GP practice directory is in the Calendar category, for admins; Data Requests in Oversight.
     expect(screen.getByRole('link', {name: 'Practices'})).toHaveAttribute('href', '/practices');
     expect(screen.getByRole('link', {name: 'Data Requests'})).toHaveAttribute('href', '/data-requests');
-    expect(screen.getByRole('link', {name: 'Specimen Types and Lab Tests'})).toHaveAttribute('href', '/admin/specimen-setup');
+    expect(screen.getByRole('link', {name: 'Sample Types and Lab Tests'})).toHaveAttribute('href', '/admin/specimen-setup');
     expect(screen.getByRole('link', {name: 'Consent Forms'})).toHaveAttribute('href', '/admin/consent-forms');
     // The samples worklist is for those who record or process specimens, which the Admin role alone doesn't grant;
     // the lab's home for lab staff.
@@ -195,9 +195,9 @@ describe('AppSideNav', () => {
     expect(names).not.toContain('/data-requests');
   });
 
-  it('offers Practices only to admins, in the Calendar category, opened on its page', async () => {
+  it('offers Practices only to admins, in the Pathway Setup category, opened on its page', async () => {
     const {unmount} = renderWithApp(<AppSideNav />, {user: adminUser, path: '/practices'});
-    expect(await categoryRow('Calendar')).toHaveAttribute('aria-expanded', 'true');
+    expect(await categoryRow('Pathway Setup')).toHaveAttribute('aria-expanded', 'true');
     expect(await screen.findByRole('link', {name: 'Practices'})).toHaveAttribute('aria-current', 'page');
     unmount();
 
@@ -285,9 +285,9 @@ describe('AppSideNav', () => {
     for (const name of ['My Worklist', 'Results', 'Letters']) expect(screen.queryByRole('link', {name})).not.toBeInTheDocument();
   });
 
-  it("has Data Requests in Oversight for those who answer them (ManagePrivacy), current on a request's page", async () => {
+  it("has Data Requests in Privacy and System for those who answer them (ManagePrivacy), current on a request's page", async () => {
     const {unmount} = renderWithApp(<AppSideNav />, {user: adminUser, path: '/data-requests/000000d1-0000-0000-0000-000000000001'});
-    expect(await categoryRow('Oversight')).toHaveAttribute('aria-expanded', 'true');
+    expect(await categoryRow('Privacy and System')).toHaveAttribute('aria-expanded', 'true');
     const requests = await screen.findByRole('link', {name: 'Data Requests'});
     expect(requests).toHaveAttribute('href', '/data-requests');
     expect(requests).toHaveAttribute('aria-current', 'page');

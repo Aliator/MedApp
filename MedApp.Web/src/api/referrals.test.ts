@@ -107,10 +107,10 @@ describe('referral words', () => {
       detail: 'Back to awaiting triage',
     });
     expect(referralEventWords(event({action: 'SomethingNew', toStatus: 'AwaitingTriage'}))).toEqual({
-      title: 'Something new by k.ashford',
+      title: 'Record changed by k.ashford',
       detail: 'Now awaiting triage',
     });
-    expect(referralEventWords(event({action: null}))).toEqual({title: 'Changed by k.ashford', detail: ''});
+    expect(referralEventWords(event({action: null}))).toEqual({title: 'Record changed by k.ashford', detail: ''});
   });
 });
 
@@ -129,7 +129,7 @@ describe('waiting-time clock words', () => {
     ).toEqual({title: 'Clock stopped', detail: 'Clock-stop stage finished, day 130 of 126, breached'});
     expect(referralEventWords(event({action: 'ClockStopped', stopReason: 'PathwayDischarged', daysWaited: 12}))).toEqual({
       title: 'Clock stopped',
-      detail: 'Discharged, day 12',
+      detail: 'Pathway completed, day 12',
     });
     expect(referralEventWords(event({action: 'ClockStopped'}))).toEqual({title: 'Clock stopped', detail: ''});
     expect(referralEventWords(event({action: 'TargetChanged', previousTargetDays: 126, targetDays: 28, priority: 'High'}))).toEqual({

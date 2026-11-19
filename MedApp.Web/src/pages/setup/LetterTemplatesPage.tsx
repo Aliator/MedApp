@@ -168,11 +168,11 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
         <>
           <ConfirmDialog
             isOpen={deleting !== null}
-            title="Delete Letter Template"
-            message="No letter has been written from it. This can't be undone."
+            title="Confirm Delete"
+            message="No letter has been written from this template. This action cannot be undone."
             icon={AppIcon.Delete}
             isDanger
-            confirmText="Delete"
+            confirmText="Delete Letter Template"
             isProcessing={actions.remove.isPending}
             onConfirm={() => deleting && remove(deleting)}
             onCancel={() => setDeleting(null)}>

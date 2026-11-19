@@ -100,7 +100,7 @@ describe('ReadMePage', () => {
     expect(screen.getByText(/Shift-click Patients in the side nav: it opens on the right again/)).toBeInTheDocument();
     expect(screen.getByText(/Ctrl-click \(⌘-click on a Mac\) Patients: it opens on the left, and this Read Me moves to the right/)).toBeInTheDocument();
     expect(screen.getByText(/expand button \(Expand sidebar\) at the bottom of the icon rail/)).toBeInTheDocument();
-    expect(screen.getByText(/Fold the side nav in half view is on unless you turn it off, in Account Settings/)).toBeInTheDocument();
+    expect(screen.getByText(/This folding is a setting in Account Settings, on by default/)).toBeInTheDocument();
     expect(screen.getByText(/carry on with the tour from it/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Open Account Settings'}));
 
@@ -210,10 +210,15 @@ describe('ReadMePage', () => {
     startLightDemo(STAFF);
     const {user} = renderWithApp(<ReadMePage />, {user: asCurrentUser(STAFF), path: '/read-me'});
 
-    expect(await screen.findByText('Seen in clinic today.')).toBeInTheDocument();
+    expect(await screen.findByText('Skin scraping taken and sent to the lab.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Copy the Notes'}));
 
     expect(await screen.findByRole('button', {name: 'Copied'})).toBeInTheDocument();
-    expect(await navigator.clipboard.readText()).toBe(['Seen in clinic today.', 'Scaly patch on the left forearm, about 3 cm, itchy for two months.', 'Results talked through; patient happy with the plan.'].join('\n'));
+    const notes = [
+      'Seen yesterday: scaly patch on the left forearm, about 3 cm, itchy for two months.',
+      'Skin scraping taken and sent to the lab.',
+      'To go through the results at the results appointment.',
+    ];
+    expect(await navigator.clipboard.readText()).toBe(notes.join('\n'));
   });
 });

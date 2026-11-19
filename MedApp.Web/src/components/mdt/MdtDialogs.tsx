@@ -129,7 +129,7 @@ export function RecordMdtOutcomeDialog({item, attendees, isProcessing, onConfirm
   return (
     <ConfirmDialog
       isOpen
-      title="Record MDT outcome"
+      title="Record MDT Outcome"
       message="Write what the team decided. It's shown on the pathway and the pathway's assignees are told; nothing about the pathway changes by itself."
       icon={AppIcon.Mdt}
       intent="accent"
@@ -194,7 +194,7 @@ export function DeferMdtItemDialog({item, meetings, isLoadingMeetings, isProcess
   return (
     <ConfirmDialog
       isOpen
-      title={isRelisting ? 'List again' : 'Move to a later MDT'}
+      title={isRelisting ? 'List Again' : 'Move to a Later MDT'}
       message={isRelisting ? 'Its meeting was cancelled. Choose the MDT to list it for.' : 'Choose the MDT to discuss it at instead.'}
       icon={AppIcon.Calendar}
       intent="accent"
@@ -280,7 +280,7 @@ export function ChooseMdtPresenterDialog({item, attendees, isProcessing, onConfi
   return (
     <ConfirmDialog
       isOpen
-      title="Choose the presenter"
+      title="Choose the Presenter"
       message="Who presents this case at the MDT, from the meeting's attendees. Invite a pathologist to the meeting to have them present the lab's report."
       icon={AppIcon.Assign}
       intent="accent"

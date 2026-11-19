@@ -51,7 +51,7 @@ export const resultActionLabel = (action: string | null | undefined) => RESULT_A
 
 /** Where a result came from, in words: a specimen's report, or a report from elsewhere attached as a file. */
 export const resultSourceLabel = (source: string | null | undefined) =>
-  source === 'Specimen' ? 'Specimen report' : source === 'ExternalReport' ? 'External report' : (source ?? '');
+  source === 'Specimen' ? 'Sample report' : source === 'ExternalReport' ? 'External report' : (source ?? '');
 
 /**
  * The Results list's views (`GET api/results/search?view=`), in the order of its tabs. The awaiting views and Needs a

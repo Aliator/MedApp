@@ -23,9 +23,10 @@ export interface AdminCategory {
 
 /**
  * The Administration section's pages, in categories (the owner's grouping, 18 November 2026, and the owner's changes
- * the same evening: Account Management and Calendar renamed, Practices into Calendar and Data Requests into Oversight,
- * Sites and Rooms hidden as deprecated). A category shows only when the person can see at least one page in it, and
- * the section only when they can see any. The keys are kept as they were, as the account's settings remember them.
+ * the same evening: Account Management and Calendar renamed, Sites and Rooms hidden as deprecated; 19 November:
+ * Practices into Pathway Setup beside Hospitals, and Data Requests into Privacy and System beside Retention Review).
+ * A category shows only when the person can see at least one page in it, and the section only when they can see any.
+ * The keys are kept as they were, as the account's settings remember them.
  */
 export const ADMIN_CATEGORIES: AdminCategory[] = [
   {
@@ -47,8 +48,10 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
       {label: 'Pathway Templates', icon: AppIcon.Templates, href: '/admin/pathway-templates', permission: 'ManageSetup'},
       {label: 'Letter Templates', icon: AppIcon.LetterTemplates, href: '/admin/letter-templates', permission: 'ManageSetup'},
       {label: 'Consent Forms', icon: AppIcon.Consent, href: '/admin/consent-forms', permission: 'ManageSetup'},
-      {label: 'Specimen Types and Lab Tests', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
+      {label: 'Sample Types and Lab Tests', icon: AppIcon.Lab, href: '/admin/specimen-setup', permission: 'ManageSetup'},
       {label: 'Hospitals', icon: AppIcon.Hospitals, href: '/admin/hospitals', permission: 'ManageSetup'},
+      // The GP practice directory, for admins (its route checks the same); staff pick practices on the patient form.
+      {label: 'Practices', icon: AppIcon.Practices, href: '/practices', permission: 'ManageSetup'},
     ],
   },
   {
@@ -59,8 +62,6 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
     pages: [
       {label: 'Activity Types', icon: AppIcon.ActivityTypes, href: '/admin/activity-types', permission: 'ManageSetup'},
       {label: 'Closed Days', icon: AppIcon.ClosedDays, href: '/admin/closed-days', permission: 'ManageSetup'},
-      // The GP practice directory, for admins (its route checks the same); staff pick practices on the patient form.
-      {label: 'Practices', icon: AppIcon.Practices, href: '/practices', permission: 'ManageSetup'},
     ],
   },
   {
@@ -72,8 +73,6 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
       {label: 'Monitoring', icon: AppIcon.Monitoring, href: '/admin/monitoring', permission: 'ManageMonitoring'},
       {label: 'Audit Log', icon: AppIcon.AuditLog, href: '/admin/audit', permission: 'ViewAudit'},
       {label: 'Activity Log', icon: AppIcon.ActivityLog, href: '/admin/activity', permission: 'ViewAudit'},
-      // Patients' data requests (subject access), for those who answer them.
-      {label: 'Data Requests', icon: AppIcon.DataRequests, href: '/data-requests', permission: 'ManagePrivacy'},
     ],
   },
   {
@@ -82,6 +81,8 @@ export const ADMIN_CATEGORIES: AdminCategory[] = [
     icon: AppIcon.AdminPrivacy,
     pages: [
       {label: 'Retention Review', icon: AppIcon.Retention, href: '/admin/retention', permission: 'ManagePrivacy'},
+      // Patients' data requests (subject access), for those who answer them.
+      {label: 'Data Requests', icon: AppIcon.DataRequests, href: '/data-requests', permission: 'ManagePrivacy'},
       {label: 'Scheduled Jobs', icon: AppIcon.ScheduledJobs, href: '/admin/jobs', permission: 'ManageSetup'},
       {label: 'Admin Settings', icon: AppIcon.Settings, href: '/admin/settings', permission: 'ManageSecuritySettings'},
     ],

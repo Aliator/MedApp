@@ -54,20 +54,20 @@ export const CLINIC_PATTERNS = {
 export const CLINIC_SESSIONS = {
   /** Tom Hallworth's skin clinic next Tuesday (made by its pattern). */
   hallworthNextWeek: id(0xf3, 102),
-  /** A one-off minor surgery session for Tom Hallworth next Thursday afternoon, in the Procedure room. */
-  hallworthMinorSurgery: id(0xf3, 301),
+  /** A one-off procedure list (biopsies) for Tom Hallworth next Thursday afternoon, in the Procedure room. */
+  hallworthProcedureList: id(0xf3, 301),
 } as const;
 
 /** Day templates (their blocks are `id(0xf4, 100 * n + k)`). */
 export const DAY_TEMPLATES = {
-  /** The admin's early referral triage: used by the admin's usual week (so archived, never deleted). */
+  /** The admin's early referral admin (read only: no triage): used by the admin's usual week (so archived, never deleted). */
   adminEarlyTriage: id(0xf4, 1),
   /** Nadia Thornbury's skin clinic day (clinic, lunch, letters): used by no week, so it can be deleted. */
   thornburyClinicDay: id(0xf4, 2),
 } as const;
 
 export const WEEK_TEMPLATES = {
-  /** The admin's usual week, their default: early triage on Tuesday, Wednesday and Friday. */
+  /** The admin's usual week, their default: early referral admin on Tuesday, Wednesday and Friday. */
   adminUsualWeek: id(0xf5, 1),
 } as const;
 
@@ -269,7 +269,7 @@ const ROLE_SPECS: [keyof typeof ROLES, string, string, readonly Permission[]][] 
   [
     'seniorClinician',
     'Senior clinician',
-    'Senior clinicians: as Clinician, and they unlock stages and finish one without its visit.',
+    'Senior clinicians: the same permissions as Clinician, unlocking stages and finishing one without its visit included.',
     STAFF.permissions,
   ],
   [
@@ -441,7 +441,7 @@ function seedJobs(): Schemas['ScheduledJobResponse'][] {
       name: 'operational-purge',
       title: 'Operational data purge',
       description:
-        'Dry run (Retention:Operational:DryRun): counts what it would delete, and deletes nothing. Deletes sessions after 12 months, sign-in and security events after 12 months, notifications after 6 months, notepads unchanged for 30 days, and expired sign-in codes. Never patient records.',
+        'Dry run: counts what it would delete, and deletes nothing. When it runs for real, it deletes sessions after 12 months, sign-in and security events after 12 months, notifications after 6 months, notepads unchanged for 30 days, and expired sign-in codes. Never patient records.',
       schedule: 'Daily at 04:30 (UK time)',
       enabled: true,
       isRunning: false,
@@ -457,7 +457,7 @@ function seedJobs(): Schemas['ScheduledJobResponse'][] {
     {
       name: 'patient-reminders',
       title: 'Patient reminders',
-      description: 'Off (PatientMessages:Mode): makes and sends no texts or emails to patients.',
+      description: 'Switched off: sends no texts or emails to patients.',
       schedule: 'Every 15 minutes',
       enabled: true,
       isRunning: false,
@@ -528,9 +528,9 @@ export function seedSetup(state: BaseState): SetupSlice {
       {
         id: DAY_TEMPLATES.adminEarlyTriage,
         ownerUserId: ADMIN.id,
-        name: 'Early triage',
+        name: 'Referral admin',
         isArchived: false,
-        blocks: [{id: id(0xf4, 101), activityTypeId: ACTIVITY_TYPES.triage, startTime: clock(8, 15), endTime: clock(9), note: 'Referral triage'}],
+        blocks: [{id: id(0xf4, 101), activityTypeId: ACTIVITY_TYPES.admin, startTime: clock(8, 15), endTime: clock(9), note: 'Referral admin'}],
       },
       {
         id: DAY_TEMPLATES.thornburyClinicDay,

@@ -14,7 +14,7 @@ import {AppIcon} from '../shared/icons';
 import {ListForMdtDialog} from './MdtDialogs';
 import {MdtItemList} from './MdtItemList';
 
-/** Statuses a pathway can't be listed for an MDT in: discharged, cancelled or archived (the API's 409 otherwise). */
+/** Statuses a pathway can't be listed for an MDT in: completed, cancelled or archived (the API's 409 otherwise). */
 const CLOSED = new Set(['Completed', 'Cancelled', 'Archived']);
 
 /**

@@ -50,7 +50,7 @@ describe('PathwayDetailsFields', () => {
     const onChange = vi.fn();
     const {user} = renderWithApp(<PathwayDetailsFields value={{...EMPTY_PATHWAY_DETAILS, dueDate: '2099-12-01'}} onChange={onChange} />);
 
-    await user.clear(await screen.findByRole('combobox', {name: /Target Date/}));
+    await user.clear(await screen.findByRole('combobox', {name: /Target date/}));
     await user.tab();
 
     expect(onChange).toHaveBeenLastCalledWith({...EMPTY_PATHWAY_DETAILS, dueDate: ''});

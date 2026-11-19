@@ -20,12 +20,12 @@ describe('letter templates', () => {
   it('words each kind, and a kind this copy of the app does not know as the API named it', () => {
     expect(Object.values(LETTER_KIND_LABELS)).toEqual([
       'Clinic letter',
-      'Discharge summary',
+      'End of care letter',
       'Referral response',
       'Request for more information',
       'Appointment letter',
       'Onward referral to hospital',
-      'Other',
+      'General letter',
     ]);
     expect(letterKindLabel('InformationRequest')).toBe('Request for more information');
     expect(letterKindLabel('Prescription')).toBe('Prescription');

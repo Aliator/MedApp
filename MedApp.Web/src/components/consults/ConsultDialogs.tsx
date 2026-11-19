@@ -48,17 +48,17 @@ export interface AskConsultDialogProps {
 export function AskConsultDialog({patient, pathwayTitle, teams, isLoadingTeams, isProcessing, onConfirm, onCancel}: AskConsultDialogProps) {
   const [askedTeamId, setAskedTeamId] = useState('');
   const [question, setQuestion] = useState('');
-  const {problem, errors, fail, clear} = useDialogProblem(['askedTeamId', 'question'], 'The consult could not be asked.');
+  const {problem, errors, fail, clear} = useDialogProblem(['askedTeamId', 'question'], 'The consult could not be sent.');
   const isTooLong = question.length > MAX_CONSULT_QUESTION_LENGTH;
 
   return (
     <ConfirmDialog
       isOpen
-      title="Ask another team"
+      title="Ask Another Team"
       message={`Ask a clinic or the lab about ${pathwayTitle}. They can read the pathway until you close the consult, and their reply is kept on it.`}
       icon={AppIcon.Question}
       intent="accent"
-      confirmText="Ask"
+      confirmText="Send Consult"
       confirmDisabled={!askedTeamId || !question.trim() || isTooLong}
       isProcessing={isProcessing}
       onConfirm={() => {
@@ -86,7 +86,7 @@ export function AskConsultDialog({patient, pathwayTitle, teams, isLoadingTeams, 
         isDisabled={isProcessing}
         status={fieldStatus(errors, 'question') ?? (isTooLong ? tooLong(MAX_CONSULT_QUESTION_LENGTH) : undefined)}
       />
-      {problem && <AlertMessage label="Consult not asked" message={problem} />}
+      {problem && <AlertMessage label="Consult not sent" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -110,8 +110,8 @@ export function ReplyConsultDialog({consult, isProcessing, onConfirm, onCancel}:
   return (
     <ConfirmDialog
       isOpen
-      title="Reply to consult"
-      message={`${consult.askingTeamName ?? 'The team'} asked ${consult.askedTeamName ?? 'your team'}. Your reply is kept on the pathway, and they're told.`}
+      title="Reply to Consult"
+      message={`${consult.askingTeamName ?? 'Another team'} sent this consult to ${consult.askedTeamName ?? 'your team'}. Your reply is kept on the pathway, and they're told.`}
       icon={AppIcon.Question}
       intent="accent"
       confirmText="Reply"
@@ -152,15 +152,15 @@ export interface EndConsultDialogProps {
 export function EndConsultDialog({consult, kind, isProcessing, onConfirm, onCancel}: EndConsultDialogProps) {
   const isClose = kind === 'close';
   const {problem, fail, clear} = useDialogProblem([], isClose ? 'The consult could not be closed.' : 'The consult could not be withdrawn.');
-  const team = consult.askedTeamName ?? 'The asked team';
+  const team = consult.askedTeamName ?? 'The other team';
   return (
     <ConfirmDialog
       isOpen
-      title={isClose ? 'Close consult?' : 'Withdraw consult?'}
+      title={isClose ? 'Close Consult?' : 'Withdraw Consult?'}
       message={
         isClose
           ? `${team} can no longer read the pathway once it's closed. The question and reply stay on it.`
-          : `${team} hasn't replied. Withdrawn, they can no longer read the pathway or reply. This can't be undone; ask again if it's needed.`
+          : `${team} hasn't replied. Withdrawn, they can no longer read the pathway or reply. This can't be undone. Send a new consult if it's needed.`
       }
       icon={isClose ? AppIcon.Check : AppIcon.Withdraw}
       intent={isClose ? 'accent' : 'warning'}

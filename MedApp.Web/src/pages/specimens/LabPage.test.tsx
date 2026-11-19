@@ -45,7 +45,7 @@ describe('LabPage', () => {
     const {fetch} = renderPage();
 
     expect(await screen.findByRole('heading', {name: 'Samples', level: 1})).toBeInTheDocument();
-    expect(await screen.findByRole('tab', {name: 'To receive', selected: true})).toBeInTheDocument();
+    expect(await screen.findByRole('tab', {name: 'Not yet received', selected: true})).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label') ?? t.textContent)).toHaveLength(5);
     expect(screen.getByText('Clinic')).toBeInTheDocument();
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe('LabPage', () => {
     expect(screen.getAllByText('2 Nov 2026, 09:00')).toHaveLength(2);
     expect(screen.getAllByText('7 Nov 2026, 09:00')).toHaveLength(2);
     expect(screen.getByText('Overdue at lab')).toBeInTheDocument();
-    expect(screen.getByText('To receive: 2 samples')).toBeInTheDocument();
+    expect(screen.getByText('Not yet received: 2 samples')).toBeInTheDocument();
     expect(await worklistCalls(fetch)).toEqual([{search: '', body: {view: 'ToReceive', page: 1, pageSize: 10}}]);
   });
 
@@ -115,7 +115,7 @@ describe('LabPage', () => {
     await waitFor(async () => expect((await worklistCalls(fetch)).at(-1)?.body).toMatchObject({search: 'MA26-000123', view: 'ToReceive'}));
     expect((await worklistCalls(fetch)).every((c) => c.search === '')).toBe(true);
     expect(JSON.stringify(onSearchChange.mock.calls)).not.toContain('MA26');
-    expect(screen.getByText('To receive: 2 matching samples')).toBeInTheDocument();
+    expect(screen.getByText('Not yet received: 2 matching samples')).toBeInTheDocument();
   });
 
   it('shows every sample on All, and says when there are none', async () => {
@@ -140,13 +140,13 @@ describe('LabPage', () => {
   it('says when a view is empty', async () => {
     renderPage({view: 'Overdue'}, labUser, {[WORKLIST]: () => pageOf([])});
     expect(await screen.findByText('Nothing overdue')).toBeInTheDocument();
-    expect(screen.getByText("Not reported by the type's expected days, oldest first.")).toBeInTheDocument();
+    expect(screen.getByText('Past the expected turnaround for its sample type, oldest first.')).toBeInTheDocument();
     expect(screen.getByText('Overdue: 0 samples')).toBeInTheDocument();
   });
 
   it("says when the samples couldn't be loaded", async () => {
     renderPage({}, labUser, {[WORKLIST]: () => json({}, 500)});
-    expect(await screen.findByText('The samples could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('Samples not loaded')).toBeInTheDocument();
   });
 
   it.each([

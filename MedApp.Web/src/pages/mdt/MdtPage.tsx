@@ -98,7 +98,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
                 showsPatient
                 linksPathway
                 emptyText={
-                  list.data.readOnlyReason ? 'No cases on this MDT for you to see.' : 'Nobody is listed for this MDT yet. List a pathway from its page.'
+                  list.data.readOnlyReason ? 'No cases on this MDT for you to see.' : 'No pathways are listed for this MDT yet. List one from its page.'
                 }
               />
             )}

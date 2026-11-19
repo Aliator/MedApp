@@ -450,7 +450,7 @@ describe('referral entries', () => {
     ).toEqual({title: 'Waiting-time clock stopped', detail: 'Clock-stop stage finished, day 130 of 126, breached'});
     expect(describeTimelineEntry(clock({action: 'ReferralClockStopped', stopReason: 'PathwayDischarged', daysWaited: 40}))).toEqual({
       title: 'Waiting-time clock stopped',
-      detail: 'Discharged, day 40',
+      detail: 'Pathway completed, day 40',
     });
     expect(describeTimelineEntry(clock({action: 'ReferralClockStopped'}))).toEqual({title: 'Waiting-time clock stopped', detail: ''});
     expect(describeTimelineEntry(clock({action: 'ReferralTargetChanged', previousTargetDays: 126, targetDays: 28, priority: 'High'}))).toEqual({
@@ -635,43 +635,43 @@ describe('letter entries', () => {
   });
 
   it('words each step, with the template, and the comment or reason only when the API sends them (admins)', () => {
-    expect(describeTimelineEntry(letterEntry({action: 'LetterDrafted'}))).toEqual({title: 'Discharge summary started', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterDrafted'}))).toEqual({title: 'End of care letter started', detail: 'From Skin discharge'});
     expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', approverUsername: 'd.clinician'}))).toEqual({
-      title: 'Discharge summary submitted for approval',
+      title: 'End of care letter submitted for approval',
       detail: 'To d.clinician. From Skin discharge',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSubmitted', letterTemplateName: null}))).toEqual({
-      title: 'Discharge summary submitted for approval',
+      title: 'End of care letter submitted for approval',
       detail: '',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterReturned', reason: 'Add the plan'}))).toEqual({
-      title: 'Discharge summary returned to its author',
+      title: 'End of care letter returned to its author',
       detail: 'From Skin discharge. Comment: Add the plan',
     });
-    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned'}))).toEqual({title: 'Discharge summary returned to its author', detail: 'From Skin discharge'});
-    expect(describeTimelineEntry(letterEntry({action: 'LetterApproved', letterKind: 'Other'}))).toEqual({title: 'Letter approved', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterReturned'}))).toEqual({title: 'End of care letter returned to its author', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterApproved', letterKind: 'Other'}))).toEqual({title: 'General letter approved', detail: 'From Skin discharge'});
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'GpPractice', dispatchMethod: 'Post', dispatchStatus: 'Sent'}))).toEqual({
-      title: 'Discharge summary sent to the GP practice',
+      title: 'End of care letter sent to the GP practice',
       detail: 'Post. From Skin discharge',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Patient', dispatchMethod: 'HandedToPatient'}))).toEqual({
-      title: 'Discharge summary sent to the patient',
+      title: 'End of care letter sent to the patient',
       detail: 'Handed to the patient. From Skin discharge',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: 'Other', dispatchMethod: 'SecureEmail', dispatchStatus: 'Failed'}))).toEqual({
-      title: "Discharge summary couldn't be sent to someone else",
+      title: "End of care letter couldn't be sent to someone else",
       detail: 'Secure email from MedApp failed. From Skin discharge',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterSent', recipientKind: null, dispatchMethod: null, dispatchStatus: 'Failed'}))).toEqual({
-      title: "Discharge summary couldn't be sent to a recipient",
+      title: "End of care letter couldn't be sent to a recipient",
       detail: 'Secure email from MedApp failed. From Skin discharge',
     });
     expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn', reason: 'Wrong plan'}))).toEqual({
-      title: 'Discharge summary withdrawn',
+      title: 'End of care letter withdrawn',
       detail: 'From Skin discharge. Reason: Wrong plan',
     });
-    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn'}))).toEqual({title: 'Discharge summary withdrawn', detail: 'From Skin discharge'});
-    expect(describeTimelineEntry(letterEntry({action: 'LetterFiled'}))).toEqual({title: 'Discharge summary changed', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterWithdrawn'}))).toEqual({title: 'End of care letter withdrawn', detail: 'From Skin discharge'});
+    expect(describeTimelineEntry(letterEntry({action: 'LetterFiled'}))).toEqual({title: 'End of care letter changed', detail: 'From Skin discharge'});
   });
 
   it('words asking a referrer for more information, and it arriving', () => {

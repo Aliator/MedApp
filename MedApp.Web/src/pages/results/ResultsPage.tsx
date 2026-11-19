@@ -28,7 +28,7 @@ type ResultRow = ResultSummary & Record<string, unknown>;
 const VIEW_DESCRIPTIONS: Record<ResultsView, string> = {
   AwaitingMine: 'Results you are responsible for that await your sign-off, oldest report first.',
   Awaiting: "Everyone's results awaiting sign-off, oldest report first.",
-  NeedsClinician: 'Awaiting sign-off, and their responsible clinician can no longer sign results off, oldest report first.',
+  NeedsClinician: 'Results awaiting sign-off whose clinician can no longer sign them off, oldest report first.',
   SignedOff: 'Signed off, newest first.',
   All: 'Every result, newest report first.',
 };
@@ -180,7 +180,7 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
       title="Results"
       subtitle={isPending ? 'Loading results...' : `${viewLabel(view)}: ${total} ${noun}${teamName ? ` in ${teamName}` : ''}`}
       fill
-      message={isError && <AlertMessage label="Results not loaded" message="The results could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Results not loaded" />}
       actions={clinic.picker}>
       <DataTable
         data={(data?.items ?? []) as ResultRow[]}

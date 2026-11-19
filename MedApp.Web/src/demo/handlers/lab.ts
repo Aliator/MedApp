@@ -131,7 +131,7 @@ export function labGate(pathway: DemoPathway, stage: DemoStage, isLast: boolean)
       .specimens.filter((s) => s.pathwayId === pathway.id && isOpenSpecimen(s))
       .sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc) || a.number.localeCompare(b.number));
     if (open.length > 0) {
-      const each = open.map((s) => `${s.number} (${typeOf(s)?.name ?? 'specimen'}, ${DESCRIBE[s.status]})`).join('; ');
+      const each = open.map((s) => `${s.number} (${typeOf(s)?.name ?? 'sample'}, ${DESCRIBE[s.status]})`).join('; ');
       const count = open.length === 1 ? 'a sample is' : `${open.length} samples are`;
       return `The pathway's last stage can't be finished while ${count} still with the lab: ${each}. Record each one's report, or mark it rejected, lost or entered in error.`;
     }
@@ -310,7 +310,7 @@ function checkChoices(
   const test = labTestId ? db().labTests.find((t) => t.id === labTestId) : undefined;
   if (labTestId && (!test || (test.isArchived && test.id !== existing?.labTestId))) errors.labTestId = ["Choose a lab test that isn't archived, or none."];
   const type = db().specimenTypes.find((t) => t.id === body.specimenTypeId);
-  if (!type || (type.isArchived && type.id !== existing?.specimenTypeId)) errors.specimenTypeId = ["Choose a specimen type that isn't archived."];
+  if (!type || (type.isArchived && type.id !== existing?.specimenTypeId)) errors.specimenTypeId = ["Choose a sample type that isn't archived."];
   const requesting = personById(body.requestingUserId);
   if (!requesting || (!requesting.permissions.includes('SignOffResults') && requesting.id !== existing?.requestingUserId))
     errors.requestingUserId = ["Choose a clinician whose roles allow signing off results: they'll get the result."];
@@ -424,12 +424,12 @@ export function snomedCode(value: string | null | undefined, field = 'snomedCode
 export const byName = <T extends {name: string}>(a: T, b: T) => a.name.localeCompare(b.name);
 
 function registerSetupLists() {
-  const findType = (id: string) => db().specimenTypes.find((t) => t.id === id) ?? refuse(notFound(`Specimen type '${id}'`));
+  const findType = (id: string) => db().specimenTypes.find((t) => t.id === id) ?? refuse(notFound(`Sample type '${id}'`));
   const turnaround = (days: number | undefined) => {
     if (!Number.isInteger(days) || days! < 1 || days! > 90) refuse(invalid({expectedTurnaroundDays: ['The expected turnaround must be 1 to 90 days.']}));
     return days!;
   };
-  const typeTaken = (name: string) => `There's already a specimen type called '${name}'.`;
+  const typeTaken = (name: string) => `There's already a sample type called '${name}'.`;
 
   on('get', '/api/specimen-types', ({query}) => {
     me();

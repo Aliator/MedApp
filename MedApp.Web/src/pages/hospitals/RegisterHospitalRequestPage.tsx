@@ -262,7 +262,7 @@ export function RegisterHospitalRequestPage() {
             status={fieldStatus(errors, 'hospitalId')}
           />
           <TextInput
-            label="Hospital's patient number"
+            label="Hospital number"
             description="As on the request."
             value={fields.hospitalPatientNumber}
             onChange={(v) => set('hospitalPatientNumber', v)}
@@ -291,7 +291,7 @@ export function RegisterHospitalRequestPage() {
             status={fieldStatus(errors, 'priority')}
           />
           <CheckboxInput
-            label="The request says it's a cancer pathway"
+            label="The request says the patient is on the hospital's urgent cancer pathway"
             value={fields.isCancerPathway}
             onChange={(v: boolean) => set('isCancerPathway', v)}
           />

@@ -40,8 +40,8 @@ describe('InsightsPage', () => {
     );
     expect(screen.getByRole('link', {name: 'Overdue: 5. 2 fewer than this time last week.'})).toHaveAttribute('href', '/pathways?overdue=true&mine=false');
     // No list shows what was completed when, so that tile isn't a link.
-    expect(screen.getByText('Discharged this week')).toBeInTheDocument();
-    expect(screen.queryByRole('link', {name: /^Discharged this week/})).not.toBeInTheDocument();
+    expect(screen.getByText('Completed this week')).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: /^Completed this week/})).not.toBeInTheDocument();
     expect(screen.getByText('31 Aug 2026 to 16 Nov 2026, all templates')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${INSIGHTS}?Weeks=12`);
   });
@@ -91,7 +91,7 @@ describe('InsightsPage', () => {
 
     expect(await screen.findByText('5 pathways are overdue. k.ashford has the most (3). 2 have nobody assigned.')).toBeInTheDocument();
     expect(screen.getByRole('img', {name: 'Bar chart. Of 5 overdue, 1 is urgent and 2 high priority.'})).toBeInTheDocument();
-    expect(screen.getByText(/^Over 3 weeks, 8 pathways created and 10 discharged/)).toBeInTheDocument();
+    expect(screen.getByText(/^Over 3 weeks, 8 pathways created and 10 completed/)).toBeInTheDocument();
     expect(screen.getByText('The longest is Procedure: 2 d 6 h on average, 2 d 2 h of it waiting to be started.')).toBeInTheDocument();
     expect(screen.getByRole('img', {name: /^Stacked bar chart of the average time at each stage of Knee review/})).toBeInTheDocument();
   });
@@ -122,7 +122,7 @@ describe('InsightsPage', () => {
     const {user} = renderInsights();
 
     await screen.findByRole('heading', {name: 'Overdue by assignee'});
-    for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and discharged', 'Time at each stage']) {
+    for (const title of ['Overdue by assignee', 'Overdue by priority', 'Created and completed', 'Time at each stage']) {
       await user.click(within(card(title)).getByRole('button', {name: `Show Table of ${title}`}));
     }
 
@@ -131,7 +131,7 @@ describe('InsightsPage', () => {
     expect(within(assignees).getByRole('link', {name: 'Nobody'})).toHaveAttribute('href', '/pathways?overdue=true&assignee=none&mine=false');
     const priorities = screen.getByRole('table', {name: 'Overdue pathways by priority'});
     expect(within(priorities).getByRole('link', {name: 'High'})).toHaveAttribute('href', '/pathways?overdue=true&priority=High&mine=false');
-    const weeks = screen.getByRole('table', {name: 'Pathways created and discharged each week'});
+    const weeks = screen.getByRole('table', {name: 'Pathways created and completed each week'});
     expect(within(weeks).getByText('9 Nov 2026')).toBeInTheDocument();
     const stages = screen.getByRole('table', {name: 'Average time at each stage of Knee review'});
     const pathway = within(stages).getByText('2. Procedure').closest('tr')!;

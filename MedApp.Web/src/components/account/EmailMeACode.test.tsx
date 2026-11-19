@@ -28,7 +28,7 @@ describe('EmailMeACode', () => {
   it('waits for the password before it can send anything', async () => {
     const {fetch} = renderButton('');
 
-    expect(isDisabled(await screen.findByRole('button', {name: 'Email me a code'}))).toBe(true);
+    expect(isDisabled(await screen.findByRole('button', {name: 'Email Me a Code'}))).toBe(true);
     expect(screen.getByText(PASSWORD_FIRST)).toBeInTheDocument();
     expect(calls(fetch)).not.toContain(SEND_CODE);
   });
@@ -37,7 +37,7 @@ describe('EmailMeACode', () => {
     const {user, fetch} = renderButton('Synthetic-Passw0rd');
 
     expect(screen.queryByText(PASSWORD_FIRST)).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
 
     expect(await screen.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
     expect(await sentBodies(fetch)).toEqual([{password: 'Synthetic-Passw0rd'}]);
@@ -47,7 +47,7 @@ describe('EmailMeACode', () => {
     withAnnouncements();
     const {user, fetch} = renderButton('Synthetic-Passw0rd', () => json({...emailCodeSent, resendInSeconds: 0}, 202));
 
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
     await user.click(await screen.findByRole('button', {name: 'Resend code'}));
 
     await expectAnnounced(`A new code was emailed to ${emailCodeSent.sentTo}.`);
@@ -57,7 +57,7 @@ describe('EmailMeACode', () => {
   it('says when no more codes can be sent', async () => {
     const {user} = renderButton('Synthetic-Passw0rd', () => json({...emailCodeSent, resendsLeft: 0}, 202));
 
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
 
     expect(await screen.findByText(CHANGE_NO_MORE_CODES)).toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe('EmailMeACode', () => {
     const unavailable = "The code couldn't be sent just now. Try again later, or use a recovery code.";
     const {user} = renderButton('Synthetic-Passw0rd', () => json({title: unavailable, status: 409}, 409));
 
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
 
     expect(await screen.findByText(unavailable)).toBeInTheDocument();
   });
@@ -76,7 +76,7 @@ describe('EmailMeACode', () => {
       json({title: 'One or more validation errors occurred.', status: 400, errors: {'': ['Something else was wrong.']}}, 400),
     );
 
-    await user.click(await screen.findByRole('button', {name: 'Email me a code'}));
+    await user.click(await screen.findByRole('button', {name: 'Email Me a Code'}));
 
     expect(await screen.findByText('Something else was wrong.')).toBeInTheDocument();
   });

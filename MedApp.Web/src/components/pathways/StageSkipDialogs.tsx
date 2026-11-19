@@ -127,7 +127,7 @@ export function ReinstateStageDialog({stage, patient, isProcessing, onConfirm, o
     <ConfirmDialog
       isOpen
       title={`Reinstate ${stage.name}?`}
-      message="It runs again in its place: if it comes before the current stage, it becomes the current stage. A pathway awaiting review or discharged goes back to in progress."
+      message="It runs again in its place: if it comes before the current stage, it becomes the current stage. A pathway awaiting review or completed goes back to in progress."
       icon={AppIcon.Restore}
       intent="warning"
       confirmText="Reinstate Stage"

@@ -88,7 +88,7 @@ describe('UsersPage', () => {
 
     const dialog = within(openDialog()!);
     expect(await dialog.findByText(FIRST_PASSWORD)).toBeInTheDocument();
-    expect(dialog.getByText('Account created for new.user.')).toBeInTheDocument();
+    expect(dialog.getByText('Account created for new.user. They must change this temporary password when they first sign in.')).toBeInTheDocument();
     expect(dialog.getByText(/shown only this once, and works until new\.user changes it/)).toBeInTheDocument();
     await waitFor(() => expect(dialog.getByRole('button', {name: 'Copy password'})).toHaveFocus());
     expect(await bodies(fetch, 'POST')).toEqual([{username: 'new.user'}]);

@@ -107,7 +107,7 @@ export function progressWords(pathway: Pick<Pathway, 'completedStageCount' | 'sk
 }
 
 /** The wording of decision 18 in docs/pathways-ui-plan.md. */
-export const NOT_ASSIGNED_MESSAGE = 'This pathway is not assigned to you, are you sure you want to make these changes?';
+export const NOT_ASSIGNED_MESSAGE = "This pathway isn't assigned to you. Are you sure you want to make these changes?";
 
 /**
  * Why staff can't finish a stage that requires a visit until one is marked Attended (a holder of FinishWithoutVisit can,
@@ -383,7 +383,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   /** A stage's Visit part: where its visit stands, and booking it, moving it or recording whether the patient came. */
   const visitFor = (stage: PathwayStage) =>
     appointmentsQuery.isError ? (
-      <AlertMessage label="Visit not loaded" message="The stage's visit could not be loaded. Please try again." />
+      <AlertMessage label="Visit not loaded" />
     ) : (
       <StageVisit
         stage={stage}
@@ -465,7 +465,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
         isMissing ? (
           <AlertMessage label="Pathway not found" message="Pathway not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage label="Pathway not loaded" message="The pathway could not be loaded. Please try again." />
+          <AlertMessage label="Pathway not loaded" />
         ) : actionError ? (
           <AlertMessage label={actionError.label} message={actionError.message} />
         ) : pathway?.patientFlags ? (
@@ -542,8 +542,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             title={dialog?.kind === 'finish' ? `Finish ${dialog.stage.name}?` : 'Finish Stage?'}
             message={
               recordsOutcome
-                ? 'The stage will be locked, and the outcome you record adds its stages to the pathway. An admin can unlock it if it needs correcting.'
-                : 'The stage will be locked and the pathway moves on to the next one. An admin can unlock it if it needs correcting.'
+                ? 'The stage will be locked, and the outcome you record adds its stages to the pathway. Someone allowed to unlock stages can reopen it.'
+                : 'The stage will be locked and the pathway moves on to the next one. Someone allowed to unlock stages can reopen it.'
             }
             icon={AppIcon.Check}
             confirmText="Finish Stage"
@@ -555,7 +555,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           </ConfirmDialog>
           <ConfirmDialog
             isOpen={withoutVisit !== null}
-            title="Finish without a visit?"
+            title="Finish Without a Visit?"
             message={
               withoutVisit?.visitRequirement === 'Required'
                 ? `${withoutVisit.name} requires a visit, and none is marked Attended. Your roles let you finish it without one: say why. The reason is kept in the audit log.`
@@ -574,7 +574,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
                   {`Its visit, ${appointmentWhen(withoutVisitState.appointment)}, stays booked: cancel it on the calendar if it's no longer needed.`}
                 </Text>
               )}
-              {withoutVisitState?.status === 'Requested' && <Text type="body">Its visit comes off Requires Appointment.</Text>}
+              {withoutVisitState?.status === 'Requested' && <Text type="body">Its appointment request is removed from the Requires Appointment list.</Text>}
               {withoutVisit?.visitRequirement === 'Required' && (
                 <TextArea
                   label="Reason"
@@ -612,7 +612,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'unlock'}
             title={dialog?.kind === 'unlock' ? `Unlock ${dialog.stage.name}?` : 'Unlock Stage?'}
-            message="Staff can then edit its notes and finish it again. A pathway awaiting review or discharged goes back to in progress."
+            message="Staff can then edit its notes and finish it again. A pathway awaiting review or completed goes back to in progress."
             icon={AppIcon.Lock}
             intent="warning"
             confirmText="Unlock Stage"
@@ -684,7 +684,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           <SelectionDialog
             isOpen={dialog?.kind === 'assign'}
             title="Assign Staff"
-            message="The pathway will show in their task lists."
+            message="The pathway will show on their worklists."
             icon={AppIcon.Assign}
             items={assignable}
             selected={toAssign}
@@ -787,7 +787,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
    * cancelled by the app (someone may need to tell the patient), so they're pointed out.
    */
   function appointmentsList(pathway: Pathway) {
-    if (appointmentsQuery.isError) return <AlertMessage label="Appointments not loaded" message="The appointments could not be loaded. Please try again." />;
+    if (appointmentsQuery.isError) return <AlertMessage label="Appointments not loaded" />;
     if (appointmentsQuery.isPending)
       return (
         <Text type="body" color="secondary">

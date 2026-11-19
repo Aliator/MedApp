@@ -79,14 +79,14 @@ export const STAFF: DemoPerson = {
 export const CLINIC_ADMIN = STAFF;
 
 /**
- * The lab's member of staff a visitor can be: the Lab and Pathologist roles (the second so the demo's one lab account
- * can authorise a report, MC15), in the lab team.
+ * The lab's member of staff a visitor can be: a histopathologist with the Lab and Pathologist roles (the first so the
+ * demo's one lab account also does the bench steps, the second so it can authorise a report, MC15), in the lab team.
  */
 export const LAB: DemoPerson = {
   id: USERS.aldous,
   username: 'r.aldous',
   fullName: 'Ravi Aldous',
-  jobTitle: 'Biomedical scientist, authorising reports (the lab)',
+  jobTitle: 'Consultant histopathologist',
   roles: ['Lab', 'Pathologist'],
   permissions: PATHOLOGIST_ROLE,
   teams: [member(TEAMS.lab)],
@@ -146,7 +146,7 @@ export const HALLWORTH: DemoPerson = {
   id: USERS.hallworth,
   username: 't.hallworth',
   fullName: 'Tom Hallworth',
-  jobTitle: 'GP with a special interest in skin',
+  jobTitle: 'GP with an extended role (GPwER) in dermatology',
   roles: ['Clinician'],
   permissions: CLINICIAN,
   teams: [member(TEAMS.dermatology)],

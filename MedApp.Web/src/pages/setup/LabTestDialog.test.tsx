@@ -21,9 +21,9 @@ describe('LabTestDialog', () => {
     const {user, onSave} = renderDialog();
 
     expect(await screen.findByRole('heading', {name: 'Add Lab Test'})).toBeInTheDocument();
-    expect(dialog().getByRole('spinbutton', {name: /Target/})).toHaveValue('7');
-    expect(dialog().getByRole('spinbutton', {name: /Limit/})).toHaveValue('10');
-    expect(dialog().getByRole('spinbutton', {name: /At risk/})).toHaveValue('2');
+    expect(dialog().getByRole('spinbutton', {name: /Target turnaround/})).toHaveValue('7');
+    expect(dialog().getByRole('spinbutton', {name: /Maximum turnaround/})).toHaveValue('10');
+    expect(dialog().getByRole('spinbutton', {name: /Flag at risk/})).toHaveValue('2');
     expect(isDisabled(dialog().getByRole('button', {name: 'Add Lab Test'}))).toBe(true);
     // The only step can't be removed.
     expect(isDisabled(dialog().getByRole('button', {name: 'Remove step 1'}))).toBe(true);

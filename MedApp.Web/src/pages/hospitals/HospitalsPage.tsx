@@ -120,7 +120,7 @@ export function HospitalsPage() {
             title={editing ? 'Edit Hospital' : 'Add Hospital'}
             message={
               editing
-                ? 'Its requests show the change. A new default applies to requests registered from now on.'
+                ? 'Changes show on its existing requests. A new due-days default applies only to new requests.'
                 : 'A hospital that sends the lab samples, with how its reports go back.'
             }
             icon={editing ? AppIcon.Edit : AppIcon.Add}
@@ -171,7 +171,7 @@ export function HospitalsPage() {
               />
               <NumberInput
                 label="Report due in, when no date is given"
-                description={`Calendar days from receipt, ${MIN_DEADLINE_DAYS} to ${MAX_DEADLINE_DAYS}. A date on the request wins.`}
+                description={`Calendar days from receipt, ${MIN_DEADLINE_DAYS} to ${MAX_DEADLINE_DAYS}. A date given on the request overrides this.`}
                 value={days}
                 onChange={setDays}
                 min={MIN_DEADLINE_DAYS}
@@ -185,7 +185,7 @@ export function HospitalsPage() {
           <ConfirmDialog
             isOpen={dialog?.kind === 'delete'}
             title="Confirm Delete"
-            message="This hospital never sent a request. This action cannot be undone."
+            message="This hospital hasn't sent any requests, so it can be deleted. This can't be undone."
             isDanger
             confirmText="Delete Hospital"
             isProcessing={actions.remove.isPending}
@@ -217,7 +217,7 @@ export function HospitalsPage() {
         footerActions={<Button label="Add Hospital" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Add} />} onClick={() => edit(null)} />}>
         {hospitals.isError ? (
           <VStack padding={6}>
-            <AlertMessage label="Hospitals not loaded" message="The hospitals could not be loaded. Please try again." />
+            <AlertMessage label="Hospitals not loaded" />
           </VStack>
         ) : hospitals.isPending || items.length === 0 ? (
           <VStack padding={6}>

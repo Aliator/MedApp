@@ -30,7 +30,7 @@ export type LabCaseView = (typeof LAB_CASE_VIEWS)[number];
 const VIEW_LABELS: Record<LabCaseView, string> = {
   Open: 'Open',
   AtRisk: 'At risk',
-  Overdue: 'Overdue',
+  Overdue: 'Breached',
   ToReport: 'To report',
   Reported: 'Reported',
   AwaitingSurgeryDetails: 'Awaiting surgery details',
@@ -43,10 +43,10 @@ export const labCaseViewLabel = (view: LabCaseView) => VIEW_LABELS[view];
 /** A choice's outcomes, by the names the API takes, in words. */
 const OUTCOME_LABELS: Record<string, string> = {
   Adequate: 'Adequate',
-  Insufficient: 'Insufficient: ask for a repeat',
-  NoMoreWork: 'No more work',
+  Insufficient: 'Insufficient – repeat needed',
+  NoMoreWork: 'No further work',
   ExtraTests: 'Extra tests (special stains)',
-  SecondOpinion: 'A second opinion',
+  SecondOpinion: 'Send for second opinion',
 };
 
 export const labOutcomeLabel = (outcome: string | null | undefined) => OUTCOME_LABELS[outcome ?? ''] ?? outcome ?? '';

@@ -69,7 +69,7 @@ export function CloseReferralDialog({closing, referral, isProcessing, errors, me
       <VStack gap={4} hAlign="stretch">
         {referral.patient && <PatientBanner patient={referral.patient} isCompact />}
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Team">{referral.teamName}</MetadataListItem>
+          <MetadataListItem label="Clinic">{referral.teamName}</MetadataListItem>
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>
