@@ -3,7 +3,7 @@ templates:
 
   - template: Suspected skin cancer
     retentionClass: Oncology
-    summary: "Urgent suspected skin cancer referral: dermoscopy, biopsy where the centre can take one, histology and the skin cancer MDT, ending in discharge or hospital treatment."
+    summary: "Urgent suspected skin cancer referral: dermoscopy, biopsy where the centre can take one, histology and the skin cancer MDT, ending in care completed or hospital treatment."
     start: triage
     stages:
       - id: triage
@@ -160,7 +160,7 @@ templates:
         notes: Self-examination and sun protection advice, with written information.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -168,7 +168,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -328,7 +328,7 @@ templates:
         optional: false
         needsLetter: null
         needsConsent: false
-        repeat: Every 3 months (short-term) or 6 to 12 months (several atypical moles); stops at discharge or referral.
+        repeat: Every 3 months (short-term) or 6 to 12 months (several atypical moles); stops when care is completed or at referral.
         mdt: false
         consult: null
         snomed: null
@@ -352,7 +352,7 @@ templates:
         notes: Self-check advice (what change to look for) and sun protection.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -360,7 +360,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -561,7 +561,7 @@ templates:
         notes: Self-examination and sun protection advice; how to get back in quickly.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -569,7 +569,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -802,7 +802,7 @@ templates:
         notes: "Advice only, no prescribing: emollient use, skin care, triggers, sun protection."
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -810,7 +810,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -1020,7 +1020,7 @@ templates:
         notes: The clinician records the histology diagnosis.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -1028,7 +1028,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -1238,7 +1238,7 @@ templates:
         notes: The clinician records the histology diagnosis.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -1246,7 +1246,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -1397,7 +1397,7 @@ templates:
         notes: One review about 12 weeks after the care plan.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -1405,7 +1405,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -1609,7 +1609,7 @@ templates:
         notes: Skin care and hygiene advice. Advice only, no prescribing.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -1617,7 +1617,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -1919,14 +1919,14 @@ templates:
         optional: false
         needsLetter: null
         needsConsent: false
-        repeat: Every 3 to 6 months; stops at discharge or referral.
+        repeat: Every 3 to 6 months; stops when care is completed or at referral.
         mdt: false
         consult: null
         snomed: null
         notes: Compare with earlier scalp photographs.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -1934,7 +1934,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false
@@ -2180,7 +2180,7 @@ templates:
         notes: Sun protection, skin camouflage advice and support groups. Advice only, no prescribing.
 
       - id: discharge
-        name: Letter to GP and discharge
+        name: Final letter to GP
         owner: clinic
         kind: step
         visit: none
@@ -2188,7 +2188,7 @@ templates:
         outcomes: null
         endOutcome: discharge
         optional: false
-        needsLetter: Discharge letter to GP
+        needsLetter: Final letter to GP
         needsConsent: false
         repeat: null
         mdt: false

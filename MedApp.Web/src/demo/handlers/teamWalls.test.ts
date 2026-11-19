@@ -187,13 +187,13 @@ describe('cross-clinic MDTs in the light demo (MC26)', () => {
   it("lets an attendee from another clinic read the listed case only, read only, until it's withdrawn and the meeting has ended", async () => {
     addOtherClinicMdt(startLightDemo(STAFF).state);
     const list = (await call('GET', `/api/mdt/meetings/${MEETING}/items`)).body;
-    expect(list.readOnlyReason).toMatch(/which you attend/);
+    expect(list.readOnlyReason).toMatch(/^You attend .*’s MDT/);
     expect(list.items).toEqual([expect.objectContaining({id: ITEM, canWithdraw: false, canDefer: false, canChoosePresenter: false})]);
     expect(list.items[0].readOnlyReason).toMatch(/^Other clinic \(test\)’s case/);
     const pathway = await call('GET', `${PATHWAY}/${OTHER}`);
     expect(pathway.status).toBe(200);
     expect(pathway.body).toMatchObject({canEditDetails: false, canAddNotes: false, canWorkOnStages: false});
-    expect(pathway.body.readOnlyReason).toMatch(/MDT, which you attend/);
+    expect(pathway.body.readOnlyReason).toMatch(/^You attend .*’s MDT, so you can read this pathway/);
     expect((await call('POST', `/api/mdt/items/${ITEM}/withdraw`, {expectedVersion: 1})).status).toBe(409);
     expect((await call('POST', `${PATHWAY}/${OTHER}/notes`, {text: 'x'})).status).toBe(409);
     // Withdrawn, the grant lasts until the meeting ends; then it's gone.

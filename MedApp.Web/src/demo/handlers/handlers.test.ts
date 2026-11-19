@@ -173,7 +173,7 @@ describe('the light demo handlers', () => {
     const node = pathway.stages.find(isCurrent);
     expect(node).toMatchObject({choiceKind: 'Assessment', needsOutcome: true, outcome: null});
     expect(node.outcomes).toEqual([
-      {name: 'Looks benign', stageNames: ['Agree care plan', 'Letter to GP and discharge']},
+      {name: 'Looks benign', stageNames: ['Agree care plan', 'Final letter to GP']},
       {name: 'Actinic keratosis', stageNames: ['Refer to GP']},
       {name: 'Suspected BCC', stageNames: ['Refer to hospital']},
       {name: 'Suspected SCC', stageNames: ['Urgent hospital referral']},

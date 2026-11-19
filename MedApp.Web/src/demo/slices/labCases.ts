@@ -107,7 +107,7 @@ export interface LabCaseSlice {
 }
 
 export const LAB_CASES = {
-  /** Ilona Petrova's blood sample: every step done, "No more work" recorded: to report. */
+  /** Ilona Petrova's blood sample, her Blood tests (lab) case: every step done, "No more work" recorded: to report. */
   ilonaBlood: id(0xca, 1),
   /** Priya Holloway's biopsy, her pathway's Histology (lab) case: every step done, to report (MC16). */
   priyaBiopsy: id(0xca, 2),
@@ -264,7 +264,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       reportSent: {atUtc: at, byUserId: LAB.id, hospitalId: hospital.id, addressedTo: r.surgeonName, method: hospital.reportDeliveryMethod},
     };
   };
-  const biopsyReport = 'Synthetic demo report. Skin, punch biopsy: findings as typed by the lab. (MedApp never reads or interprets it.)';
+  const biopsyReport = 'Skin, punch biopsy: squamous cell carcinoma, well differentiated.';
   const wilfredBiopsy = sentBack(HOSPITAL_REQUESTS.wilfredBiopsy, 10, biopsyReport);
   const wilfredSurgeryAt = daysAgo(2, 9);
 
@@ -274,7 +274,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   const aisha = sample(SPECIMENS.aishaBiopsy);
   const aishaPathway = pathwayOf(PATHWAYS.forkedTests);
   const aishaHistology = labStageAfter(aishaPathway, aisha.stageId, TEAMS.lab)!;
-  const aishaRepeat = 'Too little tissue to section (synthetic).';
+  const aishaRepeat = 'Too little tissue to section.';
   const aishaCase = make(
     LAB_CASES.aishaBiopsy,
     aisha.number,
@@ -302,7 +302,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
     userId: STAFF.id,
     kind: 'RepeatSampleRequested',
     title: 'Repeat sample requested',
-    message: 'The lab asked for a repeat sample (Skin histology). Take biopsy is reopened to take it.',
+    message: 'The lab asked for a repeat sample (Skin histology). The Take biopsy stage is open again for the repeat.',
     pathwayId: PATHWAYS.forkedTests,
     subjectId: aisha.id,
     createdAtUtc: aishaRejectedAt,
@@ -310,7 +310,9 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   });
 
   const seeded = [
-    make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2)),
+    make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2), {
+      stageId: labStageAfter(pathwayOf(PATHWAYS.followUpBooked), ilona.stageId, TEAMS.lab)!.id,
+    }),
     make(LAB_CASES.priyaBiopsy, priya.number, [priya], histology, [...adequate, ...histologySteps, noMoreWork], hoursAgo(4), {
       stageId: histologyOf(PATHWAYS.histologyToFinish).id,
     }),
@@ -326,10 +328,10 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       LAB_CASES.leahScraping,
       leah.number,
       [leah],
-      LAB_TESTS.fungalScraping,
-      [...adequate, ...['Microscopy', 'Culture', 'Report'].map((name): StepPlan => ({kind: 'TestStep', testStepId: step(LAB_TESTS.fungalScraping, name)})), noMoreWork],
-      // Worked the afternoon it came in, in working hours.
-      new Date(Date.parse(leah.receivedAtUtc!) + 3.5 * 3600_000).toISOString(),
+      LAB_TESTS.scrapingMicroscopy,
+      [...adequate, ...['Microscopy', 'Report'].map((name): StepPlan => ({kind: 'TestStep', testStepId: step(LAB_TESTS.scrapingMicroscopy, name)})), noMoreWork],
+      // A quick microscopy (no culture), worked the evening it came in.
+      new Date(Date.parse(leah.receivedAtUtc!) + 2.5 * 3600_000).toISOString(),
       {stageId: labStageAfter(pathwayOf(PATHWAYS.relay), leah.stageId, TEAMS.lab)!.id},
     ),
     make(
@@ -345,10 +347,10 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
           {
             id: id(0xcd, 1),
             surgeryOn: ukDay(daysAgo(3)),
-            procedure: 'Wide local excision, left forearm (synthetic)',
+            procedure: 'Wide local excision, left forearm',
             outcome: null,
             noSurgeryExpected: false,
-            detail: 'Suture marks 12 o’clock (synthetic).',
+            detail: 'Suture marks 12 o’clock.',
             addedAtUtc: hoursAgo(20),
             addedByUserId: LAB.id,
           },
@@ -384,8 +386,8 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
           {
             id: id(0xcd, 2),
             surgeryOn: ukDay(daysAgo(3)),
-            procedure: 'Wide local excision (synthetic)',
-            outcome: 'Completed; the excision sent to the lab (synthetic).',
+            procedure: 'Wide local excision',
+            outcome: 'Completed; the excision sent to the lab.',
             noSurgeryExpected: false,
             detail: null,
             addedAtUtc: wilfredSurgeryAt,

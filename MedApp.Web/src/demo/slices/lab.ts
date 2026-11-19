@@ -170,6 +170,8 @@ export const LAB_TESTS = {
   fungalScraping: id(0xed, 3),
   /** Archived and never used: the setup page can delete it. */
   liverFunction: id(0xed, 4),
+  /** A quick microscopy of a skin scraping, no culture: reported within hours (the tour's relay). */
+  scrapingMicroscopy: id(0xed, 5),
 } as const;
 
 export const SPECIMENS = {
@@ -183,13 +185,13 @@ export const SPECIMENS = {
   ilonaBloodRejected: id(0xe3, 4),
   /** Ilona Petrova's second blood sample, received by the lab. */
   ilonaBlood: id(0xe3, 5),
-  /** Ilona Petrova's skin scraping, taken this morning and not yet sent. */
+  /** Ilona Petrova's skin scraping, taken at her visit this morning and not yet sent. */
   ilonaScraping: id(0xe3, 6),
   /** Callum Ashby's punch biopsy, reported three days ago (its result awaits Nadia Thornbury's sign-off). */
   callumBiopsy: id(0xe3, 8),
   /** Aisha Khoury's second lesion's biopsy: too little to test, so its case asked for a repeat (MC22; `seedLabCases`). */
   aishaBiopsy: id(0xe3, 9),
-  /** Leah Corrin's skin scraping, taken at her Triage (the tour's relay): with the lab, its case ready for results. */
+  /** Leah Corrin's skin scraping, taken at her Triage visit yesterday (the tour's relay): with the lab, its case ready for results. */
   leahScraping: id(0xe3, 10),
 } as const;
 
@@ -238,7 +240,6 @@ const TEST_OF_TYPE: Record<string, string> = {
 
 const ago = (days: number, hours = 10, minutes = 0) => ukTime(daysFrom(-days), hours, minutes);
 const plusMinutes = (isoUtc: string, minutes: number) => new Date(new Date(isoUtc).getTime() + minutes * 60000).toISOString();
-const earlierOf = (a: string, b: string) => (Date.parse(a) <= Date.parse(b) ? a : b);
 
 type ResultFields = Partial<DemoResult> &
   Pick<DemoResult, 'patientId' | 'teamId' | 'title' | 'reportAttachmentId' | 'reportedAtUtc' | 'reportedByUserId' | 'responsibleUserId'>;
@@ -332,10 +333,11 @@ export function seedLab(state: BaseState): LabSlice {
   // Aisha Khoury's added route's Take biopsy (MC10): its sample, received; its case rejects it as insufficient (MC22).
   const aishaTake = pathway(PATHWAYS.forkedTests).stages.find((s) => s.branchAdditionId && s.name === 'Take biopsy')!;
   const aishaTaken = plusMinutes(aishaTake.completedAtUtc!, -20);
+  const leahTaken = plusMinutes(visit(MORE_APPOINTMENTS.leahTriage), 20);
   const specimens: DemoSpecimen[] = [
     specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 3, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
-      requestNotes: 'Pigmented lesion, 7 mm. Please report the margins.',
+      requestNotes: 'Non-pigmented lesion, 7 mm. Query basal cell carcinoma.',
       status: 'Received',
       sentAtUtc: plusMinutes(priyaTaken, 240),
       sentByUserId: STAFF.id,
@@ -386,8 +388,8 @@ export function seedLab(state: BaseState): LabSlice {
       labReference: 'CL-20931',
       version: 3,
     }),
-    // Taken this morning (or half an hour ago, early in the day), never in the future.
-    specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 4, SPECIMEN_TYPES.skinScraping, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
+    // Taken at her visit this morning (the seed keeps it in the past), at her other pathway's Take skin sample.
+    specimen(SPECIMENS.ilonaScraping, PATHWAYS.scrapingToSend, 3, SPECIMEN_TYPES.skinScraping, plusMinutes(visit(MORE_APPOINTMENTS.ilonaSample), 10), STAFF.id, {
       site: 'Right elbow',
     }),
     // Reported when its case's report was authorised, which finished his Histology (MC16).
@@ -413,13 +415,14 @@ export function seedLab(state: BaseState): LabSlice {
       receivedByUserId: LAB.id,
       version: 3,
     }),
-    // The tour's relay: taken at her Triage yesterday morning and with the lab by the afternoon.
-    specimen(SPECIMENS.leahScraping, PATHWAYS.relay, 1, SPECIMEN_TYPES.skinScraping, ago(1, 9, 30), STAFF.id, {
+    // The tour's relay: taken at her Triage visit yesterday afternoon, for a quick microscopy, and in the lab within the hour.
+    specimen(SPECIMENS.leahScraping, PATHWAYS.relay, 1, SPECIMEN_TYPES.skinScraping, leahTaken, STAFF.id, {
       site: 'Left forearm',
+      labTestId: LAB_TESTS.scrapingMicroscopy,
       status: 'Received',
-      sentAtUtc: ago(1, 10, 30),
+      sentAtUtc: plusMinutes(leahTaken, 25),
       sentByUserId: STAFF.id,
-      receivedAtUtc: ago(1, 14, 0),
+      receivedAtUtc: plusMinutes(leahTaken, 55),
       receivedByUserId: LAB.id,
       version: 3,
     }),
@@ -455,7 +458,7 @@ export function seedLab(state: BaseState): LabSlice {
       pathwayId: PATHWAYS.unassigned,
       teamId: pathway(PATHWAYS.unassigned).teamId,
       source: 'ExternalReport',
-      title: 'Lesion photographs from the GP practice',
+      title: 'Report from the GP practice',
       reportAttachmentId: REPORT_FILES.gpReport,
       reportFileName: 'gp-report.pdf',
       reportedAtUtc: ago(1, 11, 30),
@@ -470,7 +473,7 @@ export function seedLab(state: BaseState): LabSlice {
       userId: STAFF.id,
       kind: 'ResultReady',
       title: 'Result ready',
-      message: `${LAB.username} reported a Skin biopsy (punch) specimen.`,
+      message: `${LAB.username} reported a Skin biopsy (punch) sample.`,
       pathwayId: PATHWAYS.backFromLab,
       subjectId: RESULTS.callumBiopsy,
       createdAtUtc: stage(PATHWAYS.backFromLab, 4).completedAtUtc!,
@@ -491,7 +494,7 @@ export function seedLab(state: BaseState): LabSlice {
       id: id(0xe5, 103),
       userId: STAFF.id,
       kind: 'SpecimenRejectedByLab',
-      title: 'Specimen rejected',
+      title: 'Sample rejected',
       message: 'The lab rejected a sample (Blood sample).',
       pathwayId: PATHWAYS.followUpBooked,
       subjectId: SPECIMENS.ilonaBloodRejected,
@@ -560,6 +563,17 @@ export function seedLab(state: BaseState): LabSlice {
         atRiskDays: 1,
         steps: [{id: id(0xed, 131), name: 'Analyser run', kind: 'Standard', isOptional: false}],
         isArchived: true,
+      },
+      {
+        id: LAB_TESTS.scrapingMicroscopy,
+        name: 'Skin scraping microscopy',
+        kind: 'Microbiology',
+        snomedCode: null,
+        targetDays: 5,
+        limitDays: 7,
+        atRiskDays: 1,
+        steps: [{id: id(0xed, 141), name: 'Microscopy', kind: 'Standard', isOptional: false}, {id: id(0xed, 142), name: 'Report', kind: 'Standard', isOptional: false}],
+        isArchived: false,
       },
     ],
     specimens,

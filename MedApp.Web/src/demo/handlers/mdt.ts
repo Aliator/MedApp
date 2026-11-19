@@ -108,7 +108,7 @@ function listReadOnlyReason(meeting: Meeting, scope: TeamScope): string | null {
   if (seesWholeList(meeting, scope)) return null;
   const team = teamName(meeting.teamId) || 'another team';
   return (meeting.attendees ?? []).some((a) => a.userId === scope.userId)
-    ? `This is ${team}’s MDT, which you attend: you read the cases listed on it, read only, until each is discussed or withdrawn, and at least until the meeting ends.`
+    ? `You attend ${team}’s MDT, so you can read the cases listed on it (not change them) until each is discussed or withdrawn and the meeting has ended.`
     : `This is ${team}’s MDT and you aren’t invited: only its team and its attendees see the cases listed on it.`;
 }
 
@@ -213,7 +213,7 @@ export function registerMdt() {
     const viewer = me();
     const errors: Record<string, string[]> = {};
     const question = body.question?.trim() ?? '';
-    if (!body.pathwayId) errors.pathwayId = ['Pathway id is required.'];
+    if (!body.pathwayId) errors.pathwayId = ['Choose the pathway.'];
     if (!body.meetingId) errors.meetingId = ['Choose an MDT.'];
     if (!question) errors.question = ['Give the question for the team.'];
     else if (question.length > MAX_QUESTION) errors.question = [`The question must not exceed ${MAX_QUESTION} characters.`];

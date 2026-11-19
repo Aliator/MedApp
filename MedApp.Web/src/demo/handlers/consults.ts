@@ -192,7 +192,7 @@ export function registerConsults() {
     const viewer = me();
     const errors: Record<string, string[]> = {};
     const question = body.question?.trim() ?? '';
-    if (!body.pathwayId) errors.pathwayId = ['Pathway id is required.'];
+    if (!body.pathwayId) errors.pathwayId = ['Choose the pathway.'];
     if (!body.askedTeamId) errors.askedTeamId = ['Choose the team to ask.'];
     if (!question) errors.question = ['Write the question for the team.'];
     else if (question.length > MAX_QUESTION) errors.question = [`The question must not exceed ${MAX_QUESTION} characters.`];

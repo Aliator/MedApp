@@ -15,6 +15,7 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
       ['Triage', null],
       ['Testing', TEAMS.lab],
       ['Results appointment', null],
+      ['Refer to GP for medication', null],
     ]);
     expect(named('Suspected skin cancer')).toMatchObject({id: TEMPLATES.suspectedSkinCancer, retentionClass: 'Oncology', teamName: 'Dermatology'});
     expect(named('Eczema assessment').retentionClass).toBe('Standard');
@@ -34,7 +35,7 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
     for (const template of dermatology) expect(template.stages![0].stageDefinitionId).toBe(triage[0].id);
     expect(triage[0]).toMatchObject({snomedCode: '225390008', snomedTerm: 'Triage', visitRequirement: 'None'});
     expect(state.stageDefinitions.find((d) => d.name === 'Take biopsy')).toMatchObject({needsConsent: true, visitRequirement: 'Required'});
-    expect(state.stageDefinitions.find((d) => d.name === 'Letter to GP and discharge')?.needsLetterKind).toBe('DischargeSummary');
+    expect(state.stageDefinitions.find((d) => d.name === 'Final letter to GP')?.needsLetterKind).toBe('DischargeSummary');
     // A referral letter to the hospital is an onward referral (MC28); one to the GP stays a clinic letter.
     expect(state.stageDefinitions.find((d) => d.name === 'Urgent hospital referral')?.needsLetterKind).toBe('OnwardReferral');
     expect(state.stageDefinitions.find((d) => d.name === 'Refer to hospital')?.needsLetterKind).toBe('OnwardReferral');
@@ -50,7 +51,7 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
     expect(stage('Dermoscopy assessment')).toMatchObject({choiceKind: 'Assessment', visitRequirement: 'Required'});
     expect(stage('Histology result').choiceKind).toBe('LabResult');
     expect(stage('Histology')).toMatchObject({ownerTeamId: TEAMS.lab, choiceKind: null});
-    expect(stage('Refer to hospital').description).toMatch(/Needs a letter: Referral letter to hospital\. Ends in a referral to the hospital\.$/);
+    expect(stage('Refer to hospital').description).toMatch(/Needs a letter: Referral letter to hospital\. Ends with a referral to the hospital\.$/);
     expect(stage('Dermoscopy assessment').outcomes!.find((o) => o.name === 'Uncertain: biopsy')!.nextStageOrders).toEqual([stage('Take biopsy').stageOrder]);
   });
 
@@ -74,6 +75,6 @@ describe('Dermatology’s reviewed templates in the light demo', () => {
     // Benign went back to surveillance's skin check: still recorded, ending the route.
     const surveillance = named('Skin cancer surveillance').stages!.find((s) => s.name === 'Histology result')!;
     expect(surveillance.outcomes!.find((o) => o.name === 'Benign')!.nextStageOrders).toEqual([]);
-    expect(surveillance.description).toContain('Benign: back to Skin check in the reviewed pathway');
+    expect(surveillance.description).toContain('Benign: in practice this goes back to Skin check; here the route ends');
   });
 });

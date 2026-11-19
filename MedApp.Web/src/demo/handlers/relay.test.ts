@@ -103,7 +103,7 @@ describe('the relay in the light demo', () => {
     expect(pathway.stages.find((s) => s.name === 'Take biopsy')!.unlocked).toBe(true);
     expect(pathway.stages.find((s) => s.name === 'Histology')!.completedAtUtc).toBeNull();
     const told = db().notifications.find((n) => n.kind === 'RepeatSampleRequested' && n.pathwayId === PATHWAYS.histologyToFinish)!;
-    expect(told.message).toBe('The lab asked for a repeat sample (Skin histology). Take biopsy is reopened to take it.');
+    expect(told.message).toBe('The lab asked for a repeat sample (Skin histology). The Take biopsy stage is open again for the repeat.');
   });
 
   it('lets a template give a stage only to its own team or the lab', async () => {
