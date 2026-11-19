@@ -225,7 +225,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const [isCheckAnswered, setIsCheckAnswered] = useState(false);
   const [toAssign, setToAssign] = useState<string[]>([]);
   // What's open and folded is held here, so it carries over when the window switches between one card and two.
-  // The defaults apply once, when the page loads: Patient info and the Current stage open, Stages folded into their
+  // The defaults apply once, when the page loads: Pathway info and the Current stage open, Stages folded into their
   // progress bar, and in a narrow window Assigned staff and Files folded too. Stages in the list open only when
   // clicked. Details itself never folds.
   const [open, setOpen] = useState(() => ({
@@ -240,7 +240,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     consent: !isNarrow,
     letters: !isNarrow,
     stages: false,
-    patientInfo: true,
+    pathwayInfo: true,
     assignedStaff: !isNarrow,
     appointments: true,
   }));
@@ -741,7 +741,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     </Page>
   );
 
-  /** Who the patient is and the status, then Patient info (the pathway's template and dates), which folds. */
+  /** Who the patient is and the status, then Pathway info (the pathway's template and dates), which folds. */
   function details(pathway: Pathway) {
     return (
       <>
@@ -767,7 +767,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
           )}
           </VStack>
         </Section>
-        <DetailPart title="Patient info" isOpen={open.patientInfo} onToggle={() => toggle('patientInfo')}>
+        <DetailPart title="Pathway info" isOpen={open.pathwayInfo} onToggle={() => toggle('pathwayInfo')}>
           <ViewSection>
             <MetadataListItem label="Template">{pathway.templateName || '—'}</MetadataListItem>
             <MetadataListItem label="Target date">
