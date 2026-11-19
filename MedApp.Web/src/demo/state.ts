@@ -44,6 +44,12 @@ export interface DemoStage {
   skipDetail: string | null;
 }
 
+/** A link from one stage of a pathway to the next (`PatientPathwayStageLinks`): a fork has several from a stage, a join several to it. */
+export interface DemoStageLink {
+  fromStageId: string;
+  toStageId: string;
+}
+
 export interface DemoNote {
   id: string;
   authorUserId: string;
@@ -87,6 +93,8 @@ export interface DemoPathway {
   createdAt: string;
   lastUpdated: string;
   stages: DemoStage[];
+  /** How its stages lead to each other (MC8, tree pathways): copied from the template's links, by stage ID. */
+  links: DemoStageLink[];
   assignments: {userId: string; assignedByUserId: string; assignedAtUtc: string}[];
   notes: DemoNote[];
   /** Changes of status (put on hold, taken off it, discharged), for the timeline. */
