@@ -65,7 +65,8 @@ export const calendarKeys = {
   staff: ['calendar', 'staff'] as const,
   weekTemplateOf: (userId: string) => ['calendar', 'weekTemplate', userId] as const,
   hoursOf: (userId: string) => ['calendar', 'hours', userId] as const,
-  team: (date: string, staffUserIds: readonly string[]) => ['calendar', 'team', date, [...staffUserIds].sort()] as const,
+  team: (date: string, teamId: string | undefined, staffUserIds: readonly string[]) =>
+    ['calendar', 'team', date, teamId ?? 'mine', [...staffUserIds].sort()] as const,
   availability: (input: AvailabilityInput) =>
     ['calendar', 'availability', [...input.staffUserIds].sort(), input.from, input.to, input.durationMinutes, input.exceptMeetingId ?? null] as const,
   meeting: (id: string) => ['calendar', 'meeting', id] as const,
@@ -177,14 +178,20 @@ export function weekTemplatesQuery(ownerUserId: string) {
 }
 
 /**
- * The team view (admins): one UK day of several people's calendars side by side (everyone with a staff role when
- * `staffUserIds` is empty), and `everyoneFree`, when they're all free (after now, inside the working day).
+ * A team's calendar (anyone, MC11): one UK day of a team's members side by side (`teamId`, or your first team when
+ * left out; everyone in it when `staffUserIds` is empty), `everyoneFree`, when they're all free (after now, inside the
+ * working day), and `teamMembers`, everyone in the team (for Who). Other teams' appointments and meetings on it are
+ * busy time only (`otherTeamsBusy`).
  */
-export function teamCalendarQuery({date, staffUserIds}: {date: string; staffUserIds: readonly string[]}) {
+export function teamCalendarQuery({date, teamId, staffUserIds}: {date: string; teamId?: string; staffUserIds: readonly string[]}) {
   return queryOptions({
-    queryKey: calendarKeys.team(date, staffUserIds),
+    queryKey: calendarKeys.team(date, teamId, staffUserIds),
     queryFn: () =>
-      unwrap(api.GET('/api/calendar/team', {params: {query: {Date: date, StaffUserIds: staffUserIds.length ? [...staffUserIds] : undefined}}})),
+      unwrap(
+        api.GET('/api/calendar/team', {
+          params: {query: {Date: date, TeamId: teamId, StaffUserIds: staffUserIds.length ? [...staffUserIds] : undefined}},
+        }),
+      ),
   });
 }
 
