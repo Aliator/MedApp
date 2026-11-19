@@ -7,9 +7,10 @@ using Microsoft.Playwright;
 namespace MedApp.E2ETests.Calendar;
 
 /// <summary>
-/// Arranging a meeting from the team view: an admin (who arranges any meeting) narrows it to themselves and a member of
-/// staff, takes the first suggested time in New Meeting, finds the meeting on the member of staff's calendar, and
-/// cancels it there.
+/// Arranging a meeting from the team view: an admin (who arranges any meeting) opens the E2E clinic's team calendar
+/// narrowed to a new member of the clinic, adds themselves in New Meeting ("I'm going too": admins are in no team, so
+/// not in its view), takes the first suggested time, finds the meeting on the member of staff's calendar, and cancels it
+/// there.
 /// </summary>
 [TestFixture]
 public sealed class MeetingTests : E2ETest
@@ -19,19 +20,18 @@ public sealed class MeetingTests : E2ETest
     [Test]
     public async Task NewMeeting_FromTheTeamViewAtASuggestedTime_ShowsOnAnAttendeesCalendarAndCanBeCancelled()
     {
-        var staffUsername = E2EData.UniqueName("staff").Replace(' ', '-').ToLowerInvariant();
-        await Api.CreateUserAsync(staffUsername, "Nurse");
-        Data.OnCleanUp($"user {staffUsername}", () => Api.DeleteUserAsync(staffUsername, E2ESettings.Password!));
-        var staffId = await Api.UserIdOfAsync(staffUsername);
+        var colleague = await CreateColleagueAsync(["Nurse"]);
+        var staffUsername = colleague.Username;
+        var staffId = colleague.UserId;
         var meId = await Api.UserIdOfAsync(E2ESettings.Username!);
         var title = E2EData.UniqueName("Meeting");
 
-        // The team view, narrowed to the two of us, on the next weekday.
+        // The clinic's team view, narrowed to the new member of staff, on the next weekday.
         var day = UkToday.AddDays(1);
         while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
             day = day.AddDays(1);
-        await OpenAsync($"/calendar?view=team&date={day:yyyy-MM-dd}&who={meId},{staffId}");
-        var team = Main.GetByRole(AriaRole.Group, new() { NameRegex = new Regex("^Team, ") });
+        await OpenAsync($"/calendar?view=team&team={Team.Id}&date={day:yyyy-MM-dd}&who={staffId}");
+        var team = Main.GetByRole(AriaRole.Group, new() { NameRegex = new Regex($@"^{Regex.Escape(Team.Name)} team, [^,]+ \d{{4}}$") });
         await Expect(team).ToBeVisibleAsync();
         await Expect(team).ToContainTextAsync("Everyone free");
         await Expect(team).ToContainTextAsync(staffUsername);
@@ -41,6 +41,7 @@ public sealed class MeetingTests : E2ETest
         await Page.GetByRole(AriaRole.Menuitem, new() { Name = "New meeting" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "New Meeting" });
         await dialog.GetByRole(AriaRole.Textbox, new() { Name = "Title" }).FillAsync(title);
+        await dialog.GetByRole(AriaRole.Checkbox, new() { NameRegex = new Regex("^I'm going too") }).CheckAsync();
         var suggestions = dialog.GetByRole(AriaRole.Group, new() { Name = "Suggested times" });
         var first = suggestions.GetByRole(AriaRole.Button).First;
         await Expect(first).ToBeVisibleAsync();
