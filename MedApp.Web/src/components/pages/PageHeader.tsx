@@ -19,8 +19,9 @@ export interface PageHeaderProps {
   /** Buttons at the end of the header, e.g. Search and Add. */
   actions?: ReactNode;
   /**
-   * A message for the whole page, such as an error from saving or loading (an `AlertMessage`). It sits beside the
-   * title, starting right after it, with the actions at the end, so it never pushes the content down.
+   * A message for the whole page, such as an error from saving or loading (an `AlertMessage`), or why it's read only. It
+   * sits in the title's own line, right after the title (not beside the Back link or subtitle under it: the owner,
+   * 19 November 2026), with the actions at the end, so it never pushes the content down.
    */
   message?: ReactNode;
   /** 2 for a section's header within a page, such as each of Home's task lists. */
@@ -28,16 +29,22 @@ export interface PageHeaderProps {
 }
 
 /**
- * A page's message, beside the title: it starts from no width and takes what the title and the actions leave, but no
+ * A page's message, in the title's line: it starts from no width and takes what the title and the actions leave, but no
  * less than this, so a long one wraps its own words rather than taking a line of its own and pushing the actions under
  * it. Only where even this much doesn't fit (a phone, a half view) does it go under the title.
  */
 const MESSAGE_MIN_INLINE = '12rem';
 
 /**
- * A page's header (replaces Blazor's PageHeader): the title, then one line under it, with actions at the end and
- * any page message beside the title. Where they don't all fit on one line, the message and then the actions wrap under the
- * title. In a half view, it ends with the button that closes that half, which stays on the title's line, top right.
+ * The message's space: from no width (and its own length doesn't count when the header works out whether the actions
+ * fit beside the title: `contain`), growing into what's left, at least `MESSAGE_MIN_INLINE`.
+ */
+const MESSAGE_SPACE = {flexBasis: 0, minInlineSize: MESSAGE_MIN_INLINE, contain: 'inline-size'} as const;
+
+/**
+ * A page's header (replaces Blazor's PageHeader): the title, with any page message right after it in the same line,
+ * then one line under it, with actions at the end. Where they don't all fit on one line, the message and then the
+ * actions wrap under the title. In a half view, it ends with the button that closes that half, which stays on the title's line, top right.
  * The line holds the Back link (on pages you drill into) and/or the subtitle, and is the same height either way,
  * so the title and the content below sit in exactly the same place on every page.
  */
@@ -53,40 +60,46 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
     // Wraps when the title and the actions don't fit side by side (a phone, a half view): the actions go under the
     // title, and wrap among themselves, rather than running off the side of the page.
     <HStack gap={4} vAlign="center" wrap="wrap">
-      <VStack gap={1}>
-        <Heading level={level}>{title}</Heading>
-        {(hasBack || subtitle) && (
-          <HStack gap={4} vAlign="center">
-            {hasBack && (
-              <Link
-                href={backHref}
-                onClick={onBack}
-                tooltip={backLabel}
-                type="body"
-                color="secondary"
-                hasUnderline={false}>
-                <HStack gap={1} vAlign="center">
-                  <Icon icon={AppIcon.Back} size="sm" />
-                  Back
+      {/* Fills the line up to the actions, so they sit at the end. */}
+      <StackItem size="fill">
+        <VStack gap={1}>
+          {message ? (
+            // The message starts right after the title, in the title's line (the row's gap apart).
+            <HStack gap={4} vAlign="center" wrap="wrap">
+              <Heading level={level}>{title}</Heading>
+              <StackItem size="fill" style={MESSAGE_SPACE}>
+                <HStack hAlign="start" vAlign="center">
+                  {message}
                 </HStack>
-              </Link>
-            )}
-            {subtitle && (
-              <Text type="body" color="secondary">
-                {subtitle}
-              </Text>
-            )}
-          </HStack>
-        )}
-      </VStack>
-      {/* Fills the line between the title and the actions, so the actions sit at the end; the message starts at its
-          start, beside the title (the row's gap apart). */}
-      <StackItem size="fill" style={message ? {flexBasis: 0, minInlineSize: MESSAGE_MIN_INLINE} : undefined}>
-        {message && (
-          <HStack hAlign="start" vAlign="center">
-            {message}
-          </HStack>
-        )}
+              </StackItem>
+            </HStack>
+          ) : (
+            <Heading level={level}>{title}</Heading>
+          )}
+          {(hasBack || subtitle) && (
+            <HStack gap={4} vAlign="center">
+              {hasBack && (
+                <Link
+                  href={backHref}
+                  onClick={onBack}
+                  tooltip={backLabel}
+                  type="body"
+                  color="secondary"
+                  hasUnderline={false}>
+                  <HStack gap={1} vAlign="center">
+                    <Icon icon={AppIcon.Back} size="sm" />
+                    Back
+                  </HStack>
+                </Link>
+              )}
+              {subtitle && (
+                <Text type="body" color="secondary">
+                  {subtitle}
+                </Text>
+              )}
+            </HStack>
+          )}
+        </VStack>
       </StackItem>
       {actions && (
         <HStack gap={2} vAlign="center" wrap="wrap">
