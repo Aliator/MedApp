@@ -70,7 +70,36 @@ export interface DemoLabCase {
   report: {text: string; atUtc: string; byUserId: string; resultId: string | null} | null;
   repeat: {detail: string; atUtc: string; byUserId: string} | null;
   enteredInError: {atUtc: string; byUserId: string; detail: string} | null;
+  /** MC20: a hospital case's report, sent back to its request's hospital when authorised (`handlers/hospitalReports.ts`). */
+  reportSent?: DemoReportSent | null;
+  /** MC20: what the hospital sent after its request (the surgery's date, procedure and outcome, as written). */
+  surgeryDetails?: DemoSurgeryDetails[];
+  /** MC20: closed once the surgery details came after the report was sent (or none is expected). */
+  closed?: {atUtc: string; byUserId: string} | null;
   version: number;
+}
+
+/** A hospital case's report as it went back (FHIR UK Core `DiagnosticReport-Lab`'s shape; the letter is `LabReport`). */
+export interface DemoReportSent {
+  atUtc: string;
+  byUserId: string;
+  hospitalId: string;
+  /** The request's surgeon, as written: the report is addressed from the request, never chosen (H-72). */
+  addressedTo: string;
+  /** The hospital's `LetterDispatchMethod`, by name. */
+  method: string;
+}
+
+/** Surgery details from the hospital, as written (free text: kept here, never in the audit log; nothing is worked out from them). */
+export interface DemoSurgeryDetails {
+  id: string;
+  surgeryOn: string | null;
+  procedure: string | null;
+  outcome: string | null;
+  noSurgeryExpected: boolean;
+  detail: string | null;
+  addedAtUtc: string;
+  addedByUserId: string;
 }
 
 export interface LabCaseSlice {
@@ -97,6 +126,8 @@ export const LAB_CASE_IDS = {
   justReceived: LAB_CASES.maya,
   /** Priya Holloway's Histology case: authorising it finishes her pathway's lab stage (MC16). */
   stageToReport: LAB_CASES.priyaBiopsy,
+  /** Ellis Varden's earlier hospital case: reported and sent, awaiting the hospital's surgery details (MC20). */
+  awaitingSurgeryDetails: LAB_CASES.ellisBiopsy,
 } as const;
 
 /**
@@ -203,6 +234,30 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   callumResult.labCaseId = LAB_CASES.callumBiopsy;
   callumResult.reportText = callumReport;
   const ilona = sample(SPECIMENS.ilonaBlood);
+  const daysAgo = (days: number, hour = 11) => {
+    const at = new Date(Date.parse(nowUtc()) - days * 86400_000);
+    at.setUTCHours(hour, 0, 0, 0);
+    return at.toISOString();
+  };
+  const ukDay = (iso: string) => iso.slice(0, 10);
+  /** MC20: a hospital case reported `days` ago and sent back to its hospital in the same action (its sample reported too). */
+  const sentBack = (requestId: string, days: number, text: string): Partial<DemoLabCase> => {
+    const at = daysAgo(days);
+    const r = request(requestId);
+    const s = hospitalSampleOf(requestId);
+    s.status = 'Reported';
+    s.reportedAtUtc = at;
+    s.reportedByUserId = LAB.id;
+    const hospital = state.hospitals.find((h) => h.id === r.hospitalId)!;
+    return {
+      status: 'AwaitingSurgeryDetails',
+      report: {text, atUtc: at, byUserId: LAB.id, resultId: null},
+      reportSent: {atUtc: at, byUserId: LAB.id, hospitalId: hospital.id, addressedTo: r.surgeonName, method: hospital.reportDeliveryMethod},
+    };
+  };
+  const biopsyReport = 'Synthetic demo report. Skin, punch biopsy: findings as typed by the lab. (MedApp never reads or interprets it.)';
+  const wilfredBiopsy = sentBack(HOSPITAL_REQUESTS.wilfredBiopsy, 10, biopsyReport);
+  const wilfredSurgeryAt = daysAgo(2, 9);
 
   const seeded = [
     make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2)),
@@ -221,6 +276,21 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       histology,
       [...adequate, ...histologySteps],
       hoursAgo(3),
+      {
+        // MC20: the hospital's extra details, arrived after its request (before the report).
+        surgeryDetails: [
+          {
+            id: id(0xcd, 1),
+            surgeryOn: ukDay(daysAgo(3)),
+            procedure: 'Wide local excision, left forearm (synthetic)',
+            outcome: null,
+            noSurgeryExpected: false,
+            detail: 'Suture marks 12 o’clock (synthetic).',
+            addedAtUtc: hoursAgo(20),
+            addedByUserId: LAB.id,
+          },
+        ],
+      },
     ),
     make(HOSPITAL_LAB_CASES.maya, request(HOSPITAL_REQUESTS.mayaBiopsy).labCaseNumber, [hospitalSampleOf(HOSPITAL_REQUESTS.mayaBiopsy)], histology, [], hoursAgo(1)),
     make(
@@ -235,6 +305,42 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
         {kind: 'TestStep', testStepId: step(histology, 'Sent for a second opinion'), detail: 'Regional dermatopathology service (synthetic)'},
       ],
       hoursAgo(5),
+    ),
+    // MC20: Wilfred's biopsy, reported and sent, then closed when the surgery details came.
+    make(
+      HOSPITAL_LAB_CASES.wilfredBiopsy,
+      request(HOSPITAL_REQUESTS.wilfredBiopsy).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.wilfredBiopsy)],
+      histology,
+      [...adequate, ...histologySteps, noMoreWork],
+      wilfredBiopsy.report!.atUtc,
+      {
+        ...wilfredBiopsy,
+        status: 'Closed',
+        surgeryDetails: [
+          {
+            id: id(0xcd, 2),
+            surgeryOn: ukDay(daysAgo(3)),
+            procedure: 'Wide local excision (synthetic)',
+            outcome: 'Completed; the excision sent to the lab (synthetic).',
+            noSurgeryExpected: false,
+            detail: null,
+            addedAtUtc: wilfredSurgeryAt,
+            addedByUserId: LAB.id,
+          },
+        ],
+        closed: {atUtc: wilfredSurgeryAt, byUserId: LAB.id},
+      },
+    ),
+    // MC20: Ellis's biopsy, reported and sent 12 days ago: awaiting the hospital's surgery details.
+    make(
+      HOSPITAL_LAB_CASES.ellisBiopsy,
+      request(HOSPITAL_REQUESTS.ellisBiopsy).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.ellisBiopsy)],
+      histology,
+      [...adequate, ...histologySteps, noMoreWork],
+      daysAgo(12),
+      sentBack(HOSPITAL_REQUESTS.ellisBiopsy, 12, biopsyReport),
     ),
   ];
   // Every other lab stage reached and still to do opened its case then, waiting for a sample (and its test).

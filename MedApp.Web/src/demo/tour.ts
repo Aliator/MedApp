@@ -286,6 +286,22 @@ export const TOUR: TourStep[] = [
         : `You've finished this case already in your copy of the demo. ${RESET_HINT}`,
   },
   {
+    key: 'hospital-report',
+    title: 'Back to the hospital: the report and surgery details',
+    steps: [
+      'Opens Ellis Varden’s earlier case from the hospital. When its report was authorised it went back to the hospital in the same action, addressed to the request’s surgeon: Report shows it sent, when and how. Its clock stopped there.',
+      'It now awaits the hospital’s surgery details. Add Surgery Details plays the hospital’s side: type what it sent, as written (the date, the procedure, the outcome), or “No surgery expected” and why. Adding them closes the case. Nothing is worked out from them.',
+      'Details can arrive before the report too: Wilfred Ashdown’s open excision already has the hospital’s extra details. Lab Cases has an Awaiting surgery details tab, and the lab’s home a list of them.',
+    ],
+    account: LAB.username,
+    path: `/lab/cases/${LAB_CASE_IDS.awaitingSurgeryDetails}`,
+    buttonLabel: 'Open the case awaiting surgery details',
+    whyNot: (state) =>
+      state.labCases.find((c) => c.id === LAB_CASE_IDS.awaitingSurgeryDetails)?.status === 'AwaitingSurgeryDetails'
+        ? null
+        : `You've added this case's surgery details already in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
     key: 'fork',
     title: 'A pathway that forks',
     steps: [
@@ -495,7 +511,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'Email', full: 'Password reset, confirming an address, and sign-in codes by email.'},
   {
     title: 'Lab reports as files',
-    full: 'A lab case’s report is a file the lab attaches and authorises. Here the results are typed in as text.',
+    full: 'A lab case’s report is a file the lab attaches and authorises, and a hospital’s goes back as a letter (a PDF) with it attached. Here the results are typed in as text, and the hospital’s report is recorded as sent.',
   },
   {
     title: 'File uploads',

@@ -13,6 +13,7 @@ import {nowUtc} from '../time';
 import {logActivity} from './adminLogs';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {specimenSummary} from './lab';
+import {addSurgeryDetails, hospitalReportAuditEntries, hospitalReportFields, sendReportToHospital} from './hospitalReports';
 import {finishLabStage, pickUpLabStage, reopenSampleStage} from './pathways';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, stepTime} from './labCommon';
 import {labClock, type LabClock} from './labClock';
@@ -55,7 +56,7 @@ const STATUS_WORDS: Record<string, string> = {
   RepeatRequested: 'closed with a repeat sample requested',
   EnteredInError: 'marked entered in error',
   Closed: 'closed',
-  AwaitingSurgeryDetails: 'reported',
+  AwaitingSurgeryDetails: 'reported and sent to the hospital',
 };
 
 /** An outcome in words, as the page shows it. */
@@ -154,6 +155,8 @@ export function canSeeCase(c: DemoLabCase, scope: TeamScope = myScope()): boolea
 const worksCases = (scope: TeamScope = myScope()) => can('ProcessSpecimens') && !scope.seesAllTeams && isLabMember(scope);
 
 function readOnlyReason(c: DemoLabCase): string | null {
+  if (c.status === 'AwaitingSurgeryDetails')
+    return 'The report has gone to the hospital, so the steps and report can’t be changed. The hospital’s surgery details can still be added.';
   if (c.status !== 'Open') return `This case has been ${STATUS_WORDS[c.status] ?? c.status}, so it can't be changed.`;
   if (patientFlags(c.patientId).isAnonymised) return "This patient's record has been anonymised, so the case can't be changed.";
   if (!worksCases()) return 'Lab cases are worked by the lab team.';
@@ -258,6 +261,7 @@ export function caseResponse(c: DemoLabCase): Case {
     canAuthorise: canWork && next?.kind === 'Report' && can('AuthoriseLabReports'),
     canMarkEnteredInError: mayMarkCaseEnteredInError(c),
     readOnlyReason: reason,
+    ...hospitalReportFields(c, worksCases()),
   };
 }
 
@@ -277,6 +281,7 @@ function caseSummary(c: DemoLabCase): Schemas['LabCaseSummaryResponse'] {
     nextKind: next?.kind ?? null,
     openedAtUtc: c.openedAtUtc,
     reportedAtUtc: c.report?.atUtc ?? null,
+    reportSentAtUtc: c.reportSent?.atUtc ?? null,
     clock: clockOf(c),
   };
 }
@@ -473,7 +478,10 @@ const VIEWS: Record<string, {match: (c: DemoLabCase) => boolean; key: (c: DemoLa
   AtRisk: {match: (c) => clockState(c) === 'AtRisk', key: dueKey},
   Overdue: {match: (c) => clockState(c) === 'Breached', key: dueKey},
   ToReport: {match: (c) => nextWork(c)?.kind === 'Report', key: dueKey},
-  Reported: {match: (c) => c.status === 'Reported', key: (c) => c.report?.atUtc ?? '', newestFirst: true},
+  // Authorised, whatever came after (a hospital case's sending and surgery details, MC20).
+  Reported: {match: (c) => c.report !== null, key: (c) => c.report?.atUtc ?? '', newestFirst: true},
+  // MC20: hospital cases whose report has gone back, waiting longest first.
+  AwaitingSurgeryDetails: {match: (c) => c.status === 'AwaitingSurgeryDetails', key: (c) => c.reportSent?.atUtc ?? ''},
   RepeatRequested: {match: (c) => c.status === 'RepeatRequested', key: (c) => c.repeat?.atUtc ?? '', newestFirst: true},
   All: {match: () => true, key: (c) => c.openedAtUtc, newestFirst: true},
 };
@@ -509,6 +517,7 @@ export function labCaseAuditEntries(): Schemas['PatientPathwayAuditEntryResponse
     if (c.repeat) add('repeat', 'RepeatSampleRequested', c.repeat.atUtc, c.repeat.byUserId, {});
     if (c.report) add('report', 'LabReportAuthorised', c.report.atUtc, c.report.byUserId, {resultId: c.report.resultId});
     if (c.enteredInError) add('error', 'LabCaseEnteredInError', c.enteredInError.atUtc, c.enteredInError.byUserId, {});
+    hospitalReportAuditEntries(c, add);
   }
   return entries;
 }
@@ -721,10 +730,19 @@ export function registerLabCases() {
     }
     c.status = 'Reported';
     c.report = {text, atUtc: now, byUserId: viewer.id, resultId};
+    // MC20: a hospital case's report goes back to its hospital in the same action (hospital cases only).
+    if (c.source === 'Hospital') sendReportToHospital(c, viewer.id, now);
     moved(c);
     // A pathway's lab stage finishes with the results, in the same change, and the pathway goes back (MC16).
     if (c.pathwayId && c.stageId) finishLabStage(c.pathwayId, c.stageId, viewer.id, text, now);
     return caseResponse(c);
+  });
+
+  // MC20: the hospital's surgery details, typed by the lab as written (hospital cases only).
+  on('post', '/api/lab-cases/{id}/surgery-details', ({params, body}) => {
+    requireLabWork();
+    const viewer = me();
+    return caseResponse(addSurgeryDetails(findCase(params.id), body, viewer.id));
   });
 
   on('post', '/api/lab-cases/{id}/steps/{stepId}/entered-in-error', ({params, body}) => {

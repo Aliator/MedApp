@@ -42,6 +42,7 @@ export const labHomeQueries = () => [
   toReportQuery,
   labCasesQuery('AtRisk'),
   labCasesQuery('Overdue'),
+  labCasesQuery('AwaitingSurgeryDetails'),
   labPathwaysQuery('newForUs'),
   labPathwaysQuery('ourTurn'),
   ...(['Expected', 'InLab', 'Reported'] as const).map(labSamplesQuery),
@@ -116,6 +117,12 @@ const clockRow = (c: LabCaseSummary) => {
   return {...row, detail: [row.detail, labClockLine(c.clock)].filter(Boolean).join(' · ')};
 };
 
+/** A hospital case whose report went back (MC20): when it was sent. */
+const sentRow = (c: LabCaseSummary) => {
+  const row = caseRow(c);
+  return {...row, detail: [row.detail, c.reportSentAtUtc ? `Sent ${formatDateTime(c.reportSentAtUtc)}` : null].filter(Boolean).join(' · ')};
+};
+
 const pathwayRow = (p: PathwaySummary) => ({
   key: p.id ?? '',
   label: <Link href={`/pathways/${p.id}`}>{p.title}</Link>,
@@ -133,7 +140,8 @@ const sampleRow = (at: (s: SpecimenSummary) => string | null | undefined, words:
  * first few and its count, linking to the full list. **New for the lab** (clinic pathways handed to the lab, not
  * picked up) and **Our turn** (lab stages it's working), from the relay's team views (My Worklist's); **To receive**
  * (samples sent, not received), **In progress** (received, not reported) and **Back to the clinic** (reported in the
- * last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests. **To report**
+ * last 7 days), from the samples worklist; **From the hospital** (MC18), the newest hospital requests; **Awaiting
+ * surgery details** (MC20), hospital cases whose report has gone back. **To report**
  * (MC15): lab cases with every step done and "No more work" recorded. **At risk** and **Overdue** (MC19): lab cases by
  * their strict clock (the sooner of the lab's target and the hospital's date), soonest due first, each with its
  * countdown. Lists order by target dates and times only (decision 191). Every patient shown is recorded as listed, by
@@ -150,6 +158,7 @@ export function LabHomePage() {
   const overdue = useQuery(labCasesQuery('Overdue'));
   const backToClinic = useQuery(labSamplesQuery('Reported'));
   const fromHospital = useQuery(hospitalCasesQuery);
+  const awaitingSurgery = useQuery(labCasesQuery('AwaitingSurgeryDetails'));
 
   return (
     <Page title="Lab" subtitle="What's waiting for the lab, soonest first">
@@ -225,6 +234,14 @@ export function LabHomePage() {
           query={fromHospital}
           href="/hospital-requests"
           row={hospitalRow}
+        />
+        <WorkCard
+          title="Awaiting surgery details"
+          description="Hospital cases whose report has gone back, waiting for the hospital's surgery details."
+          empty="Nothing awaiting surgery details"
+          query={awaitingSurgery}
+          href="/lab/cases?view=AwaitingSurgeryDetails"
+          row={sentRow}
         />
       </Grid>
     </Page>

@@ -8199,6 +8199,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lab-cases/{id}/surgery-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AddSurgeryDetailsRequest"];
+                    "text/json": components["schemas"]["AddSurgeryDetailsRequest"];
+                    "application/*+json": components["schemas"]["AddSurgeryDetailsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["LabCaseResponse"];
+                        "application/json": components["schemas"]["LabCaseResponse"];
+                        "text/json": components["schemas"]["LabCaseResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lab-cases/{id}/entered-in-error": {
         parameters: {
             query?: never;
@@ -22623,6 +22712,16 @@ export interface components {
             keepUntil?: string;
             reason?: string | null;
         };
+        AddSurgeryDetailsRequest: {
+            /** Format: date */
+            surgeryOn?: string | null;
+            procedure?: string | null;
+            outcome?: string | null;
+            noSurgeryExpected?: boolean;
+            detail?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         AuthoriseLabReportRequest: {
             results?: string | null;
             /** Format: int32 */
@@ -22637,6 +22736,20 @@ export interface components {
             detail?: string | null;
             /** Format: int32 */
             expectedVersion?: number;
+        };
+        LabCaseHospitalReportResponse: {
+            status?: string | null;
+            letterKind?: string | null;
+            /** Format: uuid */
+            hospitalId?: string;
+            hospitalName?: string | null;
+            addressedTo?: string | null;
+            deliveryMethod?: string | null;
+            /** Format: date-time */
+            issuedAtUtc?: string;
+            /** Format: date-time */
+            sentAtUtc?: string;
+            sentByUsername?: string | null;
         };
         LabCaseNextResponse: {
             kind?: string | null;
@@ -22697,11 +22810,17 @@ export interface components {
             /** Format: date-time */
             enteredInErrorAtUtc?: string | null;
             enteredInErrorByUsername?: string | null;
+            hospitalReport?: components["schemas"]["LabCaseHospitalReportResponse"];
+            surgeryDetails?: components["schemas"]["LabCaseSurgeryDetailsResponse"][] | null;
+            /** Format: date-time */
+            closedAtUtc?: string | null;
+            closedByUsername?: string | null;
             /** Format: int32 */
             version?: number;
             canRecord?: boolean;
             canAuthorise?: boolean;
             canMarkEnteredInError?: boolean;
+            canAddSurgeryDetails?: boolean;
             readOnlyReason?: string | null;
         };
         LabCaseSearchRequest: {
@@ -22738,6 +22857,19 @@ export interface components {
             errorDetail?: string | null;
             canMarkEnteredInError?: boolean;
         };
+        LabCaseSurgeryDetailsResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: date */
+            surgeryOn?: string | null;
+            procedure?: string | null;
+            outcome?: string | null;
+            noSurgeryExpected?: boolean;
+            detail?: string | null;
+            /** Format: date-time */
+            addedAtUtc?: string;
+            addedByUsername?: string | null;
+        };
         LabCaseSummaryResponse: {
             /** Format: uuid */
             id?: string;
@@ -22756,6 +22888,8 @@ export interface components {
             openedAtUtc?: string;
             /** Format: date-time */
             reportedAtUtc?: string | null;
+            /** Format: date-time */
+            reportSentAtUtc?: string | null;
             clock?: components["schemas"]["LabClockResponse"];
         };
         LabCaseSummaryResponsePagedResponse: {

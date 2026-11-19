@@ -25,10 +25,10 @@ describe('the light demo’s hospitals and hospital requests (MC18)', () => {
   it('lists the lab’s hospital requests, and none to clinic staff', async () => {
     startLightDemo(LAB);
     const page = (await call('POST', '/api/hospital-requests/search', {page: 1, pageSize: 10})).body;
-    expect(page.totalCount).toBe(3);
+    expect(page.totalCount).toBe(5);
     expect(page.items[0]).toMatchObject({labCaseNumber: expect.stringMatching(/^MA\d{2}-\d{6}$/), labCaseStatus: 'Open'});
     const urgent = (await call('POST', '/api/hospital-requests/search', {priority: 'Urgent'})).body.items;
-    expect(urgent.map((r: {id: string}) => r.id)).toEqual([HOSPITAL_REQUESTS.wilfredExcision]);
+    expect(urgent.map((r: {id: string}) => r.id)).toEqual([HOSPITAL_REQUESTS.wilfredExcision, HOSPITAL_REQUESTS.wilfredBiopsy]);
     const byNumber = (await call('POST', '/api/hospital-requests/search', {search: 'RG-311402'})).body.items;
     expect(byNumber.map((r: {id: string}) => r.id)).toEqual([HOSPITAL_REQUESTS.mayaBiopsy]);
 

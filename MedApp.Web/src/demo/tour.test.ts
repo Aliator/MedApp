@@ -68,6 +68,9 @@ describe('the Read Me tour', () => {
     expect(step.whyNot!(state)).toBeNull();
     for (const c of state.labCases) c.status = 'Reported';
     expect(step.whyNot!(state)).toMatch(/finished this case/);
+    const sent = TOUR.find((s) => s.key === 'hospital-report')!;
+    expect(sent.whyNot!(seed())).toBeNull();
+    expect(sent.whyNot!(state)).toMatch(/surgery details already/);
   });
 
   it('asks only for the three demo accounts', () => {
