@@ -36,7 +36,8 @@ public sealed class PatientTests : IntegrationTest
         created.Should().BeEquivalentTo(new { request.FirstName, request.LastName, request.DateOfBirth, request.Email });
         response.Headers.Location!.AbsolutePath.Should().BeEquivalentTo($"/api/patients/{created.Id}");
         var fetched = await (await _staff.GetAsync(response.Headers.Location)).ReadAsAsync<PatientResponse>();
-        fetched.Should().BeEquivalentTo(created);
+        // Its page adds the summaries of other teams' pathways (none here).
+        fetched.Should().BeEquivalentTo(created, o => o.Excluding(p => p.OtherTeamPathways));
     }
 
     [Test]
@@ -71,7 +72,8 @@ public sealed class PatientTests : IntegrationTest
         var updated = await (await _staff.PatchAsJsonAsync($"/api/patients/{patient.Id}", update)).ReadAsAsync<PatientResponse>();
 
         updated.Should().BeEquivalentTo(new PatientResponse(patient.Id, update.FirstName, update.LastName, update.DateOfBirth, update.Email));
-        (await (await _staff.GetAsync($"/api/patients/{patient.Id}")).ReadAsAsync<PatientResponse>()).Should().BeEquivalentTo(updated);
+        (await (await _staff.GetAsync($"/api/patients/{patient.Id}")).ReadAsAsync<PatientResponse>())
+            .Should().BeEquivalentTo(updated, o => o.Excluding(p => p.OtherTeamPathways));
     }
 
     [Test]

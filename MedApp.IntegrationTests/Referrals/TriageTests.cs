@@ -156,22 +156,19 @@ public sealed class TriageTests : IntegrationTest
         })).ReadAsAsync<ReferralResponse>(HttpStatusCode.Created);
 
     [Test]
-    public async Task Triage_ThePermissionWithoutTheTeam_IsForbidden()
+    public async Task Triage_AnotherTeamsReferral_IsNotFound_AndAnAdminIsNoTriager()
     {
         var other = await CreateTeamAsync();
         var outsider = await ClinicianInAsync(other.Id);
         var patient = await CreatePatientAsync(_admin);
         var referral = await RegisterAsync(patient.Id);
 
+        // The team walls (MC5): another team's referral isn't there for them, to read or to triage.
         var response = await outsider.Client.PostAsJsonAsync(
             $"{Referrals}/{referral.Id}/reject", new RejectReferralRequest { Reason = "NotOfferedHere", ExpectedVersion = 1 });
 
-        var problem = await response.ReadAsAsync<ProblemDetails>(HttpStatusCode.Forbidden);
-        problem.Title.Should().Be(ReferralWorkflow.NotInTeamMessage(Team.GeneralName));
-        var read = await (await outsider.Client.GetAsync($"{Referrals}/{referral.Id}")).ReadAsAsync<ReferralResponse>();
-        read.Status.Should().Be("AwaitingTriage");
-        read.CanTriage.Should().BeFalse();
-        read.WhyCantTriage.Should().Be(problem.Title);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await outsider.Client.GetAsync($"{Referrals}/{referral.Id}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
 
         // An admin isn't a triager: Admin doesn't grant TriageReferrals.
         (await _admin.PostAsJsonAsync($"{Referrals}/{referral.Id}/reject", new RejectReferralRequest { Reason = "NotOfferedHere", ExpectedVersion = 1 }))

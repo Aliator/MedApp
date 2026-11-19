@@ -55,6 +55,7 @@ public abstract class IntegrationTest
     {
         Clock.Reset();
         _clinicStaff = null;
+        ClinicStaffByTeam.Clear();
         await TestEnvironment.ResetDatabaseAsync();
         Api.Emails.Clear();
         Api.Letters.Clear();
@@ -120,6 +121,18 @@ public abstract class IntegrationTest
     /// it's asked for.
     /// </summary>
     protected static async Task<StaffAccount> ClinicStaffAsync() => _clinicStaff ??= await CreateClinicStaffAsync();
+
+    private static readonly Dictionary<Guid, StaffAccount> ClinicStaffByTeam = [];
+
+    /// <summary>The test's clinic staff for a team: General's is <see cref="ClinicStaffAsync"/>; another's is made once per test.</summary>
+    protected static async Task<StaffAccount> ClinicStaffInAsync(Guid teamId)
+    {
+        if (teamId == Team.GeneralId)
+            return await ClinicStaffAsync();
+        if (!ClinicStaffByTeam.TryGetValue(teamId, out var staff))
+            ClinicStaffByTeam[teamId] = staff = await CreateClinicStaffAsync(teamId);
+        return staff;
+    }
 
     /// <summary>
     /// Who does a helper's clinical work: the client given, unless it's the admin's, as admins are read only (decisions
@@ -286,7 +299,14 @@ public abstract class IntegrationTest
         DateOnly? dueDate = null,
         string priority = "Medium")
     {
-        client = await ClinicalAsync(client);
+        if (IsAdmin(client))
+        {
+            // A template is its team's: its pathways are made by that team's staff.
+            var template = await (await client.GetAsync($"/api/pathways/patient-pathway-stage/templates/{templateId}"))
+                .ReadAsAsync<PathwayTemplateResponse>();
+            client = (await ClinicStaffInAsync(template.TeamId)).Client;
+        }
+
         var response = await client.PostAsJsonAsync("/api/pathways/patient-pathways", new CreatePatientPathwayRequest
         {
             PatientId = patientId,

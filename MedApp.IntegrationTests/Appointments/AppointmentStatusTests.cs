@@ -67,7 +67,8 @@ public sealed class AppointmentStatusTests : IntegrationTest
 
         MoveClockPast(start);
         var attended = await (await PostOutcomeAsync(_admin, requested.Id, "Attended")).ReadAsAsync<AppointmentResponse>();
-        attended.Should().BeEquivalentTo(new { Status = "Attended", OutcomeByUsername = AdminUsername, CanReschedule = false, CanCancel = false });
+        // Recorded by the test's clinic staff (admins are read only).
+        attended.Should().BeEquivalentTo(new { Status = "Attended", OutcomeByUsername = (await ClinicStaffAsync()).Username, CanReschedule = false, CanCancel = false });
 
         var corrected = await (await PostOutcomeAsync(_staff.Client, requested.Id, "DidNotAttend")).ReadAsAsync<AppointmentResponse>();
         corrected.Should().BeEquivalentTo(new { Status = "DidNotAttend", OutcomeByUsername = _staff.Username });
@@ -215,7 +216,7 @@ public sealed class AppointmentStatusTests : IntegrationTest
             AppointmentId = (Guid?)appointment.Id,
             IsRead = false,
         });
-        afterMove.Items[0].Message.Should().Contain(AdminUsername).And.Contain(UkTime.Describe(start.AddHours(1)));
+        afterMove.Items[0].Message.Should().Contain((await ClinicStaffAsync()).Username).And.Contain(UkTime.Describe(start.AddHours(1)));
         afterMove.Items.Should().AllSatisfy(n => n.Message.Should().NotContain(_patient.LastName));
 
         // Their own move: nothing new.

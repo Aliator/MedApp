@@ -119,20 +119,25 @@ public sealed class SpecimenTests : IntegrationTest
     }
 
     [Test]
-    public async Task Record_ByAdminOrAllStaff_Is403_ByTheLabRole_Works()
+    public async Task Record_ByAdmin_Is403_ByTheLabBeforeItsPassed_Is404_ByANurse_Works()
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin);
 
         (await SpecimenApi.PostRecordAsync(_admin, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
             .StatusCode.Should().Be(HttpStatusCode.Forbidden, "admins don't record specimens: it's clinical");
+        // The lab works on pathways passed to it: another team's, not yet passed, isn't there for it (MC4's walls).
         (await SpecimenApi.PostRecordAsync(_lab.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await SpecimenApi.PostRecordAsync(_nurse.Client, pathway, _type.Id, _laboratory.Id, _clinician.UserId))
             .StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Test]
     public async Task Steps_TakenSentReceivedReported_ThenTheReportCantBeDeletedOnItsOwn()
     {
-        var (pathway, specimen) = await TakenAsync();
+        // Without a lab test: one with a test is reported on its lab case instead (MC15).
+        var pathway = await CreatePatientWithPathwayAsync(_admin);
+        var specimen = await SpecimenApi.RecordAsync(_nurse.Client, pathway, _type.Id, null, _clinician.UserId);
 
         // The lab can't receive what hasn't been sent; the nurse can't receive at all.
         (await SpecimenApi.StepAsync(_lab.Client, specimen, "received")).StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -156,7 +161,7 @@ public sealed class SpecimenTests : IntegrationTest
             .ReadAsAsync<MedApp.Contracts.Attachments.Responses.AttachmentListResponse>();
         files.Items.Should().ContainSingle(f => f.Id == reported.ReportAttachmentId);
 
-        (await _admin.DeleteAsync($"/api/attachments/{reported.ReportAttachmentId}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await _nurse.Client.DeleteAsync($"/api/attachments/{reported.ReportAttachmentId}")).StatusCode.Should().BeOneOf(HttpStatusCode.Conflict, HttpStatusCode.Forbidden);
         (await _lab.Client.DeleteAsync($"/api/attachments/{reported.ReportAttachmentId}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
@@ -248,7 +253,7 @@ public sealed class SpecimenTests : IntegrationTest
 
         var notifications = await (await _clinician.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>();
         var notification = notifications.Items.Should().ContainSingle(n => n.Kind == "SpecimenRejectedByLab").Subject;
-        notification.Title.Should().Be("Specimen rejected");
+        notification.Title.Should().Be("Sample rejected");
         notification.SubjectId.Should().Be(specimen.Id);
         notification.Message.Should().NotContain("leaked");
     }
@@ -324,6 +329,6 @@ public sealed class SpecimenTests : IntegrationTest
             new CloseSpecimenRequest { Detail = "Synthetic: recorded twice", ExpectedVersion = specimen.Version })).ShouldHaveStatusAsync(HttpStatusCode.OK);
         await (await PostPathwayStatusAsync(_admin, pathway.Id, "Cancelled", "Synthetic reason")).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await (await ClinicalAsync(_admin)).DeleteAsync(PathwayUrl(pathway.Id))).StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 }

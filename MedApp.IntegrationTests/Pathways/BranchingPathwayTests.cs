@@ -165,7 +165,7 @@ public sealed class BranchingPathwayTests : IntegrationTest
         // A stage that isn't optional can't be skipped.
         await (await SkipAsync(_staff.Client, pathway.Id, pathway.Stages[3].Id, "NotNeeded", null)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
-        // Reinstating needs UnlockStages, which the built-in Admin role keeps.
+        // Reinstating needs UnlockStages (staff who hold it: admins are read only).
         await (await ReinstateAsync(_staff.Client, pathway.Id, followUp.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         var reinstated = await (await ReinstateAsync(_admin, pathway.Id, followUp.Id)).ReadAsAsync<PatientPathwayResponse>();
         reinstated.CurrentStageId.Should().Be(followUp.Id);
@@ -199,8 +199,9 @@ public sealed class BranchingPathwayTests : IntegrationTest
     private static Task<HttpResponseMessage> SkipAsync(HttpClient client, Guid pathwayId, Guid stageId, string reason, string? detail) =>
         client.PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/skip", new SkipPathwayStageRequest { Reason = reason, Detail = detail });
 
-    private static Task<HttpResponseMessage> ReinstateAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
-        client.PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/reinstate",
+    /// <summary>Reinstates a stage: an admin's client does it as the test's clinic staff (admins are read only).</summary>
+    private static async Task<HttpResponseMessage> ReinstateAsync(HttpClient client, Guid pathwayId, Guid stageId) =>
+        await (await ClinicalAsync(client)).PostAsJsonAsync($"{StageUrl(pathwayId, stageId)}/reinstate",
             new ReinstatePathwayStageRequest { Reason = "Synthetic: needed after all." });
 
     private async Task<PagedResponse<PatientPathwaySummaryResponse>> SearchAsync(string query) =>

@@ -55,22 +55,22 @@ public sealed class StageVisitTests : IntegrationTest
     }
 
     [Test]
-    public async Task FinishStage_RequiredWithoutAVisit_Returns409ForStaff_ForAnAdminEvenWithTheBypass_AndWithoutTheBypassBody()
+    public async Task FinishStage_RequiredWithoutAVisit_Returns409ForStaff_403ForAnAdmin_AndWithoutTheBypassBody()
     {
         var pathway = await CreatePathwayWithStagesAsync("Required");
         var stage = pathway.Stages[0].Id;
 
         var staff = await FinishStageAsync(_staff.Client, pathway.Id, stage);
         var staffBypass = await FinishStageAsync(_staff.Client, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason });
-        var admin = await FinishStageAsync(_admin, pathway.Id, stage);
-        var adminBypass = await FinishStageAsync(_admin, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason });
+        // Straight to the API (the helper does an admin's clinical work as staff): admins are read only.
+        var admin = await _admin.PostAsync($"{StageUrl(pathway.Id, stage)}/finish", null);
+        var adminBypass = await _admin.PostAsJsonAsync($"{StageUrl(pathway.Id, stage)}/finish", new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason });
         var seniorNoBypass = await FinishStageAsync(_senior.Client, pathway.Id, stage, new FinishPathwayStageRequest { Reason = WithoutVisitReason });
 
         (await staff.ReadAsAsync<ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().Contain("senior clinician");
         await staffBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        await admin.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
-        // The built-in Admin role hasn't FinishWithoutVisit (decision 138): an admin who is a senior clinician holds that role too.
-        await adminBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await admin.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+        await adminBypass.ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         await seniorNoBypass.ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         (await GetPathwayAsync(pathway.Id)).Stages[0].State.Should().Be("NotStarted");
     }
@@ -243,7 +243,7 @@ public sealed class StageVisitTests : IntegrationTest
         var stage = pathway.Stages[0].Id;
         await (await FinishStageAsync(_senior.Client, pathway.Id, stage, new FinishPathwayStageRequest { WithoutVisit = true, Reason = WithoutVisitReason }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await _admin.PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var refinished = await FinishStageAsync(_staff.Client, pathway.Id, stage);
 

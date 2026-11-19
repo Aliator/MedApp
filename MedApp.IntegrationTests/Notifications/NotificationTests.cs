@@ -48,18 +48,19 @@ public sealed class NotificationTests : IntegrationTest
             PathwayId = (Guid?)_pathway.Id,
             IsRead = false,
         });
-        mine.Items[0].Message.Should().Contain(AdminUsername);
+        mine.Items[0].Message.Should().Contain((await ClinicStaffAsync()).Username);
         (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
     }
 
     [Test]
     public async Task AssignPathway_ToYourself_StoresNoNotification()
     {
-        var adminId = await GetUserIdAsync(_admin, AdminUsername);
+        // Whoever assigns (the test's clinic staff) assigns themselves.
+        var me = await ClinicStaffAsync();
 
-        await AssignAsync(adminId);
+        await AssignAsync(me.UserId);
 
-        (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
+        (await NotificationsOfAsync(me.Client)).Items.Should().BeEmpty();
     }
 
     [Test]
@@ -67,7 +68,7 @@ public sealed class NotificationTests : IntegrationTest
     {
         await AssignAsync(_staff.UserId);
         var second = await CreatePatientWithPathwayAsync(_admin, stages: 1);
-        await (await _admin.PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var before = await NotificationsOfAsync(_staff.Client);
 
         await (await _staff.Client.PostAsync($"/api/notifications/{before.Items[0].Id}/read", null)).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
@@ -121,7 +122,7 @@ public sealed class NotificationTests : IntegrationTest
     }
 
     private async Task<PatientPathwayResponse> AssignAsync(Guid userId) =>
-        await (await _admin.PostAsync($"{PathwayUrl(_pathway.Id)}/assignments/{userId}", null))
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(_pathway.Id)}/assignments/{userId}", null))
             .ReadAsAsync<PatientPathwayResponse>();
 
     private static async Task<NotificationsResponse> NotificationsOfAsync(HttpClient client) =>

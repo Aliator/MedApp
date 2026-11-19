@@ -119,7 +119,7 @@ public sealed class MonitoringTests : IntegrationTest
     }
 
     [Test]
-    public async Task AdminsOwnChange_DoesNotNotifyThem_ButNotifiesAnotherAdminWatching()
+    public async Task AChange_TellsEachAdminWatchingOnce()
     {
         var other = await CreateStaffAsync(AdminRole, UserRole);
         await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "PathwayBlocked" });
@@ -127,13 +127,16 @@ public sealed class MonitoringTests : IntegrationTest
         await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayBlocked", MinimumPriority = "Low" });
         var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
                 new ChangePatientPathwayStatusRequest { Status = "Blocked", Reason = BlockReason }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        (await NotificationsOfAsync(_admin)).Items.Should().BeEmpty();
+        // Admins are read only, so the change is staff's: every admin watching is told.
+        var by = (await ClinicStaffAsync()).Username;
+        (await NotificationsOfAsync(_admin)).Items.Should().ContainSingle()
+            .Which.Message.Should().Be($"{by} put a Medium priority {_template.Name} pathway on hold.");
         var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle("two matching rules of one admin make one notification").Subject;
-        told.Message.Should().Be($"{AdminUsername} put a Medium priority {_template.Name} pathway on hold.").And.NotContain(BlockReason);
+        told.Message.Should().Be($"{by} put a Medium priority {_template.Name} pathway on hold.").And.NotContain(BlockReason);
     }
 
     [Test]
@@ -156,26 +159,27 @@ public sealed class MonitoringTests : IntegrationTest
         await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = _staff.UserId, Event = "PathwayAssigned" });
         var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle()
-            .Which.Message.Should().Be($"{AdminUsername} assigned {_staff.Username} to a Medium priority {_template.Name} pathway.");
+            .Which.Message.Should().Be($"{(await ClinicStaffAsync()).Username} assigned {_staff.Username} to a Medium priority {_template.Name} pathway.");
     }
 
     [Test]
-    public async Task AdminUnlocksAWatchedStage_NotifiesAnotherAdmin()
+    public async Task SeniorClinicianUnlocksAWatchedStage_NotifiesTheAdminWatching()
     {
+        // Admins are read only, so the one unlocking is a senior clinician, watched by an admin.
         var other = await CreateStaffAsync(AdminRole, UserRole);
-        var adminId = await GetUserIdAsync(_admin, AdminUsername);
-        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = adminId, Event = "StageUnlocked", StageDefinitionId = _bloods.Id });
+        var senior = await CreateStaffAsync(SeniorClinicianRole);
+        await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { SubjectUserId = senior.UserId, Event = "StageUnlocked", StageDefinitionId = _bloods.Id });
         var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id);
         await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        await (await _admin.PostAsync($"{StageUrl(pathway.Id, pathway.Stages[0].Id)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await senior.Client.PostAsync($"{StageUrl(pathway.Id, pathway.Stages[0].Id)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var told = (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Subject;
         told.Kind.Should().Be("MonitoredStageUnlocked");
-        told.Message.Should().Be($"{AdminUsername} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} pathway.");
+        told.Message.Should().Be($"{senior.Username} unlocked the {_bloods.Name} stage on a Medium priority {_template.Name} pathway.");
     }
 
     /// <summary>
@@ -256,13 +260,14 @@ public sealed class MonitoringTests : IntegrationTest
     }
 
     [Test]
-    public async Task AdminWatchingAssignments_IsAssigned_GetsOnlyTheAssignmentNotification()
+    public async Task WatcherOfAssignments_IsAssigned_GetsOnlyTheAssignmentNotification()
     {
-        var other = await CreateStaffAsync(AdminRole, UserRole);
+        // A manager (who may watch) working on pathways too: admins are read only, so aren't assigned.
+        var other = await CreateStaffAsync("Manager", UserRole);
         await CreateRuleAsync(other.Client, new SaveMonitoringRuleRequest { Event = "PathwayAssigned" });
         var pathway = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{other.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{other.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(other.Client)).Items.Should().ContainSingle().Which.Kind.Should().Be("PathwayAssigned");
     }
@@ -321,7 +326,7 @@ public sealed class MonitoringTests : IntegrationTest
             .ReadAsAsync<NotificationPreferencesResponse>()).PathwayAssigned.Should().BeFalse();
         var first = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
 
-        await (await _admin.PostAsync($"{PathwayUrl(first.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(first.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(_staff.Client)).Items.Should().BeEmpty();
         (await (await _staff.Client.GetAsync("/api/notifications/preferences")).ReadAsAsync<NotificationPreferencesResponse>())
@@ -330,7 +335,7 @@ public sealed class MonitoringTests : IntegrationTest
         await (await _staff.Client.PutAsJsonAsync("/api/notifications/preferences", new UpdateNotificationPreferencesRequest { PathwayAssigned = true }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
         var second = await CreatePathwayAsync(_admin, _patient.Id, _template.Id);
-        await (await _admin.PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(second.Id)}/assignments/{_staff.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         (await NotificationsOfAsync(_staff.Client)).Items.Should().ContainSingle().Which.PathwayId.Should().Be(second.Id);
     }
@@ -358,8 +363,8 @@ public sealed class MonitoringTests : IntegrationTest
         // A Requested visit with no conditions, waiting since before "now": reported once, with a count.
         var pathway = await CreatePathwayAsync(_staff.Client, _patient.Id, _template.Id, priority: "High");
         await ExecuteSqlAsync($"""
-            INSERT INTO [Appointments] ([Id], [PatientId], [PathwayId], [Status], [Notes], [IsAutomatic], [CreatedAtUtc], [CreatedByUserId], [IsRecordedAfterEvent], [LastUpdated])
-            VALUES ({Guid.NewGuid()}, {_patient.Id}, {pathway.Id}, 0, '', 0, {DateTime.UtcNow.AddDays(-3)}, {_staff.UserId}, 0, {DateTime.UtcNow})
+            INSERT INTO [Appointments] ([Id], [PatientId], [PathwayId], [TeamId], [Status], [Notes], [IsAutomatic], [CreatedAtUtc], [CreatedByUserId], [IsRecordedAfterEvent], [LastUpdated])
+            VALUES ({Guid.NewGuid()}, {_patient.Id}, {pathway.Id}, {MedApp.Domain.Teams.Team.GeneralId}, 0, '', 0, {DateTime.UtcNow.AddDays(-3)}, {_staff.UserId}, 0, {DateTime.UtcNow})
             """);
         await CreateRuleAsync(_admin, new SaveMonitoringRuleRequest { Event = "VisitNotBooked", ThresholdDays = 2 });
 

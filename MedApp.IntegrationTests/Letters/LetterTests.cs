@@ -63,7 +63,7 @@ public sealed class LetterTests : IntegrationTest
             .ReadAsAsync<LetterTemplateResponse>(HttpStatusCode.Created)).Id;
 
     private async Task<PracticeResponse> CreatePracticeAsync() =>
-        await (await _admin.PostAsJsonAsync("/api/practices", new CreatePracticeRequest
+        await (await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/practices", new CreatePracticeRequest
             {
                 Name = UniqueName("Testbrook Surgery"),
                 AddressLines = ["2 Madeup Road", "Fictionton"],
@@ -76,7 +76,7 @@ public sealed class LetterTests : IntegrationTest
     private async Task<(Guid PatientId, Guid PathwayId, PracticeResponse Practice)> PatientWithPathwayAsync(int stages = 2)
     {
         var practice = await CreatePracticeAsync();
-        var patient = await (await _admin.PostAsJsonAsync("/api/patients", new CreatePatientRequest
+        var patient = await (await (await ClinicalAsync(_admin)).PostAsJsonAsync("/api/patients", new CreatePatientRequest
             {
                 FirstName = UniqueName("First"),
                 LastName = UniqueName("Last"),
@@ -168,8 +168,8 @@ public sealed class LetterTests : IntegrationTest
         (await (await _nurse.Client.GetAsync("/api/notifications")).ReadAsAsync<NotificationsResponse>())
             .Items.Should().Contain(n => n.Kind == "LetterApproved" && n.SubjectId == letter.Id);
 
-        // The PDF is the record: it can't be deleted on its own, even by an admin.
-        (await _admin.DeleteAsync($"/api/attachments/{letter.PdfAttachmentId}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
+        // The PDF is the record: it can't be deleted on its own, even by whoever approved it.
+        (await _clinician.Client.DeleteAsync($"/api/attachments/{letter.PdfAttachmentId}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
         // Nor can the template, now a letter was written from it.
         (await _admin.DeleteAsync($"/api/letter-templates/{templateId}")).StatusCode.Should().Be(HttpStatusCode.Conflict);
 
@@ -276,7 +276,7 @@ public sealed class LetterTests : IntegrationTest
         (await Approve(_nurse.Client, letter)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await _clinician.Client.PutAsJsonAsync($"{Letters}/{letter.Id}", new UpdateLetterRequest { ExpectedVersion = letter.Version }))
             .StatusCode.Should().Be(HttpStatusCode.Forbidden, "a draft is its author's alone");
-        (await lab.Client.GetAsync($"{Letters}/{letter.Id}")).StatusCode.Should().Be(HttpStatusCode.OK, "Lab can see patients");
+        (await lab.Client.GetAsync($"{Letters}/{letter.Id}")).StatusCode.Should().Be(HttpStatusCode.NotFound, "the lab isn't in the letter's team (the team walls)");
 
         // A draft stops anonymisation; discarding it doesn't.
         (await _admin.PostAsJsonAsync($"/api/patients/{patientId}/anonymise", new AnonymisePatientRequest

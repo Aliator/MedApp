@@ -140,7 +140,7 @@ public sealed class PathwayWorkflowTests : IntegrationTest
         await (await PutStageNotesAsync(_staff.Client, pathway.Id, stage, StageNotes)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         await (await _staff.Client.PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
 
-        var unlocked = await (await _admin.PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ReadAsAsync<PatientPathwayResponse>();
+        var unlocked = await (await (await ClinicalAsync(_admin)).PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ReadAsAsync<PatientPathwayResponse>();
         unlocked.Stages[0].Should().BeEquivalentTo(new { State = "Completed", IsLocked = false, CanEdit = true });
 
         var edited = await (await PutStageNotesAsync(_staff.Client, pathway.Id, stage, StageNotes)).ReadAsAsync<PatientPathwayResponse>();
@@ -155,7 +155,7 @@ public sealed class PathwayWorkflowTests : IntegrationTest
         (await (await FinishStageAsync(_staff.Client, pathway.Id, stage)).ReadAsAsync<PatientPathwayResponse>())
             .Status.Should().Be("InReview");
 
-        var unlocked = await (await _admin.PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ReadAsAsync<PatientPathwayResponse>();
+        var unlocked = await (await (await ClinicalAsync(_admin)).PostAsync($"{StageUrl(pathway.Id, stage)}/unlock", null)).ReadAsAsync<PatientPathwayResponse>();
 
         unlocked.Status.Should().Be("InProgress");
         var refinished = await (await FinishStageAsync(_staff.Client, pathway.Id, stage)).ReadAsAsync<PatientPathwayResponse>();
@@ -204,11 +204,11 @@ public sealed class PathwayWorkflowTests : IntegrationTest
     public async Task DeletePathway_Cancelled_DeletesItAndKeepsItsAuditHistory()
     {
         var pathway = await CreatePatientWithPathwayAsync(_admin);
-        await (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await (await ClinicalAsync(_admin)).DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
         await ChangeStatusAsync(_staff.Client, pathway.Id, "Cancelled", BlockReason);
         await (await _staff.Client.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
 
-        await (await _admin.DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await (await ClinicalAsync(_admin)).DeleteAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         await (await _staff.Client.GetAsync(PathwayUrl(pathway.Id))).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
         var audit = await AuditAsync(pathway.Id);
@@ -227,7 +227,7 @@ public sealed class PathwayWorkflowTests : IntegrationTest
         await PutStageNotesAsync(client, pathway.Id, s1, StageNotes);       // StageStarted, StatusChanged, StageNotesUpdated
         await FinishStageAsync(client, pathway.Id, s1);                     // StageFinished
         await FinishStageAsync(client, pathway.Id, s2);                     // StageStarted, StageFinished, StatusChanged
-        await _admin.PostAsync($"{StageUrl(pathway.Id, s1)}/unlock", null); // StageUnlocked, StatusChanged
+        await (await ClinicalAsync(_admin)).PostAsync($"{StageUrl(pathway.Id, s1)}/unlock", null); // StageUnlocked, StatusChanged
         await (await client.PatchAsJsonAsync(PathwayUrl(pathway.Id),
             new UpdatePatientPathwayRequest { Priority = "Urgent" })).ShouldHaveStatusAsync(HttpStatusCode.OK); // DetailsUpdated
 
@@ -247,7 +247,7 @@ public sealed class PathwayWorkflowTests : IntegrationTest
             e.PatientId.Should().Be(pathway.PatientId);
         });
         audit.Where(e => e.Action == "StageUnlocked").Should().ContainSingle()
-            .Which.Should().BeEquivalentTo(new { Username = AdminUsername, StageId = (Guid?)s1 });
+            .Which.Should().BeEquivalentTo(new { Username = (await ClinicStaffAsync()).Username, StageId = (Guid?)s1 });
         audit.Where(e => e.Action == "StageNotesUpdated").Should().ContainSingle()
             .Which.Username.Should().Be(_staff.Username);
         var statusChanges = audit.Where(e => e.Action == "StatusChanged").Select(e => e.Details).ToList();

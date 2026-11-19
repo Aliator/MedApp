@@ -194,18 +194,19 @@ public sealed class EndpointCoverageTests : IntegrationTest
         await ExecuteSqlAsync($"UPDATE Patients SET LastUpdated = DATEADD(year, -10, SYSUTCDATETIME()) WHERE Id = {old.Id}");
         // A synthetic NHS number (the 999 range), so the FHIR search finds them.
         await ExecuteSqlAsync($"UPDATE Patients SET NhsNumber = '9990000018' WHERE Id = {patientId}");
-        // An appointment with the admin, so their calendar names the patient.
+        // An appointment with the clinic's clinician (admins are in no team), so their calendar names the patient.
+        var clinician = await ClinicStaffAsync();
         var day = NextWorkingDay();
-        var appointment = await BookNewAppointmentAsync(admin, patientId, adminId, UkAt(day, 9));
+        var appointment = await BookNewAppointmentAsync(admin, patientId, clinician.UserId, UkAt(day, 9));
         var file = await UploadAttachmentOkAsync(admin, $"pathwayId={pathway.Id}", SyntheticPdf, "synthetic.pdf");
         // A request to delete a note, whose dialog shows the note and the patient.
-        var note = await (await admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
+        var note = await (await (await ClinicalAsync(admin)).PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes",
             new AddPathwayNoteRequest { Text = "Synthetic note." })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
-        var requested = await (await admin.PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes/{note.Id}/deletion-requests",
+        var requested = await (await (await ClinicalAsync(admin)).PostAsJsonAsync($"/api/pathways/patient-pathways/{pathway.Id}/notes/{note.Id}/deletion-requests",
             new RequestNoteDeletionRequest { Reason = "Duplicate" })).ReadAsAsync<PatientPathwayNoteResponse>(HttpStatusCode.Created);
 
         // A referral, for its page and the referral list.
-        var referral = await (await admin.PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
+        var referral = await (await (await ClinicalAsync(admin)).PostAsJsonAsync("/api/referrals", new RegisterReferralRequest
         {
             PatientId = patientId, TeamId = MedApp.Domain.Teams.Team.GeneralId, ReceivedOn = UkToday,
             ReferrerPractice = "Synthetic Lane Surgery", RequestedPriority = "Medium", Reason = "Synthetic reason."
@@ -229,6 +230,14 @@ public sealed class EndpointCoverageTests : IntegrationTest
         var (specimenType, laboratory) = await MedApp.IntegrationTests.Specimens.SpecimenApi.CreateSetupAsync(admin);
         var specimen = await MedApp.IntegrationTests.Specimens.SpecimenApi.RecordAsync(
             nurse.Client, pathway, specimenType.Id, laboratory.Id, writer.UserId);
+        // A second sample, sent and received by the lab, which opens its lab case (MC15): for the case's page.
+        var lab = await CreateStaffAsync("Lab");
+        var forCase = await MedApp.IntegrationTests.Specimens.SpecimenApi.RecordAsync(
+            nurse.Client, pathway, specimenType.Id, laboratory.Id, writer.UserId);
+        forCase = await (await MedApp.IntegrationTests.Specimens.SpecimenApi.StepAsync(nurse.Client, forCase, "sent"))
+            .ReadAsAsync<MedApp.Contracts.Specimens.Responses.SpecimenResponse>();
+        forCase = await (await MedApp.IntegrationTests.Specimens.SpecimenApi.StepAsync(lab.Client, forCase, "received"))
+            .ReadAsAsync<MedApp.Contracts.Specimens.Responses.SpecimenResponse>();
 
         // A result from elsewhere (the attached file), for the clinician to sign off: for its page and the results list.
         var result = await (await writer.Client.PostAsJsonAsync("/api/results/external", new MedApp.Contracts.Results.Requests.RecordExternalResultRequest
@@ -268,8 +277,8 @@ public sealed class EndpointCoverageTests : IntegrationTest
             (AppointmentUrl(appointment.Id), "PatientViewed", patientId),
             ("/api/appointments/search", "PatientListed", patientId),
             ($"{AppointmentUrl(appointment.Id)}/messages", "PatientViewed", patientId),
-            ($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
-            ($"/api/calendar/team?date={day:yyyy-MM-dd}&staffUserIds={adminId}", "PatientListed", patientId),
+            ($"/api/calendar?staffUserId={clinician.UserId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}", "PatientListed", patientId),
+            ($"/api/calendar/team?date={day:yyyy-MM-dd}&staffUserIds={clinician.UserId}", "PatientListed", patientId),
             ($"/api/attachments?patientId={patientId}", "AttachmentsViewed", patientId),
             ($"/api/attachments/{file.Id}/content", "AttachmentDownloaded", patientId),
             ($"/api/referrals/{referral.Id}", "ReferralViewed", patientId),
@@ -277,6 +286,7 @@ public sealed class EndpointCoverageTests : IntegrationTest
             ($"/api/letters/{letter.Id}", "LetterViewed", patientId),
             ($"/api/letters/search?pathwayId={pathway.Id}", "PatientListed", patientId),
             ($"/api/specimens/{specimen.Id}", "SpecimenViewed", patientId),
+            ($"/api/lab-cases/{forCase.LabCaseId}", "LabCaseViewed", patientId),
             ("/api/specimens/search?view=ToSend", "PatientListed", patientId),
             ($"/api/pathways/{pathway.Id}/consent-records", "PathwayViewed", patientId),
             ($"/api/results/{result.Id}", "ResultViewed", patientId),
@@ -313,13 +323,14 @@ public sealed class EndpointCoverageTests : IntegrationTest
     {
         var admin = await SignInAsAdminAsync();
         var adminId = await GetUserIdAsync(admin, AdminUsername);
+        var clinician = await ClinicStaffAsync();
         var pathway = await CreatePatientWithPathwayAsync(admin);
         var day = NextWorkingDay();
-        await BookNewAppointmentAsync(admin, pathway.PatientId, adminId, UkAt(day, 9));
+        await BookNewAppointmentAsync(admin, pathway.PatientId, clinician.UserId, UkAt(day, 9));
         await ExecuteSqlAsync($"DELETE FROM ActivityEntries");
 
         // What Apply Template reads: the days, which name no patients.
-        var response = await admin.GetAsync($"/api/calendar?staffUserId={adminId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&withoutAppointments=true");
+        var response = await admin.GetAsync($"/api/calendar?staffUserId={clinician.UserId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&withoutAppointments=true");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadAsStringAsync();
         body.Should().NotContain(pathway.PatientId.ToString());

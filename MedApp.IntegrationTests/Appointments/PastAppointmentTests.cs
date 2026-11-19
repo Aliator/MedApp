@@ -219,7 +219,8 @@ public sealed class PastAppointmentTests : IntegrationTest
             .Items.Should().ContainSingle().Subject;
         notification.Kind.Should().Be("AppointmentRecorded");
         notification.Title.Should().Be("Appointment recorded");
-        notification.Message.Should().StartWith($"{AdminUsername} recorded an appointment you had on ").And.NotContain(_patient.LastName);
+        // Recorded by the test's clinic staff (admins are read only).
+        notification.Message.Should().StartWith($"{(await ClinicStaffAsync()).Username} recorded an appointment you had on ").And.NotContain(_patient.LastName);
     }
 
     // Entered in error
@@ -248,14 +249,15 @@ public sealed class PastAppointmentTests : IntegrationTest
     }
 
     [Test]
-    public async Task EnteredInError_BySomeoneElse_Returns403_ByAnAdmin_IsAllowed()
+    public async Task EnteredInError_BySomeoneElse_Returns403_EvenByAnAdmin()
     {
         var other = await CreateStaffAsync(UserRole);
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10)))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);
 
         await (await PostEnteredInErrorAsync(other.Client, recorded.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
-        await (await PostEnteredInErrorAsync(_admin, recorded.Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        // Admins are read only (decision 208): they don't book, so they don't withdraw a visit either.
+        await (await PostEnteredInErrorAsync(_admin, recorded.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
     }
 
     [Test]
@@ -263,7 +265,7 @@ public sealed class PastAppointmentTests : IntegrationTest
     {
         var booked = await BookNewAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, NextBookableStart());
 
-        await (await PostEnteredInErrorAsync(_admin, booked.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await PostEnteredInErrorAsync(_staff.Client, booked.Id)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
     }
 
     [Test]
@@ -296,7 +298,7 @@ public sealed class PastAppointmentTests : IntegrationTest
         var stage = pathway.Stages.Single();
         var assignee = await CreateStaffAsync(UserRole);
         var senior = await CreateStaffAsync(SeniorClinicianRole);
-        await (await _admin.PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        await (await (await ClinicalAsync(_admin)).PostAsync($"{PathwayUrl(pathway.Id)}/assignments/{assignee.UserId}", null)).ShouldHaveStatusAsync(HttpStatusCode.OK);
         var recorded = await (await PostPastAppointmentAsync(_staff.Client, _patient.Id, _staff.UserId, UkAt(_day, 10),
                 pathwayId: pathway.Id, stageId: stage.Id))
             .ReadAsAsync<AppointmentResponse>(HttpStatusCode.Created);

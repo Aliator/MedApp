@@ -215,7 +215,7 @@ public sealed class AttachmentTests : IntegrationTest
     }
 
     [Test]
-    public async Task Delete_StaffSomeoneElsesFile_Returns403_AndAnAdminCanDeleteIt()
+    public async Task Delete_StaffSomeoneElsesFile_Returns403_AsDoesAnAdmin_TheOwnerDeletesIt()
     {
         var owner = await CreateStaffAsync(UserRole);
         var other = await CreateStaffAsync(UserRole);
@@ -225,7 +225,9 @@ public sealed class AttachmentTests : IntegrationTest
 
         (await ListAsync(other.Client, $"patientId={patient.Id}")).Items.Single().CanDelete.Should().BeFalse();
         await (await other.Client.DeleteAsync($"/api/attachments/{file.Id}")).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
-        await (await admin.DeleteAsync($"/api/attachments/{file.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        // Admins are read only (decision 208): they don't attach or delete files.
+        await (await admin.DeleteAsync($"/api/attachments/{file.Id}")).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
+        await (await owner.Client.DeleteAsync($"/api/attachments/{file.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         (await ListAsync(owner.Client, $"patientId={patient.Id}")).Items.Should().BeEmpty();
         await (await owner.Client.GetAsync($"/api/attachments/{file.Id}/content")).ShouldHaveStatusAsync(HttpStatusCode.NotFound);
@@ -279,11 +281,11 @@ public sealed class AttachmentTests : IntegrationTest
         var patientOnly = await CreatePatientAsync(admin);
         await UploadOkAsync(admin, $"pathwayId={pathway.Id}", Pdf, "letter.pdf");
         await UploadOkAsync(admin, $"patientId={patientOnly.Id}", Pdf, "letter.pdf");
-        await (await admin.PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
+        await (await (await ClinicalAsync(admin)).PostAsJsonAsync($"{PathwayUrl(pathway.Id)}/status",
             new ChangePatientPathwayStatusRequest { Status = "Cancelled", Reason = BlockReason })).ShouldHaveStatusAsync(HttpStatusCode.OK);
 
-        var pathwayDelete = await admin.DeleteAsync(PathwayUrl(pathway.Id));
-        var patientDelete = await admin.DeleteAsync($"/api/patients/{patientOnly.Id}");
+        var pathwayDelete = await (await ClinicalAsync(admin)).DeleteAsync(PathwayUrl(pathway.Id));
+        var patientDelete = await (await ClinicalAsync(admin)).DeleteAsync($"/api/patients/{patientOnly.Id}");
 
         (await pathwayDelete.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This pathway has 1 file attached");
         (await patientDelete.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title.Should().StartWith("This patient has 1 file attached");
@@ -314,7 +316,7 @@ public sealed class AttachmentTests : IntegrationTest
             await UploadAsync(admin, $"pathwayId={pathway.Id}", Pdf, "more.pdf"),
             await UploadAsync(admin, $"stageId={pathway.Stages[0].Id}", Pdf, "more.pdf"),
         };
-        var delete = await admin.DeleteAsync($"/api/attachments/{onPatient.Id}");
+        var delete = await staff.Client.DeleteAsync($"/api/attachments/{onPatient.Id}");
 
         foreach (var refused in uploads.Append(delete))
             (await refused.ReadAsAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(HttpStatusCode.Conflict)).Title
@@ -330,13 +332,13 @@ public sealed class AttachmentTests : IntegrationTest
         var patient = await CreatePatientAsync(admin);
         var kept = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "kept.pdf");
         var gone = await UploadOkAsync(admin, $"patientId={patient.Id}", Pdf, "gone.pdf");
-        await (await admin.DeleteAsync($"/api/attachments/{gone.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
+        await (await (await ClinicalAsync(admin)).DeleteAsync($"/api/attachments/{gone.Id}")).ShouldHaveStatusAsync(HttpStatusCode.NoContent);
 
         var export = await (await admin.GetAsync($"/api/patients/{patient.Id}/export"))
             .ReadAsAsync<MedApp.Contracts.Patients.Responses.PatientExportResponse>();
 
         export.Attachments.Select(a => (a.Id, a.FileName, a.DeletedBy)).Should().Equal(
-            (kept.Id, "kept.pdf", (string?)null), (gone.Id, "gone.pdf", AdminUsername));
+            (kept.Id, "kept.pdf", (string?)null), (gone.Id, "gone.pdf", (await ClinicStaffAsync()).Username));
         export.Attachments[0].Sha256.Should().Be(kept.Sha256);
     }
 
@@ -384,7 +386,9 @@ public sealed class AttachmentTests : IntegrationTest
     {
         await using var api = new MedAppApiFactory(TestEnvironment.ConnectionString);
         var client = api.CreateApiClient();
-        await (await client.PostAsJsonAsync("/api/auth/login", new MedApp.Contracts.Authentication.Requests.LoginRequest(AdminUsername, AdminPassword)))
+        // Staff (admins are read only), signed in to the API without a file store.
+        var staff = await ClinicStaffAsync();
+        await (await client.PostAsJsonAsync("/api/auth/login", new MedApp.Contracts.Authentication.Requests.LoginRequest(staff.Username, staff.Password)))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
         var patient = await CreatePatientAsync(client);
 
