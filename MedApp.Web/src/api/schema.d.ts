@@ -22628,7 +22628,7 @@ export interface components {
             roles?: string[] | null;
         };
         SetUserTeamsRequest: {
-            teamIds?: string[] | null;
+            teams?: components["schemas"]["TeamMembershipRequest"][] | null;
         };
         SignOffResultRequest: {
             action?: string | null;
@@ -22702,6 +22702,7 @@ export interface components {
             id?: string;
             name?: string | null;
             isArchived?: boolean;
+            kind?: string | null;
             /** Format: int32 */
             version?: number;
             /** Format: int32 */
@@ -22928,11 +22929,18 @@ export interface components {
             weekTemplateId?: string | null;
             weekTemplateName?: string | null;
         };
+        TeamMembershipRequest: {
+            /** Format: uuid */
+            teamId?: string;
+            role?: string | null;
+        };
         TeamMembershipResponse: {
             /** Format: uuid */
             id?: string;
             name?: string | null;
             isArchived?: boolean;
+            kind?: string | null;
+            role?: string | null;
         };
         StaffWeekTemplateResponse: {
             /** Format: uuid */
@@ -23157,6 +23165,7 @@ export interface components {
             twoFactorEnabled?: boolean;
             fullName?: string | null;
             jobTitle?: string | null;
+            accountType?: string | null;
         };
         UserResponsePagedResponse: {
             items?: components["schemas"]["UserResponse"][] | null;
@@ -23256,6 +23265,8 @@ export interface components {
             mustChangePassword?: boolean;
             mustSetUpTwoFactor?: boolean;
             permissions?: string[] | null;
+            accountType?: string | null;
+            teams?: components["schemas"]["TeamMembershipResponse"][] | null;
         };
         WithdrawConsentRequest: {
             /** Format: date */

@@ -7,7 +7,7 @@
  * as in the schema.
  */
 export const notInLightDemo: Record<string, string> = {
-  // Sign-in, two-factor and email: the demo has two accounts and no real sign-in or email.
+  // Sign-in, two-factor and email: the demo has three accounts and no real sign-in or email.
   'POST /api/auth/email/confirm': 'No email in the light demo.',
   'PUT /api/auth/me/email': 'No email in the light demo.',
   'DELETE /api/auth/me/email': 'No email in the light demo.',

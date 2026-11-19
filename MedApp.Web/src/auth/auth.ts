@@ -5,9 +5,18 @@ import {api, unwrap, type Schemas} from '../api/client';
 import {settingsQuery} from '../api/settings';
 import {currentStartPagePath} from '../app/navSettings';
 import {appSettings, clearStorageAtSignOut, flushSettings} from '../app/settingsStore';
+import {accountTypeOf, isAccountType, isTeamMemberRole, type AccountType, type TeamKind, type TeamMemberRole} from './accountTypes';
 import {can, knownPermissions, type Permission} from './permissions';
 
 export {can};
+
+/** One of the signed-in person's teams, with their role in it (whoami's `teams`). */
+export interface MyTeam {
+  id: string;
+  name: string;
+  kind: TeamKind;
+  role: TeamMemberRole;
+}
 
 export interface CurrentUser {
   isAuthenticated: boolean;
@@ -27,7 +36,18 @@ export interface CurrentUser {
    * comes first.
    */
   mustSetUpTwoFactor: boolean;
+  /**
+   * Admin, clinic admin or staff (`accountTypes.ts`), worked out by the API. Shows what the side nav offers; what anyone
+   * may do is still their permissions.
+   */
+  accountType?: AccountType;
+  /** Their teams and their role in each; none for an admin. */
+  teams?: MyTeam[];
 }
+
+/** The account type, from whoami's or, for one without it, worked out from the roles and teams. */
+export const accountTypeOfUser = (user: Pick<CurrentUser, 'roles' | 'accountType' | 'teams'>): AccountType =>
+  user.accountType ?? accountTypeOf(user.roles, (user.teams ?? []).map((t) => t.role));
 
 const signedOut: CurrentUser = {
   isAuthenticated: false,
@@ -36,6 +56,7 @@ const signedOut: CurrentUser = {
   permissions: [],
   mustChangePassword: false,
   mustSetUpTwoFactor: false,
+  teams: [],
 };
 
 /** Who is signed in, from `GET api/auth/whoami`. Fetched once and cached until login or logout (replaces Blazor's AuthState). */
@@ -45,6 +66,12 @@ export const whoamiQuery = queryOptions({
     const {data, response} = await api.GET('/api/auth/whoami');
     if (!response.ok || !data?.isAuthenticated) return signedOut;
     const roles = [...(data.roles ?? [])];
+    const teams: MyTeam[] = (data.teams ?? []).map((t) => ({
+      id: t.id ?? '',
+      name: t.name ?? '',
+      kind: t.kind === 'Lab' ? 'Lab' : 'Clinic',
+      role: isTeamMemberRole(t.role) ? t.role : 'Member',
+    }));
     return {
       isAuthenticated: true,
       username: data.name ?? '',
@@ -52,6 +79,8 @@ export const whoamiQuery = queryOptions({
       permissions: knownPermissions(data.permissions),
       mustChangePassword: data.mustChangePassword === true,
       mustSetUpTwoFactor: data.mustSetUpTwoFactor === true,
+      accountType: isAccountType(data.accountType) ? data.accountType : accountTypeOf(roles, teams.map((t) => t.role)),
+      teams,
     };
   },
   staleTime: Infinity,

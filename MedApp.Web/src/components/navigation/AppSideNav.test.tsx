@@ -242,6 +242,13 @@ describe('AppSideNav', () => {
     expect(screen.queryByRole('link', {name: /^Letters/})).not.toBeInTheDocument();
   });
 
+  it('leaves the clinical worklists out for an admin account, who makes no clinical changes', async () => {
+    renderWithApp(<AppSideNav />, {user: {...adminUser, accountType: 'Admin', teams: []}});
+    expect(await screen.findByRole('link', {name: /^Patients/})).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: /Referrals/})).toBeInTheDocument();
+    for (const name of ['My Worklist', 'Results', 'Letters']) expect(screen.queryByRole('link', {name})).not.toBeInTheDocument();
+  });
+
   it("has Data Requests in Oversight for those who answer them (ManagePrivacy), current on a request's page", async () => {
     const {unmount} = renderWithApp(<AppSideNav />, {user: adminUser, path: '/data-requests/000000d1-0000-0000-0000-000000000001'});
     expect(await categoryRow('Oversight')).toHaveAttribute('aria-expanded', 'true');

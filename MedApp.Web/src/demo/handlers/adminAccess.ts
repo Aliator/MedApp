@@ -1,18 +1,19 @@
 import type {Schemas} from '../../api/client';
 import {PERMISSION_CATALOGUE, PERMISSIONS, type Permission} from '../../auth/permissions';
-import {PEOPLE, personByUsername, type DemoPerson} from '../accounts';
+import {accountTypeOfPerson, PEOPLE, personByUsername, type DemoMembership, type DemoPerson} from '../accounts';
 import {invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
 import type {DemoRole} from '../slices/setup';
 import {db} from '../store';
 import {nowUtc} from '../time';
-import {can, contains, me, paged, requirePermission} from './common';
+import {can, contains, me, membershipsOf, paged, requirePermission} from './common';
+import {teamsOfPerson} from './account';
 import {logActivity} from './adminLogs';
 
 /**
  * Users, roles, permissions, team memberships and the security settings. The clinic's people are fixed
  * (`accounts.ts`'s `PEOPLE`): no account is made or deleted, and nobody's roles, name or password change, so their
- * permissions stay what the two demo accounts were made with. Roles nobody holds can be made, changed, archived and
+ * permissions stay what the demo accounts were made with. Roles nobody holds can be made, changed, archived and
  * deleted; a role someone holds can be archived, not changed. Memberships change, and the activity log records it.
  */
 
@@ -21,6 +22,7 @@ const emailOf = (person: DemoPerson) => `${person.username}@centre.example`;
 
 export function userResponse(person: DemoPerson): Schemas['UserResponse'] {
   return {
+    accountType: accountTypeOfPerson(person, membershipsOf(person)),
     userId: person.id,
     username: person.username,
     roles: person.roles,
@@ -93,15 +95,6 @@ function roleInput(body: {name?: string | null; description?: string | null; per
   return {name, description: body.description?.trim() ?? '', permissions: PERMISSIONS.filter((p) => permissions.includes(p))};
 }
 
-/** The teams someone belongs to, as the API answers them. */
-function membershipsOf(userId: string): Schemas['TeamMembershipResponse'][] {
-  const ids = db().memberships[userId] ?? [];
-  return db()
-    .teams.filter((s) => ids.includes(s.id ?? ''))
-    .map((s) => ({id: s.id, name: s.name, isArchived: s.isArchived}))
-    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-}
-
 function securitySettingsResponse(): Schemas['SecuritySettingsResponse'] {
   const settings = db().securitySettings;
   // Nobody in the demo uses two-factor: every admin is without it.
@@ -160,28 +153,39 @@ export function registerAdminAccess() {
 
   on('get', '/api/auth/users/{username}/teams', ({params}) => {
     requirePermission('ManageUsers');
-    return membershipsOf(findPerson(params.username).id);
+    return teamsOfPerson(findPerson(params.username));
   });
   on('put', '/api/auth/users/{username}/teams', ({params, body}) => {
     requirePermission('ManageUsers');
     const person = findPerson(params.username);
     const state = db();
-    const ids = [...new Set(body.teamIds ?? [])];
-    const before = state.memberships[person.id] ?? [];
-    for (const teamId of ids) {
+    // Each team once, with its role (a clinic admin, or a member).
+    const wanted: DemoMembership[] = [];
+    for (const t of body.teams ?? []) {
+      if (!t.teamId) return invalid({teams: ['Choose a team for each membership.']});
+      if (t.role != null && t.role !== 'Member' && t.role !== 'ClinicAdmin') return invalid({teams: ['A role is Member or ClinicAdmin.']});
+      if (!wanted.some((w) => w.teamId === t.teamId)) wanted.push({teamId: t.teamId, role: t.role === 'ClinicAdmin' ? 'ClinicAdmin' : 'Member'});
+    }
+    const before = membershipsOf(person);
+    // An admin is in no team (decision 209, `TeamRules.AdminHasNoTeam`): someone who is both has two accounts.
+    if (wanted.length > 0 && person.roles.includes('Admin'))
+      return problem(409, `${person.username} is an admin, and an admin is in no team. Someone who does clinical work too has a staff account as well.`);
+    for (const {teamId, role} of wanted) {
       const team = state.teams.find((s) => s.id === teamId);
       if (!team) return notFound('The team');
       // An archived one can't be newly given; one they already have stays.
-      if (team.isArchived && !before.includes(teamId))
+      if (team.isArchived && !before.some((b) => b.teamId === teamId))
         return problem(409, `The '${team.name}' team is archived, so it can't be given to anyone new.`);
+      if (role === 'ClinicAdmin' && team.kind === 'Lab') return problem(409, 'The lab has no clinic admin: choose Member for it.');
     }
-    const same = ids.length === before.length && ids.every((s) => before.includes(s));
+    const same = wanted.length === before.length && wanted.every((w) => before.some((b) => b.teamId === w.teamId && b.role === w.role));
     if (!same) {
-      const names = (list: string[]) => list.map((s) => state.teams.find((x) => x.id === s)?.name ?? '').sort();
-      logActivity('TeamMembershipChanged', {targetUsername: person.username, details: JSON.stringify({from: names(before), to: names(ids)})});
-      state.memberships[person.id] = ids;
+      const names = (list: DemoMembership[]) =>
+        list.map((m) => `${state.teams.find((x) => x.id === m.teamId)?.name ?? ''}${m.role === 'ClinicAdmin' ? ' (clinic admin)' : ''}`).sort();
+      logActivity('TeamMembershipChanged', {targetUsername: person.username, details: JSON.stringify({from: names(before), to: names(wanted)})});
+      state.memberships[person.id] = wanted;
     }
-    return membershipsOf(person.id);
+    return teamsOfPerson(person);
   });
 
   on('get', '/api/permissions', () => {

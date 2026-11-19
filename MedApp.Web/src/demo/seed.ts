@@ -30,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -153,6 +153,8 @@ const TEAM_NAMES: [string, string][] = [
   [TEAMS.urology, 'Urology'],
   [TEAMS.diabetes, 'Diabetes'],
   [TEAMS.biomechanics, 'Biomechanics'],
+  // The lab (decision 182): a team of its own kind, serving every clinic.
+  [TEAMS.lab, 'Lab'],
 ];
 
 export const teamName = (id: string | null | undefined) => TEAM_NAMES.find(([key]) => key === id)?.[1] ?? null;
@@ -629,6 +631,7 @@ export function seed(): DemoState {
     id,
     name,
     isArchived: false,
+    kind: id === TEAMS.lab ? 'Lab' : 'Clinic',
     version: 1,
     templateCount: templates.filter((t) => t.teamId === id).length,
     pathwayCount: pathways.filter((p) => p.teamId === id).length,

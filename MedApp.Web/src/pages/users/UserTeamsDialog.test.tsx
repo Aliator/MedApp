@@ -8,9 +8,10 @@ const active = [
   {id: 's2', name: 'Urology', isArchived: false},
   {id: 's1', name: 'Dermatology', isArchived: false},
   {id: 's4', name: 'cardiology', isArchived: false},
+  {id: 's6', name: 'Lab', isArchived: false, kind: 'Lab'},
 ];
 const theirs = [
-  {id: 's1', name: 'Dermatology', isArchived: false},
+  {id: 's1', name: 'Dermatology', isArchived: false, kind: 'Clinic', role: 'Member'},
   {id: 's3', name: 'Old clinic', isArchived: true},
 ];
 
@@ -38,7 +39,7 @@ const puts = (fetch: ReturnType<typeof mockApi>) =>
 
 describe('teamMembershipChoices', () => {
   it('offers the active ones and the archived ones they have, marked, by name', () => {
-    expect(teamMembershipChoices(active, theirs).map((c) => c.label)).toEqual(['cardiology', 'Dermatology', 'Old clinic (archived)', 'Urology']);
+    expect(teamMembershipChoices(active, theirs).map((c) => c.label)).toEqual(['cardiology', 'Dermatology', 'Lab', 'Old clinic (archived)', 'Urology']);
     expect(teamMembershipChoices([...active, {id: 's5', name: 'Gone', isArchived: true}], []).map((c) => c.label)).not.toContain('Gone');
   });
 });
@@ -59,7 +60,36 @@ describe('UserTeamsDialog', () => {
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith("k.ashford's teams have been saved."));
     expect(onClose).toHaveBeenCalled();
-    expect(await puts(fetch)).toEqual([{teamIds: ['s1', 's2']}]);
+    expect(await puts(fetch)).toEqual([
+      {
+        teams: [
+          {teamId: 's1', role: 'Member'},
+          {teamId: 's2', role: 'Member'},
+        ],
+      },
+    ]);
+  });
+
+  it('makes someone clinic admin of a clinic they work in, never of the lab', async () => {
+    const {user, fetch} = renderDialog({[`PUT ${USER}`]: () => json([])});
+
+    await user.click(await screen.findByRole('checkbox', {name: 'Lab'}));
+    expect(dialog().queryByRole('checkbox', {name: 'Clinic admin of Lab'})).toBeNull();
+    expect(box('Clinic admin of Dermatology')).not.toBeChecked();
+    await user.click(box('Clinic admin of Dermatology'));
+    await user.click(saveButton());
+
+    await waitFor(async () =>
+      expect(await puts(fetch)).toEqual([
+        {
+          teams: [
+            {teamId: 's1', role: 'ClinicAdmin'},
+            {teamId: 's3', role: 'Member'},
+            {teamId: 's6', role: 'Member'},
+          ],
+        },
+      ]),
+    );
   });
 
   it('saves none, taking them all away', async () => {
@@ -69,7 +99,7 @@ describe('UserTeamsDialog', () => {
     await user.click(box('Old clinic (archived)'));
     await user.click(saveButton());
 
-    await waitFor(async () => expect(await puts(fetch)).toEqual([{teamIds: []}]));
+    await waitFor(async () => expect(await puts(fetch)).toEqual([{teams: []}]));
   });
 
   it("shows the API's refusal in the dialog, which stays open", async () => {

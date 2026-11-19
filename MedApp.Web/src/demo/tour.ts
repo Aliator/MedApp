@@ -1,6 +1,6 @@
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
-import {ADMIN, STAFF} from './accounts';
+import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
 import {LAB_IDS} from './slices/lab';
@@ -76,6 +76,20 @@ export const TOUR: TourStep[] = [
       isPatientPinned(PATIENTS.samuelOkafor)
         ? `You've pinned Samuel Okafor already: he's under Patients in the side nav. Unpin him from his row's menu (the …) to try again.`
         : null,
+  },
+  {
+    key: 'account-types',
+    title: 'Admin, clinic admin and staff',
+    steps: [
+      'Opens the Users page as the admin. Each account has a type, worked out from its roles and teams.',
+      'Admin: the overview, Insights, accounts, setup, and every team’s records to read, but no clinical changes. Open any pathway as the admin: it has no Finish Stage or Add Note. Someone who also does clinical work has a second, staff account.',
+      `Staff: in a team, a clinic or the lab. Their team decides what they see, and their roles what they do. ${LAB.fullName} is staff in the lab.`,
+      `Clinic admin: staff who also look after their own clinic. ${STAFF.fullName} is Dermatology’s. For now she works as any clinician does; a clinic admin’s extras (an oversight tab, the team’s own setup) come later.`,
+      'Edit teams on a user’s row sets their teams, and which clinics they’re the clinic admin of. An admin is in no team.',
+    ],
+    account: ADMIN.username,
+    path: '/admin/users',
+    buttonLabel: 'Open Users as the admin',
   },
   {
     key: 'meeting',
@@ -170,8 +184,9 @@ export const TOUR: TourStep[] = [
       'The Lab page: specimens to send, expected at the lab, in the lab, overdue and reported.',
       'Open one to mark it sent, received, rejected or lost; each step follows the specimen’s status. Find one by its number with the search.',
       'A pathway’s last stage can’t be finished while any of its specimens is still with the lab.',
+      `As ${LAB.fullName}, staff in the lab team: the lab receives and processes them, which admins don’t.`,
     ],
-    account: ADMIN.username,
+    account: LAB.username,
     path: '/lab',
     buttonLabel: 'Open the Lab worklist',
   },
@@ -214,10 +229,11 @@ export const TOUR: TourStep[] = [
     steps: [
       'Opens this morning’s skin MDT: the pathways listed for the team to discuss.',
       'Choose Record Outcome on Ellis Varden’s item, tick who was there and write the team’s outcome. MedApp never suggests one.',
-      `${STAFF.fullName}, who has the pathway, is told in her notifications.`,
+      'Whoever has the pathway is told in their notifications.',
       'The MDT list is reached from the Calendar page, by its MDT button.',
+      `As ${STAFF.fullName}: recording the outcome is clinical work, which admins don’t do.`,
     ],
-    account: ADMIN.username,
+    account: STAFF.username,
     path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,
     buttonLabel: 'Open this morning’s MDT',
     whyNot: (state) =>
@@ -319,7 +335,7 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   },
   {
     title: 'Changing roles and accounts',
-    full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the two accounts are fixed.',
+    full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the three accounts are fixed, though their teams can be changed.',
   },
   {
     title: 'Files from the lab',

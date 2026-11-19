@@ -1,11 +1,5 @@
 import type {Role} from '../api/roles';
-import {PERMISSIONS, type Permission} from '../auth/permissions';
-
-/** The clinical permissions the built-in Admin role doesn't get (the API's `Permissions.NotForAdmin`). */
-const NOT_FOR_ADMIN: readonly Permission[] = [
-  'TriageReferrals', 'FinishWithoutVisit', 'RecordConsent', 'RecordSpecimens', 'ProcessSpecimens', 'WriteLetters', 'ApproveLetters', 'SendLetters',
-  'RecordMdtOutcomes', 'SignOffResults',
-];
+import {ADMIN_PERMISSIONS, type Permission} from '../auth/permissions';
 
 /**
  * The permissions of the API's standard roles (`StandardRoles`): the built-in Admin's fixed set (every one but the
@@ -14,7 +8,7 @@ const NOT_FOR_ADMIN: readonly Permission[] = [
  * of `docs/centre-phases-3-5-plan.md`.
  */
 export const ROLE_PERMISSIONS = {
-  Admin: PERMISSIONS.filter((p) => !NOT_FOR_ADMIN.includes(p)),
+  Admin: ADMIN_PERMISSIONS,
   'All staff (before roles)': [
     'UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'CreatePathways', 'WorkPathways',
     'BookAppointments', 'AttachFiles',

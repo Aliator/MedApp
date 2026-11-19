@@ -143,7 +143,7 @@ describe('team changes', () => {
     const {queryClient, wrapper} = cachedClient();
     const {result} = renderHook(() => useSetUserTeams(), {wrapper});
 
-    await expect(result.current.mutateAsync({username: 'k.ashford', teamIds: ['s9']})).rejects.toMatchObject({status: 409, title: 'Urology is archived.'});
+    await expect(result.current.mutateAsync({username: 'k.ashford', teams: [{teamId: 's9', role: 'Member'}]})).rejects.toMatchObject({status: 409, title: 'Urology is archived.'});
     await waitFor(() => expect(isInvalidated(queryClient, teamKeys.ofUser('k.ashford'))).toBe(true));
   });
 
@@ -152,9 +152,9 @@ describe('team changes', () => {
     const {queryClient, wrapper} = cachedClient();
     const {result} = renderHook(() => useSetUserTeams(), {wrapper});
 
-    await result.current.mutateAsync({username: 'k.ashford', teamIds: ['s1']});
+    await result.current.mutateAsync({username: 'k.ashford', teams: [{teamId: 's1', role: 'ClinicAdmin'}]});
 
-    expect(await bodyOf(fetch)).toEqual({teamIds: ['s1']});
+    expect(await bodyOf(fetch)).toEqual({teams: [{teamId: 's1', role: 'ClinicAdmin'}]});
     await expectTeamsRefreshed(queryClient, {templates: false});
   });
 });

@@ -1,6 +1,6 @@
 import {QueryClient} from '@tanstack/react-query';
 import {createAppRouter} from '../router';
-import {ADMIN, DEMO_ACCOUNTS, STAFF} from './accounts';
+import {accountTypeOfPerson, ADMIN, DEMO_ACCOUNTS, LAB, STAFF} from './accounts';
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
@@ -47,7 +47,7 @@ describe('the Read Me tour', () => {
     }
   });
 
-  it('asks only for the two demo accounts', () => {
+  it('asks only for the three demo accounts', () => {
     for (const step of TOUR) if (step.account) expect(DEMO_ACCOUNTS.map((a) => a.username)).toContain(step.account);
   });
 
@@ -78,9 +78,24 @@ describe('the Read Me tour', () => {
   it('has the staff member triage in her own team, and the admin see Insights', () => {
     const state = seed();
     const referral = state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!;
-    expect(STAFF.teamIds).toContain(referral.teamId);
+    expect(STAFF.teams.map((t) => t.teamId)).toContain(referral.teamId);
     expect(ADMIN.permissions).toContain('ViewInsights');
     expect(STAFF.permissions).not.toContain('ViewInsights');
+  });
+
+  it('does clinical work only as staff: the admin is read only, in no team', () => {
+    const clinical = ['WorkPathways', 'TriageReferrals', 'BookAppointments', 'ProcessSpecimens', 'RecordMdtOutcomes', 'SignOffResults'] as const;
+    for (const permission of clinical) expect(ADMIN.permissions).not.toContain(permission);
+    expect(ADMIN.teams).toEqual([]);
+    expect(accountTypeOfPerson(ADMIN)).toBe('Admin');
+    expect(accountTypeOfPerson(STAFF)).toBe('ClinicAdmin');
+    expect(accountTypeOfPerson(LAB)).toBe('Staff');
+    const byKey = (key: string) => TOUR.find((step) => step.key === key)!;
+    expect(byKey('lab').account).toBe(LAB.username);
+    expect(byKey('mdt').account).toBe(STAFF.username);
+    expect(LAB.permissions).toContain('ProcessSpecimens');
+    // The admin's steps are what an admin does.
+    for (const step of TOUR.filter((s) => s.account === ADMIN.username)) expect(['account-types', 'meeting', 'insights']).toContain(step.key);
   });
 
   it('opens a patient to pin, and says when they are pinned already', () => {

@@ -31,6 +31,21 @@ export function teamMembershipChoices(active: readonly Team[], theirs: readonly 
 /** The same IDs, in any order. */
 const sameIds = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((id) => b.includes(id));
 
+/** The lab's teams (by ID): it has no clinic admin, so it isn't offered there. */
+const labIds = (active: readonly Team[], theirs: readonly TeamMembership[]) =>
+  [...active, ...theirs].filter((t) => t.kind === 'Lab').map((t) => t.id ?? '');
+
+/**
+ * What the dialog saves: each ticked team, with Clinic admin for those ticked in the second list (only clinics;
+ * the lab's role is always Member).
+ */
+export function teamMembershipsToSave(selected: readonly string[], clinicAdminOf: readonly string[], lab: readonly string[]) {
+  return selected.map((teamId) => ({
+    teamId,
+    role: clinicAdminOf.includes(teamId) && !lab.includes(teamId) ? ('ClinicAdmin' as const) : ('Member' as const),
+  }));
+}
+
 export interface UserTeamsDialogProps {
   isOpen: boolean;
   /** Whose teams: the row's user. */
@@ -41,8 +56,8 @@ export interface UserTeamsDialogProps {
 }
 
 /**
- * A member of staff's teams (admins, the Users page): each team as a checkbox, theirs ticked, saved as
- * exactly the set ticked. Their teams and the list are read as it opens; the API's refusal (an unknown user, a
+ * A member of staff's teams (admins, the Users page): each team as a checkbox, theirs ticked, and the clinics they're
+ * clinic admin of, saved as exactly the set ticked. Their teams and the list are read as it opens; the API's refusal (an unknown user, a
  * team archived meanwhile) shows in the dialog, which stays open.
  */
 export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsDialogProps) {
@@ -51,16 +66,24 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
   const save = useSetUserTeams();
   // What the admin has ticked; until they tick anything, the user's own.
   const [ticked, setTicked] = useState<string[] | null>(null);
+  const [adminTicked, setAdminTicked] = useState<string[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   const current = (theirs.data ?? []).map((s) => s.id ?? '');
+  const currentAdmin = (theirs.data ?? []).filter((s) => s.role === 'ClinicAdmin').map((s) => s.id ?? '');
   const selected = ticked ?? current;
   const choices = teamMembershipChoices(active.data ?? [], theirs.data ?? []);
+  const lab = labIds(active.data ?? [], theirs.data ?? []);
+  // Clinic admin of: only teams ticked above, and never the lab.
+  const adminChoices = choices.filter((c) => selected.includes(c.value) && !lab.includes(c.value));
+  const clinicAdminOf = (adminTicked ?? currentAdmin).filter((id) => adminChoices.some((c) => c.value === id));
+  const unchanged = sameIds(selected, current) && sameIds(clinicAdminOf, currentAdmin);
   const isLoading = theirs.isPending || active.isPending;
   const isError = theirs.isError || active.isError;
 
   const close = () => {
     setTicked(null);
+    setAdminTicked(null);
     setProblem(null);
     save.reset();
     onClose();
@@ -69,7 +92,7 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
   const confirm = () => {
     setProblem(null);
     save.mutate(
-      {username, teamIds: selected},
+      {username, teams: teamMembershipsToSave(selected, clinicAdminOf, lab)},
       {
         onSuccess: () => {
           close();
@@ -95,27 +118,42 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
   ) : choices.length === 0 ? (
     <EmptyState title="There are no teams yet." description="Add them on the Teams page." isCompact />
   ) : (
-    <CheckboxList
-      label="Teams"
-      isLabelHidden
-      value={selected}
-      onChange={setTicked}
-      isDisabled={save.isPending}
-      hasDividers>
-      {choices.map((choice) => (
-        <CheckboxListItem key={choice.value} value={choice.value} label={choice.label} />
-      ))}
-    </CheckboxList>
+    <VStack gap={3}>
+      <CheckboxList
+        label="Teams"
+        isLabelHidden
+        value={selected}
+        onChange={setTicked}
+        isDisabled={save.isPending}
+        hasDividers>
+        {choices.map((choice) => (
+          <CheckboxListItem key={choice.value} value={choice.value} label={choice.label} />
+        ))}
+      </CheckboxList>
+      {adminChoices.length > 0 && (
+        <CheckboxList
+          label="Clinic admin of"
+          description="A clinic admin is staff who also looks after their clinic. The lab has none."
+          value={clinicAdminOf}
+          onChange={setAdminTicked}
+          isDisabled={save.isPending}
+          hasDividers>
+          {adminChoices.map((choice) => (
+            <CheckboxListItem key={choice.value} value={choice.value} label={`Clinic admin of ${choice.label}`} />
+          ))}
+        </CheckboxList>
+      )}
+    </VStack>
   );
 
   return (
     <ConfirmDialog
       isOpen={isOpen}
       title="Edit Teams"
-      message={`Tick the teams ${username} works in.`}
+      message={`Tick the teams ${username} works in, and any clinic they're the clinic admin of. An admin is in no team.`}
       icon={AppIcon.Teams}
       confirmText="Save Teams"
-      confirmDisabled={isLoading || isError || sameIds(selected, current)}
+      confirmDisabled={isLoading || isError || unchanged}
       isProcessing={save.isPending}
       onConfirm={confirm}
       onCancel={close}>

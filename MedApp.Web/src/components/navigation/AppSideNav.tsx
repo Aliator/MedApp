@@ -595,6 +595,8 @@ export interface AppSideNavProps {
 
 export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const user = useCurrentUser();
+  // As whoami says it (an API from before account types says none, and everything shows as before).
+  const isAdminAccount = user.accountType === 'Admin';
   const logout = useLogout();
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const {mode} = useColorMode();
@@ -625,24 +627,30 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const main: NavRailEntry[] = [
     // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
     ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />})] : []),
-    {
-      key: 'tasks',
-      label: 'My Worklist',
-      icon: AppIcon.Tasks,
-      href: '/tasks',
-      isSelected: isAt('/tasks'),
-      isHalfView: isHalfAt('/tasks'),
-      row: (
-        <SideNavItem
-          label="My Worklist"
-          icon={AppIcon.Tasks}
-          href="/tasks"
-          isSelected={isAt('/tasks')}
-          ref={halfViewRow(isHalfAt('/tasks'))}
-          actions={<RowMenu label="My Worklist" href="/tasks" />}
-        />
-      ),
-    },
+    // Admins make no clinical changes (decision 182), so the clinical worklists (My Worklist, Results, Letters) aren't
+    // theirs; they read everything from Patients, Pathways and Referrals.
+    ...(isAdminAccount
+      ? []
+      : [
+          {
+            key: 'tasks',
+            label: 'My Worklist',
+            icon: AppIcon.Tasks,
+            href: '/tasks',
+            isSelected: isAt('/tasks'),
+            isHalfView: isHalfAt('/tasks'),
+            row: (
+              <SideNavItem
+                label="My Worklist"
+                icon={AppIcon.Tasks}
+                href="/tasks"
+                isSelected={isAt('/tasks')}
+                ref={halfViewRow(isHalfAt('/tasks'))}
+                actions={<RowMenu label="My Worklist" href="/tasks" />}
+              />
+            ),
+          },
+        ]),
     {
       key: 'referrals',
       label: 'Referrals',
@@ -685,7 +693,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         ]
       : []),
     // Results awaiting sign-off and signed off, for anyone who can view patients; a result's page counts as under it.
-    ...(can(user, 'ViewPatients')
+    ...(can(user, 'ViewPatients') && !isAdminAccount
       ? [
           {
             key: 'results',
@@ -708,7 +716,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         ]
       : []),
     // Letters to write, approve and send, for anyone who can view patients (decision 108).
-    ...(can(user, 'ViewPatients')
+    ...(can(user, 'ViewPatients') && !isAdminAccount
       ? [
           {
             key: 'letters',

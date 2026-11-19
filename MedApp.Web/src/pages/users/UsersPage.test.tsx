@@ -167,7 +167,7 @@ describe('UsersPage', () => {
     await user.click(within(openDialog()!).getByRole('button', {name: 'Save Teams'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
-    expect(await bodies(fetch, 'PUT')).toEqual([{teamIds: ['s1']}]);
+    expect(await bodies(fetch, 'PUT')).toEqual([{teams: [{teamId: 's1', role: 'Member'}]}]);
     expect(await screen.findByText(`${adminUser.username}'s teams have been saved.`)).toBeInTheDocument();
   });
 

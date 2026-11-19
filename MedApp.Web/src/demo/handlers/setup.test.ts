@@ -38,10 +38,18 @@ describe('the light demo’s setup and admin handlers', () => {
 
   it('changes someone’s teams, and records it in the activity log', async () => {
     startLightDemo(ADMIN);
-    const set = await call('PUT', '/api/auth/users/h.marsh/teams', {teamIds: [TEAMS.urology]});
-    expect(set.body.map((s: {name: string}) => s.name)).toEqual(['Urology']);
+    const set = await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.urology, role: 'ClinicAdmin'}]});
+    expect(set.body).toMatchObject([{name: 'Urology', kind: 'Clinic', role: 'ClinicAdmin'}]);
     const log = (await call('GET', '/api/activity/search?Actions=TeamMembershipChanged')).body;
-    expect(log.items[0]).toMatchObject({targetUsername: 'h.marsh', details: JSON.stringify({from: [], to: ['Urology']})});
+    expect(log.items[0]).toMatchObject({targetUsername: 'h.marsh', details: JSON.stringify({from: [], to: ['Urology (clinic admin)']})});
+    expect((await call('GET', '/api/auth/users/h.marsh')).body.accountType).toBe('ClinicAdmin');
+  });
+
+  it('keeps an admin out of every team, and the lab without a clinic admin', async () => {
+    startLightDemo(ADMIN);
+    expect((await call('PUT', '/api/auth/users/admin/teams', {teams: [{teamId: TEAMS.urology, role: 'Member'}]})).status).toBe(409);
+    expect((await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.lab, role: 'ClinicAdmin'}]})).status).toBe(409);
+    expect((await call('PUT', '/api/auth/users/h.marsh/teams', {teams: [{teamId: TEAMS.lab, role: 'Member'}]})).status).toBe(200);
   });
 
   it('closes a day: not a working day, with no free times', async () => {

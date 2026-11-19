@@ -1,6 +1,6 @@
 import type {Schemas} from '../../api/client';
 import type {Permission} from '../../auth/permissions';
-import {personByUsername, type DemoPerson} from '../accounts';
+import {personByUsername, type DemoMembership, type DemoPerson} from '../accounts';
 import {DemoReply, problem, refuse} from '../api/http';
 import {db} from '../store';
 
@@ -18,6 +18,12 @@ export function me(): DemoPerson {
   if (!person) refuse(problem(401, 'Sign in to continue.'));
   return person;
 }
+
+/** Someone's teams and their role in each, as they are now (an admin may have changed them). */
+export const membershipsOf = (person: DemoPerson): DemoMembership[] => db().memberships[person.id] ?? person.teams;
+
+/** The IDs of someone's teams, as they are now. */
+export const teamIdsOf = (person: DemoPerson): string[] => membershipsOf(person).map((m) => m.teamId);
 
 /** Whether the signed-in person's roles grant a permission. */
 export const can = (permission: Permission) => signedIn()?.permissions.includes(permission) ?? false;
