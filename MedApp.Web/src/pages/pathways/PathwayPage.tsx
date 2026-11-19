@@ -44,9 +44,9 @@ import {PathwayNotes} from '../../components/pathways/PathwayNotes';
 import {PathwayPatient} from '../../components/pathways/PathwayPatient';
 import {PathwayMdt} from '../../components/mdt/PathwayMdt';
 import {PathwaySummary} from '../../components/pathways/PathwaySummary';
-import {StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
+import {resultsBefore, StageDetails, StageList, StageTitle, type InstructionsFolding} from '../../components/pathways/StageList';
 import {appointmentWhen, finishesWithoutVisit, involvesVisit, StageVisit, StageVisitTokens, stageVisit} from '../../components/pathways/StageVisit';
-import {BranchChoice, ReinstateStageDialog, SkipStageDialog} from '../../components/pathways/StageSkipDialogs';
+import {LabResultField, MAX_RESULT_LENGTH, OutcomeChoice, ReinstateStageDialog, SkipStageDialog} from '../../components/pathways/StageSkipDialogs';
 import {AddBranchDialog} from '../../components/pathways/AddBranchDialog';
 import {StageWork} from '../../components/pathways/StageWork';
 import {StatusChangeDialog, statusAction} from '../../components/pathways/StatusChangeDialog';
@@ -139,10 +139,10 @@ interface Booking {
  * isn't assigned to you, the first change of the visit asks you to confirm.
  *
  * Pathways that branch (docs/centre-phases-3-5-plan.md, decisions 113 to 117): an optional current stage can be
- * skipped with a reason (`SkipStageDialog`, showing the patient: hazard H-51); finishing a branch point asks which
- * branch follows (`BranchChoice`: in the template's order, none chosen, Finish disabled until the clinician chooses),
- * and says which stages that skips; skipped stages are struck through with why; and a holder of UnlockStages can
- * reinstate one (`ReinstateStageDialog`).
+ * skipped with a reason (`SkipStageDialog`, showing the patient: hazard H-51); finishing a choice node asks for its
+ * outcome (`OutcomeChoice`: in the template's order, none chosen, Finish disabled until the clinician records one), and
+ * says which stages that adds; the lab enters its result as it finishes its stage (`LabResultField`); skipped stages
+ * are struck through with why; and a holder of UnlockStages can reinstate one (`ReinstateStageDialog`).
  *
  * A request to delete one of its notes in the address (`?deletionRequest=<id>`, from an admin's "Note deletion
  * requested" notification) opens in `NoteDeletionRequestDialog` over the page, for holders of CorrectRecords; closing it takes it out of
@@ -210,8 +210,10 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   // A stage whose visit has already happened (a walk-in), being recorded.
   const [recordingPast, setRecordingPast] = useState<PathwayStage | null>(null);
   const [withoutVisitReason, setWithoutVisitReason] = useState('');
-  // The branch the clinician chooses as a branch point is finished: none until they choose (decision 114).
-  const [chosenBranch, setChosenBranch] = useState('');
+  // The outcome the clinician records as a choice node is finished: none until they choose (never MedApp).
+  const [chosenOutcome, setChosenOutcome] = useState('');
+  // The result the lab enters as it finishes its own stage.
+  const [labResult, setLabResult] = useState('');
   const navigate = useNavigate();
   const announce = useAnnounce();
   // Files on their way, held here so they carry on when the window switches between one card and two.
@@ -301,28 +303,33 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   /**
    * Finishing asks first: as it always has, or, for a stage that involves a visit with none marked Attended, whether
    * to finish it without one (a holder of FinishWithoutVisit giving a reason for a required one; anyone else can't, as Finish
-   * says). A branch point finished for the first time asks either way which branch follows, none chosen to begin with.
+   * says). A choice node finished for the first time asks either way for its outcome, none chosen to begin with; the
+   * lab's stage asks for its result.
    */
   const finishStage = (stage: PathwayStage, notes: string) =>
     checked(() => {
       setWithoutVisitReason('');
-      setChosenBranch('');
+      setChosenOutcome('');
+      setLabResult('');
       setDialog({kind: finishesWithoutVisit(stage, stageVisit(stage.id, appointments)) ? 'finishWithoutVisit' : 'finish', stage, notes});
     });
 
   /**
    * Saves notes typed but not saved, then finishes the stage (without its visit, when that's what was confirmed; with
-   * the branch the clinician chose, at a branch point).
+   * the outcome the clinician recorded, at a choice node, and the lab's result).
    */
   const confirmFinish = async (stage: PathwayStage, notes: string, withoutVisit = false) => {
     try {
       if (notes !== (stage.notes ?? '')) await actions.saveNotes.mutateAsync({stageId: stage.id ?? '', notes});
-      const branch = stage.needsBranchChoice && chosenBranch ? {branch: chosenBranch} : undefined;
+      const extra = {
+        ...(stage.needsOutcome && chosenOutcome ? {outcome: chosenOutcome} : {}),
+        ...(stage.needsResult && labResult.trim() ? {result: labResult.trim()} : {}),
+      };
       const updated = await actions.finishStage.mutateAsync(
         withoutVisit
-          ? {stageId: stage.id ?? '', withoutVisit, ...(stage.visitRequirement === 'Required' ? {reason: withoutVisitReason.trim()} : {}), ...branch}
-          : branch
-            ? {stageId: stage.id ?? '', ...branch}
+          ? {stageId: stage.id ?? '', withoutVisit, ...(stage.visitRequirement === 'Required' ? {reason: withoutVisitReason.trim()} : {}), ...extra}
+          : Object.keys(extra).length > 0
+            ? {stageId: stage.id ?? '', ...extra}
             : (stage.id ?? ''),
       );
       announce(finishedMessage(stage, updated));
@@ -409,21 +416,29 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const onlyAssignee = pathway?.assignments?.length === 1 ? (pathway.assignments[0].userId ?? undefined) : undefined;
   const withoutVisit = dialog?.kind === 'finishWithoutVisit' ? dialog.stage : null;
   const withoutVisitState = withoutVisit ? stageVisit(withoutVisit.id, appointments) : null;
-  // The stage being finished, when it's a branch point finished for the first time: Finish waits for a branch.
+  // The stage being finished: a choice node finished for the first time waits for an outcome, a lab's stage for its result.
   const finishing = dialog?.kind === 'finish' || dialog?.kind === 'finishWithoutVisit' ? dialog.stage : null;
-  const choosesBranch = finishing?.needsBranchChoice ?? false;
-  const isBranchMissing = choosesBranch && !chosenBranch;
-  /** The branch choice, and who it's for (choosing one skips stages), in either finish dialog. */
-  const branchChoice = finishing && choosesBranch && (
-    <>
+  const recordsOutcome = finishing?.needsOutcome ?? false;
+  const entersResult = finishing?.needsResult ?? false;
+  const isChoiceMissing =
+    (recordsOutcome && !chosenOutcome) || (entersResult && (!labResult.trim() || labResult.length > MAX_RESULT_LENGTH));
+  const isFinishing = actions.saveNotes.isPending || actions.finishStage.isPending;
+  /** The outcome to record (with the lab's results it's recorded from) and the lab's result, in either finish dialog. */
+  const finishChoice = finishing && (recordsOutcome || entersResult) && (
+    <VStack gap={3}>
       {pathway?.patient && <PatientBanner patient={pathway.patient} isCompact />}
-      <BranchChoice
-        stage={finishing}
-        branch={chosenBranch}
-        onBranchChange={setChosenBranch}
-        isDisabled={actions.saveNotes.isPending || actions.finishStage.isPending}
-      />
-    </>
+      {recordsOutcome &&
+        resultsBefore(finishing, pathway?.stages ?? []).map((s) => (
+          <VStack key={s.id} gap={1}>
+            <Text type="body" weight="semibold">{`Result from ${s.name}`}</Text>
+            <Text type="body">{s.result?.text ?? ''}</Text>
+          </VStack>
+        ))}
+      {recordsOutcome && (
+        <OutcomeChoice stage={finishing} outcome={chosenOutcome} onOutcomeChange={setChosenOutcome} isDisabled={isFinishing} />
+      )}
+      {entersResult && <LabResultField result={labResult} onResultChange={setLabResult} isDisabled={isFinishing} />}
+    </VStack>
   );
   // A stage's visit waiting in Requires Appointment is the one Record Past Visit records: its notes are kept, so it shows them.
   const recordingPastVisit = recordingPast ? stageVisit(recordingPast.id, appointments) : null;
@@ -535,17 +550,17 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             isOpen={dialog?.kind === 'finish'}
             title={dialog?.kind === 'finish' ? `Finish ${dialog.stage.name}?` : 'Finish Stage?'}
             message={
-              choosesBranch
-                ? 'The stage will be locked and the pathway moves on to the branch you choose. An admin can unlock it if it needs correcting.'
+              recordsOutcome
+                ? 'The stage will be locked, and the outcome you record adds its stages to the pathway. An admin can unlock it if it needs correcting.'
                 : 'The stage will be locked and the pathway moves on to the next one. An admin can unlock it if it needs correcting.'
             }
             icon={AppIcon.Check}
             confirmText="Finish Stage"
-            confirmDisabled={isBranchMissing}
+            confirmDisabled={isChoiceMissing}
             isProcessing={actions.saveNotes.isPending || actions.finishStage.isPending}
             onConfirm={() => dialog?.kind === 'finish' && void confirmFinish(dialog.stage, dialog.notes)}
             onCancel={close}>
-            {dialog?.kind === 'finish' && branchChoice}
+            {dialog?.kind === 'finish' && finishChoice}
           </ConfirmDialog>
           <ConfirmDialog
             isOpen={withoutVisit !== null}
@@ -558,7 +573,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             icon={AppIcon.Warning}
             intent="warning"
             confirmText="Finish Without Visit"
-            confirmDisabled={(withoutVisit?.visitRequirement === 'Required' && !withoutVisitReason.trim()) || isBranchMissing}
+            confirmDisabled={(withoutVisit?.visitRequirement === 'Required' && !withoutVisitReason.trim()) || isChoiceMissing}
             isProcessing={actions.saveNotes.isPending || actions.finishStage.isPending}
             onConfirm={() => dialog?.kind === 'finishWithoutVisit' && void confirmFinish(dialog.stage, dialog.notes, true)}
             onCancel={close}>
@@ -578,7 +593,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
                   isRequired
                 />
               )}
-              {dialog?.kind === 'finishWithoutVisit' && branchChoice}
+              {dialog?.kind === 'finishWithoutVisit' && finishChoice}
             </VStack>
           </ConfirmDialog>
           {pathway && (
@@ -1285,7 +1300,13 @@ function CurrentStage({pathway, canWork, stage, work, files, instructions, visit
             : "Your roles don't allow working on pathways, so this is read only."}
         </Text>
       )}
-      <StageDetails stage={stage} work={work} files={files} instructions={instructions} />
+      <StageDetails
+        stage={stage}
+        work={work}
+        files={files}
+        instructions={instructions}
+        resultsBefore={stage.choiceKind === 'LabResult' ? resultsBefore(stage, pathway.stages ?? []) : []}
+      />
     </VStack>
   );
 }

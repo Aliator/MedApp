@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {ApiError, ApiValidationError} from '../../api/errors';
 import type {PathwayStage} from '../../api/pathways';
 import {isDisabled, openDialog, renderWithApp} from '../../test/render';
-import {BranchChoice, ReinstateStageDialog, SkipStageDialog, stagesSkippedBy} from './StageSkipDialogs';
+import {OutcomeChoice, ReinstateStageDialog, SkipStageDialog} from './StageSkipDialogs';
 
 /** The open dialog, once it has opened. */
 async function shownDialog() {
@@ -29,11 +29,11 @@ const biopsy = stage({
   stageOrder: 1,
   name: 'Biopsy',
   isOptional: false,
-  choosesBranch: true,
-  needsBranchChoice: true,
-  branches: [
-    {name: 'Benign', stageNames: ['Discharge letter'], stageNamesToDo: ['Discharge letter']},
-    {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery'], stageNamesToDo: ['Treatment planning', 'Surgery']},
+  choiceKind: 'LabResult',
+  needsOutcome: true,
+  outcomes: [
+    {name: 'Benign', stageNames: ['Discharge letter']},
+    {name: 'Malignant', stageNames: ['Referral to hospital', 'Letter to GP']},
   ],
 });
 
@@ -105,32 +105,24 @@ describe('ReinstateStageDialog', () => {
   });
 });
 
-describe('BranchChoice', () => {
+describe('OutcomeChoice', () => {
   function Harness() {
-    const [branch, setBranch] = useState('');
-    return <BranchChoice stage={biopsy} branch={branch} onBranchChange={setBranch} />;
+    const [outcome, setOutcome] = useState('');
+    return <OutcomeChoice stage={biopsy} outcome={outcome} onOutcomeChange={setOutcome} />;
   }
 
-  it("lists the branches in the template's order with their stages, none chosen, then says what choosing one skips", async () => {
+  it("lists the outcomes in the template's order with the stages each adds, none chosen, then says what recording one adds", async () => {
     const {user} = renderWithApp(<Harness />);
 
     const radios = await screen.findAllByRole('radio');
     expect(radios.map((r) => [r.getAttribute('value'), (r as HTMLInputElement).checked])).toEqual([
       ['Benign', false],
-      ['Treatment', false],
+      ['Malignant', false],
     ]);
-    expect(screen.getByText('Stages: Treatment planning, Surgery')).toBeInTheDocument();
-    expect(screen.queryByText(/will be skipped/)).not.toBeInTheDocument();
+    expect(screen.getByText('Adds: Referral to hospital, Letter to GP')).toBeInTheDocument();
+    expect(screen.queryByText(/will be added/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', {name: /Treatment/}));
-    expect(screen.getByText('These stages will be skipped: Discharge letter.')).toBeInTheDocument();
-  });
-
-  it("works out the other branches' stages", () => {
-    expect(stagesSkippedBy(biopsy, 'Benign')).toEqual(['Treatment planning', 'Surgery']);
-    expect(stagesSkippedBy(stage({branches: [{name: 'Only', stageNames: [], stageNamesToDo: []}]}), 'Only')).toEqual([]);
-    // Only those still to do, as the server skips: a stage already finished or skipped stays as it is.
-    const partly = stage({branches: [{name: 'A', stageNames: ['One']}, {name: 'B', stageNames: ['Two', 'Three'], stageNamesToDo: ['Three']}]});
-    expect(stagesSkippedBy(partly, 'A')).toEqual(['Three']);
+    await user.click(screen.getByRole('radio', {name: /Benign/}));
+    expect(screen.getByText('These stages will be added: Discharge letter.')).toBeInTheDocument();
   });
 });

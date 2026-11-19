@@ -24,9 +24,16 @@ describe('the relay in the light demo', () => {
     // Aisha's fork has two of the lab's stages current at once, both handed over (MC8 with the relay).
     expect(await viewIds('NewForUs')).toEqual(expect.arrayContaining([PATHWAYS.priyaGynaecology, PATHWAYS.forkedTests]));
     expect(await viewIds('OurTurn')).toEqual(expect.arrayContaining([PATHWAYS.histologyToFinish, PATHWAYS.priyaGynaecology]));
-    const finished = await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`, {});
+    // The lab enters its result as it finishes its stage: none, and it's refused.
+    const histology = `${PATHWAY}/${PATHWAYS.histologyToFinish}/stages/${current(priya).id}/finish`;
+    expect((await call('POST', histology, {})).status).toBe(400);
+    const finished = await call('POST', histology, {result: 'Compound naevus, no atypia (synthetic).'});
     expect(finished.status).toBe(200);
-    expect(current(finished.body)).toMatchObject({name: 'Results and team review', handedOverFromTeamName: 'Lab', canPickUp: false});
+    expect(current(finished.body)).toMatchObject({name: 'Results and team review', handedOverFromTeamName: 'Lab', canPickUp: false, needsOutcome: true});
+    expect(finished.body.stages.find((s: {name: string}) => s.name === 'Histology (lab)').result).toMatchObject({
+      text: 'Compound naevus, no atypia (synthetic).',
+      enteredByUsername: LAB.username,
+    });
     expect(finished.body.readOnlyReason).toMatch(/your team can read it/);
     const told = db().notifications.filter((n) => n.kind === 'PathwayHandedOver' && n.pathwayId === PATHWAYS.histologyToFinish);
     expect(told.map((n) => n.userId)).toContain(STAFF.id);
@@ -49,7 +56,9 @@ describe('the relay in the light demo', () => {
     db().user = ADMIN.username;
     const template = state.templates.find((t) => t.id === TEMPLATES.inflammatorySkin)!;
     const ids = template.stageDefinitionIdsInOrder!;
-    const options = (owner: string | null) => ids.map((_, i) => ({isOptional: false, choosesBranch: false, ownerTeamId: i === 1 ? owner : null}));
+    // Its choice nodes and outcomes kept as they are (its routes aren't sent), only an owner changed.
+    const options = (owner: string | null) =>
+      ids.map((_, i) => ({isOptional: false, choiceKind: template.stages![i].choiceKind, outcomes: template.stages![i].outcomes, ownerTeamId: i === 1 ? owner : null}));
     const save = (owner: string | null) => call('PATCH', `/api/pathways/patient-pathway-stage/templates/${template.id}`, {stageOptions: options(owner)});
     expect((await save(TEAMS.gynaecology)).status).toBe(400);
     const saved = await save(TEAMS.lab);

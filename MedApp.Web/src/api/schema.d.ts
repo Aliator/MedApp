@@ -21277,7 +21277,8 @@ export interface components {
         FinishPathwayStageRequest: {
             withoutVisit?: boolean;
             reason?: string | null;
-            branch?: string | null;
+            outcome?: string | null;
+            result?: string | null;
         };
         ForgotPasswordRequest: {
             usernameOrEmail?: string | null;
@@ -21827,10 +21828,18 @@ export interface components {
             /** Format: int32 */
             toStageOrder?: number;
         };
+        PathwayTemplateOutcomeRequest: {
+            name?: string | null;
+            nextStageOrders?: number[] | null;
+        };
+        PathwayTemplateOutcomeResponse: {
+            name?: string | null;
+            nextStageOrders?: number[] | null;
+        };
         PathwayTemplateStageOptionsRequest: {
             isOptional?: boolean;
-            choosesBranch?: boolean;
-            branch?: string | null;
+            choiceKind?: string | null;
+            outcomes?: components["schemas"]["PathwayTemplateOutcomeRequest"][] | null;
             /** Format: uuid */
             ownerTeamId?: string | null;
         };
@@ -21846,8 +21855,8 @@ export interface components {
             isArchived?: boolean;
             visitRequirement?: string | null;
             isOptional?: boolean;
-            choosesBranch?: boolean;
-            branch?: string | null;
+            choiceKind?: string | null;
+            outcomes?: components["schemas"]["PathwayTemplateOutcomeResponse"][] | null;
             stopsClock?: boolean;
             /** Format: uuid */
             ownerTeamId?: string | null;
@@ -21988,11 +21997,6 @@ export interface components {
             /** Format: date-time */
             addedAtUtc?: string;
         };
-        PatientPathwayBranchResponse: {
-            name?: string | null;
-            stageNames?: string[] | null;
-            stageNamesToDo?: string[] | null;
-        };
         PatientPathwayLabelResponse: {
             /** Format: uuid */
             id?: string;
@@ -22017,6 +22021,10 @@ export interface components {
             canRequestDeletion?: boolean;
             /** Format: uuid */
             deletionRequestId?: string | null;
+        };
+        PatientPathwayOutcomeResponse: {
+            name?: string | null;
+            stageNames?: string[] | null;
         };
         PatientPathwayResponse: {
             /** Format: uuid */
@@ -22105,13 +22113,15 @@ export interface components {
             waitsForResults?: boolean;
             notes?: string | null;
             isOptional?: boolean;
-            choosesBranch?: boolean;
-            branch?: string | null;
+            choiceKind?: string | null;
+            outcomes?: components["schemas"]["PatientPathwayOutcomeResponse"][] | null;
+            outcome?: string | null;
+            needsOutcome?: boolean;
+            result?: components["schemas"]["PatientPathwayStageResultResponse"] | null;
+            needsResult?: boolean;
             predecessorIds?: string[] | null;
             /** Format: uuid */
             branchAdditionId?: string | null;
-            branches?: components["schemas"]["PatientPathwayBranchResponse"][] | null;
-            needsBranchChoice?: boolean;
             state?: string | null;
             isCurrent?: boolean;
             isLocked?: boolean;
@@ -22150,6 +22160,12 @@ export interface components {
             pickedUpByUserId?: string | null;
             pickedUpByUsername?: string | null;
             canPickUp?: boolean;
+        };
+        PatientPathwayStageResultResponse: {
+            text?: string | null;
+            enteredByUsername?: string | null;
+            /** Format: date-time */
+            enteredAtUtc?: string | null;
         };
         PatientPathwaySummaryResponse: {
             /** Format: uuid */

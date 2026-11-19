@@ -1,5 +1,5 @@
 import type {Schemas} from '../api/client';
-import {chainLinks} from '../api/pathwayRoutes';
+import {chainLinks, grownLinks, grownStageOrders} from '../api/pathwayRoutes';
 import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
 import {ADMIN, CARROW, HALLWORTH, LAB, STAFF, usernameOf} from './accounts';
 import {
@@ -26,10 +26,11 @@ import type {
   DemoAppointment,
   DemoPathway,
   DemoPathwayAccess,
+  DemoPlan,
+  DemoPlanStage,
   DemoReferral,
   DemoStage,
   DemoStageDefinition,
-  DemoStageLink,
   DemoState,
 } from './state';
 import {daysFrom, thisWeek, today, ukTime} from './time';
@@ -42,7 +43,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 11;
+export const SEED_VERSION = 12;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -76,7 +77,12 @@ const LIBRARY: Record<
     visit: 'Suggested',
     results: true,
   },
-  treatment: {name: 'Treatment', description: 'Treat the lesion: excision or other treatment.', visit: 'Required', consent: true},
+  clinicalPhotos: {
+    name: 'Clinical photographs',
+    description: 'Photograph the lesion for the referral, with the patient’s consent.',
+    visit: 'Required',
+    consent: true,
+  },
   followUp: {name: 'Follow-up', description: 'Check how the patient is doing.', visit: 'Suggested'},
   dischargeLetter: {
     name: 'Discharge letter to GP',
@@ -84,16 +90,31 @@ const LIBRARY: Record<
     visit: 'None',
     letter: 'DischargeSummary',
   },
-  medicinesReview: {name: 'Medicines review', description: 'Review the patient’s medicines with the pharmacist.', visit: 'Suggested'},
+  gpReferral: {
+    name: 'Referral to GP',
+    description: 'Refer to the GP for medicines or ongoing care (the centre doesn’t prescribe).',
+    visit: 'None',
+    letter: 'ClinicLetter',
+  },
   bloodAndUrineTests: {name: 'Blood and urine tests', description: 'Take blood and urine samples.', visit: 'Required'},
   labTests: {name: 'Lab tests (lab)', description: 'The lab runs the tests.', visit: 'None', results: true},
   clinicReview: {name: 'Clinic review', description: 'Review the results with the patient in clinic.', visit: 'Required'},
-  excision: {
-    name: 'Excision',
-    description: 'Remove the lesion in the minor surgery list, without a biopsy first.',
-    visit: 'Required',
-    consent: true,
+  hospitalReferral: {
+    name: 'Referral to hospital',
+    description: 'Refer to the hospital for surgery or specialist treatment (the centre does neither).',
+    visit: 'None',
+    letter: 'ClinicLetter',
   },
+  carePlan: {name: 'Agree care plan', description: 'Agree a care plan with the patient: advice, self-care and when to come back.', visit: 'Suggested'},
+  biomechanicalAssessment: {
+    name: 'Lower limb biomechanical assessment',
+    description: 'Assess gait, posture and the feet, and agree what helps.',
+    visit: 'Required',
+  },
+  castingAndMeasurement: {name: 'Casting and measurement', description: 'Measure or cast the feet for custom orthoses.', visit: 'Required'},
+  orthosesMade: {name: 'Orthoses made', description: 'The orthoses are made to the measurements.', visit: 'None'},
+  orthosesFitted: {name: 'Orthoses fitted', description: 'Fit the orthoses and show the patient how to wear them in.', visit: 'Required'},
+  exercisePlan: {name: 'Exercise plan', description: 'Agree a home exercise plan with the patient.', visit: 'Suggested'},
 };
 
 type StageKey = keyof typeof STAGES;
@@ -114,8 +135,13 @@ export const stageDefinitionList = (): DemoStageDefinition[] =>
     isArchived: false,
   }));
 
-/** A template's stage: its definition, and whether it's optional, a branch point or in a branch. */
-type TemplateStageSpec = StageKey | {key: StageKey; optional?: boolean; choosesBranch?: boolean; branch?: string};
+/**
+ * A template's stage: its definition, whether it's optional, and a choice node's kind and outcomes (each outcome's name
+ * and the stages, by order, it leads to).
+ */
+type TemplateStageSpec =
+  | StageKey
+  | {key: StageKey; optional?: boolean; choice?: 'Assessment' | 'LabResult'; outcomes?: [string, number[]][]};
 
 /** An addable branch (MC10): its stages in order, the template stages (by order) it may follow (none: any), and whether it repeats. */
 interface TemplateBranchSpec {
@@ -127,8 +153,9 @@ interface TemplateBranchSpec {
 }
 
 /**
- * A template: its stages in order, its links by stage order when it has routes side by side (else its list's,
- * `chainLinks`), and its addable branches (MC10).
+ * A template, as the full tree of every possibility (the owner's model, 19 Nov): its stages, its links by stage order
+ * when it has routes (else a list, `chainLinks`), and its addable branches (MC10). Results and assessments are choice
+ * nodes; the centre treats and prescribes nothing, so those outcomes end in a referral to the hospital or the GP.
  */
 const TEMPLATE_SPECS: {
   id: string;
@@ -142,9 +169,20 @@ const TEMPLATE_SPECS: {
     id: TEMPLATES.skinLesion,
     name: 'Skin lesion pathway',
     teamId: TEAMS.dermatology,
-    stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'resultsAndTeamReview', 'treatment', 'followUp', 'dischargeLetter'],
+    stages: [
+      'firstClinicVisit',
+      'biopsyOrSample',
+      'histology',
+      {key: 'resultsAndTeamReview', choice: 'LabResult', outcomes: [['Benign', [5]], ['Basal cell carcinoma', [7]], ['Melanoma', [8]]]},
+      'carePlan',
+      'dischargeLetter',
+      'clinicalPhotos',
+      'hospitalReferral',
+    ],
+    // Benign ends in a care plan and discharge; a basal cell carcinoma is photographed and referred; a melanoma is referred at once.
+    links: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [4, 7], [7, 8], [4, 8]],
     branches: [
-      {id: TEMPLATE_BRANCHES.melanomaRoute, name: 'Melanoma route', stages: ['excision', 'followUp'], after: [3, 4]},
+      {id: TEMPLATE_BRANCHES.bloodTests, name: 'Blood tests', stages: ['bloodAndUrineTests', 'labTests'], after: [3, 4]},
       {id: TEMPLATE_BRANCHES.repeatBiopsy, name: 'Repeat biopsy', stages: ['biopsyOrSample', 'histology'], after: [], repeatable: true},
     ],
   },
@@ -152,40 +190,96 @@ const TEMPLATE_SPECS: {
     id: TEMPLATES.inflammatorySkin,
     name: 'Inflammatory skin review',
     teamId: TEAMS.dermatology,
-    stages: ['firstClinicVisit', 'medicinesReview', 'followUp', 'dischargeLetter'],
+    stages: [
+      {key: 'firstClinicVisit', choice: 'Assessment', outcomes: [['Care plan', [2]], ['Needs medicine', [5]]]},
+      'carePlan',
+      {key: 'followUp', choice: 'Assessment', outcomes: [['Settled', [4]], ['Needs medicine', [5]]]},
+      'dischargeLetter',
+      'gpReferral',
+    ],
+    links: [[1, 2], [2, 3], [3, 4], [3, 5], [1, 5]],
   },
   {
     id: TEMPLATES.postMenopausalBleeding,
     name: 'Post-menopausal bleeding pathway',
     teamId: TEAMS.gynaecology,
-    stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'resultsAndTeamReview', 'dischargeLetter'],
+    stages: [
+      'firstClinicVisit',
+      'biopsyOrSample',
+      'histology',
+      {key: 'resultsAndTeamReview', choice: 'LabResult', outcomes: [['Benign', [5]], ['Needs hospital care', [6]]]},
+      'dischargeLetter',
+      'hospitalReferral',
+    ],
+    links: [[1, 2], [2, 3], [3, 4], [4, 5], [4, 6]],
   },
   {
     id: TEMPLATES.diabetesReview,
     name: 'Diabetes review',
     teamId: TEAMS.diabetes,
-    stages: ['bloodAndUrineTests', 'labTests', 'clinicReview', 'medicinesReview', 'followUp', 'dischargeLetter'],
+    stages: [
+      'bloodAndUrineTests',
+      'labTests',
+      {key: 'clinicReview', choice: 'LabResult', outcomes: [['Well controlled', [4]], ['Needs a medicine change', [7]]]},
+      'carePlan',
+      {key: 'followUp', optional: true},
+      'dischargeLetter',
+      'gpReferral',
+    ],
+    links: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [3, 7]],
   },
   {
     id: TEMPLATES.suspectedSkinCancer,
-    name: 'Suspected skin cancer (biopsy or treat)',
+    name: 'Suspected skin cancer',
     teamId: TEAMS.dermatology,
     stages: [
-      {key: 'firstClinicVisit', choosesBranch: true},
-      {key: 'biopsyOrSample', branch: 'Biopsy first'},
-      {key: 'histology', branch: 'Biopsy first'},
-      {key: 'excision', branch: 'Treat directly'},
-      {key: 'followUp', optional: true},
+      {key: 'firstClinicVisit', choice: 'Assessment', outcomes: [['Suspicious: biopsy', [2]], ['Looks benign', [6]]]},
+      'biopsyOrSample',
+      'histology',
+      {key: 'resultsAndTeamReview', choice: 'LabResult', outcomes: [['Benign', [5]], ['Malignant', [7]]]},
+      'carePlan',
       'dischargeLetter',
+      'hospitalReferral',
     ],
+    links: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [1, 6], [4, 7]],
   },
   {
     id: TEMPLATES.lesionWithBloods,
     name: 'Skin lesion with blood tests',
     teamId: TEAMS.dermatology,
-    stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'bloodAndUrineTests', 'labTests', 'resultsAndTeamReview', 'dischargeLetter'],
-    // A fork after the first visit (both routes run, side by side), joined at the review.
-    links: [[1, 2], [2, 3], [1, 4], [4, 5], [3, 6], [5, 6], [6, 7]],
+    stages: [
+      'firstClinicVisit',
+      'biopsyOrSample',
+      'histology',
+      'bloodAndUrineTests',
+      'labTests',
+      {key: 'resultsAndTeamReview', choice: 'LabResult', outcomes: [['Benign', [7]], ['Malignant', [8]]]},
+      'dischargeLetter',
+      'hospitalReferral',
+    ],
+    // A fork after the first visit (both routes run, side by side), joined at the review, a choice node.
+    links: [[1, 2], [2, 3], [1, 4], [4, 5], [3, 6], [5, 6], [6, 7], [6, 8]],
+  },
+  {
+    id: TEMPLATES.lowerLimb,
+    name: 'Lower limb biomechanics',
+    teamId: TEAMS.biomechanics,
+    // Assessment only, no lab: the assessment's outcome decides the route.
+    stages: [
+      {
+        key: 'biomechanicalAssessment',
+        choice: 'Assessment',
+        outcomes: [['Custom orthoses', [2]], ['Exercise plan', [5]], ['Footwear advice', [7]], ['Refer to hospital', [8]]],
+      },
+      'castingAndMeasurement',
+      'orthosesMade',
+      'orthosesFitted',
+      'exercisePlan',
+      'followUp',
+      'dischargeLetter',
+      'hospitalReferral',
+    ],
+    links: [[1, 2], [2, 3], [3, 4], [4, 6], [1, 5], [5, 6], [6, 7], [1, 7], [1, 8]],
   },
 ];
 
@@ -206,28 +300,17 @@ const TEAM_NAMES: [string, string][] = [
 
 export const teamName = (id: string | null | undefined) => TEAM_NAMES.find(([key]) => key === id)?.[1] ?? null;
 
-/** A new pathway's links: the template's, by stage order, onto the pathway's stages (made from it in the same order). */
-export function pathwayLinks(template: Schemas['PathwayTemplateResponse'], stages: readonly Pick<DemoStage, 'id' | 'stageOrder'>[]): DemoStageLink[] {
-  const idAt = (order: number | undefined) => stages.find((s) => s.stageOrder === order)?.id;
-  return (template.links ?? chainLinks(template.stages ?? [])).flatMap((link) => {
-    const [fromStageId, toStageId] = [idAt(link.fromStageOrder), idAt(link.toStageOrder)];
-    return fromStageId && toStageId ? [{fromStageId, toStageId}] : [];
-  });
-}
-
 /**
- * A template's stages, in order, for a new pathway made from it: the template's options (optional, branches) and the
- * definition's gates, copied onto each stage as the API's `PathwayCreation` does.
+ * A template's whole tree as a new pathway keeps it (its plan): each stage with the template's options (optional, a
+ * choice node's kind and outcomes) and the definition's gates, copied as the API's `PathwayCreation` does, and its links.
  */
-export function templateStages(
-  template: Schemas['PathwayTemplateResponse'],
-  definitions: DemoStageDefinition[],
-): Omit<DemoStage, 'id'>[] {
-  return (template.stages ?? []).map((stage) => {
+export function planOf(template: Schemas['PathwayTemplateResponse'], definitions: DemoStageDefinition[]): DemoPlan {
+  const stages = (template.stages ?? []).map((stage): DemoPlanStage => {
     const definition = definitions.find((d) => d.id === stage.stageDefinitionId);
     return {
       stageDefinitionId: stage.stageDefinitionId ?? '',
       stageOrder: stage.stageOrder ?? 0,
+      templateStageOrder: stage.stageOrder ?? 0,
       name: stage.name ?? '',
       description: stage.description ?? null,
       visitRequirement: (stage.visitRequirement as DemoStage['visitRequirement']) ?? 'None',
@@ -235,9 +318,9 @@ export function templateStages(
       needsConsent: definition?.needsConsent ?? false,
       waitsForResults: definition?.waitsForResults ?? false,
       isOptional: stage.isOptional ?? false,
-      choosesBranch: stage.choosesBranch ?? false,
-      branch: stage.branch ?? null,
-      chosenBranch: null,
+      choiceKind: stage.choiceKind ?? null,
+      outcomes: (stage.outcomes ?? []).map((o) => ({name: o.name, nextStageOrders: [...(o.nextStageOrders ?? [])]})),
+      outcome: null,
       unlocked: false,
       notes: null,
       startedAtUtc: null,
@@ -255,6 +338,47 @@ export function templateStages(
       pickedUpByUserId: null,
     };
   });
+  return {stages, links: (template.links ?? chainLinks(stages)).map((l) => ({fromStageOrder: l.fromStageOrder, toStageOrder: l.toStageOrder}))};
+}
+
+/** Each recorded outcome on a pathway, by its choice node's template order. */
+const recordedOutcomes = (stages: readonly DemoStage[]) =>
+  new Map(stages.filter((s) => s.templateStageOrder !== null && s.outcome).map((s) => [s.templateStageOrder!, s.outcome!]));
+
+/** The template stage orders a pathway would have with these outcomes recorded (the owner's model: it grows). */
+export const plannedOrders = (plan: DemoPlan, stages: readonly DemoStage[]) =>
+  grownStageOrders(plan.stages, plan.links, recordedOutcomes(stages));
+
+/**
+ * Grows a pathway from its plan (the owner's model): adds every template stage now reached (up to the next choice node
+ * not yet recorded; an outcome not chosen never appears), each with an ID from `idFor`, then numbers its stages again
+ * (the template's in their template order, then any added with a branch) and links them as the template does, less the
+ * links an outcome didn't take. Returns the stages added.
+ */
+export function growPathway(pathway: Pick<DemoPathway, 'plan' | 'stages' | 'links'>, idFor: (templateStageOrder: number) => string): DemoStage[] {
+  const orders = plannedOrders(pathway.plan, pathway.stages);
+  const has = new Set(pathway.stages.map((s) => s.templateStageOrder));
+  const added = orders
+    .filter((order) => !has.has(order))
+    .map((order): DemoStage => {
+      const {outcomes: _outcomes, ...stage} = pathway.plan.stages.find((s) => s.templateStageOrder === order)!;
+      void _outcomes;
+      return {...stage, id: idFor(order)};
+    });
+  pathway.stages.push(...added);
+  const fromTemplate = pathway.stages.filter((s) => s.templateStageOrder !== null).sort((a, b) => a.templateStageOrder! - b.templateStageOrder!);
+  const branchStages = pathway.stages.filter((s) => s.templateStageOrder === null).sort((a, b) => a.stageOrder - b.stageOrder);
+  [...fromTemplate, ...branchStages].forEach((stage, i) => (stage.stageOrder = i + 1));
+  const idAt = new Map(fromTemplate.map((s) => [s.templateStageOrder!, s.id]));
+  const branchIds = new Set(branchStages.map((s) => s.id));
+  pathway.links = [
+    ...grownLinks(pathway.plan.stages, pathway.plan.links, orders, recordedOutcomes(pathway.stages)).map((l) => ({
+      fromStageId: idAt.get(l.fromStageOrder ?? 0)!,
+      toStageId: idAt.get(l.toStageOrder ?? 0)!,
+    })),
+    ...pathway.links.filter((l) => branchIds.has(l.fromStageId) || branchIds.has(l.toStageId)),
+  ];
+  return added;
 }
 
 /** The patients: synthetic names, dates of birth and 999-range NHS numbers (each with a valid check digit). */
@@ -312,6 +436,10 @@ interface PathwaySpec {
   done: number;
   /** Which stages are finished, by order, when they aren't the first `done` (a pathway with routes side by side). */
   doneOrders?: number[];
+  /** Each choice node's recorded outcome, by its template order (the pathway has grown past it). */
+  outcomes?: Record<number, string>;
+  /** The results the lab entered, by the lab stage's template order (else a short synthetic one). */
+  results?: Record<number, string>;
   /** Whether the next stage has been started. */
   started?: boolean;
   status: DemoPathway['status'];
@@ -329,12 +457,22 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
   // Finished stages are spread between the pathway's start and a couple of days ago.
   const step = Math.max(1, Math.floor((spec.createdDaysAgo - 2) / Math.max(1, spec.done)));
   const handovers: DemoPathway['handovers'] = [];
-  const stages = templateStages(template, definitions).map((stage, i): DemoStage => {
+  const plan = planOf(template, definitions);
+  // The pathway has grown up to its next choice node not recorded: the stages of the outcomes recorded, no others.
+  const grown: Pick<DemoPathway, 'plan' | 'stages' | 'links'> = {plan, stages: [], links: []};
+  for (const [order, outcome] of Object.entries(spec.outcomes ?? {}))
+    plan.stages.find((s) => s.templateStageOrder === Number(order))!.outcome = outcome;
+  // Each round adds the stages the outcomes recorded so far reach (their copies carry the next outcomes).
+  while (growPathway(grown, (order) => `${order}`).length > 0);
+  const ordered = [...grown.stages].sort((a, b) => a.stageOrder - b.stageOrder);
+  const stages = ordered.map((stage, i): DemoStage => {
     const finishedDaysAgo = spec.createdDaysAgo - step * (i + 1);
     const isDone = spec.doneOrders ? spec.doneOrders.includes(i + 1) : i < spec.done;
     const isStarted = isDone || (i === spec.done && spec.started === true);
-    // The lab's stages are worked by the lab's member of staff (the relay).
-    const worker = stage.ownerTeamId === TEAMS.lab ? LAB.id : doer;
+    // The lab's stages are worked by the lab's member of staff (the relay), who enters the result as it's finished.
+    const isLabs = stage.ownerTeamId === TEAMS.lab;
+    const worker = isLabs ? LAB.id : doer;
+    const completedAtUtc = isDone ? ago(Math.max(1, finishedDaysAgo), 15, 0) : null;
     return {
       ...stage,
       id: stageId(spec.n, i + 1),
@@ -342,14 +480,25 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
       // A finished stage was started a day before it finished; the current one just after the one before it finished.
       startedAtUtc: isStarted ? (isDone ? ago(Math.max(1, finishedDaysAgo + 1), 9, 30) : ago(Math.max(1, finishedDaysAgo + step), 15, 30)) : null,
       startedByUserId: isStarted ? worker : null,
-      completedAtUtc: isDone ? ago(Math.max(1, finishedDaysAgo), 15, 0) : null,
+      completedAtUtc,
       completedByUserId: isDone ? worker : null,
+      result:
+        isLabs && completedAtUtc
+          ? {
+              text: spec.results?.[stage.templateStageOrder ?? 0] ?? 'Reported (synthetic): see the full report on the result.',
+              enteredByUserId: worker,
+              enteredAtUtc: completedAtUtc,
+            }
+          : null,
     };
   });
+  // The plan's copies hold no outcome: a pathway's own stages do.
+  for (const stage of plan.stages) stage.outcome = null;
+  const idOf = new Map(ordered.map((s, i) => [s.id, stages[i].id]));
+  const links = grown.links.map((l) => ({fromStageId: idOf.get(l.fromStageId)!, toStageId: idOf.get(l.toStageId)!}));
   // Each stage reached (every stage before it on its routes finished) was reached when the last of them finished, or
   // when the pathway was made; one whose team differs from that stage's was handed over then (the relay), and picked
   // up when it was started.
-  const links = pathwayLinks(template, stages);
   for (const stage of stages) {
     const before = stages
       .filter((s) => links.some((l) => l.fromStageId === s.id && l.toStageId === stage.id))
@@ -382,6 +531,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
     stages,
     handovers,
     links,
+    plan,
     assignments: spec.assignee ? [{userId: spec.assignee, assignedByUserId: ADMIN.id, assignedAtUtc: ago(spec.createdDaysAgo, 9, 20)}] : [],
     notes: (spec.notes ?? []).map((note, i) => ({
       id: `000000dd-0000-4000-8000-${(spec.n * 100 + i + 1).toString(16).padStart(12, '0')}`,
@@ -508,7 +658,7 @@ export function seed(): DemoState {
       isRepeatable: branch.repeatable ?? false,
     })),
     stages: spec.stages.map((s, i) => {
-      const {key, optional, choosesBranch, branch} = stageSpec(s);
+      const {key, optional, choice, outcomes} = stageSpec(s);
       return {
         stageOrder: i + 1,
         stageDefinitionId: STAGES[key],
@@ -517,8 +667,8 @@ export function seed(): DemoState {
         isArchived: false,
         visitRequirement: LIBRARY[key].visit,
         isOptional: optional ?? false,
-        choosesBranch: choosesBranch ?? false,
-        branch: branch ?? null,
+        choiceKind: choice ?? null,
+        outcomes: choice ? (outcomes ?? []).map(([name, next]) => ({name, nextStageOrders: next})) : null,
         stopsClock: i === 0,
         ownerTeamId: LAB_STAGES.includes(key) ? TEAMS.lab : null,
         ownerTeamName: LAB_STAGES.includes(key) ? teamName(TEAMS.lab) : null,
@@ -542,7 +692,7 @@ export function seed(): DemoState {
       },
       {
         n: 3, id: PATHWAYS.onHold, patientId: PATIENTS.samuelOkafor, templateId: TEMPLATES.inflammatorySkin,
-        title: 'Eczema flare, not settling', dueIn: 40, priority: 'Medium', done: 1, status: 'Blocked',
+        title: 'Eczema flare, not settling', dueIn: 40, priority: 'Medium', done: 1, outcomes: {1: 'Care plan'}, status: 'Blocked',
         blockedFrom: 'InProgress', assignee: USERS.hallworth, createdDaysAgo: 35,
         notes: [{authorUserId: USERS.hallworth, text: 'On hold while the patient is away for a month.', daysAgo: 3}],
       },
@@ -558,7 +708,7 @@ export function seed(): DemoState {
       },
       {
         n: 6, id: PATHWAYS.completed, patientId: PATIENTS.graceAbernethy, templateId: TEMPLATES.diabetesReview,
-        title: 'Diabetes review after new medicine', dueIn: -10, priority: 'Medium', done: 6, status: 'Completed',
+        title: 'Diabetes review after new medicine', dueIn: -10, priority: 'Medium', done: 6, outcomes: {3: 'Well controlled'}, status: 'Completed',
         assignee: CARROW.id, createdDaysAgo: 70,
       },
       {
@@ -567,14 +717,15 @@ export function seed(): DemoState {
       },
       {
         n: 8, id: PATHWAYS.followUpBooked, patientId: PATIENTS.ilonaPetrova, templateId: TEMPLATES.inflammatorySkin,
-        title: 'Psoriasis, new treatment', dueIn: 25, priority: 'Medium', done: 2, status: 'InProgress',
+        title: 'Psoriasis, new care plan', dueIn: 25, priority: 'Medium', done: 2, outcomes: {1: 'Care plan'}, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 45,
       },
       {
         n: 9, id: PATHWAYS.consentToRecord, patientId: PATIENTS.harrietQuill, templateId: TEMPLATES.skinLesion,
         title: 'Basal cell carcinoma, left temple', dueIn: 12, priority: 'High', done: 4, started: true, status: 'InProgress',
-        assignee: STAFF.id, createdDaysAgo: 40,
-        notes: [{authorUserId: STAFF.id, text: 'Team review: excise with a 4 mm margin.', daysAgo: 6}],
+        assignee: STAFF.id, createdDaysAgo: 40, outcomes: {4: 'Basal cell carcinoma'},
+        results: {3: 'Basal cell carcinoma, nodular type (synthetic report).'},
+        notes: [{authorUserId: STAFF.id, text: 'Team review: photograph, then refer to the hospital for excision.', daysAgo: 6}],
       },
       {
         n: 10, id: PATHWAYS.branchToChoose, patientId: PATIENTS.felixMoreton, templateId: TEMPLATES.suspectedSkinCancer,
@@ -589,7 +740,7 @@ export function seed(): DemoState {
       },
       {
         n: 12, id: PATHWAYS.ellisDiabetes, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.diabetesReview,
-        title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, status: 'Completed', createdDaysAgo: 90,
+        title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, outcomes: {3: 'Well controlled'}, status: 'Completed', createdDaysAgo: 90,
       },
       // Routes side by side (MC8): the biopsy and the bloods are done, so histology and the lab tests are both current;
       // the review waits for both.
@@ -604,6 +755,12 @@ export function seed(): DemoState {
         n: 14, id: PATHWAYS.backFromLab, patientId: PATIENTS.callumAshby, templateId: TEMPLATES.skinLesion,
         title: 'Scaly patch, back of the right hand', dueIn: 24, priority: 'Medium', done: 3, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 21,
+        results: {3: 'Seborrhoeic keratosis, no dysplasia (synthetic report).'},
+      },
+      // Assessment only (Biomechanics): at the assessment, a choice node with four outcomes.
+      {
+        n: 15, id: PATHWAYS.biomechanicsAssessment, patientId: PATIENTS.samuelOkafor, templateId: TEMPLATES.lowerLimb,
+        title: 'Heel pain, both feet', dueIn: 45, priority: 'Low', done: 0, status: 'Unassigned', createdDaysAgo: 4,
       },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));

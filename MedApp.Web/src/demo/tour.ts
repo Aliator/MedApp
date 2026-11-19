@@ -176,7 +176,7 @@ export const TOUR: TourStep[] = [
     title: 'The relay, 3: the lab hands it back',
     steps: [
       'Opens Priya Holloway’s pathway at Histology (lab). The lab works it and adds notes; Dermatology waits.',
-      'Choose Finish Stage. The next stage is Dermatology’s, so the pathway goes back, and Dermatology is told. The lab keeps reading it.',
+      'Choose Finish Stage and enter the result. The next stage, the results review, is Dermatology’s, so the pathway goes back with the result on it, and Dermatology is told. The lab keeps reading it.',
     ],
     account: LAB.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
@@ -239,7 +239,7 @@ export const TOUR: TourStep[] = [
     title: 'A pathway that forks',
     steps: [
       'Opens Aisha Khoury’s pathway: after the first visit it forks, so Histology and Lab tests are current side by side.',
-      'Stages shows the tree: each route indented under the fork, meeting again at the review, which starts once both are done.',
+      'Stages shows the tree: each route indented under the fork, meeting again at the review (a lab result choice node), which starts once both are done.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.forkedTests}`,
@@ -247,59 +247,70 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'branch',
-    title: 'Choose a branch',
+    title: 'Record an outcome: the pathway grows',
     steps: [
-      'Opens Felix Moreton’s pathway at a branch point: biopsy first, or treat directly.',
-      'Choose Finish Stage and pick the branch (nothing is chosen for you). The other branch’s stages are skipped.',
+      'Opens Felix Moreton’s pathway. It has one stage so far: the first visit, an assessment (a choice node). A template is the full tree; a pathway shows only the stages up to its next choice node.',
+      'Choose Finish Stage and record the outcome (nothing is chosen for you). Its stages are added, up to the next choice node, the histology result; the other outcome’s never appear, and progress counts the stages it has.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.branchToChoose}`,
-    buttonLabel: 'Open the pathway at its branch point',
+    buttonLabel: 'Open the pathway at its choice node',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.branchToChoose)?.stages.some((s) => s.chosenBranch)
-        ? `You've chosen this pathway's branch already in your copy of the demo. ${RESET_HINT}`
+      state.pathways.find((p) => p.id === PATHWAYS.branchToChoose)?.stages.some((s) => s.outcome)
+        ? `You've recorded this pathway's outcome already in your copy of the demo. ${RESET_HINT}`
         : null,
   },
   {
     key: 'added-branch',
     title: 'Add a branch on new information',
     steps: [
-      'Opens Priya Holloway’s pathway. Say her histology has shown a melanoma.',
-      'Choose Add Branch, then Melanoma route (its template lists what may be added; nothing is suggested), the stage it comes after, and why.',
-      'Its stages run beside what’s left, and the discharge letter waits for them. The reason stays on the pathway, never in the audit log.',
+      'Opens Priya Holloway’s pathway. Say something new means she needs blood tests too.',
+      'Choose Add Branch, then Blood tests (its template lists what may be added; nothing is suggested), the stage it comes after, and why.',
+      'Its stages run beside what’s left, on a route of their own; she isn’t discharged until they’re done. The reason stays on the pathway, never in the audit log.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.histologyToFinish}`,
     buttonLabel: 'Open the pathway to add a branch to',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.branchAdditions?.some((a) => a.templateBranchId === TEMPLATE_BRANCHES.melanomaRoute)
-        ? `You've added the melanoma route already in your copy of the demo. ${RESET_HINT}`
+      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.branchAdditions?.some((a) => a.templateBranchId === TEMPLATE_BRANCHES.bloodTests)
+        ? `You've added the blood tests already in your copy of the demo. ${RESET_HINT}`
         : null,
   },
   {
     key: 'draw-routes',
     title: 'Draw a template’s routes',
     steps: [
-      'Opens the Skin lesion template, a list of stages, as the admin (setup is the admin’s).',
-      'Choose Draw Routes: each stage then says what it comes after, so stages can run side by side and meet again. Leave without saving if you’re only looking.',
+      'Opens the Skin lesion template as the admin (setup is the admin’s): the full tree. Results and team review is a choice node (a lab result); each stage after it names the outcome that leads to it (Benign, Basal cell carcinoma, Melanoma).',
+      'Each stage says what it comes after, so routes can run side by side and meet again, and ends in a discharge or a referral. Histology is the lab’s stage. Leave without saving if you’re only looking.',
     ],
     account: ADMIN.username,
     path: `/admin/pathway-templates/${TEMPLATES.skinLesion}`,
     buttonLabel: 'Open the template editor',
   },
   {
+    key: 'assessment-only',
+    title: 'An assessment-only pathway',
+    steps: [
+      'Opens Biomechanics’ Lower limb biomechanics pathway, as the admin (read only): no lab, just an assessment choice node.',
+      'Its outcomes are custom orthoses, an exercise plan, footwear advice or a referral to the hospital; Biomechanics’ clinician records one, and only its stages are added.',
+    ],
+    account: ADMIN.username,
+    path: `/pathways/${PATHWAYS.biomechanicsAssessment}`,
+    buttonLabel: 'Open the assessment-only pathway',
+  },
+  {
     key: 'consent',
     title: 'Record consent, then finish the stage',
     steps: [
-      'Opens Harriet Quill’s pathway at Treatment. Finish Stage is refused first: the stage needs a consent record (a stage gate).',
+      'Opens Harriet Quill’s pathway: the review recorded a basal cell carcinoma, so its route was added. At Clinical photographs, Finish Stage is refused first: the stage needs a consent record (a stage gate).',
       'Record the consent in the Consent card (the form, who signed, the date); then Finish Stage works. MedApp never judges capacity.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.consentToRecord}`,
     buttonLabel: 'Open the pathway that needs consent',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Treatment')?.completedAtUtc
-        ? `You've finished Treatment already in your copy of the demo. ${RESET_HINT}`
+      state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)?.stages.find((s) => s.name === 'Clinical photographs')?.completedAtUtc
+        ? `You've finished Clinical photographs already in your copy of the demo. ${RESET_HINT}`
         : null,
   },
   {

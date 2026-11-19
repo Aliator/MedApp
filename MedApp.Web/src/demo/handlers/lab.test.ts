@@ -59,12 +59,16 @@ describe('the light demo’s lab, results and referrals', () => {
     // The lab finishes its Histology stage (the relay); the review is Dermatology's again.
     db().user = LAB.username;
     const histology = current((await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body);
-    const finished = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${histology.id}/finish`, {});
+    const finished = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${histology.id}/finish`, {result: 'Compound naevus (synthetic).'});
     expect(finished.status).toBe(200);
     db().user = STAFF.username;
     const review = current(finished.body);
     expect(review.name).toBe('Results and team review');
-    const held = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {withoutVisit: true, reason: 'Reviewed by the team'});
+    const held = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {
+      withoutVisit: true,
+      reason: 'Reviewed by the team',
+      outcome: 'Benign',
+    });
     expect(held.status).toBe(409);
     expect(held.body.title).toMatch(/^This stage waits for results: it can't be finished while a result awaits sign-off/);
 
@@ -75,11 +79,15 @@ describe('the light demo’s lab, results and referrals', () => {
     const signed = await call('POST', `/api/results/${result.id}/sign-off`, {action: 'PatientInformed', expectedVersion: seen.version});
     expect(signed.body).toMatchObject({status: 'SignedOff', signedOffByUsername: STAFF.username, canSignOff: false});
     expect((await call('GET', '/api/results/count')).body).toEqual({awaitingMine: 0});
-    const done = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {withoutVisit: true, reason: 'Reviewed by the team'});
+    const done = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {
+      withoutVisit: true,
+      reason: 'Reviewed by the team',
+      outcome: 'Benign',
+    });
     expect(done.status).toBe(200);
   });
 
-  it('holds the last stage while a specimen is open or a result awaits, and nothing of the lab’s holds Harriet’s Treatment', () => {
+  it('holds the last stage while a specimen is open or a result awaits, and nothing of the lab’s holds Harriet’s photographs', () => {
     const {state} = startLightDemo(ADMIN);
     const ilona = state.pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
     const last = ilona.stages.at(-1)!;
@@ -88,7 +96,7 @@ describe('the light demo’s lab, results and referrals', () => {
     const daniyal = state.pathways.find((p) => p.id === PATHWAYS.notStarted)!;
     expect(labGate(daniyal, daniyal.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
     const harriet = state.pathways.find((p) => p.id === PATHWAYS.consentToRecord)!;
-    expect(labGate(harriet, harriet.stages.find((s) => s.name === 'Treatment')!, false)).toBeNull();
+    expect(labGate(harriet, harriet.stages.find((s) => s.name === 'Clinical photographs')!, false)).toBeNull();
     expect(labGate(harriet, harriet.stages.at(-1)!, true)).toBeNull();
   });
 
