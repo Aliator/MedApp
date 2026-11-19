@@ -112,7 +112,6 @@ What the reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, in th
 - **Recall and referrals:** Same-day hospital referral by phone, recorded with its time, before the letter.
 - **Routes back:** the reviewed pathways loop (a repeat biopsy or sample, another review, back to surveillance's skin check), but routes only go forward; the demo turns each into a repeatable addable route, a stage that stays current, or an end (`src/demo/dermatology.ts`).
 - **A template's summary:** each reviewed template's one-line summary has no field yet (it's only in the YAML).
-- **The route editor names one outcome per stage:** a stage several outcomes lead to (Urgent hospital referral) shows one, and saving there would merge them.
 
 ## Accessibility
 

@@ -216,7 +216,7 @@ export const BACKWARD_LINK_MESSAGE = "A stage can only come after a stage above 
 export const NO_PREDECESSOR_MESSAGE = "Choose what it comes after: only the first stage starts the pathway.";
 export const GRAPH_LAST_STAGE_MESSAGE = "The last stage ends a route: it can’t be optional or a choice node.";
 export const CHOICE_OPTIONAL_MESSAGE = "A choice node always runs: it can’t be optional.";
-export const NO_OUTCOMES_MESSAGE = "A choice node needs at least two outcomes, each leading to a stage after it.";
+export const NO_OUTCOMES_MESSAGE = "A choice node needs at least two named outcomes, each leading to stages after it or ending the route.";
 export const DEAD_END_CHOICE_MESSAGE = "A choice node can’t end a route: make the stages its outcomes lead to come after it.";
 export const UNNAMED_OUTCOME_MESSAGE = "Name the outcome that leads to this stage: the clinician records one of the choice node’s outcomes.";
 export const SAME_OUTCOME_NAME_MESSAGE = "Each outcome of a choice node needs a different name.";
@@ -261,7 +261,8 @@ export function templateGraphProblems(stages: readonly GraphStage[], links: read
     }
     for (const next of [...after].sort((a, b) => a - b))
       if (!outcomes.some((o) => named(o) && (o.nextStageOrders ?? []).includes(next))) say(next - 1, UNNAMED_OUTCOME_MESSAGE);
-    if (outcomes.filter((o) => named(o) && (o.nextStageOrders ?? []).length > 0).length < 2) say(i, NO_OUTCOMES_MESSAGE);
+    // An outcome may end the route (a discharge, or a referral recorded there), as the reviewed templates' do.
+    if (outcomes.filter(named).length < 2) say(i, NO_OUTCOMES_MESSAGE);
   });
   return problems;
 }

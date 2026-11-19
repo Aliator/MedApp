@@ -51,7 +51,6 @@ export const ARCHITECTURE: ArchitecturePart[] = [
       {label: '.NET Aspire for local development', description: 'One command starts SQL Server, storage, the API and the web app, with a dashboard.'},
       {label: 'Docker, Helm and Kubernetes', description: 'One container image, a locked-down Helm chart, and a local Kubernetes cluster to try it on.'},
       {label: 'GitOps with Argo CD', description: 'Deploys come from environment branches that Argo CD keeps the cluster in step with; Azure is the cloud target.'},
-      {label: 'GitHub Actions in tiers', description: 'Quick checks on every change; the full suite (unit, integration and end-to-end tests, an image scan) when asked.'},
       {label: 'Tests at every level', description: 'NUnit, Vitest and Testing Library, integration tests against real SQL Server in containers, Playwright journeys, and accessibility audits.'},
       {label: 'Accessible by aim', description: 'Built to WCAG 2.2 AA: keyboard use, screen reader announcements, high-contrast colours and larger text.'},
     ],
