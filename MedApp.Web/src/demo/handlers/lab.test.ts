@@ -109,7 +109,7 @@ describe('the light demo’s lab, results and referrals', () => {
     const {state} = startLightDemo(ADMIN);
     const ilona = state.pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
     const last = ilona.stages.at(-1)!;
-    expect(labGate(ilona, last, true)).toMatch(/^The pathway's last stage can't be finished while 2 samples are still with the lab: MA\d{2}-\d{6} \(Blood sample, received\)/);
+    expect(labGate(ilona, last, true)).toMatch(/^The pathway's last stage can't be finished while a sample is still with the lab: MA\d{2}-\d{6} \(Blood sample, received\)/);
     expect(labGate(ilona, ilona.stages[2], false)).toBeNull();
     const tobias = state.pathways.find((p) => p.id === PATHWAYS.unassigned)!;
     expect(labGate(tobias, tobias.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
@@ -152,8 +152,8 @@ describe('the light demo’s lab, results and referrals', () => {
     startLightDemo(STAFF);
     expect((await call('POST', '/api/lab-tests', test)).status).toBe(403);
     startLightDemo(ADMIN);
-    expect((await call('GET', '/api/lab-tests')).body).toHaveLength(3);
-    expect((await call('GET', '/api/lab-tests?includeArchived=true')).body).toHaveLength(4);
+    expect((await call('GET', '/api/lab-tests')).body).toHaveLength(4);
+    expect((await call('GET', '/api/lab-tests?includeArchived=true')).body).toHaveLength(5);
     expect((await call('POST', '/api/lab-tests', {...test, name: 'skin histology'})).status).toBe(409);
     expect((await call('POST', '/api/lab-tests', {...test, limitDays: 7})).body.errors).toHaveProperty('limitDays');
     expect((await call('POST', '/api/lab-tests', {...test, atRiskDays: 14})).body.errors).toHaveProperty('atRiskDays');

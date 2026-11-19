@@ -152,7 +152,7 @@ export function registerConsent() {
     if (!body.consentFormId) errors.consentFormId = ['Choose the consent form.'];
     if (!body.signedOn) errors.signedOn = ['Give the date it was signed.'];
     if (!SIGNED_BY.includes(body.signedBy as DemoConsentRecord['signedBy']))
-      errors.signedBy = ['Say who signed: Patient, PersonWithParentalResponsibility or BestInterestsDecision.'];
+      errors.signedBy = ['Say who signed: the patient, someone with parental responsibility, or a best-interests decision.'];
     if (body.scanAttachmentId) errors.scanAttachmentId = ['No files in the light demo: leave the scan out.'];
     if (Object.keys(errors).length > 0) return invalid(errors);
     const pathway = pathwayToChange(params.id);

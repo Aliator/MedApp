@@ -373,7 +373,7 @@ function recipientsFrom(letter: DemoLetter, requests: Schemas['LetterRecipientRe
         if (!practiceId) {
           const unlisted = db().patients.find((p) => p.id === letter.patientId)?.unlistedPractice;
           if (!unlisted)
-            refuse(invalid({recipients: ['This patient has no GP practice outside the directory recorded. Choose the practice from the directory.']}));
+            refuse(invalid({recipients: ['No GP practice outside the directory is recorded for this patient: choose one from the directory.']}));
           return blankRecipient({
             kind,
             name: unlisted.name ?? null,

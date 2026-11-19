@@ -89,9 +89,9 @@ describe('the Read Me tour', () => {
     expect(byKey('team-walls').account).toBe(LAB.username);
   });
 
-  it('tells the relay in three stages, one step each (the owner, 19 November 2026)', () => {
+  it('tells the relay in three steps, its pathway four stages (the owner, 19 November 2026)', () => {
     expect(TOUR.filter((step) => step.part === 'story').map((step) => step.key)).toEqual(['relay-triage', 'relay-lab', 'relay-back']);
-    expect(seed().pathways.find((p) => p.id === PATHWAYS.relay)!.stages.map((s) => s.name)).toEqual(['Triage', 'Testing', 'Results appointment']);
+    expect(seed().pathways.find((p) => p.id === PATHWAYS.relay)!.stages.map((s) => s.name)).toEqual(['Triage', 'Testing', 'Results appointment', 'Refer to GP for medication']);
     expect(TOUR.map((step) => step.key)).not.toContain('timeline');
   });
 
