@@ -1279,22 +1279,14 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
     expect(await request!.clone().text()).toBe('');
   });
 
-  it('asks the lab for its result as it finishes its stage, and sends it', async () => {
-    const fetch = mockApi({
-      [`GET ${PATH}`]: () => json(withCurrent({needsResult: true})),
-      [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
-    });
-    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+  it('links a lab stage to its open lab case, and waits for its report instead of finishing by hand (MC16)', async () => {
+    mockApi({[`GET ${PATH}`]: () => json(withCurrent({labCaseId: 'case-1', labCaseNumber: 'MA26-000201', labCaseStatus: 'Open'}))});
+    renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
-    const dialog = within(openDialog()!);
-    const finish = dialog.getByRole('button', {name: 'Finish Stage'});
+    const finish = await screen.findByRole('button', {name: 'Finish Stage'});
     expect(isDisabled(finish)).toBe(true);
-    await user.type(dialog.getByRole('textbox', {name: /Result/}), ' No dysplasia. ');
-    await user.click(finish);
-
-    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
-    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({result: 'No dysplasia.'});
+    expect(screen.getAllByText(/Lab case MA26-000201 is open: authorising its report finishes this stage\./).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', {name: 'MA26-000201'})[0]).toHaveAttribute('href', '/lab/cases/case-1');
   });
 
   it('shows skipped stages struck through with why, counts them in the progress, and lets an admin reinstate one', async () => {

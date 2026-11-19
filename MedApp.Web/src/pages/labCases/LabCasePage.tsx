@@ -176,6 +176,13 @@ function NextWork({labCase, canWork, onOpen}: {labCase: LabCase; canWork: boolea
             : `Nothing: the case is ${labCaseStatusLabel(labCase.status).toLowerCase()}.`}
       </Text>
     );
+  // A pathway's lab stage opened its case on arrival (MC16): it waits for the sample to be received at the lab.
+  if (next.kind === 'Receive')
+    return (
+      <Text type="body" color="secondary">
+        Waiting for the sample. Receiving it at the lab starts the case{labCase.labTestName ? '' : ', and the lab chooses the test'}.
+      </Text>
+    );
   if (next.kind === 'Choice')
     return (
       <VStack gap={3} hAlign="stretch">

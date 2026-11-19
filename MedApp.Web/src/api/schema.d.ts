@@ -22569,7 +22569,6 @@ export interface components {
             withoutVisit?: boolean;
             reason?: string | null;
             outcome?: string | null;
-            result?: string | null;
         };
         ForgotPasswordRequest: {
             usernameOrEmail?: string | null;
@@ -22767,7 +22766,7 @@ export interface components {
             status?: string | null;
             source?: string | null;
             /** Format: uuid */
-            labTestId?: string;
+            labTestId?: string | null;
             labTestName?: string | null;
             labTestKind?: string | null;
             /** Format: uuid */
@@ -23751,7 +23750,10 @@ export interface components {
             outcome?: string | null;
             needsOutcome?: boolean;
             result?: components["schemas"]["PatientPathwayStageResultResponse"] | null;
-            needsResult?: boolean;
+            /** Format: uuid */
+            labCaseId?: string | null;
+            labCaseNumber?: string | null;
+            labCaseStatus?: string | null;
             predecessorIds?: string[] | null;
             /** Format: uuid */
             branchAdditionId?: string | null;

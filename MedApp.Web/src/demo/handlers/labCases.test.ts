@@ -12,10 +12,12 @@ describe('the light demo’s lab cases (MC15)', () => {
   it('lists the lab’s cases by tab, and a clinic only its own clinic’s', async () => {
     startLightDemo(LAB);
     const open = (await call('POST', '/api/lab-cases/search', {view: 'Open'})).body;
-    expect(open.totalCount).toBe(4);
+    // Five worked, and three lab stages' cases waiting for their samples (MC16: Priya's Gynaecology Histology, Aisha's two).
+    expect(open.totalCount).toBe(8);
+    expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(3);
     const toReport = (await call('POST', '/api/lab-cases/search', {view: 'ToReport'})).body;
-    expect(toReport.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.ilonaBlood]);
-    expect(toReport.items[0]).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
+    expect(toReport.items.map((c: {id: string}) => c.id).sort()).toEqual([LAB_CASES.ilonaBlood, LAB_CASES.priyaBiopsy].sort());
+    expect(toReport.items.find((c: {id: string}) => c.id === LAB_CASES.ilonaBlood)).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
     const hospital = (await call('POST', '/api/lab-cases/search', {view: 'All', source: 'Hospital'})).body;
     expect(hospital.totalCount).toBe(5);
 
@@ -171,10 +173,11 @@ describe('the light demo’s lab cases (MC15)', () => {
     startLightDemo(LAB);
     const ids = async (view: string) => (await call('POST', '/api/lab-cases/search', {view})).body.items.map((c: {id: string}) => c.id);
     expect(await ids('AtRisk')).toEqual([LAB_CASES.ilonaBlood]);
-    expect(await ids('Overdue')).toEqual([LAB_CASES.ellis]);
+    // Priya's biopsy reached the lab over a week ago, and its report (which finishes her Histology, MC16) isn't in yet.
+    expect((await ids('Overdue')).sort()).toEqual([LAB_CASES.ellis, LAB_CASES.priyaBiopsy].sort());
     expect((await caseOf(LAB_CASES.wilfred)).clock).toMatchObject({setBy: 'Hospital', hospitalDueBasis: 'ReportNeededBy', state: 'OnTime', daysLeft: 3});
     expect((await caseOf(LAB_CASES.maya)).clock).toMatchObject({setBy: 'Lab', hospitalDueBasis: 'HospitalDefault', state: 'OnTime'});
-    expect((await caseOf(LAB_CASES.priyaBiopsy)).clock?.state).toMatch(/^Reported/);
+    expect((await caseOf(LAB_CASES.callumBiopsy)).clock?.state).toMatch(/^Reported/);
   });
 
   it('sends a hospital case’s report back to its hospital when authorised, its clock stopped there (MC20)', async () => {

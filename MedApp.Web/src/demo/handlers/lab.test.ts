@@ -76,18 +76,13 @@ describe('the light demo’s lab, results and referrals', () => {
     });
   });
 
-  it('holds Priya’s results stage until her result is signed off, but not her Histology stage', async () => {
+  it('holds Callum’s Histology result stage until his result is signed off', async () => {
     startLightDemo(STAFF);
     expect((await call('GET', '/api/results/count')).body).toEqual({awaitingMine: 1});
-    // The lab finishes its Histology stage (the relay); the Histology result is Dermatology's again.
-    db().user = LAB.username;
-    const histology = current((await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body);
-    const finished = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${histology.id}/finish`, {result: 'Compound naevus (synthetic).'});
-    expect(finished.status).toBe(200);
-    db().user = STAFF.username;
-    const review = current(finished.body);
+    // His case's report finished the lab's Histology stage (MC16); the Histology result is Dermatology's again.
+    const review = current((await call('GET', pathwayPath(PATHWAYS.backFromLab))).body);
     expect(review.name).toBe('Histology result');
-    const held = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {
+    const held = await call('POST', `${pathwayPath(PATHWAYS.backFromLab)}/stages/${review.id}/finish`, {
       withoutVisit: true,
       reason: 'Reviewed by the team',
       outcome: 'Benign',
@@ -95,14 +90,14 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(held.status).toBe(409);
     expect(held.body.title).toMatch(/^This stage waits for results: it can't be finished while a result awaits sign-off/);
 
-    const result = (await call('GET', `/api/results/${LAB_IDS.priyaResult}`)).body;
+    const result = (await call('GET', `/api/results/${LAB_IDS.resultToSignOff}`)).body;
     expect(result).toMatchObject({status: 'AwaitingSignOff', responsibleUsername: STAFF.username, canSignOff: true, action: null});
     const seen = (await call('POST', `/api/results/${result.id}/seen`, {expectedVersion: result.version})).body;
     expect((await call('POST', `/api/results/${result.id}/sign-off`, {action: 'Other', expectedVersion: seen.version})).status).toBe(400);
     const signed = await call('POST', `/api/results/${result.id}/sign-off`, {action: 'PatientInformed', expectedVersion: seen.version});
     expect(signed.body).toMatchObject({status: 'SignedOff', signedOffByUsername: STAFF.username, canSignOff: false});
     expect((await call('GET', '/api/results/count')).body).toEqual({awaitingMine: 0});
-    const done = await call('POST', `${pathwayPath(PATHWAYS.histologyToFinish)}/stages/${review.id}/finish`, {
+    const done = await call('POST', `${pathwayPath(PATHWAYS.backFromLab)}/stages/${review.id}/finish`, {
       withoutVisit: true,
       reason: 'Reviewed by the team',
       outcome: 'Benign',
@@ -130,8 +125,8 @@ describe('the light demo’s lab, results and referrals', () => {
     expect((await call('GET', '/api/results/search?View=Awaiting')).body.totalCount).toBe(2);
     expect((await call('GET', '/api/results/search?View=SignedOff')).body.totalCount).toBe(2);
     startLightDemo(HALLWORTH);
-    const priya = (await call('GET', `/api/results/${RESULTS.priyaBiopsy}`)).body;
-    await call('POST', `/api/results/${priya.id}/sign-off`, {action: 'ForMdtDiscussion', expectedVersion: priya.version});
+    const callum = (await call('GET', `/api/results/${RESULTS.callumBiopsy}`)).body;
+    await call('POST', `/api/results/${callum.id}/sign-off`, {action: 'ForMdtDiscussion', expectedVersion: callum.version});
     expect(db().notifications.find((n) => n.userId === STAFF.id && n.kind === 'ResultSignedOffByOther')?.message).toBe(
       "t.hallworth signed off a result you're responsible for.",
     );

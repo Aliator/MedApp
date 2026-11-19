@@ -19,6 +19,7 @@ import {endOfUkDay, nowUtc, today} from '../time';
 import {can, contains, flag, list, me, NO_FLAGS, paged, pathwayPatient, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {canRecordConsent, clinicalGate} from './clinical';
 import {canRecordSpecimen, labGate} from './lab';
+import {caseOfStage, openCaseOfStage, openStageCase} from './labCases';
 import {pathwayReferralResponse, referralSummaryClock} from './referrals';
 import {
   canChangePathway,
@@ -49,7 +50,8 @@ import {
  * **Choice nodes** (the owner's model, 19 Nov): a pathway holds only the stages up to its next choice node (an
  * assessment or a lab result). Finishing one records its outcome, chosen by the clinician (never by MedApp, none
  * pre-selected), and adds that outcome's stages from the pathway's plan (`growPathway`); unchosen outcomes never appear.
- * The lab enters its result as it finishes its own stage, and the clinic's review (the lab result choice node) shows it.
+ * The lab's stage takes its results from its lab case (MC16): authorising the case's report finishes it with them
+ * (`finishLabStage`), and the clinic's review (the lab result choice node) shows them. There's no other way to enter them.
  *
  * **The relay** (MC7): a template's stage can be owned by another team (the lab, in Stage 1). Only its owner works it
  * while it's current (and adds notes to the pathway meanwhile); when a finish or skip makes current a stage whose team
@@ -132,18 +134,21 @@ function outcomesOf(pathway: DemoPathway, stage: DemoStage): Schemas['PatientPat
   });
 }
 
-/** Whether the lab works the stage (MC7's relay): the lab enters its result as it finishes it. */
+/** Whether the lab works the stage (MC7's relay): its results come from its lab case (MC16). */
 const isLabsStage = (stage: DemoStage) => stage.ownerTeamId !== null && stage.ownerTeamId === labTeamId();
 
-/** The longest result the lab can enter as it finishes a stage. */
-const MAX_RESULT_LENGTH = 4000;
+/** `StageGates.WhyLabCaseOpen` (MC16): a lab stage isn't finished by hand while its case is open; authorising does it. */
+function whyLabCaseOpen(stage: DemoStage): string | null {
+  const open = isLabsStage(stage) ? openCaseOfStage(stage.id) : undefined;
+  return open ? `Lab case ${open.number} is still open: authorising its report finishes this stage, with its results.` : null;
+}
 
 /** Whether the pathway's last stage to do is this one (finishing it leaves none; a choice node always adds more). */
 const isLastToDo = (pathway: DemoPathway, stage: DemoStage) => !stage.choiceKind && pathway.stages.every((s) => s.id === stage.id || !isToDo(s));
 
 /** Why a stage can't be finished yet, from the gates without an override (`StageGates`), or null. */
 function whyGated(pathway: DemoPathway, stage: DemoStage): string | null {
-  return labGate(pathway, stage, isLastToDo(pathway, stage)) ?? clinicalGate(pathway, stage);
+  return whyLabCaseOpen(stage) ?? labGate(pathway, stage, isLastToDo(pathway, stage)) ?? clinicalGate(pathway, stage);
 }
 
 const canWorkOnStages = (pathway: DemoPathway) => ['Unassigned', 'Assigned', 'InProgress', 'InReview'].includes(pathway.status);
@@ -178,6 +183,8 @@ function reachNext(pathway: DemoPathway, fromTeamId: string, byUserId: string) {
 function handOver(pathway: DemoPathway, next: DemoStage, fromTeamId: string, byUserId: string) {
   const now = nowUtc();
   next.reachedAtUtc = now;
+  // A lab stage reached opens its lab case (MC16), waiting for its sample.
+  if (isLabsStage(next)) openStageCase(pathway, next, byUserId);
   const to = stageTeamOf(pathway, next);
   if (to === fromTeamId) return;
   next.handedOverFromTeamId = fromTeamId;
@@ -290,6 +297,12 @@ function addableBranchResponses(pathway: DemoPathway, canWork: boolean): Schemas
   }));
 }
 
+/** A lab stage's case (MC16), for its page to link to: its open one, else its latest. */
+function labCaseFields(stage: DemoStage) {
+  const c = isLabsStage(stage) ? caseOfStage(stage.id) : undefined;
+  return {labCaseId: c?.id ?? null, labCaseNumber: c?.number ?? null, labCaseStatus: c?.status ?? null};
+}
+
 /** A pathway as the API answers it, for the signed-in person. */
 export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayResponse'] {
   // Only the pathway's own team changes it (the team walls): admins and the lab read it.
@@ -353,11 +366,11 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       outcomes: outcomesOf(pathway, stage),
       outcome: stage.outcome,
       needsOutcome: stage.choiceKind !== null && stage.outcome === null,
-      // The lab's result, entered as it finished its stage: shown on the pathway (as a note is), never in the audit log.
+      // The lab's results, from its case's authorised report: shown on the pathway (as a note is), never in the audit log.
       result: stage.result
         ? {text: stage.result.text, enteredByUsername: usernameOf(stage.result.enteredByUserId), enteredAtUtc: stage.result.enteredAtUtc}
         : null,
-      needsResult: isLabsStage(stage) && !stage.result,
+      ...labCaseFields(stage),
       predecessorIds: predecessorsOf(pathway, stage).map((s) => s.id),
       branchAdditionId: stage.branchAdditionId ?? null,
       state: isDone(stage) ? 'Completed' : isSkipped(stage) ? 'Skipped' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
@@ -511,6 +524,51 @@ function skipStage(stage: DemoStage, userId: string, reason: string, detail: str
   stage.skippedByUserId = userId;
   stage.skipReason = reason;
   stage.skipDetail = detail;
+}
+
+/**
+ * Authorising a lab case's report (MC16) finishes its lab stage in the same change, with the results on it, and hands
+ * the pathway on (`StageFinished`, then `StageHandedOver` back to the clinic). The gates aren't asked: the report is
+ * what the stage waits for. A stage not current (the pathway on hold, or the stage before it unfinished) keeps the
+ * results, and the lab finishes it by hand later (its case no longer open).
+ */
+export function finishLabStage(pathwayId: string, stageId: string, userId: string, text: string, atUtc: string) {
+  const pathway = db().pathways.find((p) => p.id === pathwayId);
+  const stage = pathway?.stages.find((s) => s.id === stageId);
+  if (!pathway || !stage || !isLabsStage(stage) || !isToDo(stage)) return;
+  stage.result = {text, enteredByUserId: userId, enteredAtUtc: atUtc};
+  touch(pathway);
+  if (!isCurrentStage(pathway, stage)) return;
+  stage.startedAtUtc ??= atUtc;
+  stage.startedByUserId ??= userId;
+  stage.completedAtUtc = atUtc;
+  stage.completedByUserId = userId;
+  pickUp(stage, userId);
+  afterStageDone(pathway);
+  reachNext(pathway, stageTeamOf(pathway, stage), userId);
+}
+
+/** Receiving a lab stage's first sample picks the stage up (MC16), when it's current and waiting to be. */
+export function pickUpLabStage(pathwayId: string, stageId: string, userId: string) {
+  const pathway = db().pathways.find((p) => p.id === pathwayId);
+  const stage = pathway?.stages.find((s) => s.id === stageId);
+  if (!pathway || !stage || !isCurrentStage(pathway, stage)) return;
+  pickUp(stage, userId);
+  touch(pathway);
+}
+
+/**
+ * An insufficient sample (MC16): the finished stage that took it reopens (as Unlock does), so the clinic takes the
+ * repeat there and finishes it again; the lab stage stays with the lab. Returns the stage's name, or null when there's
+ * none to reopen (it's still to do, or the pathway is closed).
+ */
+export function reopenSampleStage(pathwayId: string | null, stageId: string | null): string | null {
+  const pathway = db().pathways.find((p) => p.id === pathwayId);
+  const stage = pathway?.stages.find((s) => s.id === stageId);
+  if (!pathway || !stage || !isDone(stage) || isLabsStage(stage) || !canWorkOnStages(pathway)) return null;
+  stage.unlocked = true;
+  touch(pathway);
+  return stage.name;
 }
 
 /** Makes a new pathway for a patient from a template (New Pathway, and accepting a referral). */
@@ -721,11 +779,6 @@ export function registerPathways() {
       return invalid({outcome: [`Record the outcome: ${outcomes.map((o) => o.name).join(', ')}.`]});
     if (named && (!stage.choiceKind || stage.outcome !== null))
       return invalid({outcome: ['The outcome was recorded already: it isn’t changed by finishing the stage again.']});
-    // The lab enters its result as it finishes its stage (the full version also takes a report file).
-    const result = body.result?.trim() ?? '';
-    if (isLabsStage(stage) && !stage.result && !result) return invalid({result: ['Enter the result before finishing the lab’s stage.']});
-    if (result.length > MAX_RESULT_LENGTH) return invalid({result: [`At most ${MAX_RESULT_LENGTH} characters.`]});
-    if (result && !isLabsStage(stage)) return invalid({result: ['Only the lab’s stages take a result.']});
     if (!reopened) {
       const attended = db().appointments.some((a) => a.stageId === stage.id && a.status === 'Attended');
       if (stage.visitRequirement !== 'None' && !attended && body.withoutVisit !== true)
@@ -739,7 +792,6 @@ export function registerPathways() {
     stage.completedAtUtc = now;
     stage.completedByUserId = viewer.id;
     stage.unlocked = false;
-    if (result) stage.result = {text: result, enteredByUserId: viewer.id, enteredAtUtc: now};
     if (chosen) {
       stage.outcome = chosen.name ?? named;
       // That outcome's stages join the pathway, up to the next choice node; the others never appear.

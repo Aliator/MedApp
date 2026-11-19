@@ -2,6 +2,7 @@ import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tans
 import {ApiError} from './errors';
 import {api, unwrap, type Schemas} from './client';
 import {hospitalRequestKeys} from './hospitals';
+import {pathwayKeys} from './pathways';
 import {resultKeys} from './results';
 import {specimenKeys} from './specimens';
 
@@ -81,7 +82,7 @@ export function labCaseSearchQuery(search: LabCaseSearch) {
   });
 }
 
-/** After a change: the case as answered, and every list it shows in (its samples, results and hospital request too). */
+/** After a change: the case as answered, and every list it shows in (its samples, results, hospital request and pathway too). */
 function useRefresh(id?: string) {
   const queryClient = useQueryClient();
   return {
@@ -92,6 +93,8 @@ function useRefresh(id?: string) {
         queryClient.invalidateQueries({queryKey: specimenKeys.all}),
         queryClient.invalidateQueries({queryKey: resultKeys.all}),
         queryClient.invalidateQueries({queryKey: hospitalRequestKeys.all}),
+        // Authorising finishes a pathway's lab stage, and receiving picks it up (MC16).
+        queryClient.invalidateQueries({queryKey: pathwayKeys.all}),
       ]);
     },
     onError: (error: unknown) =>
