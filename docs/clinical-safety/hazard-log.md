@@ -2637,6 +2637,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 **Possible harm.** A missed result or treatment. One patient; Major in the worst credible case.
 
 **Existing controls:** none (not built). Today's pathways have one current stage.
+- **Built in the web app and light demo (MC8, 19 Nov 2026; the API follows):** review (then discharge) only when every stage on every route is finished or skipped; the pathway page shows every current stage, lists say each by name; the last-stage gates apply to the stage whose finish leaves none to do on any route.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 

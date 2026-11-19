@@ -1,7 +1,9 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {HalfViewContext} from '../../components/pages/halfView';
 import {adminUser, findAlert, json, mockApi, openDialog, renderWithApp, expectAnnounced, withAnnouncements} from '../../test/render';
+import {PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
 import {PathwayTemplateEditorPage, startingStopKey, stopStageOrder} from './PathwayTemplateEditorPage';
+import {BRANCH_WITHOUT_POINT_MESSAGE} from './templateBranches';
 
 const BASE = '/api/pathways/patient-pathway-stage';
 
@@ -467,8 +469,31 @@ describe('PathwayTemplateEditorPage', () => {
 
       // The name stays, so it can be cleared, with the reason it can't be saved.
       expect(row(1).getByRole('textbox', {name: 'Branch'})).toHaveValue('Benign');
-      expect(row(1).getByText('A stage in a branch must come after a branch point.')).toBeInTheDocument();
+      expect(row(1).getByText(BRANCH_WITHOUT_POINT_MESSAGE)).toBeInTheDocument();
     });
+  });
+
+  it('shows a template with routes side by side read-only, each stage with the ones it comes after (MC8)', async () => {
+    renderEditor('t1', {
+      [`GET ${BASE}/templates/t1`]: () =>
+        json({
+          ...template,
+          stageDefinitionIdsInOrder: ['d1', 'd2', 'd2', 'd1'],
+          stages: [1, 2, 3, 4].map((stageOrder) => ({stageOrder, stageDefinitionId: stageOrder % 3 === 1 ? 'd1' : 'd2', name: stageOrder % 3 === 1 ? 'Consultation' : 'Scan'})),
+          links: [
+            {fromStageOrder: 1, toStageOrder: 2},
+            {fromStageOrder: 1, toStageOrder: 3},
+            {fromStageOrder: 2, toStageOrder: 4},
+            {fromStageOrder: 3, toStageOrder: 4},
+          ],
+        }),
+    });
+
+    const list = within(await screen.findByRole('list', {name: 'Stages in order'}));
+    expect(screen.getByText(PARALLEL_ROUTES_LOCKED)).toBeInTheDocument();
+    expect(list.getByText('After 2. Scan and 3. Scan')).toBeInTheDocument();
+    expect(list.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Add Consultation'})).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('goes back to the list for an unknown template', async () => {

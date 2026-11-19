@@ -36,6 +36,8 @@ export const TEMPLATES = {
   diabetesReview: id(0xd2, 4),
   /** Branches at the first visit: biopsy first, or treat directly. */
   suspectedSkinCancer: id(0xd2, 5),
+  /** A fork after the first visit (MC8): the biopsy and histology beside the bloods and lab tests, joined at the review. */
+  lesionWithBloods: id(0xd2, 6),
 } as const;
 
 /** Stage definitions (the stage library), shared by the templates. */
@@ -105,6 +107,8 @@ export const PATHWAYS = {
   priyaGynaecology: id(0xd5, 11),
   /** Diabetes review, Ellis Varden, Diabetes's: discharged; Dermatology sees it only as "completed". */
   ellisDiabetes: id(0xd5, 12),
+  /** Skin lesion with blood tests, Aisha Khoury, Nadia Thornbury's: two current stages side by side (histology, lab tests). */
+  forkedTests: id(0xd5, 13),
 } as const;
 
 export const REFERRALS = {
