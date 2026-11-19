@@ -267,6 +267,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Scope:** lab members (Pathologist) can attend any MDT (the MDT exception, MC11) and be an item's **presenter** (`MdtItem.PresenterUserId`); the item shows its lab case and report.
 - **Migration** `AddedMdtPresenters`.
 - **Light demo:** a presenter on a seeded item.
+- **Built (demo first):** `MdtItemResponse` gains `presenterUserId`, `presenterUsername`, `canChoosePresenter` and `labWork` (the pathway's samples, with `resultId` for the report); `POST api/mdt/items/{id}/presenter` (`presenterUserId`, null for nobody, from the meeting's attendees; `expectedVersion`). A lab attendee's `Mdt` grant is read-only, live while the item is listed or deferred or its meeting hasn't ended. Only the item's team lists, moves, withdraws or picks the presenter; a move keeps the presenter only if they're invited to the new MDT. No new stored numbers (no audit action or notification). Seeded: r.aldous presents Harriet Quill's case on today's MDT. Backend to follow.
 
 **MC22. Phase 2 demo data** (M). Last in the phase.
 - **Full demo:** the test catalogue (histology, bloods, microbiology), one hospital (invented, "Riverside General (demo)"), samples in every state from clinics and the hospital, clocks on time, at risk and breached, a second opinion, a repeat requested, reports sent, surgery details added and one awaited.

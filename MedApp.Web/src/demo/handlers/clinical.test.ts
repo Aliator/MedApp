@@ -1,6 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, HALLWORTH, STAFF} from '../accounts';
-import {MEETINGS, PATHWAYS, TEAMS} from '../ids';
+import {ADMIN, HALLWORTH, LAB, STAFF} from '../accounts';
+import {MEETINGS, PATHWAYS, TEAMS, USERS} from '../ids';
 import {CLINICAL_IDS, CONSENT, LETTER_TEMPLATES, LETTERS, MDT_ITEMS} from '../slices/clinical';
 import {db} from '../store';
 import {today} from '../time';
@@ -146,8 +146,35 @@ describe('the light demo’s letters, MDT and consent', () => {
     expect(listed.status).toBe(201);
     expect((await call('POST', '/api/mdt/items', {...body, meetingId: MEETINGS.skinMdt})).status).toBe(409);
     const items = (await call('GET', `/api/mdt/pathways/${PATHWAYS.consentToRecord}/items`)).body;
-    expect(items).toHaveLength(1);
+    expect(items.map((i: {id: string}) => i.id)).toEqual([listed.body.id, MDT_ITEMS.harrietPresented]);
     expect((await call('POST', `/api/mdt/items/${MDT_ITEMS.priyaListed}/defer`, {meetingId: CLINICAL_IDS.mdtToday, expectedVersion: 1})).status).toBe(409);
     expect((await call('POST', `/api/mdt/items/${listed.body.id}/withdraw`, {expectedVersion: 1})).body.status).toBe('Withdrawn');
+  });
+
+  it('lets the lab, invited to an MDT, read its listed cases until each is discussed, with the presenter and lab work', async () => {
+    startLightDemo(LAB);
+    const list = (await call('GET', `/api/mdt/meetings/${CLINICAL_IDS.mdtToday}/items`)).body;
+    const harriet = list.items.find((i: {id: string}) => i.id === CLINICAL_IDS.mdtItemPresented);
+    expect(harriet).toMatchObject({presenterUserId: LAB.id, presenterUsername: LAB.username, canChoosePresenter: false, canWithdraw: false, canDefer: false});
+    expect(harriet.labWork).toHaveLength(1);
+    expect(harriet.labWork[0]).toMatchObject({status: 'Reported', resultId: expect.any(String)});
+    // Ellis Varden's pathway was never passed to the lab: the MDT grant shows it, read only, while the item is open.
+    expect(list.items.map((i: {id: string}) => i.id)).toContain(MDT_ITEMS.toDiscuss);
+    expect((await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`)).status).toBe(200);
+    expect((await call('POST', `/api/mdt/items/${MDT_ITEMS.toDiscuss}/withdraw`, {expectedVersion: 1})).status).toBe(409);
+    expect((await call('POST', `/api/mdt/items/${MDT_ITEMS.harrietPresented}/presenter`, {presenterUserId: null, expectedVersion: harriet.version})).status).toBe(409);
+    // Discussed, with its meeting over, the grant ends.
+    Object.assign(db().mdtItems.find((i) => i.id === MDT_ITEMS.toDiscuss)!, {status: 'Discussed'});
+    expect((await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`)).status).toBe(404);
+  });
+
+  it('chooses a presenter from the MDT’s attendees, from the version shown', async () => {
+    startLightDemo(STAFF);
+    const url = `/api/mdt/items/${MDT_ITEMS.priyaListed}/presenter`;
+    expect((await call('POST', url, {presenterUserId: LAB.id, expectedVersion: 1})).status).toBe(400);
+    const chosen = await call('POST', url, {presenterUserId: USERS.sandiford, expectedVersion: 1});
+    expect(chosen.body).toMatchObject({presenterUsername: 'b.sandiford', canChoosePresenter: true, version: 2});
+    expect((await call('POST', url, {presenterUserId: null, expectedVersion: 1})).status).toBe(409);
+    expect((await call('POST', url, {presenterUserId: null, expectedVersion: 2})).body.presenterUserId).toBeNull();
   });
 });

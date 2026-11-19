@@ -19394,6 +19394,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mdt/items/{id}/presenter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ChooseMdtPresenterRequest"];
+                    "text/json": components["schemas"]["ChooseMdtPresenterRequest"];
+                    "application/*+json": components["schemas"]["ChooseMdtPresenterRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MdtItemResponse"];
+                        "application/json": components["schemas"]["MdtItemResponse"];
+                        "text/json": components["schemas"]["MdtItemResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mdt/items/{id}/withdraw": {
         parameters: {
             query?: never;
@@ -23565,6 +23643,12 @@ export interface components {
             /** Format: int32 */
             expectedVersion?: number;
         };
+        ChooseMdtPresenterRequest: {
+            /** Format: uuid */
+            presenterUserId?: string | null;
+            /** Format: int32 */
+            expectedVersion?: number;
+        };
         ExportedMdtItemResponse: {
             /** Format: uuid */
             id?: string;
@@ -23589,6 +23673,7 @@ export interface components {
             withdrawnBy?: string | null;
             /** Format: date-time */
             withdrawnAtUtc?: string | null;
+            presenter?: string | null;
         };
         ListForMdtRequest: {
             /** Format: uuid */
@@ -23633,6 +23718,22 @@ export interface components {
             canDefer?: boolean;
             canRecordOutcome?: boolean;
             readOnlyReason?: string | null;
+            /** Format: uuid */
+            presenterUserId?: string | null;
+            presenterUsername?: string | null;
+            canChoosePresenter?: boolean;
+            labWork?: components["schemas"]["MdtLabWorkResponse"][] | null;
+        };
+        MdtLabWorkResponse: {
+            /** Format: uuid */
+            specimenId?: string;
+            number?: string | null;
+            typeName?: string | null;
+            status?: string | null;
+            /** Format: date-time */
+            reportedAtUtc?: string | null;
+            /** Format: uuid */
+            resultId?: string | null;
         };
         MdtMeetingListResponse: {
             meeting?: components["schemas"]["MdtMeetingResponse"];
