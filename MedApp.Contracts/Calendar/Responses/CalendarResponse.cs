@@ -48,4 +48,11 @@ public sealed class CalendarResponse
 
     /// <summary>The person's Planned clinic sessions in the range, by start time.</summary>
     public List<ClinicSessionResponse> Sessions { get; set; } = [];
+
+    /// <summary>
+    /// What the viewer can't see on this calendar, as busy time only (the team walls, MC5 and MC11): another team's
+    /// appointments ("Busy": no patient, pathway, stage, notes or appointment ID) and meetings that aren't the viewer's
+    /// ("Meeting": no title, notes, attendees or meeting ID). By start.
+    /// </summary>
+    public List<BusyTimeResponse> OtherTeamsBusy { get; set; } = [];
 }

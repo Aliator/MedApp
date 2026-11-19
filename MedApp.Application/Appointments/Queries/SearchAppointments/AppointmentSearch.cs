@@ -1,5 +1,7 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Appointments;
+using MedApp.Domain.Teams;
 
 namespace MedApp.Application.Appointments.Queries.SearchAppointments;
 
@@ -32,12 +34,22 @@ public static class AppointmentSearch
     public static bool IsStatus(string? value) => PathwayEnums.TryParse<AppointmentStatus>(value, out _);
 
     /// <summary>
-    /// Appointments matching every filter given. The Did not attend view needs <paramref name="all"/>, every appointment,
-    /// to look for later ones (<see cref="AwaitingFollowUp"/>).
+    /// Appointments the viewer sees (the team walls, <see cref="TeamAccess.ByPathway{T}"/>: its own team theirs, or its
+    /// pathway seen through <paramref name="grants"/>, the grants table) matching every filter given, narrowed to the
+    /// clinic picker's team (<see cref="SearchAppointmentsQuery.TeamId"/>, the appointment's own team). The Did not
+    /// attend view needs <paramref name="all"/>, every appointment, to look for later ones (<see cref="AwaitingFollowUp"/>).
     /// </summary>
     public static IQueryable<Appointment> Filter(
-        this IQueryable<Appointment> appointments, SearchAppointmentsQuery query, IQueryable<Appointment>? all = null)
+        this IQueryable<Appointment> appointments,
+        SearchAppointmentsQuery query,
+        IQueryable<Appointment>? all = null,
+        IQueryable<PathwayAccess>? grants = null)
     {
+        appointments = appointments.Where(TeamAccess.ByPathway<Appointment>(
+            query.Teams, grants ?? Enumerable.Empty<PathwayAccess>().AsQueryable(), a => a.PathwayId, a => a.TeamId));
+        if (query.TeamId is { } teamId)
+            appointments = appointments.Where(a => a.TeamId == teamId);
+
         if (IsDidNotAttendView(query.View))
             appointments = appointments.AwaitingFollowUp(all ?? appointments);
 

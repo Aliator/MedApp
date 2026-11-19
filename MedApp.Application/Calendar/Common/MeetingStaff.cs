@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Domain.Calendar;
 
 namespace MedApp.Application.Calendar.Common;
@@ -50,7 +51,8 @@ public static class MeetingStaff
     /// A 409 naming the first attendee, by username, who has something on at that time ("k.ashford has Lunch, 12:00 to
     /// 13:00."): an appointment, a block, or another meeting (<paramref name="ignoreMeetingId"/>: the one being moved).
     /// Before that, each attendee's working day: a 409 for a day closed (everywhere, or at their site), and a 400 naming
-    /// them for a day they don't work or a time outside their hours. Run it holding the attendees' calendar locks.
+    /// them for a day they don't work or a time outside their hours. Run it holding the attendees' calendar locks. A
+    /// meeting that clashes and that <paramref name="viewer"/> can't see (<see cref="CalendarWalls"/>) is named "a meeting".
     /// </summary>
     public static async Task EnsureEveryoneFreeAsync(
         this ICalendarRepository repository,
@@ -58,11 +60,15 @@ public static class MeetingStaff
         DateTime startUtc,
         DateTime endUtc,
         Guid? ignoreMeetingId,
-        CancellationToken ct)
+        CancellationToken ct,
+        TeamScope? viewer = null)
     {
         var date = UkTime.DateOf(startUtc);
         var calendars = (await repository.GetCalendarsAsync(attendees.Select(a => a.UserId).ToList(), date, date, ct))
             .ToDictionary(d => d.StaffUserId);
+        var walls = viewer is null
+            ? CalendarWalls.None
+            : await CalendarWalls.ForAsync(viewer, calendars.Values, repository, boundary: null, ct);
 
         foreach (var (userId, username) in attendees)
         {
@@ -74,7 +80,7 @@ public static class MeetingStaff
             if (working.WhyOutside(startUtc, endUtc, username) is { } outside)
                 throw new ValidationException([new ValidationFailure(nameof(IMeetingCommand.StartUtc), outside)]);
 
-            if (CalendarClashes.FindFirst(calendars[userId], startUtc, endUtc, ignoreMeetingId: ignoreMeetingId) is { } clash)
+            if (CalendarClashes.FindFirst(calendars[userId], startUtc, endUtc, ignoreMeetingId: ignoreMeetingId, seesMeeting: walls.SeesMeeting) is { } clash)
                 throw new ConflictException(
                     $"{username} has {clash.What}, {UkTime.DescribeTime(clash.StartUtc)} to {UkTime.DescribeTime(clash.EndUtc)}.");
         }

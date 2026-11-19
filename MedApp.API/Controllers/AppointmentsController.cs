@@ -87,7 +87,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetAppointmentById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetAppointmentByIdQuery(id), ct));
+        Ok(await mediator.Send(new GetAppointmentByIdQuery(id, User.ToTeamScope()), ct));
 
     /// <summary>One page of appointments. By default sorted by start, soonest first, with Requested ones last.</summary>
     [HttpGet("search")]
@@ -108,7 +108,9 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
             request.From,
             request.To,
             request.Search,
-            request.View), ct));
+            request.View,
+            request.TeamId,
+            User.ToTeamScope()), ct));
 
     /// <summary>
     /// Books a Requested appointment, or moves a Booked one to another time or member of staff: optionally into a clinic
@@ -184,7 +186,7 @@ public sealed class AppointmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetAppointmentMessages(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetAppointmentMessagesQuery(id), ct));
+        Ok(await mediator.Send(new GetAppointmentMessagesQuery(id, User.ToTeamScope()), ct));
 
     /// <summary>Whether patients are texted and emailed here (and how), for the dialogs that offer to tell them.</summary>
     [HttpGet("patient-messages/status")]

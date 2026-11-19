@@ -51,6 +51,7 @@ public sealed class RecordPastAppointmentHandlerTests : AppointmentHandlerTestBa
     private PatientPathway GivenPathway(PatientPathwayStatus status = PatientPathwayStatus.Assigned, Patient? patient = null)
     {
         var pathway = PathwaysTestConstants.CreatePathway(status, patient: patient ?? _patient, title: PathwayTitle);
+        pathway.TeamId = PathwaysTestConstants.TeamId;
         pathway.StageAt(1).Name = StageName;
         _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
         return pathway;
@@ -325,6 +326,7 @@ public sealed class RecordPastAppointmentHandlerTests : AppointmentHandlerTestBa
     public async Task Handle_BeforeTheDayThePathwayWasCreated_IsAConflict()
     {
         var pathway = PathwaysTestConstants.CreatePathway(PatientPathwayStatus.Assigned, patient: _patient, title: PathwayTitle, createdAt: At(LastThursday.AddDays(1), 9));
+        pathway.TeamId = PathwaysTestConstants.TeamId;
         _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
 
         var act = () => _handler.Handle(Command(pathway.Id), CancellationToken.None);
@@ -338,6 +340,7 @@ public sealed class RecordPastAppointmentHandlerTests : AppointmentHandlerTestBa
     {
         // Seen at 10:00; the pathway created at 11:00, once the clinician knew what was needed.
         var pathway = PathwaysTestConstants.CreatePathway(PatientPathwayStatus.Assigned, patient: _patient, title: PathwayTitle, createdAt: At(LastThursday, 11));
+        pathway.TeamId = PathwaysTestConstants.TeamId;
         _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
 
         await _handler.Handle(Command(pathway.Id), CancellationToken.None);

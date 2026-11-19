@@ -18,6 +18,7 @@ public sealed class GetAvailabilityHandler(
         var staff = await identityReadService.GetStaffOrThrowAsync(request.StaffUserIds, cancellationToken);
         var calendars = await repository.GetCalendarsAsync(staff.Select(s => s.UserId).ToList(), request.From, request.To, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var walls = await CalendarWalls.ForAsync(request.Teams, calendars, repository, boundary: null, cancellationToken);
 
         var days = Availability.FreeTime(calendars, request.From, request.To, now, request.ExceptMeetingId);
         var usernames = staff.ToDictionary(s => s.UserId, s => s.Username);
@@ -32,7 +33,7 @@ public sealed class GetAvailabilityHandler(
                 .ToList(),
             Suggestions = Availability.Suggestions(days, request.DurationMinutes).Select(MeetingMapper.ToResponse).ToList(),
             Busy = calendars
-                .SelectMany(c => CalendarClashes.BusyTimes(c, request.ExceptMeetingId).Select(b => new BusyTimeResponse
+                .SelectMany(c => CalendarClashes.BusyTimes(c, request.ExceptMeetingId, walls.SeesMeeting).Select(b => new BusyTimeResponse
                 {
                     StaffUserId = c.StaffUserId,
                     Username = usernames[c.StaffUserId],

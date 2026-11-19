@@ -4,6 +4,8 @@ using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -12,6 +14,7 @@ using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Teams;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.RecordPastAppointment;
@@ -31,6 +34,8 @@ public sealed class RecordPastAppointmentHandler(
     ICalendarLock calendarLock,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<RecordPastAppointmentCommand, AppointmentResponse>
 {
@@ -48,7 +53,10 @@ public sealed class RecordPastAppointmentHandler(
         if (request.PathwayId is { } pathwayId)
         {
             pathway = await pathwayRepository.GetByIdAsync(pathwayId, cancellationToken)
-                        ?? throw new NotFoundException($"Pathway '{pathwayId}' was not found.");
+                        ?? throw new NotFoundException(PathwayRepositoryExtensions.NotFoundMessage(pathwayId));
+            // Only the pathway's own team records its visits: behind the wall a 404 (recorded), another team's a 409.
+            await boundary.EnsureCanChangePathwayAsync(
+                pathway, request.Actor.Teams, PathwayRepositoryExtensions.NotFoundMessage(pathwayId), cancellationToken);
 
             if (pathway.PatientId != patient.Id)
                 throw new ConflictException("That pathway is for another patient.");
@@ -80,6 +88,13 @@ public sealed class RecordPastAppointmentHandler(
             throw new ConflictException(notReached);
 
         var staffUsername = await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId, cancellationToken);
+
+        // Its team: the pathway's, else the recorder's, else the clinician's (the team walls). The clinician must be in it.
+        var teamId = await AppointmentWalls.TeamForAsync(
+            pathway?.TeamId, request.Actor.Teams, request.StaffUserId, calendarRepository, cancellationToken);
+        if (teamId is { } team)
+            await AppointmentWalls.EnsureStaffInTeamAsync(
+                team, request.StaffUserId, staffUsername, calendarRepository, teams, cancellationToken);
         var end = UkTime.Utc(request.EndUtc);
         var outcome = PathwayEnums.Parse<AppointmentStatus>(request.Outcome);
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -116,7 +131,7 @@ public sealed class RecordPastAppointmentHandler(
             if (stage is not null && await repository.GetOpenForStageAsync(stage.Id, ct) is not null)
                 throw new ConflictException(AppointmentWorkflow.RequestedVisitChangedMeanwhileMessage);
 
-            var appointment = New(request, now);
+            var appointment = New(request, teamId ?? Team.GeneralId, now);
             var added = new AppointmentChange(appointment, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
             added.RecordAfterEvent(request.StaffUserId, staffUsername, start, end, outcome);
             await repository.AddAsync(appointment, added.Events, ct);
@@ -128,13 +143,15 @@ public sealed class RecordPastAppointmentHandler(
 
         // Read back with its patient, pathway and stage, for the response.
         var saved = await repository.GetByIdAsync(recorded.Id, cancellationToken) ?? recorded;
-        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 
-    private static Appointment New(RecordPastAppointmentCommand request, DateTime nowUtc) => new()
+    /// <summary>A new appointment, in <paramref name="teamId"/> (<see cref="AppointmentWalls.TeamForAsync"/>).</summary>
+    private static Appointment New(RecordPastAppointmentCommand request, Guid teamId, DateTime nowUtc) => new()
     {
         Id = Guid.NewGuid(),
         PatientId = request.PatientId,
+        TeamId = teamId,
         PathwayId = request.PathwayId,
         StageId = request.StageId,
         Status = AppointmentStatus.Requested,

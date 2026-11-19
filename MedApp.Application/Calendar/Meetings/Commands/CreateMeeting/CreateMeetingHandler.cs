@@ -30,11 +30,13 @@ public sealed class CreateMeetingHandler(
 
         var attendees = await identityReadService.GetStaffOrThrowAsync(request.AttendeeUserIds, cancellationToken);
         var mdtTeamId = await MdtMeetings.ChooseTeamAsync(request, null, teams, cancellationToken);
+        // The meeting rule (MC11): everyone invited shares a team with the organiser, except at an MDT.
+        await MeetingWalls.EnsureWithOwnTeamAsync(request.Actor, attendees, mdtTeamId is not null, calendarRepository, cancellationToken);
 
         // Checked and saved holding every attendee's calendar lock, so nothing can take the time meanwhile.
         var meeting = await calendarLock.RunAsync(attendees.Select(a => a.UserId).ToList(), async ct =>
         {
-            await calendarRepository.EnsureEveryoneFreeAsync(attendees, start, end, null, ct);
+            await calendarRepository.EnsureEveryoneFreeAsync(attendees, start, end, null, ct, request.Actor.Teams);
 
             var id = Guid.NewGuid();
             var created = new Meeting

@@ -228,6 +228,7 @@ public static class CalendarTestConstants
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
             Patient = patient,
+            TeamId = PathwaysTestConstants.TeamId,
             StageId = stageId,
             StaffUserId = booked ? StaffUserId : null,
             StartUtc = booked ? start : null,
