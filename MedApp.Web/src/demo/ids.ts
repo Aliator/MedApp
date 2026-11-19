@@ -18,6 +18,7 @@ export const USERS = {
   marsh: id(0xd0, 5),
   hallworth: id(0xd0, 6),
   aldous: id(0xd0, 7),
+  carrow: id(0xd0, 8),
 } as const;
 
 export const TEAMS = {
@@ -97,7 +98,7 @@ export const PATHWAYS = {
   histologyToFinish: id(0xd5, 2),
   /** Inflammatory skin review, Samuel Okafor: on hold. */
   onHold: id(0xd5, 3),
-  /** Post-menopausal bleeding, Margaret Fenwick, the admin's: overdue. */
+  /** Post-menopausal bleeding, Margaret Fenwick, Tom Hallworth's (Gynaecology): overdue. */
   overdue: id(0xd5, 4),
   /** Diabetes review, Daniyal Rees: assigned, not started. */
   notStarted: id(0xd5, 5),

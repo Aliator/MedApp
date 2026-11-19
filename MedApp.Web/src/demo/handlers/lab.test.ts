@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, LAB, STAFF} from '../accounts';
+import {ADMIN, CARROW, HALLWORTH, LAB, STAFF} from '../accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATES} from '../ids';
 import {LAB_IDS, SPECIMEN_TYPES, LABORATORIES, RESULTS} from '../slices/lab';
 import {db} from '../store';
@@ -42,7 +42,7 @@ describe('the light demo’s lab, results and referrals', () => {
   });
 
   it('tells the requesting clinician when the lab rejects a specimen', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(LAB);
     const specimen = (await call('GET', `/api/specimens/${LAB_IDS.specimenAtLab}`)).body;
     expect((await call('POST', `/api/specimens/${specimen.id}/rejected`, {reason: 'Other', expectedVersion: specimen.version})).status).toBe(400);
     const rejected = await call('POST', `/api/specimens/${specimen.id}/rejected`, {reason: 'Leaked', expectedVersion: specimen.version});
@@ -93,14 +93,17 @@ describe('the light demo’s lab, results and referrals', () => {
   });
 
   it('lists results by view, and tells the responsible clinician when someone else signs one off', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(CARROW);
     expect((await call('GET', '/api/results/search?View=AwaitingMine')).body.items.map((r: {id: string}) => r.id)).toEqual([RESULTS.daniyalExternal]);
+    startLightDemo(ADMIN);
+    expect((await call('GET', '/api/results/search?View=AwaitingMine')).body.totalCount).toBe(0);
     expect((await call('GET', '/api/results/search?View=Awaiting')).body.totalCount).toBe(2);
     expect((await call('GET', '/api/results/search?View=SignedOff')).body.totalCount).toBe(2);
+    startLightDemo(HALLWORTH);
     const priya = (await call('GET', `/api/results/${RESULTS.priyaBiopsy}`)).body;
     await call('POST', `/api/results/${priya.id}/sign-off`, {action: 'ForMdtDiscussion', expectedVersion: priya.version});
     expect(db().notifications.find((n) => n.userId === STAFF.id && n.kind === 'ResultSignedOffByOther')?.message).toBe(
-      "admin signed off a result you're responsible for.",
+      "t.hallworth signed off a result you're responsible for.",
     );
   });
 

@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, STAFF} from '../accounts';
+import {ADMIN, HALLWORTH, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, TEAMS} from '../ids';
 import {CLINICAL_IDS, CONSENT, LETTER_TEMPLATES, LETTERS, MDT_ITEMS} from '../slices/clinical';
 import {db} from '../store';
@@ -42,19 +42,21 @@ describe('the light demo’s letters, MDT and consent', () => {
     const unknownField = await call('PUT', `/api/letters/${draft.id}`, {body: '{{patient.diagnosis}}', recipients: [], expectedVersion: saved.body.version});
     expect(unknownField.status).toBe(400);
     expect((await call('POST', `/api/letters/${draft.id}/submit`, {approverUserId: STAFF.id, expectedVersion: saved.body.version})).status).toBe(400);
-    expect((await call('POST', `/api/letters/${draft.id}/submit`, {approverUserId: ADMIN.id, expectedVersion: saved.body.version})).body.status).toBe(
+    // The admin is read only, so can't approve one.
+    expect((await call('POST', `/api/letters/${draft.id}/submit`, {approverUserId: ADMIN.id, expectedVersion: saved.body.version})).status).toBe(400);
+    expect((await call('POST', `/api/letters/${draft.id}/submit`, {approverUserId: HALLWORTH.id, expectedVersion: saved.body.version})).body.status).toBe(
       'AwaitingApproval',
     );
 
-    startLightDemo(ADMIN);
+    startLightDemo(HALLWORTH);
     db().letters.find((l) => l.id === LETTERS.draft)!.status = 'AwaitingApproval';
-    db().letters.find((l) => l.id === LETTERS.draft)!.approverUserId = ADMIN.id;
+    db().letters.find((l) => l.id === LETTERS.draft)!.approverUserId = HALLWORTH.id;
     const returned = await call('POST', `/api/letters/${LETTERS.draft}/return`, {comment: 'Add the plan.', expectedVersion: 2});
     expect(returned.body).toMatchObject({status: 'Draft', isReturned: true, returnComment: 'Add the plan.'});
   });
 
   it('records a letter as sent by hand, and refuses to send it by email', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(HALLWORTH);
     const letter = (await call('GET', `/api/letters/${LETTERS.toSend}`)).body;
     const [gp, patient] = letter.recipients;
     expect(gp).toMatchObject({canRecordSent: true, canSendSecureEmail: false});
@@ -121,7 +123,7 @@ describe('the light demo’s letters, MDT and consent', () => {
   });
 
   it('records an MDT outcome once the meeting has started, and tells the pathway’s assignees', async () => {
-    startLightDemo(ADMIN);
+    startLightDemo(HALLWORTH);
     const meetings = (await call('GET', `/api/mdt/meetings?teamId=${TEAMS.dermatology}`)).body;
     expect(meetings.map((m: {id: string}) => m.id)).toEqual([CLINICAL_IDS.mdtToday, MEETINGS.skinMdt]);
     const list = (await call('GET', `/api/mdt/meetings/${CLINICAL_IDS.mdtToday}/items`)).body;

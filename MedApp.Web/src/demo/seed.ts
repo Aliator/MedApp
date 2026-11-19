@@ -1,7 +1,7 @@
 import type {Schemas} from '../api/client';
 import {chainLinks} from '../api/pathwayRoutes';
 import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
-import {ADMIN, LAB, STAFF, usernameOf} from './accounts';
+import {ADMIN, CARROW, HALLWORTH, LAB, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
@@ -42,7 +42,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 8;
+export const SEED_VERSION = 9;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -549,17 +549,17 @@ export function seed(): DemoState {
       {
         n: 4, id: PATHWAYS.overdue, patientId: PATIENTS.margaretFenwick, templateId: TEMPLATES.postMenopausalBleeding,
         title: 'Post-menopausal bleeding', dueIn: -4, priority: 'Urgent', done: 0, status: 'Assigned',
-        assignee: ADMIN.id, createdDaysAgo: 30,
+        assignee: HALLWORTH.id, createdDaysAgo: 30,
       },
       {
         n: 5, id: PATHWAYS.notStarted, patientId: PATIENTS.daniyalRees, templateId: TEMPLATES.diabetesReview,
         title: 'Annual diabetes review', dueIn: 50, priority: 'Low', done: 0, status: 'Assigned',
-        assignee: ADMIN.id, createdDaysAgo: 5,
+        assignee: CARROW.id, createdDaysAgo: 5,
       },
       {
         n: 6, id: PATHWAYS.completed, patientId: PATIENTS.graceAbernethy, templateId: TEMPLATES.diabetesReview,
         title: 'Diabetes review after new medicine', dueIn: -10, priority: 'Medium', done: 6, status: 'Completed',
-        assignee: ADMIN.id, createdDaysAgo: 70,
+        assignee: CARROW.id, createdDaysAgo: 70,
       },
       {
         n: 7, id: PATHWAYS.unassigned, patientId: PATIENTS.tobiasLund, templateId: TEMPLATES.skinLesion,
@@ -673,14 +673,13 @@ export function seed(): DemoState {
       lastUpdated: ago(1, 9, 0),
     };
   };
-  const HALLWORTH = {id: USERS.hallworth, username: 't.hallworth'};
   const appointments = [
-    appointment(APPOINTMENTS.margaretFirstVisit, PATHWAYS.overdue, 0, ADMIN, weekdayAhead(1), 10, 0, 45, 'Booked'),
+    appointment(APPOINTMENTS.margaretFirstVisit, PATHWAYS.overdue, 0, HALLWORTH, weekdayAhead(1), 10, 0, 45, 'Booked'),
     appointment(APPOINTMENTS.ilonaFollowUp, PATHWAYS.followUpBooked, 2, STAFF, weekdayAhead(1), 14, 0, 20, 'Booked'),
     appointment(APPOINTMENTS.ellisFirstVisit, PATHWAYS.biopsyToBook, 0, STAFF, weekdayBack(10), 9, 30, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaFirstVisit, PATHWAYS.histologyToFinish, 0, STAFF, weekdayBack(20), 9, 0, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaBiopsy, PATHWAYS.histologyToFinish, 1, STAFF, weekdayBack(12), 11, 0, 30, 'Attended'),
-    appointment(APPOINTMENTS.daniyalBloods, PATHWAYS.notStarted, 0, ADMIN, null, 0, 0, 15, 'Requested'),
+    appointment(APPOINTMENTS.daniyalBloods, PATHWAYS.notStarted, 0, CARROW, null, 0, 0, 15, 'Requested'),
     appointment(MORE_APPOINTMENTS.harrietFirstVisit, PATHWAYS.consentToRecord, 0, STAFF, weekdayBack(36), 10, 0, 30, 'Attended'),
     appointment(MORE_APPOINTMENTS.harrietBiopsy, PATHWAYS.consentToRecord, 1, STAFF, weekdayBack(28), 11, 30, 30, 'Attended', ROOMS.procedureRoom),
     appointment(MORE_APPOINTMENTS.harrietExcision, PATHWAYS.consentToRecord, 4, STAFF, weekdayBack(0), 9, 0, 45, 'Attended', ROOMS.procedureRoom),
@@ -717,9 +716,9 @@ export function seed(): DemoState {
   for (const week of [0, 7]) {
     for (let day = 0; day < 5; day++) {
       const date = thisWeek(week + day, on);
-      for (const person of [ADMIN.id, STAFF.id]) block(person, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
-      block(ADMIN.id, date, ACTIVITY_TYPES.admin, [17, 0], [18, 0], 'Letters and results');
-      if (day === 0 || day === 3) block(ADMIN.id, date, ACTIVITY_TYPES.clinic, [9, 0], [12, 30], 'Diabetes clinic');
+      for (const person of [CARROW.id, STAFF.id]) block(person, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
+      block(CARROW.id, date, ACTIVITY_TYPES.admin, [17, 0], [18, 0], 'Letters and results');
+      if (day === 0 || day === 3) block(CARROW.id, date, ACTIVITY_TYPES.clinic, [9, 0], [12, 30], 'Diabetes clinic');
       if (day === 2) block(STAFF.id, date, ACTIVITY_TYPES.triage, [9, 0], [10, 30], 'Referral triage');
       if (day === 1 || day === 3) block(STAFF.id, date, ACTIVITY_TYPES.minorSurgery, [9, 0], [12, 0], 'Minor surgery list');
       if (day === 0 || day === 4) block(STAFF.id, date, ACTIVITY_TYPES.clinic, [13, 30], [17, 0], 'Skin clinic');
@@ -823,7 +822,7 @@ export function seed(): DemoState {
       },
       {
         id: '000000e0-0000-4000-8000-000000000003',
-        userId: ADMIN.id,
+        userId: HALLWORTH.id,
         kind: 'AppointmentBooked',
         title: 'Appointment booked',
         message: 'h.marsh booked an appointment with you.',
