@@ -2,6 +2,7 @@ import {keepPreviousData, queryOptions, useMutation, useQueryClient} from '@tans
 import {ApiError} from './errors';
 import {api, unwrap, type Schemas} from './client';
 import {hospitalRequestKeys} from './hospitals';
+import {pathwayKeys} from './pathways';
 import {resultKeys} from './results';
 import {specimenKeys} from './specimens';
 
@@ -16,9 +17,14 @@ export type LabCase = Schemas['LabCaseResponse'];
 export type LabCaseStep = Schemas['LabCaseStepResponse'];
 export type LabCaseSummary = Schemas['LabCaseSummaryResponse'];
 export type LabCaseSearch = Schemas['LabCaseSearchRequest'];
+export type LabCaseSurgeryDetails = Schemas['LabCaseSurgeryDetailsResponse'];
+export type SurgeryDetailsRequest = Schemas['AddSurgeryDetailsRequest'];
 
-/** The lab cases page's tabs, by the names the API's `view` takes (At risk and Overdue: MC19's clocks). */
-export const LAB_CASE_VIEWS = ['Open', 'AtRisk', 'Overdue', 'ToReport', 'Reported', 'RepeatRequested', 'All'] as const;
+/**
+ * The lab cases page's tabs, by the names the API's `view` takes (At risk and Overdue: MC19's clocks; Awaiting surgery
+ * details: MC20's hospital cases whose report has gone back).
+ */
+export const LAB_CASE_VIEWS = ['Open', 'AtRisk', 'Overdue', 'ToReport', 'Reported', 'AwaitingSurgeryDetails', 'RepeatRequested', 'All'] as const;
 export type LabCaseView = (typeof LAB_CASE_VIEWS)[number];
 
 const VIEW_LABELS: Record<LabCaseView, string> = {
@@ -27,6 +33,7 @@ const VIEW_LABELS: Record<LabCaseView, string> = {
   Overdue: 'Overdue',
   ToReport: 'To report',
   Reported: 'Reported',
+  AwaitingSurgeryDetails: 'Awaiting surgery details',
   RepeatRequested: 'Repeat requested',
   All: 'All',
 };
@@ -48,6 +55,8 @@ export const labOutcomeLabel = (outcome: string | null | undefined) => OUTCOME_L
 export const MAX_LAB_DETAIL = 500;
 export const MAX_SECOND_OPINION_WHERE = 200;
 export const MAX_LAB_RESULTS = 4000;
+export const MAX_SURGERY_PROCEDURE = 200;
+export const MAX_SURGERY_TEXT = 500;
 
 export const labCaseKeys = {
   all: ['lab-cases'] as const,
@@ -73,7 +82,7 @@ export function labCaseSearchQuery(search: LabCaseSearch) {
   });
 }
 
-/** After a change: the case as answered, and every list it shows in (its samples, results and hospital request too). */
+/** After a change: the case as answered, and every list it shows in (its samples, results, hospital request and pathway too). */
 function useRefresh(id?: string) {
   const queryClient = useQueryClient();
   return {
@@ -84,6 +93,8 @@ function useRefresh(id?: string) {
         queryClient.invalidateQueries({queryKey: specimenKeys.all}),
         queryClient.invalidateQueries({queryKey: resultKeys.all}),
         queryClient.invalidateQueries({queryKey: hospitalRequestKeys.all}),
+        // Authorising finishes a pathway's lab stage, and receiving picks it up (MC16).
+        queryClient.invalidateQueries({queryKey: pathwayKeys.all}),
       ]);
     },
     onError: (error: unknown) =>
@@ -125,6 +136,11 @@ export function useLabCaseActions(id: string) {
     }),
     enteredInError: useMutation({
       mutationFn: (body: {detail: string; expectedVersion: number}) => unwrap(api.POST('/api/lab-cases/{id}/entered-in-error', {...path, body})),
+      ...refresh,
+    }),
+    /** MC20: the hospital's surgery details, as written; closes a case awaiting them. */
+    surgeryDetails: useMutation({
+      mutationFn: (body: SurgeryDetailsRequest) => unwrap(api.POST('/api/lab-cases/{id}/surgery-details', {...path, body})),
       ...refresh,
     }),
   };

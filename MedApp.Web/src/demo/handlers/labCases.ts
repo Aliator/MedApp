@@ -5,13 +5,16 @@ import {invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
 import type {DemoHospitalRequest} from '../slices/hospitals';
 import {specimenNumber, type DemoLabTest, type DemoResult, type DemoSpecimen} from '../slices/lab';
-import {LAB_CHOICES, type DemoLabCase, type DemoLabCaseStep, type LabChoice, type LabOutcome} from '../slices/labCases';
+import {LAB_CHOICES, labStageAfter, type DemoLabCase, type DemoLabCaseStep, type LabChoice, type LabOutcome} from '../slices/labCases';
 import {teamName} from '../seed';
+import type {DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc} from '../time';
 import {logActivity} from './adminLogs';
 import {can, contains, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 import {specimenSummary} from './lab';
+import {addSurgeryDetails, hospitalReportAuditEntries, hospitalReportFields, sendReportToHospital} from './hospitalReports';
+import {finishLabStage, pickUpLabStage, reopenSampleStage} from './pathways';
 import {addDaysUtc, ensureVersion, notify, optionalText, patientBanner, patientFlags, stepTime} from './labCommon';
 import {labClock, type LabClock} from './labClock';
 import {canSeeRecord, labTeamId, myScope, refuseAcrossWall, type TeamScope} from './teamWalls';
@@ -29,7 +32,12 @@ import {canSeeRecord, labTeamId, myScope, refuseAcrossWall, type TeamScope} from
  *   and a clinic case's result goes to the requesting clinician for sign-off. The light demo keeps the results as
  *   text (the full version's report is a file).
  * - **Insufficient**: the case closes as `RepeatRequested`, its samples rejected (insufficient), and the clinic is told
- *   (`RepeatSampleRequested`); it adds a repeat branch itself (MC10).
+ *   (`RepeatSampleRequested`). On a pathway (MC16) the stage that took the sample is reopened for the repeat, and the
+ *   lab stage stays with the lab: the repeat's receipt opens the stage's next case.
+ * - **A pathway's lab stage** (MC16): one case per stage. Reaching the stage opens it (waiting for its sample, its test
+ *   from the samples taken for it, else chosen by the lab), and receiving the first sample links it and picks the stage
+ *   up; a sample received first opens it. Authorising the report finishes the stage with the results in the same
+ *   change and hands the pathway back; while the case is open the stage can't be finished by hand.
  * - **Seen** by the lab (all), admins (read only) and a clinic case's own clinic (through its pathway); anyone else gets
  *   a 404. Viewing one logs `LabCaseViewed`; the audit log gets its entries from the cases (`labCaseAuditEntries`),
  *   holding IDs, names and outcomes, never the results or a detail typed.
@@ -48,7 +56,7 @@ const STATUS_WORDS: Record<string, string> = {
   RepeatRequested: 'closed with a repeat sample requested',
   EnteredInError: 'marked entered in error',
   Closed: 'closed',
-  AwaitingSurgeryDetails: 'reported',
+  AwaitingSurgeryDetails: 'reported and sent to the hospital',
 };
 
 /** An outcome in words, as the page shows it. */
@@ -60,8 +68,9 @@ export const OUTCOME_WORDS: Record<LabOutcome, string> = {
   SecondOpinion: 'A second opinion',
 };
 
-/** What a case needs next: a step, a choice's outcome, or its results. */
+/** What a case needs next: its sample (a lab stage's case before it's received), a step, a choice's outcome, or its results. */
 export type NextWork =
+  | {kind: 'Receive'; name: string}
   | {kind: 'Step'; name: string; testStepId: string | null; stepKind: string | null}
   | {kind: 'Choice'; name: string; choice: LabChoice; outcomes: LabOutcome[]}
   | {kind: 'Report'; name: string};
@@ -116,6 +125,7 @@ export function nextWork(c: DemoLabCase): NextWork | null {
   if (c.status !== 'Open') return null;
   const steps = liveSteps(c);
   const test = testOf(c);
+  if (!steps.some((s) => s.kind === 'Received')) return {kind: 'Receive', name: 'Receive the sample'};
   if (!steps.some((s) => s.kind === 'Accessioned')) return {kind: 'Step', name: 'Accessioned', testStepId: null, stepKind: null};
   if (!steps.some((s) => s.choice === 'SampleAdequate')) return choiceOf('SampleAdequate', test);
   for (const t of (test?.steps ?? []).filter((s) => !s.isOptional))
@@ -145,6 +155,8 @@ export function canSeeCase(c: DemoLabCase, scope: TeamScope = myScope()): boolea
 const worksCases = (scope: TeamScope = myScope()) => can('ProcessSpecimens') && !scope.seesAllTeams && isLabMember(scope);
 
 function readOnlyReason(c: DemoLabCase): string | null {
+  if (c.status === 'AwaitingSurgeryDetails')
+    return 'The report has gone to the hospital, so the steps and report can’t be changed. The hospital’s surgery details can still be added.';
   if (c.status !== 'Open') return `This case has been ${STATUS_WORDS[c.status] ?? c.status}, so it can't be changed.`;
   if (patientFlags(c.patientId).isAnonymised) return "This patient's record has been anonymised, so the case can't be changed.";
   if (!worksCases()) return 'Lab cases are worked by the lab team.';
@@ -245,10 +257,11 @@ export function caseResponse(c: DemoLabCase): Case {
     enteredInErrorAtUtc: c.enteredInError?.atUtc ?? null,
     enteredInErrorByUsername: usernameOf(c.enteredInError?.byUserId),
     version: c.version,
-    canRecord: canWork && next !== null && next.kind !== 'Report',
+    canRecord: canWork && next !== null && next.kind !== 'Report' && next.kind !== 'Receive',
     canAuthorise: canWork && next?.kind === 'Report' && can('AuthoriseLabReports'),
     canMarkEnteredInError: mayMarkCaseEnteredInError(c),
     readOnlyReason: reason,
+    ...hospitalReportFields(c, worksCases()),
   };
 }
 
@@ -268,6 +281,7 @@ function caseSummary(c: DemoLabCase): Schemas['LabCaseSummaryResponse'] {
     nextKind: next?.kind ?? null,
     openedAtUtc: c.openedAtUtc,
     reportedAtUtc: c.report?.atUtc ?? null,
+    reportSentAtUtc: c.reportSent?.atUtc ?? null,
     clock: clockOf(c),
   };
 }
@@ -310,7 +324,7 @@ function moved(c: DemoLabCase) {
 const addStep = (c: DemoLabCase, step: Omit<DemoLabCaseStep, 'id' | 'enteredInError'>) => c.steps.push({id: newId(), enteredInError: null, ...step});
 
 /** A new case for samples the lab has (one sequence for every case and sample, H-73), with its Received step. */
-function newCase(samples: DemoSpecimen[], labTestId: string, userId: string, number: string): DemoLabCase {
+function newCase(samples: DemoSpecimen[], labTestId: string, userId: string, number: string, stageId = samples[0].stageId): DemoLabCase {
   const first = samples[0];
   const now = nowUtc();
   const receivedAtUtc = first.receivedAtUtc ?? now;
@@ -325,7 +339,7 @@ function newCase(samples: DemoSpecimen[], labTestId: string, userId: string, num
     hospitalId: first.hospitalId,
     hospitalRequestId: first.hospitalRequestId,
     pathwayId: first.pathwayId,
-    stageId: first.stageId,
+    stageId,
     status: 'Open',
     openedAtUtc: now,
     openedByUserId: userId,
@@ -354,19 +368,101 @@ export function openHospitalCase(request: DemoHospitalRequest, sample: DemoSpeci
 const fromSameStage = (sample: DemoSpecimen) =>
   db().specimens.filter((s) => s.id !== sample.id && s.stageId !== null && s.stageId === sample.stageId && s.status === 'Received' && !s.labCaseId);
 
+/** The pathway's lab stage a clinic sample goes to (MC16), if it has one. */
+const labStageOf = (sample: DemoSpecimen) => {
+  const pathway = db().pathways.find((p) => p.id === sample.pathwayId);
+  return pathway ? labStageAfter(pathway, sample.stageId, labTeamId()) : undefined;
+};
+
+/** A lab stage's open case (MC16: one per stage at a time), if any. */
+export const openCaseOfStage = (stageId: string) => (db().labCases ?? []).find((c) => c.status === 'Open' && c.stageId === stageId);
+
+/** The case a lab stage shows (MC16): its open one, else its latest not entered in error. */
+export const caseOfStage = (stageId: string) =>
+  openCaseOfStage(stageId) ??
+  (db().labCases ?? [])
+    .filter((c) => c.stageId === stageId && c.status !== 'EnteredInError')
+    .sort((a, b) => b.openedAtUtc.localeCompare(a.openedAtUtc))
+    .at(0);
+
+const isReceived = (c: DemoLabCase) => liveSteps(c).some((s) => s.kind === 'Received');
+
 /**
- * Receiving a clinic sample with a test opens its case (MC15): it joins its stage's open case for the same test, or a
- * new one opens. A sample without a test waits for the lab to open one by hand (choosing the test).
+ * Reaching a lab stage opens its case (MC16), unless it has an open one: waiting for its sample, with the test of the
+ * samples taken for it (none yet: the lab chooses it when the sample comes). Called by the relay's handover.
+ */
+export function openStageCase(pathway: DemoPathway, stage: DemoStage, userId: string) {
+  if (openCaseOfStage(stage.id)) return;
+  const lab = labTeamId();
+  const forStage = db().specimens.filter(
+    (s) => s.pathwayId === pathway.id && !s.labCaseId && ['Taken', 'Sent'].includes(s.status) && labStageAfter(pathway, s.stageId, lab)?.id === stage.id,
+  );
+  db().labCases.push({
+    id: newId(),
+    number: specimenNumber(++db().specimenSequence),
+    labTestId: forStage.find((s) => s.labTestId)?.labTestId ?? null,
+    patientId: pathway.patientId,
+    teamId: lab ?? pathway.teamId,
+    source: 'Clinic',
+    requestingTeamId: pathway.teamId,
+    hospitalId: null,
+    hospitalRequestId: null,
+    pathwayId: pathway.id,
+    stageId: stage.id,
+    status: 'Open',
+    openedAtUtc: nowUtc(),
+    openedByUserId: userId,
+    receivedAtUtc: null,
+    steps: [],
+    report: null,
+    repeat: null,
+    enteredInError: null,
+    version: 1,
+  });
+}
+
+/** Samples join a lab stage's case waiting for them: the first received is its Received step, and picks the stage up. */
+function joinStageCase(c: DemoLabCase, samples: DemoSpecimen[], userId: string) {
+  const [first] = samples;
+  for (const s of samples) {
+    s.labCaseId = c.id;
+    s.labTestId ??= c.labTestId;
+  }
+  if (!isReceived(c)) {
+    const by = first.receivedByUserId ?? userId;
+    c.receivedAtUtc = first.receivedAtUtc ?? nowUtc();
+    addStep(c, {kind: 'Received', testStepId: null, choice: null, outcome: null, detail: null, atUtc: c.receivedAtUtc, byUserId: by});
+    if (c.pathwayId && c.stageId) pickUpLabStage(c.pathwayId, c.stageId, by);
+  }
+  moved(c);
+}
+
+/**
+ * Receiving a clinic sample opens its case or joins one (MC15, MC16). On a pathway with a lab stage, it joins that
+ * stage's open case (setting its test if it had none), or opens the stage's case; elsewhere it joins its stage's open
+ * case for the same test, or a new one opens. A sample without a test, for a case without one, waits for the lab to
+ * choose the test (opening it by hand).
  */
 export function openCaseOnReceipt(sample: DemoSpecimen, userId: string) {
-  if (sample.source !== 'Clinic' || !sample.labTestId || sample.labCaseId) return;
-  const open = db().labCases.find((c) => c.status === 'Open' && c.stageId !== null && c.stageId === sample.stageId && c.labTestId === sample.labTestId);
+  if (sample.source !== 'Clinic' || sample.labCaseId) return;
+  const labStage = labStageOf(sample);
+  const waiting = labStage ? openCaseOfStage(labStage.id) : undefined;
+  if (waiting) {
+    waiting.labTestId ??= sample.labTestId;
+    if (waiting.labTestId) joinStageCase(waiting, [sample], userId);
+    return;
+  }
+  if (!sample.labTestId) return;
+  const open = labStage
+    ? undefined
+    : db().labCases.find((c) => c.status === 'Open' && c.stageId !== null && c.stageId === sample.stageId && c.labTestId === sample.labTestId);
   if (open) {
     sample.labCaseId = open.id;
     moved(open);
     return;
   }
-  newCase([sample], sample.labTestId, userId, specimenNumber(++db().specimenSequence));
+  const c = newCase([sample], sample.labTestId, userId, specimenNumber(++db().specimenSequence), labStage?.id ?? sample.stageId);
+  if (labStage && c.pathwayId) pickUpLabStage(c.pathwayId, labStage.id, sample.receivedByUserId ?? userId);
 }
 
 /** Whether the lab can open a case for a sample by hand: received, in none, and the viewer works cases. */
@@ -382,7 +478,10 @@ const VIEWS: Record<string, {match: (c: DemoLabCase) => boolean; key: (c: DemoLa
   AtRisk: {match: (c) => clockState(c) === 'AtRisk', key: dueKey},
   Overdue: {match: (c) => clockState(c) === 'Breached', key: dueKey},
   ToReport: {match: (c) => nextWork(c)?.kind === 'Report', key: dueKey},
-  Reported: {match: (c) => c.status === 'Reported', key: (c) => c.report?.atUtc ?? '', newestFirst: true},
+  // Authorised, whatever came after (a hospital case's sending and surgery details, MC20).
+  Reported: {match: (c) => c.report !== null, key: (c) => c.report?.atUtc ?? '', newestFirst: true},
+  // MC20: hospital cases whose report has gone back, waiting longest first.
+  AwaitingSurgeryDetails: {match: (c) => c.status === 'AwaitingSurgeryDetails', key: (c) => c.reportSent?.atUtc ?? ''},
   RepeatRequested: {match: (c) => c.status === 'RepeatRequested', key: (c) => c.repeat?.atUtc ?? '', newestFirst: true},
   All: {match: () => true, key: (c) => c.openedAtUtc, newestFirst: true},
 };
@@ -418,6 +517,7 @@ export function labCaseAuditEntries(): Schemas['PatientPathwayAuditEntryResponse
     if (c.repeat) add('repeat', 'RepeatSampleRequested', c.repeat.atUtc, c.repeat.byUserId, {});
     if (c.report) add('report', 'LabReportAuthorised', c.report.atUtc, c.report.byUserId, {resultId: c.report.resultId});
     if (c.enteredInError) add('error', 'LabCaseEnteredInError', c.enteredInError.atUtc, c.enteredInError.byUserId, {});
+    hospitalReportAuditEntries(c, add);
   }
   return entries;
 }
@@ -492,8 +592,17 @@ export function registerLabCases() {
     if (sample.status !== 'Received') return problem(409, 'Only a sample the lab has received can open a lab case.');
     const test = db().labTests.find((t) => t.id === body.labTestId);
     if (!test || test.isArchived) return invalid({labTestId: ['Choose the test from the lab’s catalogue.']});
+    // A lab stage's case waiting for its sample takes it, with the test chosen (MC16); else a new case opens.
+    const labStage = sample.source === 'Clinic' ? labStageOf(sample) : undefined;
+    const waiting = labStage ? openCaseOfStage(labStage.id) : undefined;
+    if (waiting && !isReceived(waiting)) {
+      waiting.labTestId = test.id;
+      joinStageCase(waiting, [sample, ...fromSameStage(sample)], viewer.id);
+      return caseResponse(waiting);
+    }
+    if (waiting) return problem(409, `This sample's lab stage already has an open case (${waiting.number}).`);
     const number = specimenNumber(++db().specimenSequence);
-    const c = newCase([sample, ...fromSameStage(sample)], test.id, viewer.id, number);
+    const c = newCase([sample, ...fromSameStage(sample)], test.id, viewer.id, number, labStage?.id ?? sample.stageId);
     sample.labTestId ??= test.id;
     // A hospital sample's request points at its new case (its first was marked entered in error).
     const request = db().hospitalRequests.find((r) => r.id === sample.hospitalRequestId);
@@ -543,13 +652,15 @@ export function registerLabCases() {
         s.closedByUserId = viewer.id;
         s.version++;
       }
-      // The clinic is told, with no patient details or the detail typed; the hospital learns it from the case (MC20).
+      // On a pathway, the stage that took the sample reopens for the repeat (MC16); the lab stage stays with the lab.
       const first = samples[0];
+      const reopened = c.source === 'Clinic' && first ? reopenSampleStage(first.pathwayId, first.stageId) : null;
+      // The clinic is told, with no patient details or the detail typed; the hospital learns it from the case (MC20).
       if (c.source === 'Clinic' && first)
         notify([first.requestingUserId, first.takenByUserId], viewer.id, {
           kind: 'RepeatSampleRequested',
           title: 'Repeat sample requested',
-          message: `The lab asked for a repeat sample (${testOf(c)?.name ?? 'a lab test'}).`,
+          message: `The lab asked for a repeat sample (${testOf(c)?.name ?? 'a lab test'}).${reopened ? ` ${reopened} is reopened to take it.` : ''}`,
           pathwayId: c.pathwayId,
           subjectId: first.id,
         });
@@ -619,8 +730,19 @@ export function registerLabCases() {
     }
     c.status = 'Reported';
     c.report = {text, atUtc: now, byUserId: viewer.id, resultId};
+    // MC20: a hospital case's report goes back to its hospital in the same action (hospital cases only).
+    if (c.source === 'Hospital') sendReportToHospital(c, viewer.id, now);
     moved(c);
+    // A pathway's lab stage finishes with the results, in the same change, and the pathway goes back (MC16).
+    if (c.pathwayId && c.stageId) finishLabStage(c.pathwayId, c.stageId, viewer.id, text, now);
     return caseResponse(c);
+  });
+
+  // MC20: the hospital's surgery details, typed by the lab as written (hospital cases only).
+  on('post', '/api/lab-cases/{id}/surgery-details', ({params, body}) => {
+    requireLabWork();
+    const viewer = me();
+    return caseResponse(addSurgeryDetails(findCase(params.id), body, viewer.id));
   });
 
   on('post', '/api/lab-cases/{id}/steps/{stepId}/entered-in-error', ({params, body}) => {

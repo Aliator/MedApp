@@ -6,6 +6,7 @@ import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS} from './ids';
 import {seed} from './seed';
+import {LAB_CASE_IDS} from './slices/labCases';
 import {CONSENT} from './slices/clinical';
 import type {DemoState} from './state';
 import {db} from './store';
@@ -67,6 +68,9 @@ describe('the Read Me tour', () => {
     expect(step.whyNot!(state)).toBeNull();
     for (const c of state.labCases) c.status = 'Reported';
     expect(step.whyNot!(state)).toMatch(/finished this case/);
+    const sent = TOUR.find((s) => s.key === 'hospital-report')!;
+    expect(sent.whyNot!(seed())).toBeNull();
+    expect(sent.whyNot!(state)).toMatch(/surgery details already/);
   });
 
   it('asks only for the three demo accounts', () => {
@@ -82,7 +86,7 @@ describe('the Read Me tour', () => {
     for (const key of ['sign-off', 'consent', 'branch', 'mdt']) expect(byKey(key).whyNot!(state), key).toBeNull();
 
     state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
-    state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)!.stages.find((s) => s.name === 'Histology')!.completedAtUtc = '2026-11-18T10:00:00.000Z';
+    state.labCases.find((c) => c.id === LAB_CASE_IDS.stageToReport)!.status = 'Reported';
     state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Take biopsy', status: 'Booked', teamId: null});
     validConsent(state);
     expect(byKey('triage').whyNot!(state)).toMatch(/already/);

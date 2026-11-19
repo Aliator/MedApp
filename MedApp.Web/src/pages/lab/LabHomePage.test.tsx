@@ -112,6 +112,7 @@ describe('LabHomePage', () => {
       'Overdue',
       'Back to the clinic',
       'From the hospital',
+      'Awaiting surgery details',
     ]);
     expect(await screen.findByText(/^Nothing reported in the last 7 days/)).toBeInTheDocument();
   });
