@@ -14,6 +14,7 @@ import {AlertMessage} from '../components/shared/AlertMessage';
 import {AppIcon} from '../components/shared/icons';
 import {CardSection} from '../components/views/CardSection';
 import {ViewCard} from '../components/views/ViewCard';
+import {ARCHITECTURE} from './architecture';
 import {accountDescription, accountLabel, ADMIN, DEMO_ACCOUNTS, LAB, personByUsername, STAFF} from './accounts';
 import {DemoBanner} from './DemoBanner';
 import {PLACE_ATTRIBUTE, rememberReadMePlace, restoreReadMePlace} from './readMePlace';
@@ -215,6 +216,21 @@ export function ReadMePage() {
               ))}
             </List>
           </CardSection>
+        </ViewCard>
+
+        <ViewCard showFooter={false}>
+          <CardSection title="How the full app is built">
+            <Text type="body">MedApp is a full-stack app; this demo runs only its web app. Underneath, the real one is:</Text>
+          </CardSection>
+          {ARCHITECTURE.map((part) => (
+            <CardSection key={part.title} title={part.title}>
+              <List listStyle="disc" edge="flush" density="compact">
+                {part.items.map((item) => (
+                  <ListItem key={item.label} label={item.label} description={item.description} />
+                ))}
+              </List>
+            </CardSection>
+          ))}
         </ViewCard>
 
         <ViewCard
