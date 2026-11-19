@@ -39,7 +39,7 @@ describe('RoleEditorPage', () => {
     expect(screen.getByRole('textbox', {name: /Name/})).toHaveValue('Nurse');
     expect(screen.getByRole('textbox', {name: /Description/})).toHaveValue('Nurses who work on pathways.');
     expect(box('View patients')).toBeChecked();
-    expect(box('Work pathways')).toBeChecked();
+    expect(box('Work on pathways')).toBeChecked();
     expect(box('Assign pathways')).not.toBeChecked();
     expect(
       screen.getByText("Change other people's calendars: their blocks, day and week templates and default week."),
@@ -78,13 +78,13 @@ describe('RoleEditorPage', () => {
     });
 
     await user.click(await screen.findByRole('checkbox', {name: 'Assign pathways'}));
-    await user.click(box('Work pathways'));
+    await user.click(box('Work on pathways'));
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     const dialog = within(openDialog()!);
     expect(dialog.getByText('This changes what 2 people can do, from their next click.')).toBeInTheDocument();
     expect(dialog.getByText('Assign pathways')).toBeInTheDocument();
-    expect(dialog.getByText('Work pathways')).toBeInTheDocument();
+    expect(dialog.getByText('Work on pathways')).toBeInTheDocument();
     await user.click(dialog.getByRole('button', {name: 'Confirm Save'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
