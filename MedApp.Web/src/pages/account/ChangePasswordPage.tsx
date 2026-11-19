@@ -33,11 +33,11 @@ export function ChangePasswordPage() {
       backLabel="Back to account settings"
       message={
         form.error ? (
-          <AlertMessage message={form.error} />
+          <AlertMessage label="Password not changed" message={form.error} />
         ) : form.validation ? (
           <ValidationAlert errors={form.validation} fields={PASSWORD_CHANGE_FIELDS} />
         ) : (
-          isUpdated && <AlertMessage status="success" message="Password updated successfully!" />
+          isUpdated && <AlertMessage status="success" label="Password updated" message="Password updated successfully!" />
         )
       }>
       <FormCard onSave={submit} saveText="Update password" isProcessing={form.isPending}>

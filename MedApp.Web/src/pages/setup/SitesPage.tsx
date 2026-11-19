@@ -23,7 +23,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 import {SiteHoursDialog} from './SiteHoursDialog';
 
 /** The page's query: every site and room, archived ones too (the list filters them). Its route's loader preloads the same. */
@@ -108,8 +108,8 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
   const [form, setForm] = useState<SiteForm>(EMPTY_FORM);
   const [roomName, setRoomName] = useState('');
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
-  const [roomError, setRoomError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
+  const [roomError, setRoomError] = useState<PageError>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
@@ -149,7 +149,7 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
   const targetRoom = dialog?.kind === 'delete-room' ? dialog.room : null;
 
   const siteFailed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'site').message);
+    setError(actionProblem(e, action, 'site'));
     close();
   };
 
@@ -183,7 +183,7 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
     setRoomError(null);
     (archive ? roomActions.archive : roomActions.restore).mutate(room.id ?? '', {
       onSuccess: () => announce(`${room.name ?? 'Room'} ${archive ? 'archived' : 'restored'}`),
-      onError: (e) => setRoomError(saveProblem(e, archive ? 'archive' : 'restore', 'room').message),
+      onError: (e) => setRoomError(actionProblem(e, archive ? 'archive' : 'restore', 'room')),
     });
   };
 
@@ -283,7 +283,11 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
       subtitle={subtitle}
       fill
       message={
-        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The sites could not be loaded. Please try again." />
+        error ? (
+          <AlertMessage label={error.label} message={error.message} />
+        ) : (
+          isError && <AlertMessage label="Sites not loaded" message="The sites could not be loaded. Please try again." />
+        )
       }
       actions={<Button label="Add Site" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openSiteEditor(null)} />}
       dialogs={
@@ -306,7 +310,7 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={SITE_FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editingSite ? 'Not saved' : 'Not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={form.name}
@@ -399,8 +403,10 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
             onConfirm={() => openRoomEditor(null)}
             onCancel={close}>
             <VStack gap={2}>
-              {roomError && <AlertMessage message={roomError} />}
-              {roomsSite?.isArchived && <AlertMessage status="info" message="The site is archived: restore it to add rooms or restore its rooms." />}
+              {roomError && <AlertMessage label={roomError.label} message={roomError.message} />}
+              {roomsSite?.isArchived && (
+                <AlertMessage status="info" label="Archived site" message="The site is archived: restore it to add rooms or restore its rooms." />
+              )}
               {rooms.length === 0 ? (
                 <Text type="body" color="secondary">
                   No rooms yet.
@@ -458,7 +464,7 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
             onCancel={backToRooms}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={ROOM_FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editingRoom ? 'Not saved' : 'Not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={roomName}
@@ -487,7 +493,7 @@ export function SitesPage({search, onSearchChange}: SitesPageProps) {
                   backToRooms();
                 },
                 onError: (e) => {
-                  setRoomError(saveProblem(e, 'delete', 'room').message);
+                  setRoomError(actionProblem(e, 'delete', 'room'));
                   backToRooms();
                 },
               })

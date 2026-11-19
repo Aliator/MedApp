@@ -19,13 +19,14 @@ import {AppIcon} from '../shared/icons';
 /** What the dialog does to a consent record. */
 export type ConsentAction = 'withdraw' | 'enteredInError' | 'attachScan';
 
-const WORDS: Record<ConsentAction, {title: string; message: string; confirm: string; announced: string; failed: string}> = {
+const WORDS: Record<ConsentAction, {title: string; message: string; confirm: string; announced: string; failed: string; notDone: string}> = {
   withdraw: {
     title: 'Withdraw Consent',
     message: "Record that consent was withdrawn. It stays in the record, marked withdrawn; a stage that needs consent can't be finished without new consent.",
     confirm: 'Withdraw Consent',
     announced: 'Consent withdrawn',
     failed: 'The withdrawal could not be recorded.',
+    notDone: 'Withdrawal not recorded',
   },
   enteredInError: {
     title: 'Mark Entered in Error?',
@@ -33,6 +34,7 @@ const WORDS: Record<ConsentAction, {title: string; message: string; confirm: str
     confirm: 'Mark Entered in Error',
     announced: 'Consent record marked entered in error',
     failed: 'The consent record could not be marked entered in error.',
+    notDone: 'Not marked entered in error',
   },
   attachScan: {
     title: 'Add Scan',
@@ -40,6 +42,7 @@ const WORDS: Record<ConsentAction, {title: string; message: string; confirm: str
     confirm: 'Add Scan',
     announced: 'Scan added',
     failed: 'The scan could not be added.',
+    notDone: 'Scan not added',
   },
 };
 
@@ -113,7 +116,7 @@ export function ConsentActionDialog({action, record, patient, onClose}: ConsentA
           <MetadataListItem label="Signed by">{signedByLabel(record.signedBy)}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={words.notDone} message={message} />}
         {action === 'withdraw' && (
           <DateInput
             label="Withdrawn on"

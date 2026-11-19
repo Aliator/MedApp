@@ -57,7 +57,7 @@ export function RoleEditorPage({id}: {id?: string}) {
       backLabel="Back to roles and permissions"
       isLoading={role.isPending || isMissing}
       loadingMessage="Loading role..."
-      message={role.isError && !isMissing && <AlertMessage message="The role could not be loaded. Please try again." />}
+      message={role.isError && !isMissing && <AlertMessage label="Role not loaded" message="The role could not be loaded. Please try again." />}
     />
   );
 }
@@ -87,6 +87,8 @@ function RoleEditor({role}: {role: Role | null}) {
   const [filter, setFilter] = useState('');
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
+  // The headline over the problem's message: what didn't happen.
+  const [problemLabel, setProblemLabel] = useState('Role not saved');
 
   const holders = role?.holders ?? [];
   const holderCount = role?.holderCount ?? holders.length;
@@ -101,6 +103,7 @@ function RoleEditor({role}: {role: Role | null}) {
   /** A refused change: the API's words, and the role read again (a 409 means someone changed it meanwhile). */
   const failed = (action: 'save' | 'add' | 'archive' | 'restore' | 'delete') => (e: unknown) => {
     setProblem(saveProblem(e, action, 'role'));
+    setProblemLabel(`Role not ${action === 'add' ? 'added' : `${action}d`}`);
     setConfirming(null);
     if (role?.id && e instanceof ApiError && e.status === 409)
       void queryClient.invalidateQueries({
@@ -212,6 +215,7 @@ function RoleEditor({role}: {role: Role | null}) {
                   validation: null,
                   message: 'Nothing has changed, so there is nothing to save.',
                 });
+                setProblemLabel('Nothing to save');
                 return;
               }
               setConfirming('save');
@@ -299,16 +303,18 @@ function RoleEditor({role}: {role: Role | null}) {
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={['name', 'description']} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label={problemLabel} message={problem.message} />
         ) : isBuiltIn ? (
           <AlertMessage
             status="info"
+            label="Built-in role"
             message="The Admin role is built in: what it allows is fixed, and it can't be renamed, archived or deleted."
           />
         ) : (
           role?.isArchived && (
             <AlertMessage
               status="warning"
+              label="Archived role"
               message="This role is archived: nobody new can be given it. The people who hold it keep it."
             />
           )

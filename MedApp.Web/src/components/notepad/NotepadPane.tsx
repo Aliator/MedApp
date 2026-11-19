@@ -73,7 +73,7 @@ export function NotepadPane() {
         </Center>
       ) : error || !data ? (
         <VStack gap={3} padding={4} hAlign="start">
-          <AlertMessage message="The notepad could not be loaded. Please try again." />
+          <AlertMessage label="Notepad not loaded" message="The notepad could not be loaded. Please try again." />
           <Button label="Try Again" variant="secondary" icon={<Icon icon={AppIcon.Refresh} />} onClick={() => void reload()} />
         </VStack>
       ) : (
@@ -352,7 +352,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
   return (
     <>
       <VStack ref={box} gap={3} padding={4} hAlign="stretch" style={{flex: 1, minHeight: 0, overflowY: 'auto'}}>
-        {notice && <AlertMessage message={notice} />}
+        {notice && <AlertMessage label="Text not removed" message={notice} />}
         {/* A failed save shows below, never on the box, so it has no error line. */}
         <VStack gap={0} style={NO_FIELD_STATUS_LINE}>
           <RichTextField
@@ -415,7 +415,7 @@ function SaveStatus({state, isDirty, onRetry, onReload}: {state: SaveState; isDi
     return (
       <HStack gap={2} vAlign="center" wrap="wrap">
         <StackItem size="fill">
-          <AlertMessage message={state.message} />
+          <AlertMessage label={state.kind === 'conflict' ? 'Saved elsewhere' : 'Notepad not saved'} message={state.message} />
         </StackItem>
         {state.kind === 'error' ? (
           <Button label="Retry" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={onRetry} />

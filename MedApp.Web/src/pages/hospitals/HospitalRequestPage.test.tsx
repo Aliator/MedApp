@@ -37,6 +37,6 @@ describe('HospitalRequestPage', () => {
 
   it('says when it isn’t there, or is another team’s', async () => {
     renderPage(() => json({title: 'Not found', status: 404}, 404));
-    expect(await screen.findByText(/Hospital request not found/)).toBeInTheDocument();
+    expect(await screen.findByText('Hospital request not found')).toBeInTheDocument();
   });
 });

@@ -180,7 +180,7 @@ export function ResultsPage({search, onSearchChange}: ResultsPageProps) {
       title="Results"
       subtitle={isPending ? 'Loading results...' : `${viewLabel(view)}: ${total} ${noun}${teamName ? ` in ${teamName}` : ''}`}
       fill
-      message={isError && <AlertMessage message="The results could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Results not loaded" message="The results could not be loaded. Please try again." />}
       actions={clinic.picker}>
       <DataTable
         data={(data?.items ?? []) as ResultRow[]}

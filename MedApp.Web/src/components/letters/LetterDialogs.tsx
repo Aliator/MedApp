@@ -47,6 +47,8 @@ interface FrameProps {
   confirmDisabled?: boolean;
   isProcessing: boolean;
   error: string | null;
+  /** The refusal's headline, naming what wasn't done ("Letter not sent"). */
+  errorLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -57,7 +59,22 @@ interface FrameProps {
  * covers the page's) and what the letter is, so the wrong letter isn't changed, then the dialog's own fields, then a
  * refusal in the API's words. Each dialog is mounted only while open, so its fields start empty.
  */
-function LetterDialogFrame({letter, title, message, icon, intent, isDanger, confirmText, confirmDisabled, isProcessing, error, onConfirm, onCancel, children}: FrameProps) {
+function LetterDialogFrame({
+  letter,
+  title,
+  message,
+  icon,
+  intent,
+  isDanger,
+  confirmText,
+  confirmDisabled,
+  isProcessing,
+  error,
+  errorLabel,
+  onConfirm,
+  onCancel,
+  children,
+}: FrameProps) {
   return (
     <ConfirmDialog
       isOpen
@@ -78,7 +95,7 @@ function LetterDialogFrame({letter, title, message, icon, intent, isDanger, conf
           <MetadataListItem label="Template">{letter.templateName}</MetadataListItem>
         </MetadataList>
         {children}
-        {error && <AlertMessage message={error} />}
+        {error && <AlertMessage label={errorLabel} message={error} />}
       </VStack>
     </ConfirmDialog>
   );
@@ -162,6 +179,7 @@ export function SubmitLetterDialog({letter, onCancel, onDone}: LetterDialogProps
       confirmDisabled={!approverUserId}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Letter not submitted"
       onConfirm={() => change.run({approverUserId, expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}>
       <AnchoredSelector
@@ -198,6 +216,7 @@ export function ApproveLetterDialog({letter, onCancel, onDone}: LetterDialogProp
       confirmText="Approve"
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Letter not approved"
       onConfirm={() => change.run({expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}>
       <RecipientAddresses recipients={letter.recipients ?? []} label="Recipients" />
@@ -222,6 +241,7 @@ export function ReturnLetterDialog({letter, onCancel, onDone}: LetterDialogProps
       confirmDisabled={!comment.trim()}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Letter not returned"
       onConfirm={() => change.run({comment: comment.trim(), expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}>
       <TextArea
@@ -251,6 +271,7 @@ export function DiscardLetterDialog({letter, onCancel, onDone}: LetterDialogProp
       confirmText="Discard Draft"
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Draft not discarded"
       onConfirm={() => change.run({expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}
     />
@@ -280,11 +301,12 @@ export function WithdrawLetterDialog({letter, onCancel, onDone}: LetterDialogPro
       confirmDisabled={!reason.trim()}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Letter not withdrawn"
       onConfirm={() => change.run({reason: reason.trim(), expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}>
       {sent.length > 0 ? (
         <VStack gap={2} hAlign="stretch">
-          <AlertMessage status="warning" message="It has already been sent to these recipients. Tell them it's withdrawn, and why." />
+          <AlertMessage status="warning" label="Already sent" message="It has already been sent to these recipients. Tell them it's withdrawn, and why." />
           <RecipientAddresses recipients={sent} label="Already sent to" />
         </VStack>
       ) : (
@@ -326,6 +348,7 @@ export function SendSecureEmailDialog({letter, recipient, onCancel, onDone}: Rec
       confirmText="Send"
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Letter not sent"
       onConfirm={() => change.run({recipientId: recipient.id ?? '', expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}
     />
@@ -357,6 +380,7 @@ export function RecordSentDialog({letter, recipient, onCancel, onDone}: Recipien
       confirmDisabled={!method}
       isProcessing={change.isProcessing}
       error={change.error}
+      errorLabel="Not recorded as sent"
       onConfirm={() => change.run({recipientId: recipient.id ?? '', method, sentOn, expectedVersion: letter.version ?? 0})}
       onCancel={onCancel}>
       <RadioList label="How" value={method} onChange={setMethod} isRequired status={fieldStatus(change.errors, 'method')}>

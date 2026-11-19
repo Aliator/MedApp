@@ -69,7 +69,7 @@ export function ReferralInformationDialog({step, referral, onCancel, onDone}: Re
           <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
           <MetadataListItem label="Practice">{referral.referrerPractice}</MetadataListItem>
         </MetadataList>
-        {error && <AlertMessage message={error} />}
+        {error && <AlertMessage label="Referral not changed" message={error} />}
       </VStack>
     </ConfirmDialog>
   );

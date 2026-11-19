@@ -83,7 +83,7 @@ export function RecordConsentDialog({isOpen, pathway, stages, onClose}: RecordCo
       <VStack gap={3} hAlign="stretch">
         {pathway.patient && <PatientBanner patient={pathway.patient} isCompact />}
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label="Consent not recorded" message={message} />}
         <AnchoredSelector
           label="Stage"
           placeholder="Choose the stage consented to"

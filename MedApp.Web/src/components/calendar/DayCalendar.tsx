@@ -78,7 +78,7 @@ export function DayCalendar({staffUserId, initialDate, actions}: DayCalendarProp
         />
         {calendar.isError ? (
           <Section variant="transparent" padding={4}>
-            <AlertMessage message="The calendar could not be loaded. Please try again." />
+            <AlertMessage label="Calendar not loaded" message="The calendar could not be loaded. Please try again." />
           </Section>
         ) : !day ? (
           <Section variant="transparent" padding={4}>

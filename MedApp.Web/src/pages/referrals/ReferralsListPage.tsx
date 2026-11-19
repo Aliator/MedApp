@@ -244,7 +244,7 @@ export function ReferralsListPage({search, onSearchChange}: ReferralsListPagePro
       title="Referrals"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage message="The referrals could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Referrals not loaded" message="The referrals could not be loaded. Please try again." />}
       actions={
         <HStack gap={2} vAlign="center">
           {clinic.picker}

@@ -277,8 +277,8 @@ export function AppointmentDialog({appointment: initial, onClose, stepMinutes}: 
         }>
         <VStack ref={content} gap={5} hAlign="stretch">
           <AppointmentPatientBanner state={patientState} name={appointment.patientName} />
-          {problem && <AlertMessage message={problem} />}
-          {stageMessage && <AlertMessage status="info" message={stageMessage} />}
+          {problem && <AlertMessage label="Appointment not changed" message={problem} />}
+          {stageMessage && <AlertMessage status="info" label="About the stage's visit" message={stageMessage} />}
           <VStack gap={1}>
             <HStack gap={2} vAlign="center" wrap="wrap">
               <AppointmentStatusToken status={status} />

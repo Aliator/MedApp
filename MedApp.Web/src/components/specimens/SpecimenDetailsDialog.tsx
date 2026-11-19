@@ -142,7 +142,7 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
           <MetadataListItem label="Stage">{stageName}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={isEditing ? 'Sample not saved' : 'Sample not recorded'} message={message} />}
         <AnchoredSelector
           label="Specimen type"
           placeholder={types.isPending ? 'Loading specimen types...' : 'Choose the type'}

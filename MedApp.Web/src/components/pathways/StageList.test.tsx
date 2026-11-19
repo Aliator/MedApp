@@ -133,6 +133,8 @@ describe('StageList', () => {
 
     expect(await screen.findByText('Needs a discharge summary, approved and sent, before it can be finished.')).toBeVisible();
     expect(screen.getAllByText(/^Needs a/)).toHaveLength(1);
+    // While the stage is open, a compact banner names the need, with the rule behind its "i".
+    expect(screen.getByRole('button', {name: 'Letter needed, show details'})).toBeInTheDocument();
   });
 
   it('says when a stage waits for results, and nothing for one that does not', async () => {
@@ -140,6 +142,8 @@ describe('StageList', () => {
 
     expect(await screen.findByText('Waits for results: every result on the pathway must be signed off before it can be finished.')).toBeVisible();
     expect(screen.getAllByText(/^Waits for results/)).toHaveLength(1);
+    // While the stage is open, a compact banner names the need, with the rule behind its "i".
+    expect(screen.getByRole('button', {name: 'Results sign-off needed, show details'})).toBeInTheDocument();
   });
 
   it('says when a stage needs consent, and nothing for one that does not', async () => {
@@ -147,6 +151,15 @@ describe('StageList', () => {
 
     expect(await screen.findByText('Needs consent recorded before it can be finished')).toBeVisible();
     expect(screen.getAllByText(/^Needs consent/)).toHaveLength(1);
+    // While the stage is open, a compact banner names the need, with the rule behind its "i".
+    expect(screen.getByRole('button', {name: 'Consent needed, show details'})).toBeInTheDocument();
+  });
+
+  it('says what a finished stage needed as plain text, with no banner', async () => {
+    renderWithApp(<StageList stages={[stage({state: 'Completed', needsConsent: true})]} openStageIds={['stage-1']} />);
+
+    expect(await screen.findByText('Needs consent recorded before it can be finished')).toBeVisible();
+    expect(screen.queryByRole('button', {name: 'Consent needed, show details'})).not.toBeInTheDocument();
   });
 
   it('orders stages missing their order first, and opens them as the page says without telling it', async () => {

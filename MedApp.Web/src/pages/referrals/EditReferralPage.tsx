@@ -36,7 +36,12 @@ export function EditReferralPage({id}: {id: string}) {
       isLoading={isPending}
       loadingMessage="Loading referral..."
       message={
-        error && <AlertMessage message={isMissing ? 'Referral not found. It may have been deleted.' : 'The referral could not be loaded. Please try again.'} />
+        error && (
+          <AlertMessage
+            label={isMissing ? 'Referral not found' : 'Referral not loaded'}
+            message={isMissing ? 'Referral not found. It may have been deleted.' : 'The referral could not be loaded. Please try again.'}
+          />
+        )
       }
     />
   );
@@ -85,6 +90,7 @@ function EditReferralForm({id, referral}: {id: string; referral: Referral}) {
     return (
       <Page {...pageProps} onBack={backToReferral} banner={banner} message={flags}>
         <AlertMessage
+          label="Referral can't be edited"
           message={referral.readOnlyReason ?? "This referral's details can't be edited: only a referral awaiting triage can be, by staff who register referrals."}
         />
       </Page>
@@ -104,7 +110,7 @@ function EditReferralForm({id, referral}: {id: string; referral: Referral}) {
           <ValidationAlert errors={problem.validation} fields={REFERRAL_DETAILS_FIELDS} />
         ) : problem.message ? (
           <VStack gap={2} hAlign="stretch">
-            <AlertMessage message={problem.message} />
+            <AlertMessage label="Referral not saved" message={problem.message} />
             {isStale && (
               <HStack>
                 <Button label="Reload" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={reload} />

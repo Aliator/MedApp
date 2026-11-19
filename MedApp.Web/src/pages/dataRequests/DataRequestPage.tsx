@@ -126,11 +126,11 @@ export function DataRequestPage({id}: {id: string}) {
       // No banner: the patient is in Details, first and never folding (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage message="Data request not found." />
+          <AlertMessage label="Data request not found" />
         ) : error ? (
-          <AlertMessage message="The data request could not be loaded. Please try again." />
+          <AlertMessage label="Data request not loaded" message="The data request could not be loaded. Please try again." />
         ) : (
-          actionError && <AlertMessage message={actionError} onDismiss={() => setActionError(null)} />
+          actionError && <AlertMessage label="Pack not downloaded" message={actionError} onDismiss={() => setActionError(null)} />
         )
       }
       actions={request && headerActions(request)}

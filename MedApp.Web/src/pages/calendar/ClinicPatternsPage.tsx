@@ -109,7 +109,7 @@ export function ClinicPatternsPage() {
       title="Clinic Patterns"
       subtitle={patterns.isPending ? 'Loading...' : count === 1 ? '1 pattern' : `${count} patterns`}
       fill
-      message={patterns.isError ? <AlertMessage message="The clinic patterns could not be loaded. Please try again." /> : undefined}
+      message={patterns.isError ? <AlertMessage label="Clinic patterns not loaded" message="The clinic patterns could not be loaded. Please try again." /> : undefined}
       actions={
         <>
           <Button label="Clinics" variant="secondary" href="/calendar/clinics" icon={<Icon icon={AppIcon.Clinics} />} />
@@ -198,10 +198,10 @@ export function CreateSessionsDialog({pattern, onClose}: {pattern: ClinicPattern
       {pattern && (
         <VStack gap={4} hAlign="stretch">
           <Text type="body" weight="semibold">{`${patternWhen(pattern)}, ${pattern.staffUsername}, ${pattern.roomName}`}</Text>
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Sessions not made" message={problem} />}
           {result ? (
             <>
-              <AlertMessage status="success" message={madeWords(result)} />
+              <AlertMessage status="success" label={madeWords(result).replace(/\.$/, '')} />
               {(result.created ?? []).length > 0 && (
                 <VStack gap={1} role="list" aria-label="Sessions made">
                   {(result.created ?? []).map((s) => (

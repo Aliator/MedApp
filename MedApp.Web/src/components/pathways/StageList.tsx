@@ -12,6 +12,7 @@ import {choiceKindLabel, stageDepths, waitsForWords} from '../../api/pathwayRout
 import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
+import {AlertMessage} from '../shared/AlertMessage';
 import {RichText} from '../shared/RichText';
 import {SnomedConcept} from './SnomedConcept';
 
@@ -203,6 +204,25 @@ export function StageLabCase({stage}: {stage: PathwayStage}) {
 /** What a stage that waits for results says, under its title. */
 export const WAITS_FOR_RESULTS_WORDS = 'Waits for results: every result on the pathway must be signed off before it can be finished.';
 
+/** What a stage that needs consent says, under its title. */
+export const NEEDS_CONSENT_WORDS = 'Needs consent recorded before it can be finished';
+
+/**
+ * One thing a stage needs before it can be finished. While the stage is open, a compact banner naming it ("Consent
+ * needed"), with the rule behind its "i"; on a finished or skipped stage, the rule as plain text. Nothing when `words`
+ * is null.
+ */
+function StageNeeds({label, words, stage}: {label: string; words: string | null; stage: PathwayStage}) {
+  if (!words) return null;
+  if (stage.state === 'Completed' || isSkipped(stage))
+    return (
+      <Text type="body" weight="semibold">
+        {words}
+      </Text>
+    );
+  return <AlertMessage status="info" label={label} message={words} />;
+}
+
 /**
  * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
  * the pathway was made), who started and finished it, instructions (which fold), notes and files.
@@ -216,24 +236,11 @@ export function StageDetails({stage, work, instructions, files, waitsFor, result
         </Text>
       )}
       <SnomedConcept code={stage.snomedCode} term={stage.snomedTerm} />
-      {/* A stage that waits for a letter (decision 105): it can't be finished until one of that kind is approved and sent. */}
-      {needsLetterWords(stage.needsLetterKind) && (
-        <Text type="body" weight="semibold">
-          {needsLetterWords(stage.needsLetterKind)}
-        </Text>
-      )}
-      {/* A stage that waits for results (decision 97): it can't be finished while any of the pathway's results awaits sign-off. */}
-      {stage.waitsForResults && (
-        <Text type="body" weight="semibold">
-          {WAITS_FOR_RESULTS_WORDS}
-        </Text>
-      )}
-      {/* A stage that needs consent (decision 146): it can't be finished until a Valid consent record is recorded for it. */}
-      {stage.needsConsent && (
-        <Text type="body" weight="semibold">
-          Needs consent recorded before it can be finished
-        </Text>
-      )}
+      {/* What the stage needs before it can be finished: a letter of a kind approved and sent (decision 105), every result
+          on the pathway signed off (decision 97), a Valid consent record (decision 146). */}
+      <StageNeeds label="Letter needed" words={needsLetterWords(stage.needsLetterKind)} stage={stage} />
+      <StageNeeds label="Results sign-off needed" words={stage.waitsForResults ? WAITS_FOR_RESULTS_WORDS : null} stage={stage} />
+      <StageNeeds label="Consent needed" words={stage.needsConsent ? NEEDS_CONSENT_WORDS : null} stage={stage} />
       {/* A join (MC8): it starts only when every route into it is finished or skipped. */}
       {waitsFor && (
         <Text type="body" color="secondary">

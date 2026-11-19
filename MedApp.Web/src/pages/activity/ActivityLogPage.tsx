@@ -152,7 +152,7 @@ export function ActivityLogPage({search, onSearchChange}: ActivityLogPageProps) 
       backHref={search.patientId ? `/patients/${search.patientId}` : undefined}
       backLabel="Back to the patient"
       fill
-      message={isError && <AlertMessage message="The activity log could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Activity log not loaded" message="The activity log could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
         columns={columns}

@@ -291,7 +291,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
           {listSwitch}
         </HStack>
       }
-      message={isError && <AlertMessage message="The appointments could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Appointments not loaded" message="The appointments could not be loaded. Please try again." />}
       dialogs={
         <>
           <BookAppointmentDialog

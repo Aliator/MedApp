@@ -147,9 +147,9 @@ export function SpecimenPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage message="Sample not found. It may have been deleted." />
+          <AlertMessage label="Sample not found" message="Sample not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage message="The sample could not be loaded. Please try again." />
+          <AlertMessage label="Sample not loaded" message="The sample could not be loaded. Please try again." />
         ) : specimen?.patientFlags && hasPatientFlags(specimen.patientFlags) ? (
           <PatientFlagBanners patient={specimen.patientFlags} />
         ) : (

@@ -7,6 +7,7 @@ import type {PathwayStage} from '../../api/pathways';
 import {NO_FIELD_STATUS_LINE} from '../forms/fieldSpace';
 import {RichTextField} from '../forms/RichTextField';
 import {useSaveShortcut} from '../forms/SaveShortcut';
+import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
 
@@ -32,7 +33,7 @@ export interface StageWorkProps {
   onFitNotes?: (height: number) => void;
   /** The stage's Visit part (`StageVisit`), above its notes, for a stage that involves a visit. */
   visit?: ReactNode;
-  /** Why the stage can't be finished yet (e.g. "Needs an attended visit first"): Finish is disabled, with this beside it. */
+  /** Why the stage can't be finished yet (e.g. "Needs an attended visit first"): Finish is disabled, with "Stage can't be finished" beside it and this behind its "i". */
   finishDisabledReason?: string;
   /** Skip an optional stage, with a reason: offered while the API says it can be (`canSkip`). */
   onSkip?: () => void;
@@ -188,11 +189,8 @@ export function StageWork({
           </Text>
         )}
         <StackItem size="fill" />
-        {finishDisabledReason && (
-          <Text type="supporting" color="secondary">
-            {finishDisabledReason}
-          </Text>
-        )}
+        {/* Why Finish is disabled: the headline, with the reason behind its "i". */}
+        {finishDisabledReason && <AlertMessage status="warning" label="Stage can't be finished" message={finishDisabledReason} />}
         {skip}
         {onPickUp && stage.canPickUp && (
           <Button

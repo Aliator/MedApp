@@ -362,7 +362,7 @@ function RecordPastForm({
   const when = (
     <VStack gap={4} hAlign="stretch">
       {calendar.isError ? (
-        <AlertMessage message="The calendar could not be loaded. Please try again." />
+        <AlertMessage label="Calendar not loaded" message="The calendar could not be loaded. Please try again." />
       ) : (
         <>
           <AnchoredSelector
@@ -457,7 +457,7 @@ function RecordPastForm({
             name ({me.username}), as recorded after the event.
           </Text>
           <AppointmentPatientBanner state={patientState} />
-          {problem.message && <AlertMessage message={problem.message} />}
+          {problem.message && <AlertMessage label="Appointment not recorded" message={problem.message} />}
           {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
           {isNarrow ? (
             <VStack gap={6} hAlign="stretch">

@@ -237,7 +237,7 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
       title="Samples"
       subtitle={isPending ? 'Loading samples...' : `${viewLabel(view)}: ${total} ${isSearched ? `matching ${noun}` : noun}`}
       fill
-      message={isError && <AlertMessage message="The samples could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Samples not loaded" message="The samples could not be loaded. Please try again." />}>
       <DataTable
         data={(data?.items ?? []) as SpecimenRow[]}
         columns={columns}

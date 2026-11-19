@@ -64,7 +64,7 @@ function KeepRecordForm({patient, onDone, onCancel}: {patient: KeepRecordPatient
       onConfirm={confirm}
       onCancel={onCancel}>
       <VStack gap={4} hAlign="stretch">
-        {problem.message && <AlertMessage message={problem.message} />}
+        {problem.message && <AlertMessage label="Not saved" message={problem.message} />}
         <PatientSummary firstName={patient.firstName} lastName={patient.lastName} dateOfBirth={patient.dateOfBirth} showEmail={false} />
         <DateInput
           label="Review again on"

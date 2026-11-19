@@ -58,7 +58,12 @@ export function SpecimenPrintPage({id, sheet}: SpecimenPrintPageProps) {
       loadingMessage="Loading sample..."
       banner={specimen?.patient && <PatientBanner patient={specimen.patient} />}
       message={
-        error && <AlertMessage message={isMissing ? 'Sample not found. It may have been deleted.' : 'The sample could not be loaded. Please try again.'} />
+        error && (
+          <AlertMessage
+            label={isMissing ? 'Sample not found' : 'Sample not loaded'}
+            message={isMissing ? 'Sample not found. It may have been deleted.' : 'The sample could not be loaded. Please try again.'}
+          />
+        )
       }
       actions={specimen && <Button label="Print" variant="primary" icon={<Icon icon={AppIcon.Print} />} onClick={() => window.print()} />}>
       <style data-medapp-print="">{PRINT_CSS}</style>

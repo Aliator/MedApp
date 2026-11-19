@@ -394,11 +394,15 @@ export function PatientExportPage({id}: {id: string}) {
       loadingMessage="Gathering everything held about this patient..."
       message={
         error ? (
-          <AlertMessage message={isMissing ? 'Patient not found. They may have been deleted.' : 'The export could not be made. Please try again.'} />
+          <AlertMessage
+            label={isMissing ? 'Patient not found' : 'Export not made'}
+            message={isMissing ? 'Patient not found. They may have been deleted.' : 'The export could not be made. Please try again.'}
+          />
         ) : (
           data && (
             <AlertMessage
               status="info"
+              label="Clinician check needed"
               message="Before giving this to the patient, have a clinician check it for anything that could cause serious harm, and for other people's details."
             />
           )

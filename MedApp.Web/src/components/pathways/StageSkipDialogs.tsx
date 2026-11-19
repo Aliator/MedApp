@@ -99,7 +99,7 @@ export function SkipStageDialog({stage, patient, isProcessing, onConfirm, onCanc
           (isTooLong ? {type: 'error', message: `At most ${MAX_SKIP_DETAIL_LENGTH} characters.`} : undefined)
         }
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Stage not skipped" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -154,7 +154,7 @@ export function ReinstateStageDialog({stage, patient, isProcessing, onConfirm, o
           (isTooLong ? {type: 'error', message: `At most ${MAX_REINSTATE_REASON_LENGTH} characters.`} : undefined)
         }
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Stage not reinstated" message={problem} />}
     </ConfirmDialog>
   );
 }

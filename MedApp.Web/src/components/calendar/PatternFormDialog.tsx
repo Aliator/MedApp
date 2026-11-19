@@ -121,7 +121,7 @@ function PatternForm({isOpen, onClose, pattern}: PatternFormDialogProps) {
       }>
       {isOpen && (
         <VStack gap={4} hAlign="stretch">
-          {problem && <AlertMessage message={problem} />}
+          {problem && <AlertMessage label="Pattern not saved" message={problem} />}
           {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
           <AnchoredSelector
             label="Clinician"

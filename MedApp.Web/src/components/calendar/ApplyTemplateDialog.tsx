@@ -172,7 +172,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
       hasSaveShortcut>
       {failures.length > 0 && (
         <AlertMessage
-          message={failures.length === 1 ? "One day couldn't be changed" : `${failures.length} days couldn't be changed`}
+          label={failures.length === 1 ? "One day couldn't be changed" : `${failures.length} days couldn't be changed`}
           details={failures.map((f) => `${formatShortDay(f.date)}: ${f.message}`)}
         />
       )}
@@ -186,7 +186,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
         isDisabled={isApplying}
       />
       {week.isError ? (
-        <AlertMessage message="The week could not be loaded. Please try again." />
+        <AlertMessage label="Week not loaded" message="The week could not be loaded. Please try again." />
       ) : !week.data ? (
         <VStack gap={2}>
           <Skeleton height="var(--spacing-8)" />

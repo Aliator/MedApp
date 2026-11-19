@@ -1,6 +1,6 @@
-import {fireEvent, screen, waitFor} from '@testing-library/react';
+import {fireEvent, screen, waitFor, within} from '@testing-library/react';
 import type {PathwayStage} from '../../api/pathways';
-import {isDisabled, renderWithApp} from '../../test/render';
+import {isDisabled, openAlertDetails, renderWithApp} from '../../test/render';
 import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {StageWork} from './StageWork';
 import {richText, typeRichText} from '../../test/richText';
@@ -189,7 +189,8 @@ describe('StageWork fitting its notes box', () => {
     );
 
     expect(await screen.findByText('The visit')).toBeInTheDocument();
-    expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
+    expect(screen.getByText("Stage can't be finished")).toBeInTheDocument();
+    expect(within(await openAlertDetails(user, "Stage can't be finished")).getByText('Needs an attended visit first')).toBeInTheDocument();
     const finish = screen.getByRole('button', {name: 'Finish Stage'});
     expect(isDisabled(finish)).toBe(true);
     await user.click(finish);

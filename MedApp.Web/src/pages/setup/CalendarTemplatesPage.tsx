@@ -41,7 +41,7 @@ import {StaffHoursPanel, hoursDays} from './StaffHoursPanel';
 import {hoursSummary} from '../../utils/workingHours';
 import {useTemplatesOwner, type TemplatesOwner} from './calendarTemplatesOwner';
 import {calendarTemplateEditorHref, type CalendarTemplatesSearch, type CalendarTemplatesTab} from './calendarTemplatesSearch';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 import {NO_FIELD_STATUS_LINE} from '../../components/forms/fieldSpace';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 
@@ -83,7 +83,7 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
   const owner = useTemplatesOwner(search.staff);
   // Holders of ManageClinics set anyone's working hours, so on that tab they pick whose too.
   const canManageClinics = useCan('ManageClinics');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
   // Each tab keeps its own search; switching starts the other on its default, for the same person.
   const listSearch: SetupListSearch = {name: search.name, status: search.status, page: search.page};
   const onListSearchChange = (next: SetupListSearch) => onSearchChange({...next, tab: search.tab, staff: owner.staffParam});
@@ -98,9 +98,12 @@ export function CalendarTemplatesPage({search, onSearchChange}: CalendarTemplate
       fill
       message={
         ownerFailed ? (
-          <AlertMessage message="The staff list could not be loaded, so the calendar templates can't be found. Please try again." />
+          <AlertMessage
+            label="Staff list not loaded"
+            message="The staff list could not be loaded, so the calendar templates can't be found. Please try again."
+          />
         ) : (
-          error && <AlertMessage message={error} />
+          error && <AlertMessage label={error.label} message={error.message} />
         )
       }
       actions={
@@ -187,7 +190,7 @@ interface ListProps {
   search: SetupListSearch;
   onSearchChange: (search: SetupListSearch) => void;
   /** Says why an action failed, in the page's header (null clears it). */
-  onError: (message: string | null) => void;
+  onError: (error: PageError) => void;
 }
 
 type Target<T> = {kind: 'archive' | 'delete'; item: T} | null;
@@ -245,12 +248,12 @@ function ArchiveDeleteDialogs<T extends {id?: string; name?: string | null}>({
 }
 
 /** Archive, restore and delete for one kind of template, saying in the page's header why one failed. */
-function useTemplateTargets<T>(kind: 'day-templates' | 'week-templates', subject: SaveSubject, onError: (message: string | null) => void) {
+function useTemplateTargets<T>(kind: 'day-templates' | 'week-templates', subject: SaveSubject, onError: (error: PageError) => void) {
   const actions = useCalendarSetupActions(kind);
   const [target, setTarget] = useState<Target<T>>(null);
   const close = () => setTarget(null);
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    onError(saveProblem(e, action, subject).message);
+    onError(actionProblem(e, action, subject));
     close();
   };
   const open = (next: 'archive' | 'delete', item: T) => {
@@ -416,7 +419,7 @@ function DayTemplatesList({owner, search, onSearchChange, onError}: ListProps) {
     },
   ];
 
-  if (isError) return <AlertMessage message="The day templates could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Day templates not loaded" message="The day templates could not be loaded. Please try again." />;
   if (!isPending && data.length === 0)
     return (
       <NoTemplates owner={owner} kind="day" description="A day template is a day's usual blocks, such as lunch at 12:00. Week templates are made from them." />
@@ -485,7 +488,7 @@ function WeekTemplatesList({owner, search, onSearchChange, onError}: ListProps) 
     },
   ];
 
-  if (isError) return <AlertMessage message="The week templates could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Week templates not loaded" message="The week templates could not be loaded. Please try again." />;
   if (!isPending && data.length === 0)
     return (
       <NoTemplates
@@ -535,13 +538,14 @@ const NO_WEEK = 'none';
  * The person's default week: one of their own week templates (or none), which fills their calendar from today
  * (decision 10). An archived one can't be chosen, but if it's the default now it stays until it's changed.
  */
-function DefaultWeek({owner, onError}: {owner: TemplatesOwner; onError: (message: string | null) => void}) {
+function DefaultWeek({owner, onError}: {owner: TemplatesOwner; onError: (error: PageError) => void}) {
   const current = useQuery(ofOwner(staffWeekTemplateQuery, owner));
   const weeks = useQuery(ofOwner(weekTemplatesQuery, owner));
   const {setWeekTemplate} = useCalendarActions();
   const announce = useAnnounce();
 
-  if (current.isError || weeks.isError) return <AlertMessage message="The default week could not be loaded. Please try again." />;
+  if (current.isError || weeks.isError)
+    return <AlertMessage label="Default week not loaded" message="The default week could not be loaded. Please try again." />;
 
   const currentId = current.data?.weekTemplateId ?? null;
   const isLoading = current.isPending || weeks.isPending;
@@ -562,7 +566,10 @@ function DefaultWeek({owner, onError}: {owner: TemplatesOwner; onError: (message
       {userId: owner.ownerId ?? '', weekTemplateId},
       {
         onSuccess: () => announce(weekTemplateId ? 'Default week saved' : 'Default week removed'),
-        onError: (e) => onError(saveProblem(e, 'save', 'week template').message),
+        onError: (e) => {
+          const {message} = saveProblem(e, 'save', 'week template');
+          onError(message ? {label: 'Default week not saved', message} : null);
+        },
       },
     );
   };
