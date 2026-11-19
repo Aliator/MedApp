@@ -108,8 +108,8 @@ describe('PathwayPage', () => {
     });
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByRole('link', {name: 'Discharge summary: Discharge'})).toHaveAttribute('href', '/letters/l1');
-    expect(screen.getAllByText('Needs a discharge summary, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
+    expect(await screen.findByRole('link', {name: 'End of care letter: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(screen.getAllByText('Needs an end of care letter, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
     expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
   });
 

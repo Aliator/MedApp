@@ -200,7 +200,7 @@ describe('ReferralsListPage', () => {
     const {user, onSearchChange} = renderList({page: 2});
     await screen.findByText('Freya Ahmed');
 
-    await user.click(screen.getByRole('button', {name: /Team/}));
+    await user.click(screen.getByRole('button', {name: /Clinic/}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, sort: 'Team', asc: true});
     await user.click(screen.getByRole('button', {name: /previous page/i}));
     expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined});

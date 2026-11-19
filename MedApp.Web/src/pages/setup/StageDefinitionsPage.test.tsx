@@ -107,7 +107,7 @@ describe('StageDefinitionsPage', () => {
     const dialog = within(openDialog()!);
     expect(richText(dialog.getByRole('textbox', {name: /Instructions/}))).toBe('Give the patient a copy.');
     expect(dialog.getByRole('radio', {name: /^Required/})).toBeChecked();
-    expect(dialog.getByRole('combobox', {name: /Needs a letter/})).toHaveTextContent('Discharge summary');
+    expect(dialog.getByRole('combobox', {name: /Needs a letter/})).toHaveTextContent('End of care letter');
     expect(dialog.getByRole('switch', {name: /^Waits for results/})).toBeChecked();
     await user.type(dialog.getByRole('textbox', {name: /Name/}), '!');
     await user.click(dialog.getByRole('button', {name: 'Save'}));

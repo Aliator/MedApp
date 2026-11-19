@@ -248,7 +248,7 @@ describe('referral words', () => {
     // No letter attached: nothing but the referral to read.
     expect(triageWords({isOpen: true, status: 'AwaitingTriage', canTriage: true, letterCount: 0})).toMatch(/^Read the referral, then decide/);
     expect(triageWords({isOpen: false, status: 'Accepted'})).toBe("This referral has been triaged: accepted. A referral isn't triaged again.");
-    expect(triageWords({isOpen: false, status: 'Withdrawn'})).toBe("This referral is withdrawn, so it isn't triaged.");
+    expect(triageWords({isOpen: false, status: 'Withdrawn'})).toBe("This referral is withdrawn, so it can't be triaged.");
     expect(triageWords({isOpen: true, status: 'InformationRequested', canTriage: true})).toMatch(/^More information has been asked of the referrer/);
   });
 
@@ -399,7 +399,7 @@ describe('ReferralPage triage', () => {
 
     await expectAnnounced('Referral redirected to Urology');
     expect(await screen.findByRole('heading', {name: 'Referral to Urology', level: 1})).toBeInTheDocument();
-    expect(screen.getByText('Redirected from another team')).toBeInTheDocument();
+    expect(screen.getByText('Redirected from another clinic')).toBeInTheDocument();
     expect(screen.getByText('Synthetic: a urology problem.')).toBeInTheDocument();
   });
 
