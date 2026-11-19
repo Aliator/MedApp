@@ -575,6 +575,9 @@ public sealed class ExportedAttachmentResponse
     public DateTime UploadedAtUtc { get; set; }
     public DateTime? DeletedAtUtc { get; set; }
     public string? DeletedBy { get; set; }
+
+    /// <summary>Marked as a clinical photo (MC27).</summary>
+    public bool IsClinicalPhoto { get; set; }
 }
 
 /// <summary>A notification about one of the patient's pathways or appointments, and who it was for.</summary>

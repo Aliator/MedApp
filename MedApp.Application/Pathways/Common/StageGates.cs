@@ -1,3 +1,4 @@
+using MedApp.Application.Consent.Common;
 using MedApp.Application.Letters.Common;
 using MedApp.Application.Specimens.Common;
 using MedApp.Domain.Consent;
@@ -120,12 +121,24 @@ public static class StageGates
 
     /// <summary>
     /// Why the stage can't be finished for want of consent, or null if it needs none or has a Valid record.
-    /// <paramref name="stageRecords"/> are the stage's consent records, in any status.
+    /// <paramref name="stageRecords"/> are the stage's consent records, in any status; for a stage that takes photographs
+    /// (<see cref="ClinicalPhotography.IsPhotoStage"/>), the pathway's: it needs a Valid record on the photo consent form
+    /// anywhere on the pathway (MC27).
     /// </summary>
     public static string? WhyConsentMissing(PatientPathwayStage stage, IReadOnlyCollection<ConsentRecord> stageRecords)
     {
         if (!stage.NeedsConsent)
             return null;
+
+        if (ClinicalPhotography.IsPhotoStage(stage))
+        {
+            var photo = stageRecords.Where(ClinicalPhotography.IsPhotoConsent).ToList();
+            if (ClinicalPhotography.HasValidConsent(photo))
+                return null;
+            return photo.Any(r => r.Status == ConsentStatus.Withdrawn)
+                ? ClinicalPhotography.StageConsentMissingMessage + ClinicalPhotography.StageConsentWithdrawnSuffix
+                : ClinicalPhotography.StageConsentMissingMessage;
+        }
 
         var forStage = stageRecords.Where(r => r.StageId == stage.Id).ToList();
         if (forStage.Any(r => r.Status == ConsentStatus.Valid))

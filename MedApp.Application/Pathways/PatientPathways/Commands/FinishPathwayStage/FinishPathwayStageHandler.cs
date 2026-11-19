@@ -4,6 +4,7 @@ using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Letters.Repositories;
 using MedApp.Application.Monitoring.Common;
@@ -83,9 +84,12 @@ public sealed class FinishPathwayStageHandler(
             && StageGates.WhyLetterMissing(stage, await letterRepository.GetForPathwayAsync(pathway.Id, cancellationToken)) is { } needsLetter)
             throw new ConflictException(needsLetter);
 
-        // A stage that needs consent: a Valid consent record for it (no override: recording it is the action).
+        // A stage that needs consent: a Valid consent record for it (no override: recording it is the action); a stage
+        // that takes photographs, the photo consent anywhere on the pathway (MC27).
         if (stage.NeedsConsent
-            && StageGates.WhyConsentMissing(stage, await consentRepository.GetForStageAsync(stage.Id, cancellationToken)) is { } needsConsent)
+            && StageGates.WhyConsentMissing(stage, ClinicalPhotography.IsPhotoStage(stage)
+                ? await consentRepository.GetForPathwayAsync(pathway.Id, cancellationToken)
+                : await consentRepository.GetForStageAsync(stage.Id, cancellationToken)) is { } needsConsent)
             throw new ConflictException(needsConsent);
 
         StageFinishing.Finish(change, stage, appointments, request.Reason, request.Outcome);

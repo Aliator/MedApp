@@ -75,6 +75,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         AttachmentsController.Delete 00011
         AttachmentsController.Download 00011
         AttachmentsController.GetAttachments 00011
+        AttachmentsController.SetClinicalPhoto 00011
         AttachmentsController.Thumbnail 00011
         AttachmentsController.Upload 00011
         AuthController.CreateUser 00001
@@ -162,6 +163,12 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ConsentController.RestoreConsentForm 00001
         ConsentController.UpdateConsentForm 00001
         ConsentController.WithdrawConsent 00000
+        ConsultsController.Close 00011
+        ConsultsController.GetForPathway 00011
+        ConsultsController.GetIncoming 00011
+        ConsultsController.Reply 00011
+        ConsultsController.Send 00011
+        ConsultsController.Withdraw 00011
         DataRequestsController.CreateDataRequest 00001
         DataRequestsController.DownloadDataRequestPack 00001
         DataRequestsController.ExtendDataRequest 00001

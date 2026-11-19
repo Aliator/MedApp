@@ -72,6 +72,8 @@ public sealed class PathwayRestrictionGuardConventionTests
         typeof(DeleteAttachmentHandler), typeof(RecordPastAppointmentHandler), typeof(MedApp.Application.Mdt.Commands.ListForMdt.ListForMdtHandler),
         typeof(MedApp.Application.Results.Commands.RecordExternalResult.RecordExternalResultHandler),
         typeof(MedApp.Application.Mdt.Commands.ListForMdt.ListForMdtHandler),
+        // Marking a clinical photo (MC27) changes the file, not the pathway.
+        typeof(MedApp.Application.Attachments.Commands.SetClinicalPhoto.SetClinicalPhotoHandler),
     ];
 
     /// <summary>

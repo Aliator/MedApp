@@ -45,7 +45,7 @@ public sealed class LettersAcrossTheAppTests : PathwayHandlerTestBase
         var handler = Fixture.Create<FinishPathwayStageHandler>();
 
         var act = () => handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);
-        await act.Should().ThrowAsync<ConflictException>().WithMessage("*discharge summary*not yet sent*");
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*end of care letter*not yet sent*");
 
         letter.Recipients.ForEach(r => r.DispatchStatus = LetterDispatchStatus.Sent);
         var response = await handler.Handle(new FinishPathwayStageCommand(pathway.Id, pathway.StageAt(1).Id, Staff), CancellationToken.None);

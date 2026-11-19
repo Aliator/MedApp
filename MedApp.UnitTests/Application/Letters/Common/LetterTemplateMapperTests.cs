@@ -52,17 +52,19 @@ public sealed class LetterTemplateMapperTests
     public void Kinds_AreDescribedInWords()
     {
         LetterKinds.Describe(LetterKind.ClinicLetter).Should().Be("Clinic letter");
-        LetterKinds.Describe(LetterKind.DischargeSummary).Should().Be("Discharge summary");
+        LetterKinds.Describe(LetterKind.DischargeSummary).Should().Be("End of care letter");
         LetterKinds.Describe(LetterKind.ReferralResponse).Should().Be("Referral response");
         LetterKinds.Describe(LetterKind.InformationRequest).Should().Be("Request for more information");
         LetterKinds.Describe(LetterKind.AppointmentLetter).Should().Be("Appointment letter");
+        LetterKinds.Describe(LetterKind.OnwardReferral).Should().Be("Onward referral");
         LetterKinds.Describe(LetterKind.Other).Should().Be("Letter");
-        LetterKinds.Names.Should().Be("ClinicLetter, DischargeSummary, ReferralResponse, InformationRequest, AppointmentLetter, Other");
+        LetterKinds.Names.Should().Be(
+            "ClinicLetter, DischargeSummary, ReferralResponse, InformationRequest, AppointmentLetter, Other, OnwardReferral");
     }
 
     [Test]
     public void LetterKind_KeepsItsStoredNumbers() =>
-        Enum.GetValues<LetterKind>().Select(k => (int)k).Should().Equal(0, 1, 2, 3, 4, 5);
+        Enum.GetValues<LetterKind>().Select(k => (int)k).Should().Equal(0, 1, 2, 3, 4, 5, 7);
 
     [Test]
     public void Identifiers_LeaveOutWhatIsntKnown()

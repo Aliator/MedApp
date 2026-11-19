@@ -2,6 +2,7 @@ using MediatR;
 using MedApp.Application.Authentication.Users.Commands.SetStaffDetails;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.Hours.Commands.SetStaffHours;
+using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Setup;
 using MedApp.Application.Letters.Commands.CreateLetterTemplate;
 using MedApp.Application.Practices.Commands.CreatePractice;
@@ -122,6 +123,8 @@ public static class DemoCentreSetup
         services.At(live, lead.ActivityActor);
         var skinForm = await Send(new CreateConsentFormCommand(SkinConsentForm, "v1 (demo)"));
         var gynaeForm = await Send(new CreateConsentFormCommand(GynaecologyConsentForm, "v1 (demo)"));
+        // The photo consent a clinical photo, and a photographs stage, needs (MC27).
+        await Send(new CreateConsentFormCommand(ClinicalPhotography.FormName, "1.0"));
 
         var teams = await services.Run(sp => Task.FromResult(sp.GetRequiredService<Infrastructure.Data.MedAppDbContext>()
             .Teams.Select(s => new { s.Id, s.Name }).ToList()));
@@ -136,6 +139,13 @@ public static class DemoCentreSetup
                 templates[(name, kind)] = template.Id;
             }
         }
+
+        // Dermatology's onward referral to the hospital (MC28): what a stage needing a referral letter to hospital waits for.
+        var dermatologyId = teams.Single(s => s.Name == DemoTeams.Dermatology).Id;
+        var onward = await Send(new CreateLetterTemplateCommand(
+            $"{DemoTeams.Dermatology}: {KindName(LetterKind.OnwardReferral)}", nameof(LetterKind.OnwardReferral), dermatologyId,
+            Letterhead, BodySkeleton(LetterKind.OnwardReferral), Closing));
+        templates[(DemoTeams.Dermatology, LetterKind.OnwardReferral)] = onward.Id;
 
         // Working hours from then: the visiting consultants on their days here, the diabetes nurse specialist mornings.
         var manager = staff.Single(s => s.Username == DemoStaff.ManagerUsername);
@@ -182,7 +192,8 @@ public static class DemoCentreSetup
     public static string KindName(LetterKind kind) => kind switch
     {
         LetterKind.ClinicLetter => "clinic letter",
-        LetterKind.DischargeSummary => "discharge summary",
+        LetterKind.DischargeSummary => "end of care letter",
+        LetterKind.OnwardReferral => "onward referral to hospital",
         LetterKind.ReferralResponse => "referral response",
         LetterKind.InformationRequest => "request for information",
         _ => kind.ToString(),
@@ -209,9 +220,14 @@ public static class DemoCentreSetup
         LetterKind.InformationRequest =>
             "Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}\n\n" +
             "Thank you for your referral, received on {{referral.receivedDate}}. Before we can see your patient, please send us:\n\n[What we need]",
+        // A referral on to the hospital (MC28): who the patient is, from merge fields; the clinical text is the author's.
+        LetterKind.OnwardReferral =>
+            "Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}\n{{patient.address}}\n\n" +
+            "Dear colleague,\n\nRegistered with {{practice.name}}. Last seen in our clinic on {{appointment.lastAttendedDate}}.\n\n" +
+            "Reason for referral:\n[Reason]\n\nFindings and results:\n[Findings]\n\nWhat we are asking for:\n[Request]",
         LetterKind.DischargeSummary =>
             "Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}\n{{patient.address}}\n\n" +
-            "Dear colleague at {{practice.name}},\n\nYour patient has been discharged from our care.\n\n" +
+            "Dear colleague at {{practice.name}},\n\nYour patient's care with us is complete, and we hand it back to you.\n\n" +
             "What we found:\n[Findings]\n\nWhat we did:\n[Treatment]\n\nWhat we ask of you:\n[Actions for the GP]",
         _ =>
             "Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}\n{{patient.address}}\n\n" +

@@ -40,7 +40,7 @@ public static class ConsentWorkflow
         "This file is a consent form's scan, so it can't be deleted on its own. If the consent was recorded in error, mark it entered in error.";
 
     public const string EnteredInErrorNotAllowedMessage =
-        "Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask an admin.";
+        "Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.";
 
     public const string ScanNotFoundMessage =
         "That file isn't attached to this pathway (or it's been deleted). Attach the scan to the pathway first.";

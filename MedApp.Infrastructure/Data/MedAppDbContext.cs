@@ -86,6 +86,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
     public DbSet<MdtItem> MdtItems => Set<MdtItem>();
+    public DbSet<MedApp.Domain.Consults.Consult> Consults => Set<MedApp.Domain.Consults.Consult>();
     public DbSet<MdtItemAttendee> MdtItemAttendees => Set<MdtItemAttendee>();
     public DbSet<DayTemplate> DayTemplates => Set<DayTemplate>();
     public DbSet<DayTemplateBlock> DayTemplateBlocks => Set<DayTemplateBlock>();

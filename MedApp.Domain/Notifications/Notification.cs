@@ -93,6 +93,8 @@ public sealed class Notification
             or NotificationKind.ScheduledJobFailing
             or NotificationKind.MdtOutcomeRecorded
             or NotificationKind.DataRequestDueSoon
+            or NotificationKind.ConsultRequested
+            or NotificationKind.ConsultReplied
         || IsMonitoring(kind)
         || IsNoteDeletion(kind);
 
