@@ -6,7 +6,8 @@ import type {DemoLetter, DemoLetterRecipient, DemoLetterTemplate} from '../slice
 import {db} from '../store';
 import {daysFrom, nowUtc, today, ukDateOf} from '../time';
 import {can, contains, me, NO_FLAGS, paged, pathwayPatient, patientName, patientSortName, requirePermission, sortedBy} from './common';
-import {findPathway} from './pathways';
+import {pathwayToChange} from './pathways';
+import {canSeeRecord, myScope, seeRecord} from './teamWalls';
 
 /**
  * Letter templates and letters, with simplified rules from the API's `LetterWorkflow`: a draft is its author's alone,
@@ -188,11 +189,9 @@ function ensureTemplateVersion(template: DemoLetterTemplate, expectedVersion: nu
     refuse(problem(409, 'Someone changed this letter template while you had it open. Reload to see the change, then try again.'));
 }
 
-/** The letter, or a 404. */
+/** The letter, or a 404: also when it's another team's (its pathway's, or its referral's). */
 function findLetter(id: string): DemoLetter {
-  const letter = db().letters.find((l) => l.id === id);
-  if (!letter) refuse(notFound('The letter'));
-  return letter;
+  return seeRecord(db().letters.find((l) => l.id === id), 'Letter', 'The letter');
 }
 
 function ensureVersion(letter: DemoLetter, expectedVersion: number | undefined) {
@@ -505,8 +504,10 @@ export function registerLetters() {
     if (!view && !patientId && !pathwayId && !referralId) return invalid({view: ['Choose a view, or a patient, pathway or referral.']});
     const search = query.get('Search')?.trim() ?? '';
     if (search.length > 200) return invalid({search: ['Search must not exceed 200 characters.']});
+    const scope = myScope();
     let letters = db().letters.filter(
       (l) =>
+        canSeeRecord(l, scope) &&
         (!patientId || l.patientId === patientId) &&
         (!pathwayId || l.pathwayId === pathwayId) &&
         (!referralId || l.referralId === referralId) &&
@@ -543,9 +544,10 @@ export function registerLetters() {
   });
   on('get', '/api/letters/count', () => {
     const viewer = me();
+    const scope = myScope();
     return {
       toApprove: db().letters.filter((l) => l.status === 'AwaitingApproval' && l.approverUserId === viewer.id).length,
-      toSend: db().letters.filter((l) => l.status === 'Approved' && !isSentToEveryone(l)).length,
+      toSend: db().letters.filter((l) => l.status === 'Approved' && !isSentToEveryone(l) && canSeeRecord(l, scope)).length,
     };
   });
   on('get', '/api/letters/{id}', ({params}) => {
@@ -562,7 +564,7 @@ export function registerLetters() {
       return invalid({pathwayId: ['A letter is about one pathway or one referral: give exactly one.']});
     const template = findTemplate(body.templateId);
     if (template.isArchived) return problem(409, `The '${template.name}' template is archived, so letters can't be started from it. Choose another.`);
-    const pathway = body.pathwayId ? findPathway(body.pathwayId) : null;
+    const pathway = body.pathwayId ? pathwayToChange(body.pathwayId) : null;
     const referral = body.referralId ? db().referrals.find((r) => r.id === body.referralId) : null;
     if (body.referralId && !referral) return notFound('The referral');
     const teamId = pathway?.teamId ?? referral!.teamId;
@@ -583,6 +585,7 @@ export function registerLetters() {
       id: newId(),
       patientId,
       pathwayId: pathway?.id ?? null,
+      teamId,
       referralId: referral?.id ?? null,
       templateId: template.id,
       templateName: template.name,

@@ -20,6 +20,7 @@ import {
 } from './labCommon';
 import {isAwaitingResult, registerResults} from './labResults';
 import {currentStage, findPathway} from './pathways';
+import {canSeeRecord, myScope, passToLab, seeRecord} from './teamWalls';
 
 /**
  * Specimens, the Lab page, specimen types and labs (results: `labResults.ts`), a simplified copy of the API's
@@ -201,10 +202,9 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
   };
 }
 
+/** The specimen, or a 404: also when its pathway is behind the viewer's team wall (the lab sees those passed to it). */
 function findSpecimen(id: string): DemoSpecimen {
-  const specimen = db().specimens.find((s) => s.id === id);
-  if (!specimen) refuse(notFound('The specimen'));
-  return specimen;
+  return seeRecord(db().specimens.find((s) => s.id === id), 'Specimen', 'The specimen');
 }
 
 /** A step that can be taken now: from the version the page showed, and from the status it needs (`WhyCantMove`). */
@@ -282,9 +282,11 @@ function specimenList({view: viewName, laboratoryId, pathwayId, patientId, searc
   const view = VIEW_ORDER[viewName ?? ''] ?? VIEW_ORDER.All;
   const term = search?.trim() ?? '';
   const compact = term.replace(/\s/g, '');
+  const scope = myScope();
   const items = db()
     .specimens.filter(
       (s) =>
+        canSeeRecord(s, scope) &&
         view.match(s) &&
         (!laboratoryId || s.laboratoryId === laboratoryId) &&
         (!pathwayId || s.pathwayId === pathwayId) &&
@@ -463,8 +465,9 @@ export function registerLab() {
     requirePermission('ViewPatients');
     const number = (body.number ?? '').replace(/\s/g, '').toUpperCase();
     if (!number || number.length > 20) return invalid({number: ['Type or scan the specimen number (at most 20 characters).']});
+    // The lab can't look up a sample it wasn't passed: another team's is a 404, as one that doesn't exist.
     const specimen = db().specimens.find((s) => s.number.toUpperCase() === number);
-    return specimen ? specimenResponse(specimen) : notFound('The specimen');
+    return specimenResponse(seeRecord(specimen, 'Specimen', 'The specimen'));
   });
 
   on('post', '/api/pathways/{id}/specimens', ({params, body}) => {
@@ -485,6 +488,7 @@ export function registerLab() {
       number: specimenNumber(sequence, today()),
       patientId: pathway.patientId,
       pathwayId: pathway.id,
+      teamId: pathway.teamId,
       stageId: stage.id,
       specimenTypeId: body.specimenTypeId!,
       laboratoryId: body.laboratoryId!,
@@ -512,6 +516,8 @@ export function registerLab() {
       version: 1,
     };
     db().specimens.push(specimen);
+    // Passed to the lab: it sees the whole pathway from now on, and keeps it after hand-back (decision 184).
+    passToLab(pathway);
     return specimenResponse(specimen);
   });
 

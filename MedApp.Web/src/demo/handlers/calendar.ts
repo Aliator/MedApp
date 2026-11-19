@@ -3,11 +3,13 @@ import {addDays} from '../../utils/calendarSlots';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId, ROOMS} from '../ids';
+import type {DemoAppointment} from '../state';
 import {db} from '../store';
 import {nowUtc, today, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
-import {can, contains, int, list, me, paged, patientName, requirePermission, sorted} from './common';
-import {findPathway} from './pathways';
+import {can, contains, int, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
+import {pathwayToChange} from './pathways';
+import {canSeeRecord, myScope, seeRecord} from './teamWalls';
 import {activityType, calendarDay, findSession, sessionsFor, sharedWorkingTime, templateBlocksOn, workingDayOf} from './setupCalendar';
 
 /**
@@ -17,7 +19,7 @@ import {activityType, calendarDay, findSession, sessionsFor, sharedWorkingTime, 
  * (template ones too), booked appointments, meetings and sessions.
  */
 
-type Appointment = Schemas['AppointmentResponse'];
+type Appointment = DemoAppointment;
 type Meeting = Schemas['MeetingResponse'];
 
 /** How long after the event a visit recorded after it can be withdrawn by whoever recorded it. */
@@ -92,6 +94,7 @@ function blocksOf(staffUserId: string, from: string, to: string, canEdit: boolea
 /** One person's calendar from `from` to `to`. */
 function calendar(staffUserId: string, from: string, to: string, withAppointments = true): Schemas['CalendarResponse'] {
   const viewer = me();
+  const scope = myScope();
   const canEdit = staffUserId === viewer.id || can('ManageAnyCalendar');
   const state = db();
   const week = state.defaultWeeks[staffUserId];
@@ -110,7 +113,14 @@ function calendar(staffUserId: string, from: string, to: string, withAppointment
     blocks: blocksOf(staffUserId, from, to, canEdit),
     appointments: withAppointments
       ? state.appointments
-          .filter((a) => a.staffUserId === staffUserId && inRange(a.startUtc, from, to) && a.status !== 'Cancelled' && a.status !== 'EnteredInError')
+          .filter(
+            (a) =>
+              a.staffUserId === staffUserId &&
+              inRange(a.startUtc, from, to) &&
+              a.status !== 'Cancelled' &&
+              a.status !== 'EnteredInError' &&
+              canSeeRecord(a, scope),
+          )
           .map(appointmentResponse)
       : [],
     meetings: state.meetings
@@ -162,11 +172,21 @@ function freeOn(date: string, userIds: string[], busy: Schemas['BusyTimeResponse
   return free;
 }
 
+/** The appointment, or a 404: also when it's another team's (the team walls). */
 function findAppointment(id: string): Appointment {
-  const appointment = db().appointments.find((a) => a.id === id);
-  if (!appointment) refuse(notFound('The appointment'));
-  return appointment;
+  return seeRecord(db().appointments.find((a) => a.id === id), 'Appointment', 'The appointment');
 }
+
+/**
+ * A new appointment's team: its pathway's, or without one the booker's team (the full version asks when there are
+ * several), else the clinician's.
+ */
+const teamForBooking = (pathwayTeamId: string | undefined, staffUserId: string | null | undefined) =>
+  pathwayTeamId ?? myScope().teamIds[0] ?? teamsOfStaff(staffUserId)[0] ?? null;
+const teamsOfStaff = (staffUserId: string | null | undefined) => {
+  const person = personById(staffUserId);
+  return person ? teamIdsOf(person) : [];
+};
 
 function findMeeting(id: string): Meeting {
   const meeting = db().meetings.find((m) => m.id === id);
@@ -245,12 +265,13 @@ function recordPast(body: Partial<Schemas['RecordPastAppointmentRequest']>): App
   if (body.outcome !== 'Attended' && body.outcome !== 'DidNotAttend') errors.outcome = ['Choose whether the patient attended.'];
   if (Object.keys(errors).length > 0) refuse(invalid(errors));
   if (patient!.isRestricted || patient!.isAnonymised) refuse(problem(409, 'This patient’s record is restricted, so it can’t be changed.'));
-  const pathway = body.pathwayId ? findPathway(body.pathwayId) : undefined;
+  const pathway = body.pathwayId ? pathwayToChange(body.pathwayId) : undefined;
   const stage = pathway?.stages.find((s) => s.id === body.stageId);
   if (pathway && ukDateOf(body.startUtc!) < ukDateOf(pathway.createdAt)) refuse(problem(409, 'That’s before the pathway was started.'));
   const now = nowUtc();
   return {
     id: newId(),
+    teamId: teamForBooking(pathway?.teamId, body.staffUserId),
     patientId: patient!.id,
     patientName: patientName(patient!.id),
     pathwayId: pathway?.id ?? null,
@@ -463,8 +484,10 @@ export function registerCalendar() {
     const search = query.get('Search');
     // The Did not attend list: missed, with no decision that no further appointment is needed.
     const didNotAttend = query.get('View') === 'didNotAttend';
+    const scope = myScope();
     const items = db().appointments.filter(
       (a) =>
+        canSeeRecord(a, scope) &&
         (!query.get('PatientId') || a.patientId === query.get('PatientId')) &&
         (!query.get('PathwayId') || a.pathwayId === query.get('PathwayId')) &&
         (!query.get('StageId') || a.stageId === query.get('StageId')) &&
@@ -508,11 +531,12 @@ export function registerCalendar() {
     const patient = db().patients.find((p) => p.id === body.patientId);
     if (!patient) return invalid({patientId: ['Choose a patient.']});
     if (patient.isRestricted || patient.isAnonymised) return problem(409, 'This patient’s record is restricted, so it can’t be changed.');
-    const pathway = body.pathwayId ? findPathway(body.pathwayId) : undefined;
+    const pathway = body.pathwayId ? pathwayToChange(body.pathwayId) : undefined;
     const stage = pathway?.stages.find((s) => s.id === body.stageId);
     const now = nowUtc();
     const appointment: Appointment = {
       id: newId(),
+      teamId: teamForBooking(pathway?.teamId, body.staffUserId),
       patientId: patient.id,
       patientName: patientName(patient.id),
       pathwayId: pathway?.id ?? null,

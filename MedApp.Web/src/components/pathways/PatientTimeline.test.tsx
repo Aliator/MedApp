@@ -70,6 +70,28 @@ describe('PatientTimeline', () => {
     expect(await screen.findByText('Nothing is due: the patient has no open pathways.')).toBeInTheDocument();
   });
 
+  it("shows other clinics' pathways as summary lines only, with no link", async () => {
+    mockApi({
+      [`GET ${OVERVIEW}`]: () =>
+        json({
+          upcoming: [],
+          openCount: 0,
+          pathways: [],
+          otherTeamPathways: [
+            {teamName: 'Gynaecology', state: 'InProgress', since: '2026-11-03'},
+            {teamName: 'Diabetes', state: 'Completed', since: '2026-10-17'},
+          ],
+        }),
+      [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null}),
+    });
+    renderWithApp(<Harness />, {user: staffUser});
+    const others = await screen.findByRole('list', {name: 'Pathways in other clinics'});
+    expect(others).toHaveTextContent('A pathway in Gynaecology, in progress since 3 Nov 2026');
+    expect(others).toHaveTextContent('A pathway in Diabetes, completed 17 Oct 2026');
+    expect(within(others).queryByRole('link')).toBeNull();
+    expect(screen.getByText('Nothing is due in your team: the patient has no open pathways you can see.')).toBeInTheDocument();
+  });
+
   it("says when what's due could not be loaded", async () => {
     mockApi({[`GET ${OVERVIEW}`]: () => json({title: 'Down'}, 500), [`GET ${TIMELINE}`]: () => json({items: [], nextCursor: null})});
     renderWithApp(<Harness />, {user: staffUser});

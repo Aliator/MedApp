@@ -101,6 +101,10 @@ export const PATHWAYS = {
   consentToRecord: id(0xd5, 9),
   /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at the first visit, a branch point (biopsy or treat). */
   branchToChoose: id(0xd5, 10),
+  /** Post-menopausal bleeding, Priya Holloway, Gynaecology's: beside her Dermatology one, behind the team wall. */
+  priyaGynaecology: id(0xd5, 11),
+  /** Diabetes review, Ellis Varden, Diabetes's: discharged; Dermatology sees it only as "completed". */
+  ellisDiabetes: id(0xd5, 12),
 } as const;
 
 export const REFERRALS = {

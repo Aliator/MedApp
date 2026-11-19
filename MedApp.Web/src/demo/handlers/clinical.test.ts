@@ -12,7 +12,8 @@ const stageNamed = (pathwayId: string, name: string) => pathwayOf(pathwayId).sta
 describe('the light demo’s letters, MDT and consent', () => {
   it('approves a letter submitted to you, and tells its author', async () => {
     startLightDemo(STAFF);
-    expect((await call('GET', '/api/letters/count')).body).toEqual({toApprove: 1, toSend: 1});
+    // The letter to send is Gynaecology's, behind Dermatology's team wall.
+    expect((await call('GET', '/api/letters/count')).body).toEqual({toApprove: 1, toSend: 0});
     const awaiting = (await call('GET', '/api/letters/search?View=AwaitingMyApproval')).body;
     expect(awaiting.items.map((l: {id: string}) => l.id)).toEqual([LETTERS.awaitingApproval]);
     const letter = (await call('GET', `/api/letters/${LETTERS.awaitingApproval}`)).body;

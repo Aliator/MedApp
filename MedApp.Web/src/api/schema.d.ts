@@ -21454,6 +21454,12 @@ export interface components {
             /** Format: int32 */
             unreadCount?: number;
         };
+        OtherTeamPathwaySummaryResponse: {
+            teamName?: string | null;
+            state?: string | null;
+            /** Format: date */
+            since?: string;
+        };
         OverdueByAssigneeResponse: {
             /** Format: uuid */
             userId?: string | null;
@@ -21868,6 +21874,7 @@ export interface components {
             isAnonymised?: boolean;
             /** Format: date-time */
             anonymisedAtUtc?: string | null;
+            otherTeamPathways?: components["schemas"]["OtherTeamPathwaySummaryResponse"][] | null;
         };
         PatientResponsePagedResponse: {
             items?: components["schemas"]["PatientResponse"][] | null;
@@ -21986,6 +21993,7 @@ export interface components {
             openCount?: number;
             pathways?: components["schemas"]["PatientTimelinePathwayResponse"][] | null;
             awaitingReferrals?: components["schemas"]["PatientTimelineReferralResponse"][] | null;
+            otherTeamPathways?: components["schemas"]["OtherTeamPathwaySummaryResponse"][] | null;
         };
         PatientTimelinePageResponse: {
             items?: components["schemas"]["PatientTimelineEntryResponse"][] | null;
