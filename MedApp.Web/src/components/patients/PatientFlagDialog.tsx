@@ -36,8 +36,8 @@ const TEXT = {
   },
   'dispute-set': {
     title: 'Mark as Disputed',
-    message: 'Record that the patient disputes something in their record (Article 16). Staff see a banner with what they dispute.',
-    confirm: 'Mark Disputed',
+    message: 'Record that the patient disputes something in their record (UK GDPR Article 16). Staff see a banner with what they dispute.',
+    confirm: 'Mark as Disputed',
     notDone: 'Not marked disputed',
     reasonLabel: "What's disputed",
   },

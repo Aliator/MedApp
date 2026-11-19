@@ -315,10 +315,10 @@ describe('AppSideNav', () => {
     // The requests to sign out (the bell asks for the notifications as well).
     const logouts = () => fetch.mock.calls.filter(([request]) => new URL((request as Request).url).pathname === '/api/auth/logout');
 
-    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
     // It asks first.
     expect(logouts()).toHaveLength(0);
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(logouts()).toHaveLength(1);
@@ -343,8 +343,8 @@ describe('AppSideNav', () => {
     await screen.findByRole('link', {name: 'Freya Ahmed'});
 
     await user.click(await rowMenuItem(user, 'Freya Ahmed', 'Pin'));
-    await user.click(await screen.findByRole('button', {name: /logout/i}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     const order = calls(fetch).filter((c) => c === 'PUT /api/auth/me/settings' || c === 'POST /api/auth/logout');
@@ -366,8 +366,8 @@ describe('AppSideNav', () => {
     mockFetch(() => new Response(null, {status: 204}));
     const {user, router} = renderWithApp(<AppSideNav />, {user: adminUser});
 
-    await user.click(await screen.findByRole('button', {name: /logout/i}));
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Log Out'}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     await waitFor(() => expect(localStorage.getItem('medapp.favourites')).toBeNull());
@@ -599,7 +599,7 @@ describe('AppSideNav folded, and its menus', () => {
 
     expect(await screen.findByRole('link', {name: 'MedApp'})).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', {name: 'Patients'})).toHaveAttribute('href', '/patients');
-    expect(screen.getByRole('button', {name: 'Logout'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Sign Out'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: /^Notifications/})).toBeInTheDocument();
     expect(screen.queryByRole('link', {name: 'Users'})).not.toBeInTheDocument();
   });
@@ -658,7 +658,7 @@ describe('AppSideNav folded, and its menus', () => {
     const fetch = mockFetch(() => new Response(null, {status: 204}));
     const {user, router} = renderWithApp(<AppSideNav />, {user: staffUser});
 
-    await user.click(await screen.findByRole('button', {name: /logout/i}));
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Cancel'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -1135,7 +1135,7 @@ describe('AppSideNav notepad', () => {
   it('has no notepad outside the signed-in layout', async () => {
     renderWithApp(<AppSideNav />, {user: staffUser});
 
-    await screen.findByRole('button', {name: 'Logout'});
+    await screen.findByRole('button', {name: 'Sign Out'});
     expect(screen.queryByRole('button', {name: 'Notepad'})).not.toBeInTheDocument();
   });
 

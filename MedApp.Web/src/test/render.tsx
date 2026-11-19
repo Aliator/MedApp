@@ -140,7 +140,7 @@ const shownSearch = () =>
 /** A list's search bar (its filters show in it as tokens, e.g. "Status: is Active"). */
 export const searchBar = () => shownSearch()!;
 
-/** Picks an item from the menu beside a list's favourites or search ("List options"): Search, Favourites or Configuration…. */
+/** Picks an item from the menu beside a list's favourites or search ("List options"): Search, Favourites or Edit Favourites…. */
 export async function pickListOption(user: ReturnType<typeof userEvent.setup>, item: string) {
   // Its name says which tab the list is showing, if any: "List options (showing Not started)".
   const button = await screen.findByRole('button', {name: /^List options/});

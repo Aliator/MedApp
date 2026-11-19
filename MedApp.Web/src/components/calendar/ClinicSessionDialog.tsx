@@ -145,7 +145,7 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
                 <VStack gap={3} hAlign="stretch">
                   <Text type="body">
                     {session.bookedCount
-                      ? `Cancelling it cancels the ${session.bookedCount === 1 ? 'appointment' : `${session.bookedCount} appointments`} booked into it that haven’t started, with this reason, and lists the patients to tell. Any that have started stay, for their outcome to be recorded.`
+                      ? `This also cancels the ${session.bookedCount === 1 ? 'appointment' : `${session.bookedCount} appointments`} booked into it, except any that have started, and lists the patients to tell.`
                       : 'Nobody is booked into it yet.'}
                   </Text>
                   <TextArea
@@ -236,7 +236,7 @@ function Slots({
                 <Text type="body">{`${slot.patientName}${slot.appointmentStatus && slot.appointmentStatus !== 'Booked' ? ` (${statusWords(slot.appointmentStatus)})` : ''}`}</Text>
               ) : (
                 <Text type="body" color="secondary">
-                  {slot.isPast ? 'Free (started)' : 'Free'}
+                  {slot.isPast ? 'Free (time passed)' : 'Free'}
                 </Text>
               )}
             </StackItem>

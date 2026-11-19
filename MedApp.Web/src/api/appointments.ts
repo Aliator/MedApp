@@ -208,7 +208,7 @@ export function appointmentStatusLabel(status: string | null | undefined): strin
 
 /** What happens after a patient did not attend (decision 132), by the names the API uses, with their words. */
 export const DNA_FOLLOW_UPS = [
-  {value: 'Rebook', label: 'Rebook'},
+  {value: 'Rebook', label: 'To be rebooked'},
   {value: 'ClinicianToReview', label: 'Clinician to review'},
   {value: 'NoFurtherAppointment', label: 'No further appointment'},
 ] as const;
@@ -217,7 +217,7 @@ export type DnaFollowUpDecision = (typeof DNA_FOLLOW_UPS)[number]['value'];
 /** The longest detail a follow-up can have (the API's limit). */
 export const MAX_DNA_FOLLOW_UP_DETAIL = 500;
 
-/** A follow-up decision in words: "Rebook", "Clinician to review" or "No further appointment". */
+/** A follow-up decision in words: "To be rebooked", "Clinician to review" or "No further appointment". */
 export const dnaFollowUpLabel = (decision: string | null | undefined): string =>
   DNA_FOLLOW_UPS.find((d) => d.value === decision)?.label ?? decision ?? '';
 

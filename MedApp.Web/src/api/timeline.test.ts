@@ -164,12 +164,12 @@ describe('describeTimelineEntry', () => {
     [{action: 'StageStarted', stageName: 'Consultation'}, 'Started Consultation', ''],
     [{action: 'StageFinished', stageName: 'Consultation'}, 'Finished Consultation', ''],
     [{action: 'StageUnlocked', stageName: null}, 'Unlocked a stage', ''],
-    [{action: 'Assigned', assigneeUsername: 'other.staff'}, 'Assigned other.staff', ''],
-    [{action: 'Unassigned', assigneeUsername: null}, 'Unassigned someone', ''],
+    [{action: 'Assigned', assigneeUsername: 'other.staff'}, 'Assigned to other.staff', ''],
+    [{action: 'Unassigned', assigneeUsername: null}, 'Assignee removed', ''],
     [{action: 'Deleted', fromStatus: 'Cancelled'}, 'Pathway deleted', 'Was cancelled'],
     [{action: 'Deleted', fromStatus: null}, 'Pathway deleted', ''],
-    [{action: 'Exploded'}, 'Exploded', ''],
-    [{action: null}, 'Changed', ''],
+    [{action: 'Exploded'}, 'Record changed', ''],
+    [{action: null}, 'Record changed', ''],
   ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {
     expect(describeTimelineEntry(entry(fields))).toEqual({title, detail});
   });
@@ -286,13 +286,13 @@ describe('describeTimelineEntry', () => {
     const slot = 'Mon 23 Nov 2026, 10:00 to 10:30 with test.doctor';
 
     it.each([
-      [{action: 'AppointmentRequested', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested for Review', 'Requested automatically, as the stage involves a visit. Requires appointment'],
-      [{action: 'AppointmentRequested', stageName: null, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested', 'Requires appointment'],
+      [{action: 'AppointmentRequested', isAutomatic: true, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested for Review', 'Added to Requires Appointment automatically, as the stage needs a visit'],
+      [{action: 'AppointmentRequested', stageName: null, appointmentStartUtc: null, appointmentStaffUsername: null}, 'Appointment requested', 'Added to Requires Appointment'],
       [{action: 'AppointmentBooked'}, 'Appointment booked for Review', slot],
-      [{action: 'AppointmentAttended'}, 'Marked Attended for Review', slot],
-      [{action: 'AppointmentAttended', fromStatus: 'DidNotAttend'}, 'Marked Attended for Review', `${slot}. Was marked Did not attend`],
-      [{action: 'AppointmentDidNotAttend', fromStatus: 'Attended'}, 'Marked Did not attend for Review', `${slot}. Was marked Attended`],
-      [{action: 'AppointmentDidNotAttend', fromStatus: 'Booked'}, 'Marked Did not attend for Review', slot],
+      [{action: 'AppointmentAttended'}, 'Marked as attended for Review', slot],
+      [{action: 'AppointmentAttended', fromStatus: 'DidNotAttend'}, 'Marked as attended for Review', `${slot}. Was marked as did not attend`],
+      [{action: 'AppointmentDidNotAttend', fromStatus: 'Attended'}, 'Marked as did not attend for Review', `${slot}. Was marked as attended`],
+      [{action: 'AppointmentDidNotAttend', fromStatus: 'Booked'}, 'Marked as did not attend for Review', slot],
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'Attended'}, 'Appointment recorded after the event for Review: attended', slot],
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'DidNotAttend', fromStatus: 'Requested'}, 'Appointment recorded after the event for Review: did not attend', `${slot}. Was in Requires Appointment`],
       [{action: 'AppointmentRecordedAfterEvent', toStatus: 'Attended', stageName: null}, 'Appointment recorded after the event: attended', slot],
@@ -303,7 +303,7 @@ describe('describeTimelineEntry', () => {
       [{action: 'AppointmentEnteredInError', reason: null}, 'Appointment marked entered in error for Review', slot],
       // A missed appointment's follow-up: the decision for everyone, its detail (the reason) for admins only.
       [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'ClinicianToReview', reason: 'Dr Test to call.'}, 'Did not attend follow-up recorded for Review: Clinician to review', `${slot}. Dr Test to call.`],
-      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook', reason: null}, 'Did not attend follow-up recorded for Review: Rebook', slot],
+      [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: 'Rebook', reason: null}, 'Did not attend follow-up recorded for Review: To be rebooked', slot],
       [{action: 'AppointmentDnaFollowUpRecorded', dnaFollowUp: null}, 'Did not attend follow-up recorded for Review: unknown', slot],
       [{action: 'AppointmentSomethingNew', appointmentStartUtc: null}, 'Appointment changed for Review', 'With test.doctor'],
     ] as [Partial<TimelineEntry>, string, string][])('words %o', (fields, title, detail) => {

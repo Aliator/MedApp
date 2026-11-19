@@ -129,7 +129,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
       {'POST /api/appointments': () => json(booked)},
     );
 
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     // Who it's for, as the patient banner shows them, so staff can check (hazard H-34).
     const banner = dialog().getByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('NHS No. 999 000 0018')).toBeInTheDocument();
@@ -275,7 +275,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
       {'POST /api/appointments/req-1/book': () => json(testAppointment({id: 'req-1'}))},
     );
 
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     expect(dialog().getByText('Knee review: Assessment')).toBeInTheDocument();
     // The appointment carries only the patient's name, so who they are is read from their record.
     expect(await dialog().findByRole('region', {name: 'Patient: Patient, Test'})).toHaveTextContent('NHS No. 999 000 0018');
@@ -307,7 +307,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     );
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     await user.click(await dialog().findByRole('button', {name: '10:00'}));
     await user.click(dialog().getByRole('button', {name: 'Book'}));
 
@@ -372,7 +372,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     atMondayMorning();
     const on = {'GET /api/appointments/patient-messages/status': () => json({mode: 'Live', isOn: true})};
     const {unmount} = renderDialog({appointment: testRequested({id: 'req-1'})}, on);
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
     expect(dialog().queryByRole('checkbox', {name: /Tell the patient/})).not.toBeInTheDocument();
     unmount();
 
@@ -426,7 +426,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     expect(screen.queryByRole('option', {name: /Referral/})).not.toBeInTheDocument();
     expect(screen.getByRole('option', {name: /Follow-up/})).toHaveTextContent('Visit suggested');
     await user.click(screen.getByRole('option', {name: /Consent/}));
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
 
     await user.click(dialog().getByRole('button', {name: 'Add to Requires Appointment'}));
     await waitFor(async () =>
@@ -681,7 +681,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     // Why, on screen: the restricted banner above shows only its label and summary.
     expect(dialog().getByText("This patient's record is restricted, so it can't be changed until an admin lifts the restriction.")).toBeInTheDocument();
     const details = await openAlertDetails(user, 'Restricted record', openDialog()!);
-    expect(within(details).getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(within(details).getByText(/Restricted record: .* and cancel appointments/)).toBeInTheDocument();
     expect(within(details).getByText('Reason: Synthetic accuracy check')).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Add to Requires Appointment'}))).toBe(true);
     await user.click(await dialog().findByRole('button', {name: '09:00'}));
@@ -706,7 +706,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
     renderDialog({appointment: testRequested()}, {'GET /api/patients/patient-1': () => json({}, 500)});
 
     await screen.findByRole('dialog');
-    expect(await dialog().findByText('Test Patient: their details could not be loaded.')).toBeInTheDocument();
+    expect(await dialog().findByText('Test Patient’s details could not be loaded.')).toBeInTheDocument();
   });
 });
 

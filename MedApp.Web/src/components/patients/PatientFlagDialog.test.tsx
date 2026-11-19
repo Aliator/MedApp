@@ -149,7 +149,7 @@ describe('PatientFlagDialog', () => {
   it('asks what is disputed, and clears a dispute', async () => {
     renderDialog({flag: 'dispute', set: true});
     expect(await screen.findByRole('textbox', {name: /what's disputed/i})).toBeInTheDocument();
-    expect(isDisabled(within(openDialog()!).getByRole('button', {name: 'Mark Disputed'}))).toBe(true);
+    expect(isDisabled(within(openDialog()!).getByRole('button', {name: 'Mark as Disputed'}))).toBe(true);
   });
 
   it('clears a dispute, and can be cancelled', async () => {

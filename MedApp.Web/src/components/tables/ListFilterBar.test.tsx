@@ -238,7 +238,7 @@ describe('ListFilterBar, tabs', () => {
 
 describe('ListFilterBar, configuration', () => {
   const configure = async (user: ReturnType<typeof renderHarness>['user']) => {
-    await pickListOption(user, 'Configuration');
+    await pickListOption(user, 'Edit Favourites');
     await waitFor(() => expect(openDialog()).not.toBeNull());
   };
   const listed = () => dialog().getAllByRole('listitem').map((item) => item.textContent ?? '');

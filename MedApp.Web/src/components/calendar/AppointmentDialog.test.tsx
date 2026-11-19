@@ -61,7 +61,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     // Requested and booked by the same person at the same time.
     expect(dialog().getAllByText('By test-admin, 10 Nov 2026, 10:00')).toHaveLength(2);
     expect(dialog().getByRole('textbox', {name: /Notes/})).toHaveValue('Bring the scan.');
-    expect(dialog().queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
+    expect(dialog().queryByRole('button', {name: 'Mark Attended'})).not.toBeInTheDocument();
 
     await user.click(dialog().getByRole('link', {name: 'Knee review: Assessment'}));
     await waitFor(() => expect(router.state.location.pathname).toBe('/pathways/pathway-1'));
@@ -160,11 +160,11 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       },
     });
 
-    await user.click(await dialog().findByRole('button', {name: 'Did not attend'}));
+    await user.click(await dialog().findByRole('button', {name: 'Mark Did Not Attend'}));
 
-    await expectAnnounced('Marked Did not attend');
+    await expectAnnounced('Marked as did not attend');
     expect(await bodyOf(fetch, 'POST', '/api/appointments/appt-1/outcome')).toEqual({outcome: 'DidNotAttend'});
-    await waitFor(() => expect(isDisabled(dialog().getByRole('button', {name: 'Did not attend'}))).toBe(true));
+    await waitFor(() => expect(isDisabled(dialog().getByRole('button', {name: 'Mark Did Not Attend'}))).toBe(true));
     expect(dialog().getByRole('button', {name: 'Book Another'})).toBeInTheDocument();
   });
 
@@ -172,7 +172,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     const appointment = testAppointment({id: 'appt-1', canRecordOutcome: true});
     const {user} = renderDialog(appointment, {'POST /api/appointments/appt-1/outcome': () => json({}, 500)});
 
-    await user.click(await dialog().findByRole('button', {name: 'Attended'}));
+    await user.click(await dialog().findByRole('button', {name: 'Mark Attended'}));
     expect(await dialog().findByText('The appointment could not be changed. Please try again.')).toBeInTheDocument();
   });
 
@@ -270,7 +270,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       expect(items[0]).toHaveTextContent('Delivered · 21 Nov 2026, 09:01');
       expect(items[0]).toHaveTextContent(reminder.body);
       expect(items[1]).toHaveTextContent('Reminder: Email');
-      expect(items[1]).toHaveTextContent('No reminder: no consent or contact (no email address)');
+      expect(items[1]).toHaveTextContent('No reminder: no email address');
     });
 
     it('says when there are none while messages are on, and shows nothing while they are off', async () => {
@@ -325,7 +325,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
 
       await user.click(await dialog().findByRole('button', {name: 'Record Follow-up'}));
       expect(await screen.findByRole('heading', {name: 'Record Follow-up'})).toBeInTheDocument();
-      expect(dialog().getByText(/MedApp never discharges a patient or changes a pathway because of a missed appointment/)).toBeInTheDocument();
+      expect(dialog().getByText(/MedApp never ends a pathway or changes one because of a missed appointment/)).toBeInTheDocument();
       // Who the patient is, and which appointment was missed.
       expect(await dialog().findByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
       expect(dialog().getByText('Mon 23 Nov 2026, 09:00 to 09:30 with test-user')).toBeInTheDocument();
@@ -354,7 +354,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       });
 
       await user.click(await dialog().findByRole('button', {name: 'Record Follow-up'}));
-      await user.click(await dialog().findByRole('radio', {name: 'Rebook'}));
+      await user.click(await dialog().findByRole('radio', {name: 'To be rebooked'}));
       await user.click(dialog().getByRole('button', {name: 'Record Follow-up'}));
       expect(await dialog().findByText('Detail must be 500 characters or fewer.')).toBeInTheDocument();
 
@@ -420,7 +420,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
         },
       });
 
-      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      await user.click(await dialog().findByRole('button', {name: 'Mark Entered in Error'}));
       expect(await screen.findByRole('heading', {name: 'Mark Entered in Error'})).toBeInTheDocument();
       expect(dialog().getByText(/withdraws the record of a visit that didn't happen, or that's on the wrong patient/)).toBeInTheDocument();
       expect(dialog().getByText(/stays in the appointment's history, and it can't be undone/)).toBeInTheDocument();
@@ -435,8 +435,8 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
       expect(dialog().getAllByText('Entered in error').some((e) => e.closest('.astryx-token'))).toBe(true);
       expect(dialog().getByText('Why entered in error')).toBeInTheDocument();
       expect(dialog().getByText('Recorded on the wrong patient.')).toBeInTheDocument();
-      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
-      expect(dialog().queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Mark Entered in Error'})).not.toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Mark Attended'})).not.toBeInTheDocument();
     });
 
     it('announces it with no stage message, goes back when called off, and shows a refusal', async () => {
@@ -447,16 +447,16 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
           status === 200 ? json({appointment: walkIn, visitRequestedAgain: false, stageMessage: null}) : json({title: 'It was recorded over 30 days ago.'}, 409),
       });
 
-      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      await user.click(await dialog().findByRole('button', {name: 'Mark Entered in Error'}));
       await user.click(await dialog().findByRole('button', {name: 'Keep It'}));
       expect(await screen.findByRole('heading', {name: 'Appointment'})).toBeInTheDocument();
-      await user.click(dialog().getByRole('button', {name: 'Entered in Error'}));
+      await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
       await user.type(await dialog().findByRole('textbox', {name: /Reason/}), 'Never happened.');
       await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
       await expectAnnounced('Marked entered in error');
 
       status = 409;
-      await user.click(await dialog().findByRole('button', {name: 'Entered in Error'}));
+      await user.click(await dialog().findByRole('button', {name: 'Mark Entered in Error'}));
       await user.type(await dialog().findByRole('textbox', {name: /Reason/}), 'Never happened.');
       await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));
       expect(await dialog().findByText('It was recorded over 30 days ago.')).toBeInTheDocument();
@@ -465,28 +465,28 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     it('is offered only to whoever recorded it, or an admin, and only when the API allows it', async () => {
       const someoneElses = {...walkIn, bookedByUsername: 'j.smith'};
       const staff = renderDialog(someoneElses);
-      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
-      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      expect(await dialog().findByRole('button', {name: 'Mark Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Mark Entered in Error'})).not.toBeInTheDocument();
       staff.unmount();
 
       const admin = renderDialog(someoneElses, {}, undefined, adminUser);
-      expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
+      expect(await dialog().findByRole('button', {name: 'Mark Entered in Error'})).toBeInTheDocument();
       admin.unmount();
 
       const none = renderDialog({...walkIn, canMarkEnteredInError: false});
-      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
-      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      expect(await dialog().findByRole('button', {name: 'Mark Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Mark Entered in Error'})).not.toBeInTheDocument();
       none.unmount();
 
       // Over 30 days on, only an admin can, not whoever recorded it.
       const old = {...walkIn, canRecorderMarkEnteredInError: false};
       const recorder = renderDialog(old);
-      expect(await dialog().findByRole('button', {name: 'Attended'})).toBeInTheDocument();
-      expect(dialog().queryByRole('button', {name: 'Entered in Error'})).not.toBeInTheDocument();
+      expect(await dialog().findByRole('button', {name: 'Mark Attended'})).toBeInTheDocument();
+      expect(dialog().queryByRole('button', {name: 'Mark Entered in Error'})).not.toBeInTheDocument();
       recorder.unmount();
 
       renderDialog(old, {}, undefined, adminUser);
-      expect(await dialog().findByRole('button', {name: 'Entered in Error'})).toBeInTheDocument();
+      expect(await dialog().findByRole('button', {name: 'Mark Entered in Error'})).toBeInTheDocument();
     });
   });
 
@@ -521,7 +521,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
     expect(dialog().getByText('Not booked yet')).toBeInTheDocument();
     expect(dialog().getByText('Automatically, 10 Nov 2026, 10:00')).toBeInTheDocument();
     await user.click(dialog().getByRole('button', {name: 'Book'}));
-    expect(await screen.findByRole('heading', {name: 'Book Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Book Appointment'})).toBeInTheDocument();
   });
 
   it('shows why a cancelled one was cancelled, its notes read-only, and books another', async () => {
@@ -600,7 +600,7 @@ describe('AppointmentDialog', {timeout: 30_000}, () => {
 
     const banner = await dialog().findByRole('region', {name: 'Patient: Patient, Test'});
     expect(within(banner).getByText('Restricted')).toBeInTheDocument();
-    expect(dialog().getByText(/Restricted record: .* an appointment cancelled/)).toBeInTheDocument();
+    expect(dialog().getByText(/Restricted record: .* and cancel appointments/)).toBeInTheDocument();
     expect(dialog().getByRole('button', {name: 'Cancel Appointment'})).toBeInTheDocument();
     expect(dialog().queryByRole('button', {name: 'Reschedule'})).not.toBeInTheDocument();
     expect(dialog().queryByRole('textbox', {name: /Notes/})).not.toBeInTheDocument();

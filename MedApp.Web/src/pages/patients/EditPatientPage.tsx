@@ -34,10 +34,10 @@ export interface IdentityChange {
 }
 
 const IDENTITY_FIELDS: {key: 'firstName' | 'lastName' | 'dateOfBirth' | 'nhsNumber'; label: string; show: (value: string) => string}[] = [
-  {key: 'firstName', label: 'First Name', show: (v) => v.trim() || 'None'},
-  {key: 'lastName', label: 'Last Name', show: (v) => v.trim() || 'None'},
-  {key: 'dateOfBirth', label: 'Date of Birth', show: (v) => (v ? formatDate(v) : 'None')},
-  {key: 'nhsNumber', label: 'NHS Number', show: (v) => (normaliseNhsNumber(v) ? formatNhsNumber(normaliseNhsNumber(v)) : 'Not given')},
+  {key: 'firstName', label: 'First name', show: (v) => v.trim() || 'None'},
+  {key: 'lastName', label: 'Last name', show: (v) => v.trim() || 'None'},
+  {key: 'dateOfBirth', label: 'Date of birth', show: (v) => (v ? formatDate(v) : 'None')},
+  {key: 'nhsNumber', label: 'NHS number', show: (v) => (normaliseNhsNumber(v) ? formatNhsNumber(normaliseNhsNumber(v)) : 'Not given')},
 ];
 
 /** The details that say who a patient is (name, date of birth, NHS number) that a save would change. */

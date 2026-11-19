@@ -36,8 +36,8 @@ const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ').toLowerCase
 export const ANONYMISE_MESSAGE =
   "The patient's name, email and every note are replaced with placeholders, and their date of birth keeps only its year. " +
   "Attached files' names are replaced and the files deleted. " +
-  "The result is pseudonymised rather than anonymous: the patient's ID, the dates and the structure of their pathways " +
-  "and audit trail remain, so it's still personal data while they do. This can't be undone.";
+  "The patient's ID, the dates and the outline of their pathways and audit trail are kept, so it's still personal data. " +
+  "This can't be undone.";
 
 /**
  * Anonymises (strictly, pseudonymises) a patient's record (admins): confirmed by typing the patient's full name, with a

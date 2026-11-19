@@ -409,7 +409,7 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
 
 const FOOTER = {borderBlockStart: '1px solid var(--color-border)'} as const;
 
-/** "Saving...", "Saved 10:32", "Unsaved changes", or what went wrong, with Retry or Reload. */
+/** "Saving...", "Saved 10:32", "Unsaved changes", or what went wrong, with Try Again or Reload. */
 function SaveStatus({state, isDirty, onRetry, onReload}: {state: SaveState; isDirty: boolean; onRetry: () => void; onReload: () => void}) {
   if (state.kind === 'error' || state.kind === 'conflict') {
     return (
@@ -418,7 +418,7 @@ function SaveStatus({state, isDirty, onRetry, onReload}: {state: SaveState; isDi
           <AlertMessage label={state.kind === 'conflict' ? 'Saved elsewhere' : 'Notepad not saved'} message={state.message} />
         </StackItem>
         {state.kind === 'error' ? (
-          <Button label="Retry" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={onRetry} />
+          <Button label="Try Again" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={onRetry} />
         ) : (
           <Button label="Reload" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={onReload} />
         )}

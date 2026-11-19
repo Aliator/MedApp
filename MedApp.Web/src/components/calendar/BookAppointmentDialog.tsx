@@ -278,7 +278,8 @@ function BookingForm({
   const canBook = patientId !== undefined && bookedStaffId !== undefined && start !== undefined && !isSaving && !isRefused;
   const canRequest = !appointment && patientId !== undefined && start === undefined && !isSaving && !isRefused;
 
-  const title = isRescheduling ? 'Reschedule Appointment' : fixedStage || (stageId !== NO_STAGE && stageId) ? 'Book Visit' : 'Book Appointment';
+  // A stage's visit is an appointment like any other: the dialog says Appointment whatever it's for.
+  const title = isRescheduling ? 'Reschedule Appointment' : 'Book Appointment';
 
   const fail = (error: unknown) => {
     if (error instanceof ApiValidationError) {
@@ -397,7 +398,7 @@ function BookingForm({
             ...(pathways.data?.items ?? []).map((p) => ({
               value: p.id ?? '',
               label: p.title ?? '',
-              description: `Due ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
+              description: `Target date ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
             })),
           ]}
         />
@@ -446,7 +447,7 @@ function BookingForm({
         <TextArea
           label="Notes"
           isOptional
-          description="About the visit, as pathway notes are. Staff see them on the appointment."
+          description="Notes about the visit. Staff see them on the appointment."
           value={notes}
           onChange={setNotes}
           rows={3}
@@ -465,7 +466,7 @@ function BookingForm({
       onChange={(value) => {
         if (value === 'times' || value === 'clinics') setBookInto(value);
       }}>
-      <ToggleButton value="times" label="Times" icon={<Icon icon={AppIcon.Calendar} />} />
+      <ToggleButton value="times" label="Free times" icon={<Icon icon={AppIcon.Calendar} />} />
       <ToggleButton value="clinics" label="Clinic slots" icon={<Icon icon={AppIcon.Clinics} />} />
     </ToggleButtonGroup>
   );

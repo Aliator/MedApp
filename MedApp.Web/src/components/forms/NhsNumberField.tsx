@@ -70,7 +70,7 @@ export function NhsNumberField({value, onChange, status, note, isDisabled = fals
     <HStack gap={2} vAlign="end">
       <StackItem size="fill">
         <TextInput
-          label="NHS Number"
+          label="NHS number"
           description={NHS_NUMBER_DESCRIPTION}
           value={value}
           onChange={(next) => {

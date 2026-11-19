@@ -187,7 +187,7 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     );
 
     await dialog().findByRole('group', {name: /Days/});
-    await choose(user, "The default week's");
+    await choose(user, "Default week's template");
     await user.click(day(/^Thu 26/));
     await user.click(day(/^Fri 27/));
     await user.click(dialog().getByRole('button', {name: 'Apply'}));
@@ -217,11 +217,11 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     );
 
     await dialog().findByRole('group', {name: /Days/});
-    await choose(user, "The default week's");
+    await choose(user, "Default week's template");
     await user.click(dialog().getByRole('button', {name: 'Apply'}));
 
     expect(await dialog().findByText("One day couldn't be changed")).toBeInTheDocument();
-    expect(dialog().getByText(/^Wed 25: It still has a day template of its own/)).toBeInTheDocument();
+    expect(dialog().getByText(/^Wed 25: Someone gave this day its own template/)).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     expect(day(/^Wed 25/)).toBeChecked();
   });
@@ -243,14 +243,14 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     );
 
     await dialog().findByRole('group', {name: /Days/});
-    await choose(user, "The default week's");
+    await choose(user, "Default week's template");
     await user.click(day(/^Thu 26/));
     await user.click(dialog().getByRole('button', {name: 'Apply'}));
 
-    expect(await dialog().findByText(/^Wed 25: It still has a day template of its own/)).toBeInTheDocument();
+    expect(await dialog().findByText(/^Wed 25: Someone gave this day its own template/)).toBeInTheDocument();
     // Thursday is named for why it failed, not again for still having its own template.
     expect(dialog().getByText("2 days couldn't be changed")).toBeInTheDocument();
-    expect(dialog().queryByText(/^Thu 26: It still has a day template/)).not.toBeInTheDocument();
+    expect(dialog().queryByText(/^Thu 26: Someone gave this day its own template/)).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -266,7 +266,7 @@ describe('ApplyTemplateDialog', {timeout: 30_000}, () => {
     );
 
     await dialog().findByRole('group', {name: /Days/});
-    await choose(user, "The default week's");
+    await choose(user, "Default week's template");
     await user.click(dialog().getByRole('button', {name: 'Apply'}));
 
     await expectAnnounced("Back to the default week's template on Wed 25");

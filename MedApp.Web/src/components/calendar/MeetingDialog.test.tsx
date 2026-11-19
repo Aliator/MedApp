@@ -311,7 +311,7 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     await user.click(screen.getByRole('option', {name: '17:00'}));
     await user.click(dialog().getByRole('combobox', {name: /Length/}));
     await user.click(screen.getByRole('option', {name: '1 hour 30 minutes'}));
-    expect(dialog().getByText('It would end after 18:00.')).toBeInTheDocument();
+    expect(dialog().getByText('It would end after 18:00, the end of the working day the times are chosen from.')).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Add Meeting'}))).toBe(true);
   });
 
@@ -426,7 +426,7 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
     );
 
     await user.click(await dialog().findByRole('button', {name: 'Change'}));
-    expect(await dialog().findByRole('checkbox', {name: /A team's MDT/})).toBeChecked();
+    expect(await dialog().findByRole('checkbox', {name: /This is an MDT meeting/})).toBeChecked();
     expect(dialog().getByRole('combobox', {name: /Team/})).toHaveTextContent('Archived team');
     await user.click(dialog().getByRole('combobox', {name: /Team/}));
     await user.click(await screen.findByRole('option', {name: 'Dermatology'}));
@@ -445,7 +445,7 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
 
     await user.click(await dialog().findByRole('button', {name: 'Change'}));
 
-    expect(await dialog().findByText('The clinic is closed then: Staff training day. Choose another day.')).toBeInTheDocument();
+    expect(await dialog().findByText('The centre is closed on this day (Staff training day). Choose another day.')).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Save'}))).toBe(true);
     expect(dialog().queryByText('Everyone is free then.')).not.toBeInTheDocument();
     expect(requests(fetch, 'GET', '/api/calendar/closed-days').map((r) => new URL(r.url).search)).toContain('?From=2026-11-16');
@@ -459,7 +459,7 @@ describe('MeetingDialog', {timeout: 30_000}, () => {
 
     await waitFor(() => expect(requests(fetch, 'GET', '/api/calendar/closed-days')).toHaveLength(1));
     await waitFor(() => expect(isDisabled(dialog().getByRole('button', {name: 'Save'}))).toBe(false));
-    expect(dialog().queryByText(/The clinic is closed then/)).not.toBeInTheDocument();
+    expect(dialog().queryByText(/The centre is closed on this day/)).not.toBeInTheDocument();
   });
 
   it('cancels a meeting once confirmed, and shows why when it cannot', async () => {

@@ -17,7 +17,7 @@ describe('TellPatientField', () => {
 
     const tell = await screen.findByRole('checkbox', {name: 'Tell the patient by text or email'});
     expect(tell).toBeChecked();
-    expect(tell).toHaveAccessibleDescription('As they chose. The message gives the date, time and place, never the reason.');
+    expect(tell).toHaveAccessibleDescription('Sent the way the patient chose (text, email or both). It gives the date, time and place, never the reason.');
     await user.click(tell);
     expect(tell).not.toBeChecked();
   });

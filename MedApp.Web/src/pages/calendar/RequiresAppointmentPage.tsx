@@ -62,9 +62,9 @@ export function requiresAppointmentPageQuery(search: RequiresAppointmentSearch, 
 export const DID_NOT_ATTEND_INTRO =
   'Appointments marked Did not attend with no later appointment. They stay here until another is booked or someone records No further appointment.';
 
-/** "Missed on this pathway: 2", or for an appointment not for a pathway, among the patient's others not for one. */
+/** "2 missed on this pathway", or for an appointment not for a pathway, among the patient's others not for one. */
 export const missedWords = (a: Pick<Appointment, 'pathwayId' | 'missedOnPathwayCount'>) =>
-  `${a.pathwayId ? 'Missed on this pathway' : 'Missed, not for a pathway'}: ${a.missedOnPathwayCount ?? 1}`;
+  `${a.missedOnPathwayCount ?? 1} missed ${a.pathwayId ? 'on this pathway' : '(not on a pathway)'}`;
 
 const FILTER_FIELDS: ListFilterField[] = [{kind: 'text', key: 'patient', label: 'Patient'}];
 
@@ -154,13 +154,13 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
             )}
           </VStack>
         ) : (
-          <TextCell text="Appointment" />
+          <TextCell text="Not for a pathway" />
         ),
     },
     {key: 'visit', header: 'Visit', width: pixel(132), renderCell: (a) => <VisitRequirementToken requirement={a.visitRequirement} />},
     {
       key: 'Due',
-      header: 'Due',
+      header: 'Target date',
       sortable: true,
       width: pixel(112),
       renderCell: (a) => (a.pathwayDueDate ? <DueDateCell dueDate={a.pathwayDueDate} isOverdue={a.pathwayDueDate < today} /> : <TextCell text="—" />),
@@ -216,7 +216,7 @@ export function RequiresAppointmentPage({search, onSearchChange}: RequiresAppoin
             </Text>
           ) : (
             <Text type="body" maxLines={1}>
-              Appointment
+              Not for a pathway
             </Text>
           )}
           <Text type="supporting" color="secondary" maxLines={1}>

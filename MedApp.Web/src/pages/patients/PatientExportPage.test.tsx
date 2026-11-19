@@ -637,7 +637,7 @@ describe('PatientExportPage', () => {
     expect(screen.getByText(/^Delivered, sent .*, status from .* · About the appointment at Thu 12 Nov 2026, 10:00 · Sent by MedApp$/)).toBeInTheDocument();
     expect(screen.getByText('Synthetic reminder text')).toBeInTheDocument();
     expect(screen.getByText(/: Missed appointment by Email$/)).toBeInTheDocument();
-    expect(screen.getByText(/^No message: no consent or contact \(the patient chose no messages this way\) · /)).toBeInTheDocument();
+    expect(screen.getByText(/^No message: the patient didn't choose emails · /)).toBeInTheDocument();
     expect(screen.getByText(/^Failed: permanent-failure, sent .* · Asked for by k\.ashford$/)).toBeInTheDocument();
   });
 
@@ -954,8 +954,8 @@ describe('appointment history in words', () => {
       'Appointment requested',
       'Appointment booked',
       'Appointment rescheduled',
-      'Marked Attended',
-      'Marked Did not attend',
+      'Marked as attended',
+      'Marked as did not attend',
       'Appointment cancelled',
       'Appointment notes changed',
       'Recorded after the event',
@@ -967,15 +967,15 @@ describe('appointment history in words', () => {
 
   it('says what each change did', () => {
     const say = (action: string, details: unknown) => describeAppointmentChange({action, details: JSON.stringify(details)});
-    expect(say('Requested', {automatic: true})).toBe('Requested automatically, as the stage involves a visit');
+    expect(say('Requested', {automatic: true})).toBe('Added to Requires Appointment automatically, as the stage needs a visit');
     expect(say('Requested', {})).toBe('');
     expect(say('Rescheduled', {previousStartUtc: '2026-09-21T09:00:00Z', previousEndUtc: '2026-09-21T09:30:00Z', previousStaffUsername: 'k.ashford'})).toBe(
       'From Mon 21 Sept 2026, 10:00 to 10:30 with k.ashford',
     );
     expect(say('Rescheduled', {previousStaffUsername: 'k.ashford'})).toBe('From With k.ashford');
     expect(say('Rescheduled', {})).toBe('');
-    expect(say('Attended', {previousStatus: 'DidNotAttend'})).toBe('Was marked Did not attend');
-    expect(say('DidNotAttend', {previousStatus: 'Attended'})).toBe('Was marked Attended');
+    expect(say('Attended', {previousStatus: 'DidNotAttend'})).toBe('Was marked as did not attend');
+    expect(say('DidNotAttend', {previousStatus: 'Attended'})).toBe('Was marked as attended');
     expect(say('Attended', {previousStatus: 'Booked'})).toBe('');
     expect(say('Cancelled', {reason: 'Synthetic reason', automatic: true})).toBe('Cancelled automatically: Synthetic reason');
     expect(say('NotesUpdated', {from: '', to: 'Synthetic note'})).toBe('Nothing → "Synthetic note"');
@@ -984,7 +984,7 @@ describe('appointment history in words', () => {
     expect(say('RecordedAfterEvent', {outcome: 'Attended'})).toBe('Attended');
     expect(say('RecordedAfterEvent', {})).toBe('');
     expect(say('EnteredInError', {reason: ' Synthetic: never happened '})).toBe('Synthetic: never happened');
-    expect(say('DnaFollowUpRecorded', {decision: 'Rebook'})).toBe('Rebook');
+    expect(say('DnaFollowUpRecorded', {decision: 'Rebook'})).toBe('To be rebooked');
     expect(say('DnaFollowUpRecorded', {decision: 'ClinicianToReview', detail: 'Synthetic: Dr Test'})).toBe('Clinician to review: Synthetic: Dr Test');
     expect(say('DnaFollowUpRecorded', {})).toBe('');
     expect(appointmentChangeLabel('DnaFollowUpRecorded')).toBe('Did not attend follow-up recorded');
