@@ -10,6 +10,7 @@ import {api, unwrap, type Schemas} from './client';
 export type MdtItem = Schemas['MdtItemResponse'];
 export type MdtMeeting = Schemas['MdtMeetingResponse'];
 export type MdtMeetingList = Schemas['MdtMeetingListResponse'];
+export type MdtLabWork = Schemas['MdtLabWorkResponse'];
 
 /** Every MDT query is under ['mdt'], so any change refreshes them all. */
 export const mdtKeys = {
@@ -88,7 +89,7 @@ export function useListForMdt() {
   });
 }
 
-/** Withdraw, defer and record the outcome: each from the item's `version`, so a stale page gets the API's 409. */
+/** Withdraw, defer, choose the presenter (MC21) and record the outcome: each from the item's `version`, so a stale page gets the API's 409. */
 export function useMdtItemActions() {
   const onSuccess = useRefreshMdt();
   const path = (id: string) => ({path: {id}});
@@ -106,6 +107,11 @@ export function useMdtItemActions() {
     recordOutcome: useMutation({
       mutationFn: ({id, outcome, presentUserIds, expectedVersion}: {id: string; outcome: string; presentUserIds: string[]; expectedVersion: number}) =>
         unwrap(api.POST('/api/mdt/items/{id}/outcome', {params: path(id), body: {outcome, presentUserIds, expectedVersion}})),
+      onSuccess,
+    }),
+    choosePresenter: useMutation({
+      mutationFn: ({id, presenterUserId, expectedVersion}: {id: string; presenterUserId: string | null; expectedVersion: number}) =>
+        unwrap(api.POST('/api/mdt/items/{id}/presenter', {params: path(id), body: {presenterUserId, expectedVersion}})),
       onSuccess,
     }),
   };
