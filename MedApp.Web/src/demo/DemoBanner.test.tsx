@@ -3,7 +3,9 @@ import {openDialog, renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
 import {ADMIN, STAFF} from './accounts';
 import {DemoBanner} from './DemoBanner';
-import {markReadMeSeen} from './readMeSeen';
+import {appSettings} from '../app/settingsStore';
+import {PINS_KEY} from '../components/navigation/pins';
+import {hasSeenReadMe, markReadMeSeen} from './readMeSeen';
 import {demoNavigation} from './session';
 import {db} from './store';
 
@@ -21,10 +23,13 @@ describe('DemoBanner', () => {
     expect(screen.getByRole('button', {name: 'Reset'})).toBeInTheDocument();
   });
 
-  it('resets the demo once confirmed', async () => {
+  it('resets the demo once confirmed, with this browser’s pins and settings too', async () => {
     startLightDemo(STAFF);
     markReadMeSeen();
     db().pathways = [];
+    appSettings.set(PINS_KEY, JSON.stringify({patients: ['p1'], pathways: []}));
+    appSettings.set('medapp.navFoldsInHalfView', 'false');
+    appSettings.set('medapp.colorMode', 'light');
     const assign = vi.spyOn(demoNavigation, 'assign').mockImplementation(() => {});
     const {user} = renderWithApp(<DemoBanner />, {user: asCurrentUser(STAFF), path: '/pathways'});
 
@@ -33,5 +38,11 @@ describe('DemoBanner', () => {
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
     expect(db().pathways.length).toBeGreaterThan(0);
+    // Pins, Shrink the side nav and even the colours are back to a first visit's; the Read Me stays seen.
+    expect(appSettings.get(PINS_KEY)).toBeNull();
+    expect(appSettings.get('medapp.navFoldsInHalfView')).toBeNull();
+    expect(appSettings.get('medapp.colorMode')).toBeNull();
+    expect(localStorage.getItem(PINS_KEY)).toBeNull();
+    expect(hasSeenReadMe()).toBe(true);
   });
 });

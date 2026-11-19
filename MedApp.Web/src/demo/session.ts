@@ -1,3 +1,4 @@
+import {clearAllAppStorage} from '../app/settingsStore';
 import {READ_ME_PATH} from './readMeSeen';
 import {db, reset, save} from './store';
 
@@ -43,6 +44,9 @@ export async function switchAccount(username: string, path = '/', {readMeOnRight
 /** Reset: clears the demo's data, seeds it again (keeping who's signed in) and reloads at the start page. */
 export async function resetDemo(): Promise<void> {
   await reset();
+  // The data's fresh, and so is this browser: pins, settings and list choices back to how a first visit has them, so
+  // nothing kept here is saved back to the fresh account after the reload.
+  clearAllAppStorage();
   closeHalfView();
   demoNavigation.assign(`${base()}/`);
 }
