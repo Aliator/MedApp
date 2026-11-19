@@ -28,8 +28,8 @@ public sealed class MarkResultSeenValidator : AbstractValidator<MarkResultSeenCo
 /// restricted: a result must never be stuck).
 /// </summary>
 /// <remarks>
-/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; any
-/// team that sees it (its own, or one its pathway was passed to, such as the lab) may act on it, by its permissions.
+/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; only
+/// its own team moves it on (a 409 for an admin or the lab, who read it).
 /// </remarks>
 public sealed class MarkResultSeenHandler(
     IResultRepository repository,
@@ -43,7 +43,7 @@ public sealed class MarkResultSeenHandler(
     {
         var result = await repository.GetForUpdateOrThrowAsync(request.ResultId, cancellationToken);
         // Behind the viewer's team wall: a 404, as for one that isn't there (recorded).
-        await boundary.EnsureResultVisibleAsync(result, request.Actor.Teams, cancellationToken);
+        await boundary.EnsureCanChangeResultAsync(result, request.Actor.Teams, cancellationToken);
         if (ResultWorkflow.WhyCantMarkSeen(result) is { } why)
             throw new ConflictException(why);
         ResultWorkflow.EnsureVersion(result, request.ExpectedVersion);

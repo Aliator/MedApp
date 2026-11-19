@@ -119,6 +119,22 @@ public sealed class ResultTeamWallsTests : ResultTestBase
     }
 
     [Test]
+    public async Task SignOff_ByAnAdminWhoSeesIt_IsA409NamingItsTeam_AndChangesNothing()
+    {
+        var result = GynaecologyResult();
+        Walls.TeamNames[Gynaecology] = "Synthetic gynaecology";
+        var admin = Clinician with { Scope = TeamWallsTestBoundary.AdminScope(Admin.UserId) };
+        var handler = new SignOffResultHandler(Repository.Object, Walls.Boundary, Identity.Object, Holders.Object, Notifications.Object, Clock);
+
+        var act = () => handler.Handle(
+            new SignOffResultCommand(result.Id, nameof(ResultAction.NoFurtherAction), null, 1, admin), Cts.Token);
+
+        await act.Should().ThrowAsync<ConflictException>().WithMessage(TeamWalls.RecordNotYours("This result", "Synthetic gynaecology"));
+        result.Status.Should().Be(ResultStatus.AwaitingSignOff);
+        SavedAudit.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task EnteredInError_TheLabsOwnReport_IsAllowedOnAPathwayPassedToIt()
     {
         // As the light demo: whoever sees a result may act on it by their permissions; the lab corrects its own report.

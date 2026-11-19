@@ -62,5 +62,17 @@ public static class ResultRepositoryExtensions
         boundary.EnsureRecordVisibleAsync(
             TeamWallTarget, result.Id, result.TeamId, result.PathwayId, scope, NotFound(result.Id).Message, ct);
 
+    /// <summary>
+    /// For moving a result on (seen, signed off, reassigned): seen (else the recorded 404), and the viewer's team's (else
+    /// a 409, <see cref="TeamWalls.RecordNotYours"/>): admins and teams its pathway was passed to only read it. Entered in
+    /// error stays a correction anyone who sees it may make, by their permissions.
+    /// </summary>
+    public static async Task EnsureCanChangeResultAsync(
+        this ITeamBoundary boundary, Result result, TeamScope scope, CancellationToken ct)
+    {
+        await boundary.EnsureResultVisibleAsync(result, scope, ct);
+        await boundary.EnsureCanChangeTeamAsync(result.TeamId, scope, "This result", ct);
+    }
+
     public static NotFoundException NotFound(Guid id) => new($"Result '{id}' was not found.");
 }
