@@ -52,7 +52,7 @@ describe('PathwayPage', () => {
     const details = await screen.findByRole('heading', {name: 'Details', level: 2});
     expect(screen.getAllByRole('heading', {level: 2})[0]).toBe(details);
     expect(screen.queryByRole('region', {name: /^Patient: /})).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^(show|hide) details/i})).not.toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Patient, Test'})).toHaveAttribute('href', '/patients/patient-1');
     expect(screen.getByText(/^4 May 1960/)).toBeInTheDocument();
     expect(screen.getByText('999 000 0026')).toBeInTheDocument();
@@ -716,7 +716,7 @@ describe('PathwayPage on a narrow window', () => {
       'Assigned staff',
       'Notes',
     ]);
-    expect(screen.queryByRole('button', {name: /details/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /^(show|hide) details/i})).not.toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Hide current stage'})).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', {name: 'Show stages'})).toHaveAttribute('aria-expanded', 'false');
     // Pathway info starts open; Assigned staff starts folded here, to save room.

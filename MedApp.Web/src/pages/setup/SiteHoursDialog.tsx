@@ -69,8 +69,8 @@ export function SiteHoursDialog({site, onClose}: SiteHoursDialogProps) {
       onConfirm={submit}
       onCancel={onClose}>
       <VStack gap={3}>
-        {hours.isError && <AlertMessage message="The opening hours could not be loaded. Please try again." />}
-        {problem && <AlertMessage message={problem} />}
+        {hours.isError && <AlertMessage label="Opening hours not loaded" message="The opening hours could not be loaded. Please try again." />}
+        {problem && <AlertMessage label="Opening hours not saved" message={problem} />}
         {data?.hasOwnHours && data.since && (
           <Text type="supporting" color="secondary">{`These hours since ${formatDate(data.since)}.`}</Text>
         )}

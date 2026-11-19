@@ -37,7 +37,7 @@ export function PathwayConsent({pathway}: {pathway: Pathway}) {
   const [isRecording, setIsRecording] = useState(false);
   const [acting, setActing] = useState<{action: ConsentAction; record: ConsentRecord} | null>(null);
 
-  if (isError) return <AlertMessage message="The consent records could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Consent records not loaded" message="The consent records could not be loaded. Please try again." />;
   if (isPending)
     return (
       <Text type="body" color="secondary">

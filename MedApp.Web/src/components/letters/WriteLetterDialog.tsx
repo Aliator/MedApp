@@ -107,8 +107,8 @@ export function WriteLetterDialog({about, teamId, patient, onCancel, onCreated}:
               : 'There are no letter templates for this team. An administrator adds them in Letter Templates.'}
           </Text>
         )}
-        {templates.isError && <AlertMessage message="The templates could not be loaded. Please try again." />}
-        {error && <AlertMessage message={error} />}
+        {templates.isError && <AlertMessage label="Templates not loaded" message="The templates could not be loaded. Please try again." />}
+        {error && <AlertMessage label="Letter not started" message={error} />}
       </VStack>
     </ConfirmDialog>
   );

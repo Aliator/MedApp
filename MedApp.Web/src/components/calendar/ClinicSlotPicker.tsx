@@ -54,7 +54,7 @@ export function ClinicSlotPicker({from, to, teamId, chosen, onChoose}: ClinicSlo
   const teams = useQuery({...teamsQuery(true), enabled: teamId !== undefined});
   const teamName = teams.data?.find((s) => s.id === teamId)?.name;
 
-  if (sessions.isError) return <AlertMessage message="The clinic sessions could not be loaded. Please try again." />;
+  if (sessions.isError) return <AlertMessage label="Clinic sessions not loaded" message="The clinic sessions could not be loaded. Please try again." />;
   if (!sessions.data)
     return (
       <VStack gap={3}>

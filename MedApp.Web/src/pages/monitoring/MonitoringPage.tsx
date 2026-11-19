@@ -114,7 +114,7 @@ export function MonitoringPage() {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<MonitoringRuleInput>(EMPTY);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string | null} | null>(null);
 
   const data = rules.data ?? [];
   const editing = dialog?.kind === 'edit' ? dialog.rule : null;
@@ -166,7 +166,7 @@ export function MonitoringPage() {
       await setEnabled.mutateAsync({id, isEnabled});
       announce(isEnabled ? 'Rule switched on' : 'Rule switched off');
     } catch (e) {
-      setError(problemOf(e, 'switch').message ?? 'The rule could not be changed. Please try again.');
+      setError({label: 'Rule not switched', message: problemOf(e, 'switch').message ?? 'The rule could not be changed. Please try again.'});
     } finally {
       setSwitching((current) => {
         const rest = {...current};
@@ -184,7 +184,7 @@ export function MonitoringPage() {
         close();
       },
       onError: (e) => {
-        setError(problemOf(e, 'delete').message);
+        setError({label: 'Rule not deleted', message: problemOf(e, 'delete').message});
         close();
       },
     });
@@ -311,9 +311,9 @@ export function MonitoringPage() {
       fill
       message={
         error ? (
-          <AlertMessage message={error} />
+          <AlertMessage label={error.label} message={error.message ?? undefined} />
         ) : (
-          rules.isError && <AlertMessage message="Your rules could not be loaded. Please try again." />
+          rules.isError && <AlertMessage label="Rules not loaded" message="Your rules could not be loaded. Please try again." />
         )
       }
       actions={<Button label="Add Rule" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />}
@@ -335,7 +335,7 @@ export function MonitoringPage() {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editing ? 'Rule not saved' : 'Rule not added'} message={problem.message} />}
               {hasPerson(form.event) && (
                 <AnchoredSelector
                   label={forResults ? 'Responsible clinician' : 'Staff member'}

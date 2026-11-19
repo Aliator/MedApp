@@ -249,7 +249,7 @@ export function RegisterHospitalRequestPage() {
       backHref="/hospital-requests"
       backLabel="Back to hospital requests"
       fill
-      message={errors ? <ValidationAlert errors={errors} fields={FIELDS} /> : problem.message && <AlertMessage message={problem.message} />}>
+      message={errors ? <ValidationAlert errors={errors} fields={FIELDS} /> : problem.message && <AlertMessage label="Request not registered" message={problem.message} />}>
       <FormCard fill saveText="Register Request" onSave={save} onCancel={backToList} isProcessing={create.isPending}>
         <FormSection title="Request">
           <AnchoredSelector
@@ -345,7 +345,7 @@ export function RegisterHospitalRequestPage() {
               <Button label="Find Matches" variant="secondary" icon={<Icon icon={AppIcon.Search} />} onClick={findMatches} isLoading={find.isPending} />
             </HStack>
             {findProblem.validation && <ValidationAlert errors={findProblem.validation} />}
-            {findProblem.message && <AlertMessage message={findProblem.message} />}
+            {findProblem.message && <AlertMessage label="Search failed" message={findProblem.message} />}
             {matches !== null && (
               <RadioList label="The patient" value={choice} onChange={chooseNew} isRequired status={fieldStatus(errors, 'patientId')}>
                 {[
@@ -361,7 +361,7 @@ export function RegisterHospitalRequestPage() {
                 ]}
               </RadioList>
             )}
-            {matches === null && fieldStatus(errors, 'patientId') && <AlertMessage message={fieldStatus(errors, 'patientId')!.message ?? ''} />}
+            {matches === null && fieldStatus(errors, 'patientId') && <AlertMessage label="Check the patient" message={fieldStatus(errors, 'patientId')!.message ?? ''} />}
             {choice === NEW_PATIENT && (
               <VStack gap={2} hAlign="stretch">
                 <HStack gap={3} vAlign="start" wrap="wrap">

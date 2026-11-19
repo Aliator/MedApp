@@ -25,8 +25,7 @@ import {ListFilterBar} from '../../components/tables/ListFilterBar';
 import {TableActions} from '../../components/tables/TableActions';
 import {TextCell} from '../../components/tables/TextCell';
 import type {SetupListSearch} from '../listSearch';
-import {saveProblem} from '../saveProblem';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 
 type TemplateRow = LetterTemplate & Record<string, unknown>;
 
@@ -59,13 +58,13 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
   const announce = useAnnounce();
   const [archiving, setArchiving] = useState<LetterTemplate | null>(null);
   const [deleting, setDeleting] = useState<LetterTemplate | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize, compareLetterTemplates);
   const versionOf = (template: LetterTemplate) => ({id: template.id ?? '', expectedVersion: template.version ?? 0});
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'letter template').message);
+    setError(actionProblem(e, action, 'letter template'));
     setArchiving(null);
     setDeleting(null);
   };
@@ -158,7 +157,11 @@ export function LetterTemplatesPage({search, onSearchChange}: LetterTemplatesPag
       subtitle={subtitle}
       fill
       message={
-        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The letter templates could not be loaded. Please try again." />
+        error ? (
+          <AlertMessage label={error.label} message={error.message} />
+        ) : (
+          isError && <AlertMessage label="Letter templates not loaded" message="The letter templates could not be loaded. Please try again." />
+        )
       }
       actions={addButton}
       dialogs={

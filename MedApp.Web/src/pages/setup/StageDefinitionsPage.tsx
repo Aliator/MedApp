@@ -36,7 +36,7 @@ import {DataTable, type DataTableColumn} from '../../components/tables/DataTable
 import {TableActions} from '../../components/tables/TableActions';
 import type {SetupListSearch} from '../listSearch';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
-import {fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle} from './setupList';
+import {actionProblem, fromSetupBar, SETUP_FAVOURITES, SETUP_FILTER_FIELDS, setupBarValues, setupPage, setupSubtitle, type PageError} from './setupList';
 import {useListSettings} from '../../app/listSettings';
 import {RichTextField} from '../../components/forms/RichTextField';
 
@@ -104,7 +104,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<StageDefinitionInput>(EMPTY);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
 
   const {pageSize} = useListSettings();
   const {rows, page, total} = setupPage(data, search, pageSize);
@@ -136,7 +136,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
     setDialog({kind, definition});
   };
   const failed = (action: 'archive' | 'restore' | 'delete') => (e: unknown) => {
-    setError(saveProblem(e, action, 'stage').message);
+    setError(actionProblem(e, action, 'stage'));
     close();
   };
 
@@ -214,7 +214,11 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
       subtitle={subtitle}
       fill
       message={
-        error ? <AlertMessage message={error} /> : isError && <AlertMessage message="The stages could not be loaded. Please try again." />
+        error ? (
+          <AlertMessage label={error.label} message={error.message} />
+        ) : (
+          isError && <AlertMessage label="Stages not loaded" message="The stages could not be loaded. Please try again." />
+        )
       }
       actions={<Button label="Add Stage" variant="primary" icon={<Icon icon={AppIcon.Add} />} onClick={() => openEditor(null)} />}
       dialogs={
@@ -236,7 +240,7 @@ export function StageDefinitionsPage({search, onSearchChange}: StageDefinitionsP
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editing ? 'Not saved' : 'Not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={form.name}

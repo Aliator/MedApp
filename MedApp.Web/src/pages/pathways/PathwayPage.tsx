@@ -219,7 +219,8 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   const attachments = useAttachmentsState();
 
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // What failed, as a short headline ("Stage can't be finished"), and the API's words behind its "i".
+  const [actionError, setActionError] = useState<{label: string; message: string} | null>(null);
   // The "not assigned to you" check: the action waiting on it, and whether it was answered this visit.
   const [waitingOnCheck, setWaitingOnCheck] = useState<(() => void) | null>(null);
   const [isCheckAnswered, setIsCheckAnswered] = useState(false);
@@ -277,27 +278,27 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
     else setWaitingOnCheck(() => action);
   };
 
-  const failed = (fallback: string) => (e: unknown) => {
-    setActionError(problemMessage(e, fallback));
+  const failed = (label: string, fallback: string) => (e: unknown) => {
+    setActionError({label, message: problemMessage(e, fallback)});
     setDialog(null);
   };
   const close = () => setDialog(null);
 
   const startStage = (stage: PathwayStage) =>
-    checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('The stage could not be started.')}));
+    checked(() => actions.startStage.mutate(stage.id ?? '', {onError: failed('Stage not started', 'The stage could not be started.')}));
   // Picking up a stage handed to your team is the team's, not the assignee's: it isn't asked about.
   const pickUpStage = (stage: PathwayStage) => {
     setActionError(null);
     actions.pickUpStage.mutate(stage.id ?? '', {
       onSuccess: () => announce('Stage picked up'),
-      onError: failed('The stage could not be picked up.'),
+      onError: failed('Stage not picked up', 'The stage could not be picked up.'),
     });
   };
   const saveNotes = (stage: PathwayStage, notes: string) =>
     checked(() =>
       actions.saveNotes.mutate(
         {stageId: stage.id ?? '', notes},
-        {onSuccess: () => announce('Notes saved'), onError: failed('The notes could not be saved.')},
+        {onSuccess: () => announce('Notes saved'), onError: failed('Notes not saved', 'The notes could not be saved.')},
       ),
     );
   /**
@@ -330,7 +331,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       announce(finishedMessage(stage, updated));
       close();
     } catch (e) {
-      failed('The stage could not be finished.')(e);
+      failed("Stage can't be finished", 'The stage could not be finished.')(e);
     }
   };
 
@@ -340,7 +341,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       setToAssign([]);
       close();
     } catch (e) {
-      failed('Staff could not be assigned.')(e);
+      failed('Staff not assigned', 'Staff could not be assigned.')(e);
     }
   };
 
@@ -382,7 +383,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   /** A stage's Visit part: where its visit stands, and booking it, moving it or recording whether the patient came. */
   const visitFor = (stage: PathwayStage) =>
     appointmentsQuery.isError ? (
-      <AlertMessage message="The stage's visit could not be loaded. Please try again." />
+      <AlertMessage label="Visit not loaded" message="The stage's visit could not be loaded. Please try again." />
     ) : (
       <StageVisit
         stage={stage}
@@ -401,7 +402,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             {id: appointment.id ?? '', outcome},
             {
               onSuccess: () => announce(outcome === 'Attended' ? 'Visit marked Attended' : 'Visit marked Did not attend'),
-              onError: failed('The visit could not be updated.'),
+              onError: failed('Visit not updated', 'The visit could not be updated.'),
             },
           );
         }}
@@ -462,11 +463,11 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
       // No banner: the patient is at the top of Details, which never folds (see PathwayPage).
       message={
         isMissing ? (
-          <AlertMessage message="Pathway not found. It may have been deleted." />
+          <AlertMessage label="Pathway not found" message="Pathway not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage message="The pathway could not be loaded. Please try again." />
+          <AlertMessage label="Pathway not loaded" message="The pathway could not be loaded. Please try again." />
         ) : actionError ? (
-          <AlertMessage message={actionError} />
+          <AlertMessage label={actionError.label} message={actionError.message} />
         ) : pathway?.patientFlags ? (
           // The patient's banners: restricted (when only blocking and cancelling are offered), disputed, anonymised.
           <PatientFlagBanners patient={pathway.patientFlags} />
@@ -532,7 +533,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             isProcessing={actions.changeStatus.isPending}
             onConfirm={(reason) =>
               dialog?.kind === 'status' &&
-              actions.changeStatus.mutate({status: dialog.to, reason}, {onSuccess: close, onError: failed('The status could not be changed.')})
+              actions.changeStatus.mutate({status: dialog.to, reason}, {onSuccess: close, onError: failed('Status not changed', 'The status could not be changed.')})
             }
             onCancel={close}
           />
@@ -618,7 +619,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             isProcessing={actions.unlockStage.isPending}
             onConfirm={() =>
               dialog?.kind === 'unlock' &&
-              actions.unlockStage.mutate(dialog.stage.id ?? '', {onSuccess: close, onError: failed('The stage could not be unlocked.')})
+              actions.unlockStage.mutate(dialog.stage.id ?? '', {onSuccess: close, onError: failed('Stage not unlocked', 'The stage could not be unlocked.')})
             }
             onCancel={close}
           />
@@ -710,7 +711,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
             isProcessing={actions.unassign.isPending}
             onConfirm={() =>
               dialog?.kind === 'unassign' &&
-              actions.unassign.mutate(dialog.userId, {onSuccess: close, onError: failed('Staff could not be unassigned.')})
+              actions.unassign.mutate(dialog.userId, {onSuccess: close, onError: failed('Staff not unassigned', 'Staff could not be unassigned.')})
             }
             onCancel={close}
           />
@@ -727,7 +728,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
                   announce('Pathway deleted');
                   void navigate({to: '/patients/$id/pathways', params: {id: pathway?.patientId ?? ''}, replace: true});
                 },
-                onError: failed('The pathway could not be deleted.'),
+                onError: failed('Pathway not deleted', 'The pathway could not be deleted.'),
               })
             }
             onCancel={close}>
@@ -786,7 +787,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
    * cancelled by the app (someone may need to tell the patient), so they're pointed out.
    */
   function appointmentsList(pathway: Pathway) {
-    if (appointmentsQuery.isError) return <AlertMessage message="The appointments could not be loaded. Please try again." />;
+    if (appointmentsQuery.isError) return <AlertMessage label="Appointments not loaded" message="The appointments could not be loaded. Please try again." />;
     if (appointmentsQuery.isPending)
       return (
         <Text type="body" color="secondary">

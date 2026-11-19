@@ -46,6 +46,8 @@ interface Words {
   icon: IconType;
   announced: string;
   failed: string;
+  /** The banner's headline when it fails. */
+  notDone: string;
   isDanger?: boolean;
 }
 
@@ -60,6 +62,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         icon: AppIcon.Success,
         announced: `${next?.name ?? 'Step'} recorded`,
         failed: 'The step could not be recorded.',
+        notDone: 'Step not recorded',
       };
     case 'outcome':
       return {
@@ -72,6 +75,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         icon: dialog.outcome === 'Insufficient' ? AppIcon.Warning : AppIcon.Success,
         announced: 'Outcome recorded',
         failed: 'The outcome could not be recorded.',
+        notDone: 'Outcome not recorded',
       };
     case 'report':
       return {
@@ -85,6 +89,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         icon: AppIcon.SignOff,
         announced: 'Report authorised',
         failed: 'The report could not be authorised.',
+        notDone: 'Report not authorised',
       };
     case 'stepError':
       return {
@@ -94,6 +99,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         icon: AppIcon.EnteredInError,
         announced: 'Step marked entered in error',
         failed: 'The step could not be marked entered in error.',
+        notDone: 'Not marked entered in error',
         isDanger: true,
       };
     case 'caseError':
@@ -104,6 +110,7 @@ function wordsFor(dialog: LabCaseDialogKind, labCase: LabCase): Words {
         icon: AppIcon.EnteredInError,
         announced: 'Lab case marked entered in error',
         failed: 'The case could not be marked entered in error.',
+        notDone: 'Not marked entered in error',
         isDanger: true,
       };
   }
@@ -188,7 +195,7 @@ export function LabCaseDialog({dialog, labCase, onClose}: LabCaseDialogProps) {
           <MetadataListItem label="Test">{labCase.labTestName}</MetadataListItem>
         </MetadataList>
         {errors && <ValidationAlert errors={errors} fields={FIELDS} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={words.notDone} message={message} />}
         {dialog.kind === 'step' && <StepTimeFields step="Done" value={at} onChange={setAt} status={fieldStatus(errors, 'atUtc')} />}
         {isSecondOpinion && (
           <TextInput

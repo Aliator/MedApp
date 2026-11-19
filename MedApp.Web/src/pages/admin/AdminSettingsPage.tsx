@@ -71,11 +71,11 @@ export function AdminSettingsPage() {
       isLoading={isPending}
       message={
         isError ? (
-          <AlertMessage message="The settings could not be loaded. Please try again." />
+          <AlertMessage label="Settings not loaded" message="The settings could not be loaded. Please try again." />
         ) : save.isError ? (
-          <AlertMessage message={problemMessage(save.error, 'The settings could not be saved. Please try again.')} />
+          <AlertMessage label="Settings not saved" message={problemMessage(save.error, 'The settings could not be saved. Please try again.')} />
         ) : (
-          isSaved && <AlertMessage status="success" message="Settings saved." />
+          isSaved && <AlertMessage status="success" label="Settings saved" />
         )
       }>
       {settings && (

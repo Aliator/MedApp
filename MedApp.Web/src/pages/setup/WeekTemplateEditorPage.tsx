@@ -65,9 +65,15 @@ export function WeekTemplateEditorPage({id, staff}: {id?: string; staff?: string
       loadingMessage="Loading week template..."
       message={
         failed ? (
-          <AlertMessage message="The week template could not be loaded. Please try again." />
+          <AlertMessage label="Week template not loaded" message="The week template could not be loaded. Please try again." />
         ) : (
-          !canAdd && <AlertMessage status="info" message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`} />
+          !canAdd && (
+            <AlertMessage
+              status="info"
+              label="Owner or admin only"
+              message={`Only ${owner.ownerName || 'their owner'} or an admin can add to ${owner.title}.`}
+            />
+          )
         )
       }
     />
@@ -177,9 +183,15 @@ function WeekTemplateEditor({
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={['name']} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label={template ? 'Not saved' : 'Not created'} message={problem.message} />
         ) : (
-          !canEdit && <AlertMessage status="info" message={`Only ${owner.ownerName || 'its owner'} or an admin can change this week template.`} />
+          !canEdit && (
+            <AlertMessage
+              status="info"
+              label="Read-only week template"
+              message={`Only ${owner.ownerName || 'its owner'} or an admin can change this week template.`}
+            />
+          )
         )
       }
       dialogs={

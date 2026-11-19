@@ -1,6 +1,7 @@
 import {DEFAULT_PAGE_SIZE} from '../../app/listSettings';
 import type {ListFilterFavourite, ListFilterField, ListFilterValues} from '../../components/tables/ListFilterBar';
 import type {SetupListSearch} from '../listSearch';
+import {saveProblem, type SaveSubject} from '../saveProblem';
 
 /** Whether a setup list shows the ones in use, the archived ones, or both. */
 export type SetupStatus = 'active' | 'archived' | 'any';
@@ -77,4 +78,22 @@ export function setupSubtitle(total: number, search: SetupListSearch, one: strin
   if (search.name) return `${total} matching ${noun}`;
   const status = setupStatusOf(search);
   return `${total} ${status === 'any' ? '' : `${status} `}${noun}`;
+}
+
+/** A failed action's words for a banner's headline ("Site not archived"). */
+const NOT_DONE = {
+  save: 'not saved',
+  add: 'not added',
+  delete: 'not deleted',
+  archive: 'not archived',
+  restore: 'not restored',
+} as const;
+
+/** Why an action failed, for a page's header: a headline naming it ("Site not archived"), and the message behind the "i". */
+export type PageError = {label: string; message: string} | null;
+
+/** A failed action as a `PageError` (`saveProblem`'s message, with a headline naming the action); null for a 400, shown on the form's fields. */
+export function actionProblem(error: unknown, action: keyof typeof NOT_DONE, subject: SaveSubject): PageError {
+  const {message} = saveProblem(error, action, subject);
+  return message ? {label: `${subject.charAt(0).toUpperCase()}${subject.slice(1)} ${NOT_DONE[action]}`, message} : null;
 }

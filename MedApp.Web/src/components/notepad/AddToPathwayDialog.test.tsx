@@ -69,7 +69,7 @@ describe('AddToPathwayDialog', () => {
     renderDialog('a'.repeat(4001));
 
     const dialog = within(await dialogShown());
-    expect(dialog.getByText(/Too long for a note/)).toBeInTheDocument();
+    expect(dialog.getByText('Too long for a note')).toBeInTheDocument();
     expect(isDisabled(dialog.getByRole('button', {name: 'Add Note'}))).toBe(true);
   });
 

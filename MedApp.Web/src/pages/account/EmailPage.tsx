@@ -83,7 +83,7 @@ export function EmailPage() {
   const [isRemoving, setIsRemoving] = useState(false);
   // The password the Remove dialog asks for, apart from the form's, so neither fills the other.
   const [removePassword, setRemovePassword] = useState('');
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{label: string; message: string} | null>(null);
 
   const canSendEmail = features?.canSendEmail === true;
   const usesEmailCodes = twoFactor?.enabled === true && twoFactor.method === 'Email';
@@ -108,7 +108,7 @@ export function EmailPage() {
           setCode('');
           send.reset();
           const message = `We've sent a link to ${saved.pendingEmail ?? newEmail.trim()}. Open it to confirm the address.`;
-          setNotice(message);
+          setNotice({label: 'Link sent', message});
           announce(message);
         },
         // A 400 on the code: perhaps asked for without its field showing, as the two-factor status hadn't loaded or is
@@ -138,25 +138,27 @@ export function EmailPage() {
         closeRemove();
         change.reset();
         // Only an address waiting for its link: that's what went, and its link no longer works.
-        setNotice(
-          email === null && pendingEmail !== null
-            ? `${pendingEmail} has been removed, and the link we sent there no longer works.`
-            : 'Your email address has been removed.',
-        );
+        setNotice({
+          label: 'Email address removed',
+          message:
+            email === null && pendingEmail !== null
+              ? `${pendingEmail} has been removed, and the link we sent there no longer works.`
+              : 'Your email address has been removed.',
+        });
         announce('Email address removed');
       },
     });
 
   const message = isError ? (
-    <AlertMessage message="Your email address could not be loaded. Please try again." />
+    <AlertMessage label="Email address not loaded" message="Your email address could not be loaded. Please try again." />
   ) : change.isError ? (
     validation ? (
       <ValidationAlert errors={validation} fields={usesEmailCodes ? CHANGE_FIELDS : CHANGE_FIELDS_WITHOUT_CODE} />
     ) : (
-      <AlertMessage message={refusalMessage(change.error, 'The link could not be sent. Please try again.')} />
+      <AlertMessage label="Link not sent" message={refusalMessage(change.error, 'The link could not be sent. Please try again.')} />
     )
   ) : (
-    notice && <AlertMessage status="success" message={notice} />
+    notice && <AlertMessage status="success" label={notice.label} message={notice.message} />
   );
 
   return (
@@ -182,7 +184,7 @@ export function EmailPage() {
               password manager pairs the password with that. */}
           {isRemoving && (
             <VStack gap={4} hAlign="stretch">
-              {(removeProblem || removeOther.length > 0) && <AlertMessage message={removeProblem ?? removeOther.join(' ')} />}
+              {(removeProblem || removeOther.length > 0) && <AlertMessage label="Email address not removed" message={removeProblem ?? removeOther.join(' ')} />}
               <input type="text" name="username" autoComplete="username" value={me.username} readOnly hidden />
               <TextInput
                 label="Your password"

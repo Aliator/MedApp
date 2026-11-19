@@ -22,6 +22,7 @@ import {TableActions} from '../../components/tables/TableActions';
 import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
+import {actionProblem, type PageError} from './setupList';
 import {LabTestDialog} from './LabTestDialog';
 
 /** The page's queries: every type and lab test, archived ones too. Its route's loader preloads the same. */
@@ -70,7 +71,7 @@ export function SpecimenSetupPage() {
   // A new key each time the test dialog opens, so its fields start from the test opened.
   const [testDialogKey, setTestDialogKey] = useState(0);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PageError>(null);
   const [open, setOpen] = useState({types: true, tests: true});
   const close = () => setDialog(null);
 
@@ -95,7 +96,7 @@ export function SpecimenSetupPage() {
   const deletingTest = dialog?.kind === 'delete-test' ? dialog.test : null;
 
   const failed = (action: 'archive' | 'restore' | 'delete', subject: 'specimen type' | 'lab test') => (e: unknown) => {
-    setError(saveProblem(e, action, subject).message);
+    setError(actionProblem(e, action, subject));
     close();
   };
 
@@ -189,7 +190,7 @@ export function SpecimenSetupPage() {
           : 'Loading...'
       }
       fill
-      message={error && <AlertMessage message={error} />}
+      message={error && <AlertMessage label={error.label} message={error.message} />}
       dialogs={
         <>
           <ConfirmDialog
@@ -209,7 +210,7 @@ export function SpecimenSetupPage() {
             onCancel={close}>
             <VStack gap={2}>
               {problem.validation && <ValidationAlert errors={problem.validation} fields={['name', 'expectedTurnaroundDays', 'snomedCode']} />}
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label={editingType ? 'Not saved' : 'Not added'} message={problem.message} />}
               <TextInput
                 label="Name"
                 value={name}
@@ -349,7 +350,7 @@ function SetupList({label, items, isLoading, isError, emptyText}: {label: string
   if (isError)
     return (
       <VStack padding={6}>
-        <AlertMessage message={`The ${label.toLowerCase()} could not be loaded. Please try again.`} />
+        <AlertMessage label={`${label} not loaded`} message={`The ${label.toLowerCase()} could not be loaded. Please try again.`} />
       </VStack>
     );
   if (isLoading || items.length === 0)

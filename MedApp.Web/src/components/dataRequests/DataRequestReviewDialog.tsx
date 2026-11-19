@@ -130,8 +130,8 @@ export function DataRequestReviewDialog({request, patient, onCancel, onDone}: Da
       <VStack gap={4} hAlign="stretch">
         {patient && <PatientBanner patient={patient} isCompact />}
         <Text type="body">{SERIOUS_HARM_TEST}</Text>
-        {errors && <AlertMessage message={errors.title} details={allMessages(errors)} />}
-        {error && <AlertMessage message={error} />}
+        {errors && <AlertMessage label="Check the review" message={errors.title} details={allMessages(errors)} />}
+        {error && <AlertMessage label="Review not saved" message={error} />}
         {items.isPending ? (
           <HStack gap={2} vAlign="center">
             <Spinner size="sm" aria-hidden />
@@ -140,7 +140,7 @@ export function DataRequestReviewDialog({request, patient, onCancel, onDone}: Da
             </Text>
           </HStack>
         ) : items.isError ? (
-          <AlertMessage message={problemMessage(items.error, "The record's items could not be loaded. Please try again.")} />
+          <AlertMessage label="Items not loaded" message={problemMessage(items.error, "The record's items could not be loaded. Please try again.")} />
         ) : list.length === 0 ? (
           <Text type="body" color="secondary">
             Nothing in the record could be withheld: there are no notes, files, letters, results, MDT items or referrals.

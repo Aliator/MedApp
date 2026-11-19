@@ -83,6 +83,16 @@ export function runOutcomeWords(job: ScheduledJob): string {
   }
 }
 
+/** A run's outcome in two words, the headline over `runOutcomeWords`. */
+const runOutcomeLabel = (job: ScheduledJob) =>
+  job.lastOutcome === 'Succeeded'
+    ? 'Job succeeded'
+    : job.lastOutcome === 'Failed'
+      ? 'Job failed'
+      : job.lastOutcome === 'Skipped'
+        ? 'Job skipped'
+        : 'Job ran';
+
 function JobStatus({job}: {job: ScheduledJob}) {
   const {flags} = useAccessibility();
   return (
@@ -123,6 +133,8 @@ type JobRow = ScheduledJob & Record<string, unknown>;
 /** What the page shows after Run Now: the outcome, until the next run or a dismissal. */
 interface Outcome {
   status: 'success' | 'warning';
+  /** "Job succeeded", "Job failed"... */
+  label: string;
   message: string;
 }
 
@@ -145,7 +157,7 @@ export function ScheduledJobsPage() {
     run.mutate(job.name ?? '', {
       onSuccess: (result) => {
         const message = runOutcomeWords(result);
-        setOutcome({status: result.lastOutcome === 'Failed' ? 'warning' : 'success', message});
+        setOutcome({status: result.lastOutcome === 'Failed' ? 'warning' : 'success', label: runOutcomeLabel(result), message});
         announce(message);
         setConfirming(null);
       },
@@ -229,9 +241,9 @@ export function ScheduledJobsPage() {
       fill
       message={
         error ? (
-          <AlertMessage message={error} />
+          <AlertMessage label="Job not run" message={error} />
         ) : (
-          isError && <AlertMessage message="The scheduled jobs could not be loaded. Please try again." />
+          isError && <AlertMessage label="Scheduled jobs not loaded" message="The scheduled jobs could not be loaded. Please try again." />
         )
       }
       actions={
@@ -275,7 +287,7 @@ export function ScheduledJobsPage() {
               These jobs run inside the API on a schedule. Only one copy of the API runs each job at a time, and a job
               that fails three times in a row notifies everyone who manages setup.
             </Text>
-            {outcome && <AlertMessage status={outcome.status} message={outcome.message} onDismiss={() => setOutcome(null)} />}
+            {outcome && <AlertMessage status={outcome.status} label={outcome.label} message={outcome.message} onDismiss={() => setOutcome(null)} />}
           </VStack>
         }
         emptyState={

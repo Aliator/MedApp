@@ -32,7 +32,7 @@ export function PatientAccessReport({patientId}: {patientId: string}) {
     <CardSection title="Access Report">
       <VStack gap={4} hAlign="stretch">
         {isError ? (
-          <AlertMessage message="The access report could not be loaded. Please try again." />
+          <AlertMessage label="Access report not loaded" message="The access report could not be loaded. Please try again." />
         ) : isPending ? (
           <Text type="body" color="secondary">
             Loading who has accessed this record...

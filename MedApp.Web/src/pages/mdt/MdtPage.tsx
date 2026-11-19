@@ -57,7 +57,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
       fill
       message={
         meetings.isError ? (
-          <AlertMessage message={problemMessage(meetings.error, 'The MDTs could not be loaded.')} />
+          <AlertMessage label="MDTs not loaded" message={problemMessage(meetings.error, 'The MDTs could not be loaded.')} />
         ) : (
           list.data?.readOnlyReason && <SummaryAlert status="info" label="Another team’s MDT" message={list.data.readOnlyReason} />
         )
@@ -87,7 +87,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
                 {meetings.isLoading ? 'Loading...' : 'No MDTs in the last 60 days or the next 180. Whoever arranges meetings marks one as a team’s MDT.'}
               </Text>
             ) : list.isError ? (
-              <AlertMessage message={problemMessage(list.error, 'The list could not be loaded.')} />
+              <AlertMessage label="List not loaded" message={problemMessage(list.error, 'The list could not be loaded.')} />
             ) : !list.data ? (
               <Text type="body" color="secondary">Loading...</Text>
             ) : (

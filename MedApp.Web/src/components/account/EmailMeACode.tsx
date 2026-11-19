@@ -43,7 +43,7 @@ export function EmailMeACode({send, password}: EmailMeACodeProps) {
 
   return (
     <VStack gap={2} hAlign="stretch">
-      {(problem || other.length > 0) && <AlertMessage message={problem ?? other.join(' ')} />}
+      {(problem || other.length > 0) && <AlertMessage label="Code not sent" message={problem ?? other.join(' ')} />}
       {send.data ? (
         <EmailCodeNote
           sent={send.data}

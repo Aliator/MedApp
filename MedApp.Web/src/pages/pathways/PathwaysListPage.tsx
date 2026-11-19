@@ -256,7 +256,7 @@ export function PathwaysListPage({search, onSearchChange, patientId}: PathwaysLi
       banner={patientId && patient.data && <PatientBanner patient={patient.data} />}
       message={
         isError ? (
-          <AlertMessage message="The pathways could not be loaded. Please try again." />
+          <AlertMessage label="Pathways not loaded" message="The pathways could not be loaded. Please try again." />
         ) : (
           // A patient's pathways carry the patient's banners (restricted, disputed, anonymised).
           patient.data && <PatientFlagBanners patient={patient.data} />

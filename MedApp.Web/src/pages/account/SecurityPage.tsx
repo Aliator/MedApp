@@ -178,9 +178,9 @@ export function SecurityPage() {
       isLoading={isPending}
       message={
         isError ? (
-          <AlertMessage message="Your two-factor authentication settings could not be loaded. Please try again." />
+          <AlertMessage label="Settings not loaded" message="Your two-factor authentication settings could not be loaded. Please try again." />
         ) : (
-          notice && <AlertMessage status="success" message={notice} />
+          notice && <AlertMessage status="success" label="Two-factor authentication off" message={notice} />
         )
       }
       dialogs={
@@ -205,7 +205,7 @@ export function SecurityPage() {
             {dialog === 'disable' && (
               <VStack gap={4} hAlign="stretch">
                 {(disableProblem || disableOther.length > 0) && (
-                  <AlertMessage message={disableProblem ?? disableOther.join(' ')} />
+                  <AlertMessage label="Not turned off" message={disableProblem ?? disableOther.join(' ')} />
                 )}
                 {passwordField(disableErrors)}
                 {usesEmail && <EmailMeACode send={send} password={password} />}
@@ -249,7 +249,7 @@ export function SecurityPage() {
               // Only while it's open, as Turn Off's, with the signed-in user's name for a password manager.
               dialog === 'codes' && (
                 <VStack gap={4} hAlign="stretch">
-                  {(codesProblem || codesOther.length > 0) && <AlertMessage message={codesProblem ?? codesOther.join(' ')} />}
+                  {(codesProblem || codesOther.length > 0) && <AlertMessage label="Codes not made" message={codesProblem ?? codesOther.join(' ')} />}
                   {passwordField(codesErrors)}
                   {usesEmail && <EmailMeACode send={send} password={password} />}
                   <OneTimeCodeField

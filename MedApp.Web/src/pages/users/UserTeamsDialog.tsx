@@ -111,6 +111,7 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
     </HStack>
   ) : isError ? (
     <AlertMessage
+      label="Teams not loaded"
       message={
         theirs.isError ? problemMessage(theirs.error, `${username}'s teams could not be loaded.`) : 'The teams could not be loaded.'
       }
@@ -158,7 +159,7 @@ export function UserTeamsDialog({isOpen, username, onClose, onSaved}: UserTeamsD
       onConfirm={confirm}
       onCancel={close}>
       <VStack gap={2}>
-        {problem && <AlertMessage message={problem} />}
+        {problem && <AlertMessage label="Teams not saved" message={problem} />}
         {body}
       </VStack>
     </ConfirmDialog>

@@ -249,7 +249,7 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
       backLabel="Back to pathway templates"
       isLoading={isLoading}
       loadingMessage="Loading template..."
-      message={failed && <AlertMessage message="The template could not be loaded. Please try again." />}
+      message={failed && <AlertMessage label="Template not loaded" message="The template could not be loaded. Please try again." />}
     />
   );
 }
@@ -611,7 +611,7 @@ function TemplateEditor({
           // The name's errors show on it; the stages' (e.g. none chosen) show here.
           <ValidationAlert errors={problem.validation} fields={['name', 'teamId', 'clockStopStageOrder']} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          problem.message && <AlertMessage label={template ? 'Not saved' : 'Not created'} message={problem.message} />
         )
       }
       dialogs={

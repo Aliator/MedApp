@@ -101,7 +101,7 @@ export function ListForMdtDialog({patient, pathwayTitle, meetings, isLoadingMeet
         isDisabled={isProcessing}
         status={fieldStatus(errors, 'question') ?? (isTooLong ? tooLong(MAX_MDT_QUESTION_LENGTH) : undefined)}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Not listed for MDT" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -164,7 +164,7 @@ export function RecordMdtOutcomeDialog({item, attendees, isProcessing, onConfirm
           <CheckboxListItem key={a.userId} value={a.userId ?? ''} label={a.username ?? ''} />
         ))}
       </CheckboxList>
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Outcome not recorded" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -217,7 +217,7 @@ export function DeferMdtItemDialog({item, meetings, isLoadingMeetings, isProcess
         status={fieldStatus(errors, 'meetingId')}
         options={options}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Item not moved" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -248,7 +248,7 @@ export function WithdrawMdtItemDialog({item, isProcessing, onConfirm, onCancel}:
       onCancel={onCancel}>
       {item.patient && <PatientBanner patient={item.patient} isCompact />}
       <Text type="body">{`Question: ${item.question ?? ''}`}</Text>
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Not withdrawn from MDT" message={problem} />}
     </ConfirmDialog>
   );
 }
@@ -301,7 +301,7 @@ export function ChooseMdtPresenterDialog({item, attendees, isProcessing, onConfi
         status={fieldStatus(errors, 'presenterUserId')}
         options={options}
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Presenter not changed" message={problem} />}
     </ConfirmDialog>
   );
 }

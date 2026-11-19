@@ -119,7 +119,8 @@ export function LetterPage({id}: {id: string}) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [saveErrors, setSaveErrors] = useState<ValidationErrors | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // What failed (the headline) and the API's words.
+  const [actionError, setActionError] = useState<{label: string; message: string} | null>(null);
   const [open, setOpen] = useState({letter: true, recipients: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const formRef = useRef<HTMLElement>(null);
@@ -145,7 +146,7 @@ export function LetterPage({id}: {id: string}) {
         },
         onError: (e) => {
           if (e instanceof ApiValidationError) setSaveErrors(e.errors);
-          else setActionError(problemMessage(e, 'The letter could not be saved. Please try again.'));
+          else setActionError({label: 'Letter not saved', message: problemMessage(e, 'The letter could not be saved. Please try again.')});
         },
       },
     );
@@ -166,7 +167,8 @@ export function LetterPage({id}: {id: string}) {
         announce('Correction started');
         void navigate({to: '/letters/$id', params: {id: correction.id ?? ''}});
       },
-      onError: (e) => setActionError(problemMessage(e, 'The correction could not be started. Please try again.')),
+      onError: (e) =>
+        setActionError({label: 'Correction not started', message: problemMessage(e, 'The correction could not be started. Please try again.')}),
     });
   };
 
@@ -192,12 +194,12 @@ export function LetterPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage message="Letter not found. It may have been discarded." />
+          <AlertMessage label="Letter not found" message="Letter not found. It may have been discarded." />
         ) : error ? (
-          <AlertMessage message="The letter could not be loaded. Please try again." />
+          <AlertMessage label="Letter not loaded" message="The letter could not be loaded. Please try again." />
         ) : actionError ? (
           <VStack gap={2} hAlign="stretch">
-            <AlertMessage message={actionError} onDismiss={() => setActionError(null)} />
+            <AlertMessage label={actionError.label} message={actionError.message} onDismiss={() => setActionError(null)} />
             <HStack>
               <Button label="Reload" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={reload} />
             </HStack>
@@ -341,6 +343,7 @@ export function LetterPage({id}: {id: string}) {
             {letter.isReturned && letter.returnComment && (
               <AlertMessage
                 status="warning"
+                label="Returned for changes"
                 message={`Returned by ${letter.returnedByUsername ?? 'the approver'}${letter.returnedAtUtc ? ` on ${formatDateTime(letter.returnedAtUtc)}` : ''}: ${letter.returnComment}`}
               />
             )}
@@ -358,7 +361,7 @@ export function LetterPage({id}: {id: string}) {
     const others = otherMessages(saveErrors, [...TEXT_FIELDS, ...RECIPIENT_FIELDS]);
     return (
       <VStack gap={4} hAlign="stretch">
-        {others.length > 0 && <AlertMessage message={saveErrors?.title ?? 'The letter could not be saved.'} details={others} />}
+        {others.length > 0 && <AlertMessage label="Letter not saved" message={saveErrors?.title ?? 'The letter could not be saved.'} details={others} />}
         <TextArea
           label="Letterhead"
           description="The centre's name, address and phone, as plain lines."
@@ -419,7 +422,7 @@ export function LetterPage({id}: {id: string}) {
         <Section variant="transparent" padding={6}>
           {letter.canEdit && input ? (
             <VStack gap={3} hAlign="stretch">
-              {recipientErrors.length > 0 && <AlertMessage message="Check the recipients." details={recipientErrors} />}
+              {recipientErrors.length > 0 && <AlertMessage label="Check the recipients" details={recipientErrors} />}
               <RecipientsEditor
                 recipients={input.recipients}
                 onChange={(recipients) => setInput({recipients})}
@@ -459,6 +462,7 @@ function MissingMergeFields({letter, labels}: {letter: Letter; labels?: {name?: 
   return (
     <AlertMessage
       status="warning"
+      label="Merge fields have no value"
       message="These merge fields have no value for this patient, so it can't be approved until they have one (on the patient's record) or are taken out of the letter:"
       details={named}
     />

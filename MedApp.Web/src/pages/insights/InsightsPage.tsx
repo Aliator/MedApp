@@ -152,7 +152,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
       isLoading={isPending}
       loadingMessage="Loading insights..."
       actions={clinic.picker}
-      message={isError && <AlertMessage message="The insights could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Insights not loaded" message="The insights could not be loaded. Please try again." />}>
       <VStack gap={4} height="100%">
         {filters}
         {data && (

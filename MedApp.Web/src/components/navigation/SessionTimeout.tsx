@@ -129,7 +129,7 @@ export function SessionTimeout() {
       }>
       <VStack gap={4}>
         {extend.isError && !isUnauthorized(extend.error) && (
-          <AlertMessage message="Your session could not be extended. Please try again." />
+          <AlertMessage label="Session not extended" message="Your session could not be extended. Please try again." />
         )}
         <Text type="body">
           {canExtend

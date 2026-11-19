@@ -29,7 +29,7 @@ export function StaffDetailsCard() {
     <ViewCard showFooter={false}>
       <CardSection title={TITLE}>
         {details.isError ? (
-          <AlertMessage message="Your details for letters could not be loaded." />
+          <AlertMessage label="Details not loaded" message="Your details for letters could not be loaded." />
         ) : (
           <Text type="body" color="secondary">
             Loading...
@@ -78,7 +78,7 @@ function StaffDetailsForm({saved}: {saved: StaffDetails}) {
           <Text type="body" color="secondary">
             {HINT}
           </Text>
-          {save.isError && !errors && <AlertMessage message={problemMessage(save.error, 'Your details could not be saved. Please try again.')} />}
+          {save.isError && !errors && <AlertMessage label="Details not saved" message={problemMessage(save.error, 'Your details could not be saved. Please try again.')} />}
           <TextInput
             label="Full name"
             description='As it goes on letters, e.g. "Dr Sam Test".'

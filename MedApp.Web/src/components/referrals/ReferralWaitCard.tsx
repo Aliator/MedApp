@@ -141,7 +141,7 @@ export function ReferralWaitCard({referral, pathwayId, patient}: ReferralWaitCar
         onConfirm={resume}
         onCancel={close}>
         <VStack gap={3} hAlign="stretch">
-          {problem.message && <AlertMessage message={problem.message} />}
+          {problem.message && <AlertMessage label="Clock not resumed" message={problem.message} />}
           {patient && <PatientBanner patient={patient} isCompact />}
           {clock?.pauseReviewOn && (
             <Text type="body">{`Paused since ${formatDate(clock.pausedSinceOn ?? '')}, for review on ${formatDate(clock.pauseReviewOn)}.`}</Text>
@@ -201,7 +201,7 @@ export function PauseClockDialog({referral, patient, problem, isProcessing, onCo
       onConfirm={() => onConfirm({reason, detail, reviewOn})}
       onCancel={onCancel}>
       <VStack gap={4} hAlign="stretch">
-        {problem.message && <AlertMessage message={problem.message} />}
+        {problem.message && <AlertMessage label="Clock not paused" message={problem.message} />}
         {patient && <PatientBanner patient={patient} isCompact />}
         {referral.clock && (
           <Text type="body" color="secondary">

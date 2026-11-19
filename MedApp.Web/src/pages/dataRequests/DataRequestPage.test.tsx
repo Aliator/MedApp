@@ -223,7 +223,7 @@ describe('DataRequestPage', () => {
 
   it("says when the request isn't there, or can't be loaded", async () => {
     const {unmount} = render(() => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Data request not found.')).toBeInTheDocument();
+    expect(await screen.findByText('Data request not found')).toBeInTheDocument();
     unmount();
 
     render(() => json({title: 'Boom'}, 500));

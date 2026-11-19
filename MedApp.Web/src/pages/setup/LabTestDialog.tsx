@@ -114,7 +114,7 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
       onCancel={onCancel}>
       <VStack gap={3}>
         {problem.validation && <ValidationAlert errors={problem.validation} fields={[...FIELDS, ...steps.map((_, i) => `steps[${i}].name`)]} />}
-        {problem.message && <AlertMessage message={problem.message} />}
+        {problem.message && <AlertMessage label={test ? 'Not saved' : 'Not added'} message={problem.message} />}
         <TextInput
           label="Name"
           value={name}

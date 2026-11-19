@@ -35,7 +35,7 @@ export function PatientReferrals({patientId, canRegister, exceptReferralId, same
   return (
     <VStack gap={3} hAlign="stretch">
       {isError ? (
-        <AlertMessage message="The referrals could not be loaded. Please try again." />
+        <AlertMessage label="Referrals not loaded" message="The referrals could not be loaded. Please try again." />
       ) : isPending ? (
         <Text type="body" color="secondary">
           Loading referrals...

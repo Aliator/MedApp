@@ -104,7 +104,7 @@ export function LetterTemplateEditorPage({id}: {id?: string}) {
       backLabel={BACK_LABEL}
       isLoading={!failed}
       loadingMessage="Loading letter template..."
-      message={failed && <AlertMessage message="The letter template could not be loaded. Please try again." />}
+      message={failed && <AlertMessage label="Letter template not loaded" message="The letter template could not be loaded. Please try again." />}
     />
   );
 }
@@ -128,6 +128,8 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
   const [input, setInput] = useState<LetterTemplateInput>(() => letterTemplateInput(template));
   const [largePrint, setLargePrint] = useState(false);
   const [problem, setProblem] = useState<SaveProblem>(NO_PROBLEM);
+  // The problem's headline: what failed, saving or the preview.
+  const [problemLabel, setProblemLabel] = useState('Not saved');
   const choices = useMemo(() => letterTeamChoices(teams, template), [teams, template]);
   const isBusy = save.isPending || preview.isPending;
   const backToList = () => void navigate({to: BACK});
@@ -145,7 +147,10 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
         },
         // A 409 (the name is taken, or someone changed it meanwhile) shows the API's words; the template has been
         // read again by then (`useSaveLetterTemplate`), so saving again, having been told, starts from its new version.
-        onError: (e) => setProblem(saveProblem(e, template ? 'save' : 'add', 'letter template')),
+        onError: (e) => {
+          setProblemLabel(template ? 'Not saved' : 'Not created');
+          setProblem(saveProblem(e, template ? 'save' : 'add', 'letter template'));
+        },
       },
     );
   };
@@ -154,7 +159,13 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
     setProblem(NO_PROBLEM);
     preview.mutate(
       {name: input.name, letterhead: input.letterhead, bodySkeleton: input.bodySkeleton, closing: input.closing, largePrint},
-      {onSuccess: () => announce('Preview downloaded'), onError: (e) => setProblem(previewProblem(e))},
+      {
+        onSuccess: () => announce('Preview downloaded'),
+        onError: (e) => {
+          setProblemLabel('Preview not made');
+          setProblem(previewProblem(e));
+        },
+      },
     );
   };
 
@@ -283,10 +294,14 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={FIELDS} />
         ) : problem.message ? (
-          <AlertMessage message={problem.message} />
+          <AlertMessage label={problemLabel} message={problem.message} />
         ) : (
           template?.isArchived && (
-            <AlertMessage status="warning" message="This letter template is archived: it isn't offered for new letters. Restore it from the list." />
+            <AlertMessage
+              status="warning"
+              label="Archived letter template"
+              message="This letter template is archived: it isn't offered for new letters. Restore it from the list."
+            />
           )
         )
       }>
@@ -316,7 +331,7 @@ function LetterTemplateEditor({template, teams}: {template: LetterTemplate | nul
  * value comes from, and what they're for.
  */
 function MergeFieldList({fields, isPending, isError}: {fields?: LetterMergeField[]; isPending: boolean; isError: boolean}) {
-  if (isError) return <AlertMessage message="The merge fields could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Merge fields not loaded" message="The merge fields could not be loaded. Please try again." />;
   return (
     <VStack gap={3}>
       <Text type="supporting" color="secondary">

@@ -149,7 +149,7 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
       title="Patients"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage message="The patients could not be loaded. Please try again." />}
+      message={isError && <AlertMessage label="Patients not loaded" message="The patients could not be loaded. Please try again." />}
       actions={
         <HStack gap={2} vAlign="center">
           {clinic.picker}

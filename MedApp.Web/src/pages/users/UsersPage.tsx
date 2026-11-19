@@ -173,9 +173,9 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
   // Deleting a user: the admin's own password, and why it was refused.
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteProblem, setDeleteProblem] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{label: string; message: string} | null>(null);
   // What the last action did, when there's nothing else to show for it (signing someone out everywhere).
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{label: string; message: string} | null>(null);
 
   const open = (next: DialogState) => {
     // Edit roles starts from the user's current roles, ticked.
@@ -200,8 +200,8 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
     create.reset();
     reset.reset();
   };
-  const failed = (message: string) => () => {
-    setError(message);
+  const failed = (label: string, message: string) => () => {
+    setError({label, message});
     close();
   };
 
@@ -302,10 +302,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
       subtitle={subtitle}
       fill
       message={
-        isError || error ? (
-          <AlertMessage message={error ?? 'The users could not be loaded. Please try again.'} />
+        error ? (
+          <AlertMessage label={error.label} message={error.message} />
+        ) : isError ? (
+          <AlertMessage label="Users not loaded" message="The users could not be loaded. Please try again." />
         ) : (
-          notice && <AlertMessage message={notice} status="success" />
+          notice && <AlertMessage label={notice.label} message={notice.message} status="success" />
         )
       }
       actions={
@@ -398,18 +400,18 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             confirmDisabled={sameRoles(selectedRoles, target?.roles ?? [])}
             isProcessing={setRoles.isPending}
             onConfirm={() =>
-              target && setRoles.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('The roles could not be saved.')})
+              target && setRoles.mutate({username: target.username, roles: selectedRoles}, {onSuccess: close, onError: failed('Roles not saved', 'The roles could not be saved.')})
             }
             onCancel={close}
           />
 
-          <StaffDetailsDialog target={dialog?.kind === 'details' ? dialog : null} onClose={close} onSaved={setNotice} />
+          <StaffDetailsDialog target={dialog?.kind === 'details' ? dialog : null} onClose={close} onSaved={(message) => setNotice({label: 'Details saved', message})} />
 
           <UserTeamsDialog
             isOpen={dialog?.kind === 'teams'}
             username={target?.username ?? ''}
             onClose={close}
-            onSaved={setNotice}
+            onSaved={(message) => setNotice({label: 'Teams saved', message})}
           />
 
           <ConfirmDialog
@@ -424,7 +426,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             onConfirm={() =>
               newPassword
                 ? close()
-                : target && reset.mutate(target.username, {onSuccess: setNewPassword, onError: failed('The password could not be reset.')})
+                : target && reset.mutate(target.username, {onSuccess: setNewPassword, onError: failed('Password not reset', 'The password could not be reset.')})
             }
             onCancel={close}>
             {newPassword && target && (
@@ -450,9 +452,12 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               resetTwoFactor.mutate(target.username, {
                 onSuccess: () => {
                   close();
-                  setNotice(`Two-factor authentication has been reset for ${target.username}, and they've been signed out everywhere.`);
+                  setNotice({
+                    label: 'Two-factor reset',
+                    message: `Two-factor authentication has been reset for ${target.username}, and they've been signed out everywhere.`,
+                  });
                 },
-                onError: (e) => failed(problemMessage(e, `Two-factor authentication could not be reset for ${target.username}.`))(),
+                onError: (e) => failed('Two-factor not reset', problemMessage(e, `Two-factor authentication could not be reset for ${target.username}.`))(),
               })
             }
             onCancel={close}
@@ -471,9 +476,9 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               signOut.mutate(target.username, {
                 onSuccess: () => {
                   close();
-                  setNotice(`${target.username} has been signed out everywhere.`);
+                  setNotice({label: 'Signed out everywhere', message: `${target.username} has been signed out everywhere.`});
                 },
-                onError: failed(`${target.username} could not be signed out.`),
+                onError: failed('Not signed out', `${target.username} could not be signed out.`),
               })
             }
             onCancel={close}
@@ -492,9 +497,9 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               removeEmail.mutate(target.username, {
                 onSuccess: () => {
                   close();
-                  setNotice(`${target.username}'s email address has been removed.`);
+                  setNotice({label: 'Email address removed', message: `${target.username}'s email address has been removed.`});
                 },
-                onError: (e) => failed(problemMessage(e, `The email address could not be removed for ${target.username}.`))(),
+                onError: (e) => failed('Email address not removed', problemMessage(e, `The email address could not be removed for ${target.username}.`))(),
               })
             }
             onCancel={close}
@@ -516,7 +521,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
                   onSuccess: close,
                   // A wrong password keeps the dialog open, saying so on the field; anything else closes it.
                   onError: (e) =>
-                    e instanceof ApiValidationError ? setDeleteProblem(allMessages(e.errors).join(' ')) : failed('The user could not be deleted.')(),
+                    e instanceof ApiValidationError ? setDeleteProblem(allMessages(e.errors).join(' ')) : failed('User not deleted', 'The user could not be deleted.')(),
                 },
               )
             }

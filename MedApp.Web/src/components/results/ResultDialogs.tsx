@@ -51,8 +51,8 @@ function ResultSummaryLines({result}: {result: Result}) {
   );
 }
 
-/** How a dialog shows the API's refusal: a 400 on its fields, anything else (a 409, a 403) in the API's words. */
-function useOutcome(failed: string) {
+/** How a dialog shows the API's refusal: a 400 on its fields, anything else (a 409, a 403) in the API's words, headed `notDone`. */
+function useOutcome(failed: string, notDone: string) {
   const [errors, setErrors] = useState<ValidationErrors | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   return {
@@ -69,7 +69,7 @@ function useOutcome(failed: string) {
     alerts: (fields: string[]): ReactNode => (
       <>
         {errors && <ValidationAlert errors={errors} fields={fields} />}
-        {message && <AlertMessage message={message} />}
+        {message && <AlertMessage label={notDone} message={message} />}
       </>
     ),
   };
@@ -83,7 +83,7 @@ function useOutcome(failed: string) {
 export function SignOffResultDialog({result, onClose}: ResultDialogProps) {
   const announce = useAnnounce();
   const {signOff} = useResultActions(result.id ?? '');
-  const outcome = useOutcome('The result could not be signed off.');
+  const outcome = useOutcome('The result could not be signed off.', 'Not signed off');
   const [action, setAction] = useState('');
   const [detail, setDetail] = useState('');
   const needsDetail = action === 'Other';
@@ -147,7 +147,7 @@ export function ReassignResultDialog({result, onClose}: ResultDialogProps) {
   const announce = useAnnounce();
   const {reassign} = useResultActions(result.id ?? '');
   const staff = useQuery(staffWithPermissionQuery(RESPONSIBLE_PERMISSION));
-  const outcome = useOutcome('The result could not be reassigned.');
+  const outcome = useOutcome('The result could not be reassigned.', 'Result not reassigned');
   const [userId, setUserId] = useState('');
   const options = (staff.data ?? [])
     .filter((member) => member.userId !== result.responsibleUserId)
@@ -205,7 +205,7 @@ export function ReassignResultDialog({result, onClose}: ResultDialogProps) {
 export function TakeOverResultDialog({result, userId, onClose}: ResultDialogProps & {userId: string}) {
   const announce = useAnnounce();
   const {reassign} = useResultActions(result.id ?? '');
-  const outcome = useOutcome('The result could not be taken over.');
+  const outcome = useOutcome('The result could not be taken over.', 'Result not taken over');
 
   const confirm = () => {
     outcome.reset();
@@ -252,7 +252,7 @@ export function TakeOverResultDialog({result, userId, onClose}: ResultDialogProp
 export function ResultEnteredInErrorDialog({result, onClose}: ResultDialogProps) {
   const announce = useAnnounce();
   const {enteredInError} = useResultActions(result.id ?? '');
-  const outcome = useOutcome('The result could not be marked entered in error.');
+  const outcome = useOutcome('The result could not be marked entered in error.', 'Not marked entered in error');
   const [detail, setDetail] = useState('');
 
   const confirm = () => {

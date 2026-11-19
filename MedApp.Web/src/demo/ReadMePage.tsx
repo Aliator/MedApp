@@ -230,7 +230,7 @@ export function ReadMePage() {
                     ))}
                   </List>
                   {step.sampleText && <SampleText lines={step.sampleText} />}
-                  {notes[step.key] && <AlertMessage status="info" message={notes[step.key]} />}
+                  {notes[step.key] && <AlertMessage status="info" label="About this step" message={notes[step.key]} />}
                   <HStack>
                     <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
                   </HStack>

@@ -536,7 +536,8 @@ describe('Attachments', () => {
 
       await user.upload(fileInput(), [file('scan.tiff'), file('photo.jpg', 2 * MB), file('fine.pdf')]);
 
-      const alert = await findAlert("2 files weren't attached");
+      expect(await screen.findByText("2 files weren't attached")).toBeInTheDocument();
+      const alert = await findAlert("scan.tiff");
       expect(alert).toHaveTextContent("scan.tiff: TIFF files can't be attached. Attach PDF, PNG, JPG, JPEG, HEIC, HEIF, DOCX or TXT.");
       expect(alert).toHaveTextContent('photo.jpg is 2 MB; the most is 1 MB.');
       await expectAnnounced(/scan\.tiff: TIFF files can't be attached.*photo\.jpg is 2 MB; the most is 1 MB\..*Attaching 1 file/);
@@ -556,7 +557,8 @@ describe('Attachments', () => {
 
       await user.upload(fileInput(), file('scan.svg'));
 
-      expect(await findAlert("A file wasn't attached")).toHaveTextContent("scan.svg: SVG files can't be attached.");
+      expect(await screen.findByText("A file wasn't attached")).toBeInTheDocument();
+      expect(await findAlert("scan.svg: SVG files can't be attached.")).toBeInTheDocument();
       await expectAnnounced(/^scan\.svg: SVG files can't be attached\. Attach PDF, PNG, JPG, JPEG, HEIC, HEIF, DOCX or TXT\.$/);
       expect(sent).toHaveLength(0);
     });
@@ -588,7 +590,8 @@ describe('Attachments', () => {
       await waitFor(() => expect(sent).toHaveLength(1));
       sent[0].respond(409, {title: RESTRICTED});
 
-      expect(await findAlert("A file wasn't attached")).toHaveTextContent(`scan.pdf: ${RESTRICTED}`);
+      expect(await findAlert(`scan.pdf: ${RESTRICTED}`)).toBeInTheDocument();
+      expect(screen.getByText("A file wasn't attached")).toBeInTheDocument();
     });
 
     it("shows the server's reason a file wasn't attached", async () => {
@@ -602,7 +605,8 @@ describe('Attachments', () => {
       await waitFor(() => expect(sent).toHaveLength(1));
       sent[0].respond(415, {title: "The file's name ends in .png, but it's a PDF. Name it with .pdf."});
 
-      const alert = await findAlert("A file wasn't attached");
+      expect(await screen.findByText("A file wasn't attached")).toBeInTheDocument();
+      const alert = await findAlert("scan.png:");
       expect(alert).toHaveTextContent("scan.png: The file's name ends in .png, but it's a PDF. Name it with .pdf.");
       await expectAnnounced("scan.png: The file's name ends in .png, but it's a PDF. Name it with .pdf.");
     });

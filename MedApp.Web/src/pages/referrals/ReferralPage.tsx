@@ -166,12 +166,12 @@ export function ReferralPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage message="Referral not found. It may have been deleted." />
+          <AlertMessage label="Referral not found" message="Referral not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage message="The referral could not be loaded. Please try again." />
+          <AlertMessage label="Referral not loaded" message="The referral could not be loaded. Please try again." />
         ) : actionError ? (
           <VStack gap={2} hAlign="stretch">
-            <AlertMessage message={actionError} onDismiss={() => setActionError(null)} />
+            <AlertMessage label="Referral not changed" message={actionError} onDismiss={() => setActionError(null)} />
             <HStack>
               <Button label="Reload" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Refresh} />} onClick={reload} />
             </HStack>

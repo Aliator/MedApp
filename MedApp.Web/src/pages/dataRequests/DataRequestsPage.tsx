@@ -122,7 +122,7 @@ export function DataRequestsPage({search, onSearchChange}: DataRequestsPageProps
       title="Data Requests"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage message="The data requests could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Data requests not loaded" message="The data requests could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
         columns={columns}

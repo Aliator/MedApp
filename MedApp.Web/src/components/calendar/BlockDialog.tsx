@@ -243,12 +243,12 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
       }>
       {isOpen && (
         <VStack ref={content} gap={4} hAlign="stretch">
-          {problem.message && <AlertMessage message={problem.message} />}
+          {problem.message && <AlertMessage label="Blocked time not saved" message={problem.message} />}
           {problem.validation && <ValidationAlert errors={problem.validation} fields={FIELDS} />}
           {isTemplateBlock && (
             <AlertMessage
               status="info"
-              message={dayTemplateName ? `From the '${dayTemplateName}' day template` : 'From a day template'}
+              label={dayTemplateName ? `From the '${dayTemplateName}' day template` : 'From a day template'}
               details={canEdit ? ['Changes here apply to this day only; the template stays as it is.'] : []}
             />
           )}
@@ -266,7 +266,11 @@ function BlockForm({isOpen, onClose, staffUserId, days, block, date, startUtc, e
           ) : (
             <>
               {block?.overlapsAppointment && (
-                <AlertMessage status="warning" message="This overlaps an appointment. Move one of them, or leave both if that's right." />
+                <AlertMessage
+                  status="warning"
+                  label="Overlaps an appointment"
+                  message="This overlaps an appointment. Move one of them, or leave both if that's right."
+                />
               )}
               <AnchoredSelector
                 label="Activity"

@@ -74,7 +74,7 @@ export function WorkCard<T>({
       <PanelHeader title={title} summary={query.data ? <Text type="supporting" color="secondary">{`${total}`}</Text> : null} />
       {query.isError ? (
         <Section variant="transparent" padding={6}>
-          <AlertMessage message={`${title} could not be loaded. Please try again.`} />
+          <AlertMessage label={`${title} not loaded`} message={`${title} could not be loaded. Please try again.`} />
         </Section>
       ) : items.length === 0 ? (
         <Section variant="transparent" padding={6}>

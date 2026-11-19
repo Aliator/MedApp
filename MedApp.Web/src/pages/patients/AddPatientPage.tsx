@@ -53,7 +53,7 @@ export function AddPatientPage({then}: {then?: 'referral'} = {}) {
         problem.validation ? (
           <ValidationAlert errors={problem.validation} fields={PATIENT_FIELDS} />
         ) : (
-          problem.message && <AlertMessage message={problem.message} />
+          problem.message && <AlertMessage label="Patient not added" message={problem.message} />
         )
       }
       dialogs={

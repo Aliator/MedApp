@@ -39,7 +39,7 @@ describe('AdminSettingsPage', () => {
     await user.click(await requireSwitch());
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
-    expect(await screen.findByText('Settings saved.')).toBeInTheDocument();
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument();
     expect(screen.getByText("2 admin accounts haven't set up an authenticator app; they'll be asked to at their next request.")).toBeInTheDocument();
     expect(await requireSwitch()).toBeChecked();
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'PUT')!;
@@ -55,7 +55,7 @@ describe('AdminSettingsPage', () => {
     await user.click(screen.getByRole('button', {name: 'Save'}));
 
     await waitFor(() => expect(calls(fetch)).toEqual([`GET ${SETTINGS}`]));
-    expect(screen.queryByText('Settings saved.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument();
   });
 
   it("says why the API refused, in its words", async () => {

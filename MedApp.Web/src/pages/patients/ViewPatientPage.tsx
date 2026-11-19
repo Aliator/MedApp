@@ -101,11 +101,11 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
       fill={patient !== undefined}
       message={
         error && !(error instanceof ApiError && error.status === 404) ? (
-          <AlertMessage message="The patient could not be loaded. Please try again." />
+          <AlertMessage label="Patient not loaded" message="The patient could not be loaded. Please try again." />
         ) : (
           patient && (
             <VStack gap={2} hAlign="stretch">
-              {problem.message && <AlertMessage message={problem.message} />}
+              {problem.message && <AlertMessage label="Change not made" message={problem.message} />}
               <PatientFlagBanners patient={patient} />
             </VStack>
           )
@@ -224,7 +224,7 @@ export function splitAppointments(appointments: readonly Appointment[]) {
 
 function PatientAppointments({patientId}: {patientId: string}) {
   const {data, isPending, isError} = useQuery(patientAppointmentsQuery(patientId));
-  if (isError) return <AlertMessage message="The appointments could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Appointments not loaded" message="The appointments could not be loaded. Please try again." />;
   if (isPending)
     return (
       <Text type="body" color="secondary">

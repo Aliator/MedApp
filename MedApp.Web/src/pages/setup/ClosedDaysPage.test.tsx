@@ -211,7 +211,7 @@ describe('ClosedDaysPage', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Add Closed Day'}));
     await user.type(dialog().getByRole('combobox', {name: /Date/}), '24 December 2026{Enter}');
-    expect(await dialog().findByText('Nothing is booked then.')).toBeInTheDocument();
+    expect(await dialog().findByText('Nothing is booked then')).toBeInTheDocument();
     await user.clear(dialog().getByRole('combobox', {name: /Date/}));
     await user.type(dialog().getByRole('combobox', {name: /Date/}), '23 December 2026{Enter}');
     expect(await dialog().findByText("What's already booked then could not be checked.")).toBeInTheDocument();
@@ -336,23 +336,35 @@ describe('closed days search and words', () => {
 
   it('says what adding bank holidays did', () => {
     expect(bankHolidaysOutcome({year: 2026, added: [], skipped: [{date: '2026-01-01', name: "New Year's Day", reason: 'Past'}]})).toEqual({
+      label: 'No bank holidays added',
       message: 'No bank holidays added for 2026.',
       details: ["New Year's Day, Thu 1 Jan: past"],
     });
     expect(bankHolidaysOutcome({year: 2027, added: [{}, {}], skipped: [{date: '2027-01-01', name: 'Odd', reason: 'Other'}]})).toEqual({
+      label: 'Bank holidays added',
       message: 'Added 2 bank holidays.',
       details: ['Odd, Fri 1 Jan: other'],
     });
   });
 
   it('says what adding one closed day did', () => {
-    expect(closedDayOutcome({date: '2026-12-24', name: 'Training day'}, 'typed')).toEqual({message: 'Training day added as a closed day.', details: []});
+    expect(closedDayOutcome({date: '2026-12-24', name: 'Training day'}, 'typed')).toEqual({
+      label: 'Closed day added',
+      message: 'Training day added as a closed day.',
+      details: [],
+    });
     expect(closedDayOutcome({date: '2026-12-24', bookings: {...EMPTY, meetings: 2}}, 'Typed name')).toEqual({
+      label: 'Closed day added',
       message: 'Typed name added as a closed day.',
       details: ['On Thu 24 Dec: 2 meetings. They stay.'],
     });
-    expect(closedDayOutcome(REFIT, 'typed')).toEqual({message: 'Tue 1 Dec 2026 closed at Northgate outreach clinic: Refit.', details: []});
+    expect(closedDayOutcome(REFIT, 'typed')).toEqual({
+      label: 'Closed day added',
+      message: 'Tue 1 Dec 2026 closed at Northgate outreach clinic: Refit.',
+      details: [],
+    });
     expect(closedDayOutcome({date: '2026-12-01', siteId: NORTHGATE.id}, 'Refit')).toEqual({
+      label: 'Closed day added',
       message: 'Tue 1 Dec 2026 closed at the site: Refit.',
       details: [],
     });

@@ -24,6 +24,7 @@ export function NotificationSettings() {
         <VStack gap={3}>
           {(preferences.isError || save.isError) && (
             <AlertMessage
+              label={save.isError ? 'Not saved' : 'Choices not loaded'}
               message={save.isError ? 'Your choice could not be saved. Please try again.' : 'Your notification choices could not be loaded.'}
             />
           )}

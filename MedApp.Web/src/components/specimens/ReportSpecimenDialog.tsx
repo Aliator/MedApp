@@ -84,7 +84,7 @@ export function ReportSpecimenDialog({isOpen, specimen, onClose}: ReportSpecimen
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
           <MetadataListItem label="Lab's reference">{specimen.labReference || '—'}</MetadataListItem>
         </MetadataList>
-        {problem && <AlertMessage message={problem} />}
+        {problem && <AlertMessage label="Report not attached" message={problem} />}
         <FileInput
           label="Report"
           value={file}

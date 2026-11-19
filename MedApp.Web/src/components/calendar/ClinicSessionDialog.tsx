@@ -124,13 +124,13 @@ export function ClinicSessionDialog({sessionId, onClose, onEdit, onBookSlot}: Cl
       footer={footer}>
       {isOpen && (
         <VStack gap={4} hAlign="stretch">
-          {problem && <AlertMessage message={problem} />}
-          {detail.isError && <AlertMessage message="The clinic session could not be loaded. It may have been removed." />}
+          {problem && <AlertMessage label="Session not cancelled" message={problem} />}
+          {detail.isError && <AlertMessage label="Session not loaded" message="The clinic session could not be loaded. It may have been removed." />}
           {!session ? (
             !detail.isError && <Skeleton height="var(--spacing-20)" />
           ) : (
             <>
-              {cancelled && <AlertMessage status="success" message={cancelledWords(cancelled, toldPatients)} />}
+              {cancelled && <AlertMessage status="success" label="Clinic session cancelled" message={cancelledWords(cancelled, toldPatients)} />}
               <MetadataList label={{position: 'start'}}>
                 <MetadataListItem label="When">{`${formatCalendarDay(session.date ?? '')}, ${formatTimeRange(session.startUtc ?? '', session.endUtc ?? '')}`}</MetadataListItem>
                 <MetadataListItem label="Clinician">{session.staffUsername}</MetadataListItem>

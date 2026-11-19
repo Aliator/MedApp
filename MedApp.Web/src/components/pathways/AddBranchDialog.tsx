@@ -94,7 +94,7 @@ export function AddBranchDialog({pathway, isProcessing, onConfirm, onCancel}: Ad
           fieldStatus(errors, 'reason') ?? (isTooLong ? {type: 'error', message: `At most ${MAX_BRANCH_REASON_LENGTH} characters.`} : undefined)
         }
       />
-      {problem && <AlertMessage message={problem} />}
+      {problem && <AlertMessage label="Branch not added" message={problem} />}
     </ConfirmDialog>
   );
 }

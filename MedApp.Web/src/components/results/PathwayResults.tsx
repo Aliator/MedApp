@@ -16,7 +16,7 @@ import {NeedsClinicianToken, ResultStatusToken} from './ResultCells';
 export function PathwayResults({pathwayId}: {pathwayId: string}) {
   const {data, isPending, isError} = useQuery(pathwayResultsQuery(pathwayId));
 
-  if (isError) return <AlertMessage message="The results could not be loaded. Please try again." />;
+  if (isError) return <AlertMessage label="Results not loaded" message="The results could not be loaded. Please try again." />;
   if (isPending)
     return (
       <Text type="body" color="secondary">

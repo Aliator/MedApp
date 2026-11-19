@@ -101,7 +101,7 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
 
   if (!patientId || isMissing) {
     return (
-      <Page {...pageProps} message={isMissing && <AlertMessage message="Patient not found. They may have been deleted. Find them again." />}>
+      <Page {...pageProps} message={isMissing && <AlertMessage label="Patient not found" message="Patient not found. They may have been deleted. Find them again." />}>
         <PanelCard title="Who is it for?">
           <ReferralPatientFinder onChoose={onPatientChange} />
         </PanelCard>
@@ -127,9 +127,9 @@ export function RegisterReferralPage({patientId, onPatientChange}: RegisterRefer
           <ValidationAlert errors={problem.validation} fields={REFERRAL_DETAILS_FIELDS} />
         ) : problem.message ? (
           // A restricted or anonymised record: the API says to give the letter to an admin, so it isn't lost.
-          <AlertMessage message={problem.message} />
+          <AlertMessage label="Referral not registered" message={problem.message} />
         ) : patient.error ? (
-          <AlertMessage message="The patient could not be loaded. Please try again." />
+          <AlertMessage label="Patient not loaded" message="The patient could not be loaded. Please try again." />
         ) : (
           patient.data && <PatientFlagBanners patient={patient.data} />
         )
