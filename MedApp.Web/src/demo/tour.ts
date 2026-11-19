@@ -186,7 +186,7 @@ export const TOUR: TourStep[] = [
     title: 'The relay, 2: it arrives in the lab',
     steps: [
       `Switches to ${LAB.fullName}. My Worklist’s New for us lists what has just reached the lab, Ellis Varden’s too once handed over.`,
-      'Open one and choose Pick Up on its lab stage: it leaves New for us. The bell has the handover.',
+      'Reaching the lab’s stage opened its lab case, waiting for the sample: receiving the sample picks the stage up, or choose Pick Up on it. The bell has the handover.',
     ],
     account: LAB.username,
     path: '/tasks?view=newForUs',
@@ -196,16 +196,16 @@ export const TOUR: TourStep[] = [
     key: 'finish-stage',
     title: 'The relay, 3: the lab hands it back',
     steps: [
-      'Opens Priya Holloway’s pathway at Histology, the lab’s stage. The lab works it and adds notes; Dermatology waits.',
-      'Choose Finish Stage and enter the result. The next stage, Histology result (a choice node), is Dermatology’s, so the pathway goes back with the result on it, and Dermatology is told. The lab keeps reading it.',
+      'Opens the lab case of Priya Holloway’s Histology stage: every step done. Her pathway’s stage and this case are one piece of work.',
+      'Choose Enter Results and Authorise. That finishes her Histology stage with the results, and the next stage, Histology result (a choice node), is Dermatology’s: the pathway goes back with the results on it, Dermatology is told, and the result waits for sign-off. The lab keeps reading it.',
     ],
     account: LAB.username,
-    path: `/pathways/${PATHWAYS.histologyToFinish}`,
-    buttonLabel: 'Open the pathway as the lab',
+    path: `/lab/cases/${LAB_CASE_IDS.stageToReport}`,
+    buttonLabel: 'Open the lab case as the lab',
     whyNot: (state) =>
-      state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)?.stages.find((s) => s.name === 'Histology')?.completedAtUtc
-        ? `You've finished Histology already in your copy of the demo; the next stage is current now. ${RESET_HINT}`
-        : null,
+      state.labCases.find((c) => c.id === LAB_CASE_IDS.stageToReport)?.status === 'Open'
+        ? null
+        : `You've authorised this case already in your copy of the demo: her Histology is finished. ${RESET_HINT}`,
   },
   {
     key: 'relay-back',
@@ -222,14 +222,14 @@ export const TOUR: TourStep[] = [
     key: 'sign-off',
     title: 'Sign off a result',
     steps: [
-      `Opens Priya Holloway’s biopsy result, waiting for ${STAFF.fullName}’s sign-off.`,
-      'Choose Sign Off and say what’s been done. Nothing is chosen for you; her Histology result stage waits for it.',
+      `Opens Callum Ashby’s biopsy result, back from the lab and waiting for ${STAFF.fullName}’s sign-off.`,
+      'Choose Sign Off and say what’s been done. Nothing is chosen for you; his Histology result stage waits for it.',
     ],
     account: STAFF.username,
-    path: `/results/${LAB_IDS.priyaResult}`,
+    path: `/results/${LAB_IDS.resultToSignOff}`,
     buttonLabel: 'Open the result to sign off',
     whyNot: (state) =>
-      state.results.find((r) => r.id === LAB_IDS.priyaResult)?.status === 'AwaitingSignOff'
+      state.results.find((r) => r.id === LAB_IDS.resultToSignOff)?.status === 'AwaitingSignOff'
         ? null
         : `You've signed off this result already in your copy of the demo. ${RESET_HINT}`,
   },
@@ -273,7 +273,7 @@ export const TOUR: TourStep[] = [
     steps: [
       'Opens Wilfred Ashdown’s case from the hospital: received, accessioned, “Sample adequate?” recorded as adequate, and the test’s steps done. Each step says who and when.',
       'What’s Next asks “Needs more work?”. Choose an outcome yourself (nothing is chosen for you): No more work, extra tests (special stains) or a second opinion, which adds their steps first.',
-      'Once there’s no more work, Enter Results and Authorise: the results go back to the hospital (for a clinic’s case, to the clinician as a result to sign off). “Insufficient” at “Sample adequate?” asks the clinic for a repeat instead.',
+      'Once there’s no more work, Enter Results and Authorise: the results go back to the hospital (for a clinic’s case, to the clinician as a result to sign off, finishing the pathway’s lab stage). “Insufficient” at “Sample adequate?” asks the clinic for a repeat instead, reopening the stage that took the sample.',
       'Its Clock is strict: the lab’s own target (the test’s 7 days, its limit 10) and the hospital’s “report needed by” date, whichever is sooner. Wilfred’s hospital date is sooner, so it applies; it turns at risk 2 days before, and overdue after the end of that day until the report is authorised. A second opinion doesn’t stop it.',
       'Lab Cases in the side nav lists every case with its countdown: open, at risk (Ilona Petrova’s is due today), overdue (Ellis Varden’s, away for a second opinion), to report, reported and repeats asked for. Clocks are dates only, never anything from a result.',
     ],

@@ -86,7 +86,7 @@ function cachePathway(queryClient: QueryClient, id: string, pathway: Pathway) {
 
 /**
  * Finishing a stage: one that involves a visit without an attended one (`withoutVisit`, and an admin's reason), a
- * choice node's `outcome`, recorded by the clinician, and the lab's `result` as it finishes its own stage.
+ * choice node's `outcome`, recorded by the clinician. A lab stage's results come only from its lab case (MC16).
  */
 export type FinishStageRequest = Schemas['FinishPathwayStageRequest'];
 
@@ -134,7 +134,7 @@ export function usePathwayActions(id: string) {
     /**
      * Finishes a stage: by its ID, or with `withoutVisit` (and an admin's `reason`) to finish one that involves a visit
      * without an attended one (docs/calendar-plan.md, decisions 24 and 25), with the `outcome` the clinician recorded
-     * at a choice node finished for the first time (its stages join the pathway), and the lab's `result`.
+     * at a choice node finished for the first time (its stages join the pathway).
      */
     finishStage: useMutation({
       mutationFn: (finish: string | ({stageId: string} & FinishStageRequest)) => {

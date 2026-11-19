@@ -1,10 +1,10 @@
 import {LAB} from '../accounts';
-import {TEAMS, id} from '../ids';
+import {PATHWAYS, TEAMS, id} from '../ids';
 import {nowUtc} from '../time';
 import type {HospitalSlice} from './hospitals';
 import {HOSPITAL_LAB_CASES, HOSPITAL_REQUESTS} from './hospitals';
-import {LAB_TESTS, RESULTS, SPECIMENS, type DemoSpecimen, type LabSlice} from './lab';
-import type {BaseState} from '../state';
+import {LAB_TESTS, RESULTS, SPECIMENS, specimenNumber, type DemoSpecimen, type LabSlice} from './lab';
+import type {BaseState, DemoPathway, DemoStage} from '../state';
 
 /**
  * The light demo's lab cases (MC15 of `docs/multi-clinic-plan.md`): the lab's unit of work, one request's samples, its
@@ -49,7 +49,8 @@ export interface DemoLabCase {
   id: string;
   /** From the lab's one sequence (a hospital case shares its sample's number). */
   number: string;
-  labTestId: string;
+  /** Null only while a lab stage's case waits for a sample with a test (MC16): the lab chooses it if none has one. */
+  labTestId: string | null;
   patientId: string;
   /** The lab's: every case is the lab's work (a clinic's is also seen through its pathway). */
   teamId: string;
@@ -58,6 +59,7 @@ export interface DemoLabCase {
   hospitalId: string | null;
   hospitalRequestId: string | null;
   pathwayId: string | null;
+  /** The pathway's lab stage the case belongs to (MC16; one per stage), else the stage that took the sample. */
   stageId: string | null;
   status: LabCaseStatus;
   openedAtUtc: string;
@@ -78,8 +80,10 @@ export interface LabCaseSlice {
 export const LAB_CASES = {
   /** Ilona Petrova's blood sample: every step done, "No more work" recorded: to report. */
   ilonaBlood: id(0xca, 1),
-  /** Priya Holloway's biopsy: reported two days ago (its result awaits Nadia Thornbury's sign-off). */
+  /** Priya Holloway's biopsy, her pathway's Histology (lab) case: every step done, to report (MC16). */
   priyaBiopsy: id(0xca, 2),
+  /** Callum Ashby's biopsy: reported three days ago, which finished his Histology (its result awaits sign-off). */
+  callumBiopsy: id(0xca, 3),
   ...HOSPITAL_LAB_CASES,
 } as const;
 
@@ -91,7 +95,30 @@ export const LAB_CASE_IDS = {
   toReport: LAB_CASES.ilonaBlood,
   /** Maya Thistlewood's hospital case, just received (its sample's adequacy not yet recorded). */
   justReceived: LAB_CASES.maya,
+  /** Priya Holloway's Histology case: authorising it finishes her pathway's lab stage (MC16). */
+  stageToReport: LAB_CASES.priyaBiopsy,
 } as const;
+
+/**
+ * The pathway's lab stage a sample taken at `stageId` goes to (MC16): that stage if it's the lab's, else the nearest
+ * lab-owned stage after it on its routes. None on a pathway without one (the case then keeps the sample's stage).
+ */
+export function labStageAfter(pathway: Pick<DemoPathway, 'stages' | 'links'>, stageId: string | null, labTeamId: string | null): DemoStage | undefined {
+  if (!stageId || !labTeamId) return undefined;
+  const isLabs = (id: string) => pathway.stages.find((s) => s.id === id && s.ownerTeamId === labTeamId);
+  const seen = new Set([stageId]);
+  for (const queue = [stageId]; queue.length > 0; ) {
+    const from = queue.shift()!;
+    const found = isLabs(from);
+    if (found) return found;
+    for (const link of pathway.links)
+      if (link.fromStageId === from && !seen.has(link.toStageId)) {
+        seen.add(link.toStageId);
+        queue.push(link.toStageId);
+      }
+  }
+  return undefined;
+}
 
 /** `n` times spread evenly after `fromUtc` and before `toUtc`. */
 function spread(fromUtc: string, toUtc: string, n: number): string[] {
@@ -103,9 +130,10 @@ function spread(fromUtc: string, toUtc: string, n: number): string[] {
 type StepPlan = Pick<DemoLabCaseStep, 'kind'> & Partial<Pick<DemoLabCaseStep, 'testStepId' | 'choice' | 'outcome' | 'detail'>>;
 
 /**
- * Seeds the cases, after every other slice: the hospital's three (one each, from their requests) and two of the
- * clinics' (Ilona Petrova's blood sample in the lab, Priya Holloway's reported biopsy). Older reported samples predate
- * lab cases and have none, as after the full version's migration.
+ * Seeds the cases, after every other slice: the hospital's three (one each, from their requests), three of the
+ * clinics' (Ilona Petrova's blood sample in the lab; Priya Holloway's biopsy, her Histology stage's, to report; Callum
+ * Ashby's, reported, which finished his Histology), and one waiting for its sample for every other lab stage reached
+ * (MC16). Older reported samples predate lab cases and have none, as after the full version's migration.
  */
 export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCaseSlice {
   let stepNumber = 0;
@@ -164,43 +192,77 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   const hoursAgo = (hours: number) => new Date(Date.parse(nowUtc()) - hours * 3600_000).toISOString();
   const request = (requestId: string) => state.hospitalRequests.find((r) => r.id === requestId)!;
 
+  const pathwayOf = (pathwayId: string) => state.pathways.find((p) => p.id === pathwayId)!;
+  const histologyOf = (pathwayId: string) => pathwayOf(pathwayId).stages.find((s) => s.ownerTeamId === TEAMS.lab)!;
   const priya = sample(SPECIMENS.priyaBiopsy);
-  const priyaResult = state.results.find((r) => r.id === RESULTS.priyaBiopsy)!;
-  const priyaReport =
-    'Synthetic demo report. Skin, upper back, punch biopsy: a benign compound naevus. No atypia. Margins clear. (Typed by the lab; MedApp never reads or interprets it.)';
-  priyaResult.labCaseId = LAB_CASES.priyaBiopsy;
-  priyaResult.reportText = priyaReport;
+  const callum = sample(SPECIMENS.callumBiopsy);
+  const callumHistology = histologyOf(PATHWAYS.backFromLab);
+  const callumResult = state.results.find((r) => r.id === RESULTS.callumBiopsy)!;
+  // The results on his Histology stage are the report authorised (MC16): one text, on the stage and the result.
+  const callumReport = callumHistology.result!.text;
+  callumResult.labCaseId = LAB_CASES.callumBiopsy;
+  callumResult.reportText = callumReport;
   const ilona = sample(SPECIMENS.ilonaBlood);
 
-  return {
-    labCases: [
-      make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2)),
-      make(LAB_CASES.priyaBiopsy, priya.number, [priya], histology, [...adequate, ...histologySteps, noMoreWork], priya.reportedAtUtc!, {
-        status: 'Reported',
-        report: {text: priyaReport, atUtc: priya.reportedAtUtc!, byUserId: LAB.id, resultId: RESULTS.priyaBiopsy},
-      }),
-      make(
-        HOSPITAL_LAB_CASES.wilfred,
-        request(HOSPITAL_REQUESTS.wilfredExcision).labCaseNumber,
-        [hospitalSampleOf(HOSPITAL_REQUESTS.wilfredExcision)],
-        histology,
-        [...adequate, ...histologySteps],
-        hoursAgo(3),
-      ),
-      make(HOSPITAL_LAB_CASES.maya, request(HOSPITAL_REQUESTS.mayaBiopsy).labCaseNumber, [hospitalSampleOf(HOSPITAL_REQUESTS.mayaBiopsy)], histology, [], hoursAgo(1)),
-      make(
-        HOSPITAL_LAB_CASES.ellis,
-        request(HOSPITAL_REQUESTS.ellisExcision).labCaseNumber,
-        [hospitalSampleOf(HOSPITAL_REQUESTS.ellisExcision)],
-        histology,
-        [
-          ...adequate,
-          ...histologySteps,
-          {kind: 'Outcome', choice: 'NeedsMoreWork', outcome: 'SecondOpinion'},
-          {kind: 'TestStep', testStepId: step(histology, 'Sent for a second opinion'), detail: 'Regional dermatopathology service (synthetic)'},
-        ],
-        hoursAgo(5),
-      ),
-    ],
-  };
+  const seeded = [
+    make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2)),
+    make(LAB_CASES.priyaBiopsy, priya.number, [priya], histology, [...adequate, ...histologySteps, noMoreWork], hoursAgo(4), {
+      stageId: histologyOf(PATHWAYS.histologyToFinish).id,
+    }),
+    make(LAB_CASES.callumBiopsy, callum.number, [callum], histology, [...adequate, ...histologySteps, noMoreWork], callum.reportedAtUtc!, {
+      stageId: callumHistology.id,
+      status: 'Reported',
+      report: {text: callumReport, atUtc: callum.reportedAtUtc!, byUserId: LAB.id, resultId: RESULTS.callumBiopsy},
+    }),
+    make(
+      HOSPITAL_LAB_CASES.wilfred,
+      request(HOSPITAL_REQUESTS.wilfredExcision).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.wilfredExcision)],
+      histology,
+      [...adequate, ...histologySteps],
+      hoursAgo(3),
+    ),
+    make(HOSPITAL_LAB_CASES.maya, request(HOSPITAL_REQUESTS.mayaBiopsy).labCaseNumber, [hospitalSampleOf(HOSPITAL_REQUESTS.mayaBiopsy)], histology, [], hoursAgo(1)),
+    make(
+      HOSPITAL_LAB_CASES.ellis,
+      request(HOSPITAL_REQUESTS.ellisExcision).labCaseNumber,
+      [hospitalSampleOf(HOSPITAL_REQUESTS.ellisExcision)],
+      histology,
+      [
+        ...adequate,
+        ...histologySteps,
+        {kind: 'Outcome', choice: 'NeedsMoreWork', outcome: 'SecondOpinion'},
+        {kind: 'TestStep', testStepId: step(histology, 'Sent for a second opinion'), detail: 'Regional dermatopathology service (synthetic)'},
+      ],
+      hoursAgo(5),
+    ),
+  ];
+  // Every other lab stage reached and still to do opened its case then, waiting for a sample (and its test).
+  let waiting = 0;
+  for (const pathway of state.pathways)
+    for (const stage of pathway.stages.filter((s) => s.ownerTeamId === TEAMS.lab && s.reachedAtUtc && !s.completedAtUtc && !s.skippedAtUtc))
+      if (!seeded.some((c) => c.stageId === stage.id))
+        seeded.push({
+          id: id(0xca, 100 + ++waiting),
+          number: specimenNumber(++state.specimenSequence, stage.reachedAtUtc!.slice(0, 10)),
+          labTestId: null,
+          patientId: pathway.patientId,
+          teamId: TEAMS.lab,
+          source: 'Clinic',
+          requestingTeamId: pathway.teamId,
+          hospitalId: null,
+          hospitalRequestId: null,
+          pathwayId: pathway.id,
+          stageId: stage.id,
+          status: 'Open',
+          openedAtUtc: stage.reachedAtUtc!,
+          openedByUserId: pathway.handovers.find((h) => h.stageId === stage.id)?.byUserId ?? LAB.id,
+          receivedAtUtc: null,
+          steps: [],
+          report: null,
+          repeat: null,
+          enteredInError: null,
+          version: 1,
+        });
+  return {labCases: seeded};
 }
