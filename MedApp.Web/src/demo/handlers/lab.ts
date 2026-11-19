@@ -18,6 +18,7 @@ import {
   stepTime,
   ukShortDate,
 } from './labCommon';
+import {canOpenCaseFor, caseOfSample, openCaseOnReceipt, registerLabCases} from './labCases';
 import {isAwaitingResult, registerResults} from './labResults';
 import {registerLabTests} from './labTests';
 import {findPathway, isCurrentStage} from './pathways';
@@ -149,7 +150,7 @@ const sourceFields = (specimen: DemoSpecimen) => ({
   labCaseId: specimen.labCaseId,
 });
 
-function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummaryResponse'] {
+export function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummaryResponse'] {
   const patient = db().patients.find((p) => p.id === specimen.patientId);
   return {
     id: specimen.id,
@@ -234,6 +235,8 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
     canMarkLost: open && (records || processes) && !flags.isAnonymised,
     canMarkEnteredInError: open && mayMarkEnteredInError(specimen) && !flags.isAnonymised,
     readOnlyReason,
+    labCaseNumber: caseOfSample(specimen)?.number ?? null,
+    canOpenLabCase: canOpenCaseFor(specimen),
     // The full version draws the label's QR code on the server; the light demo shows the number as text only.
     label: {qrPath: null, size: 0},
     otherSpecimensFromStage: db()
@@ -463,6 +466,7 @@ export function registerLab() {
   registerSetupLists();
   registerLabTests();
   registerResults();
+  registerLabCases();
 
   on('get', '/api/specimens/search', ({query}) => {
     requirePermission('ViewPatients');
@@ -596,6 +600,8 @@ export function registerLab() {
     specimen.labReference = optionalText(body.reference, 50, 'reference', 'The reference');
     specimen.status = 'Received';
     moved(specimen);
+    // With its test known, its lab case opens (or it joins its stage's open one); without, the lab opens one by hand.
+    openCaseOnReceipt(specimen, viewer.id);
     return specimenResponse(specimen);
   });
 

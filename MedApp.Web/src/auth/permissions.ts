@@ -29,6 +29,7 @@ export const PERMISSIONS = [
   'AttachFiles',
   'RecordSpecimens',
   'ProcessSpecimens',
+  'AuthoriseLabReports',
   'SignOffResults',
   'WriteLetters',
   'ApproveLetters',
@@ -112,6 +113,10 @@ export const PERMISSION_CATALOGUE: Record<Permission, PermissionDescription> = {
     group: 'Lab',
     description: 'Receive and reject specimens in the lab, mark them lost, and attach their reports.',
   },
+  AuthoriseLabReports: {
+    group: 'Lab',
+    description: "Enter a lab case's results and authorise its report, which goes back to the clinic or the hospital.",
+  },
   SignOffResults: {
     group: 'Results',
     description: 'Mark results seen, sign them off, and take them over or reassign them; be a responsible clinician.',
@@ -168,6 +173,7 @@ export const NOT_FOR_ADMIN: readonly Permission[] = [
   'AttachFiles',
   'RecordSpecimens',
   'ProcessSpecimens',
+  'AuthoriseLabReports',
   'SignOffResults',
   'WriteLetters',
   'ApproveLetters',

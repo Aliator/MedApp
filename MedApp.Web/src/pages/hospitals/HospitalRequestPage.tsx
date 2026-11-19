@@ -44,7 +44,9 @@ function RequestDetails({request}: {request: HospitalRequest}) {
 function CaseDetails({request}: {request: HospitalRequest}) {
   return (
     <MetadataList>
-      <MetadataListItem label="Lab case">{request.labCaseNumber}</MetadataListItem>
+      <MetadataListItem label="Lab case">
+        <Link href={`/lab/cases/${request.labCaseId}`}>{request.labCaseNumber}</Link>
+      </MetadataListItem>
       <MetadataListItem label="Status">{labCaseStatusLabel(request.labCaseStatus)}</MetadataListItem>
       <MetadataListItem label="Source">From the hospital</MetadataListItem>
       <MetadataListItem label="Test">{request.labTestName}</MetadataListItem>

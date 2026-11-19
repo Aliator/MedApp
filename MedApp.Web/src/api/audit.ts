@@ -3,6 +3,7 @@ import {formatShortDate} from '../utils/dates';
 import {formatFileSize} from '../utils/fileSize';
 import {statusWords} from '../utils/statusWords';
 import {NO_PATHWAY} from './attachments';
+import {labOutcomeLabel} from './labCases';
 import {describeNoteDeletionReason} from './noteDeletion';
 import {resultActionLabel, resultStatusLabel} from './results';
 import {describeSkipReason, skipReasonLabel} from './stageSkips';
@@ -54,6 +55,12 @@ export const AUDIT_ACTIONS = [
   'StageHandedOver',
   'StagePickedUp',
   'BranchAdded',
+  'LabCaseOpened',
+  'LabStepRecorded',
+  'LabStepEnteredInError',
+  'LabReportAuthorised',
+  'RepeatSampleRequested',
+  'LabCaseEnteredInError',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -97,6 +104,12 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   StageHandedOver: 'Stage handed over',
   StagePickedUp: 'Stage picked up',
   BranchAdded: 'Branch added',
+  LabCaseOpened: 'Lab case opened',
+  LabStepRecorded: 'Lab step recorded',
+  LabStepEnteredInError: 'Lab step entered in error',
+  LabReportAuthorised: 'Lab report authorised',
+  RepeatSampleRequested: 'Repeat sample requested',
+  LabCaseEnteredInError: 'Lab case entered in error',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -241,6 +254,16 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
       const was = text(d.skipReason) ? `Was skipped (${skipReasonLabel(text(d.skipReason)).toLowerCase()})` : '';
       return [was, text(d.reason)].filter(Boolean).join(': ');
     }
+    // A lab case's entries (MC15): its number, and the step and outcome recorded; never the results or a detail typed.
+    case 'LabCaseOpened':
+      return [text(d.number), text(d.test)].filter(Boolean).join(', ');
+    case 'LabStepRecorded':
+    case 'LabStepEnteredInError':
+      return [text(d.number), [text(d.step), text(d.outcome) ? labOutcomeLabel(text(d.outcome)) : null].filter(Boolean).join(' ')].filter(Boolean).join(': ');
+    case 'LabReportAuthorised':
+    case 'RepeatSampleRequested':
+    case 'LabCaseEnteredInError':
+      return text(d.number) ?? '';
     default:
       if ((entry.action ?? '').startsWith('Result')) return describeResult(d);
       return (entry.action ?? '').startsWith('Specimen') ? describeSpecimen(d) : '';

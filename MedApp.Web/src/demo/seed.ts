@@ -22,6 +22,7 @@ import {
 import {seedClinical} from './slices/clinical';
 import {seedHospitals} from './slices/hospitals';
 import {hospitalSample, seedLab} from './slices/lab';
+import {seedLabCases} from './slices/labCases';
 import {seedSetup} from './slices/setup';
 import type {
   BaseState,
@@ -45,7 +46,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 14;
+export const SEED_VERSION = 15;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -1017,7 +1018,9 @@ export function seed(): DemoState {
   const hospitals = seedHospitals(base, lab);
   // Each hospital request's sample, in the one samples database (MC14).
   lab.specimens.push(...hospitals.hospitalRequests.map((r, i) => hospitalSample(r, id(0xc6, i + 1))));
-  const state: DemoState = {...base, ...lab, ...seedClinical(base), ...seedSetup(base), ...hospitals};
+  const state: DemoState = {...base, ...lab, ...seedClinical(base), ...seedSetup(base), ...hospitals, labCases: []};
+  // The lab's cases (MC15), last: they read the samples, the hospital's requests and the results.
+  state.labCases = seedLabCases(state).labCases;
   // The team walls' grants: each pathway's own team, and the lab on every pathway with a sample passed to it or a
   // stage of its reached (the relay), from whichever came first.
   const labSince = (p: DemoPathway) =>

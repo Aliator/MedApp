@@ -2,6 +2,7 @@ import type {Schemas} from '../api/client';
 import type {ClinicalSlice} from './slices/clinical';
 import type {HospitalSlice} from './slices/hospitals';
 import type {LabSlice} from './slices/lab';
+import type {LabCaseSlice} from './slices/labCases';
 import type {SetupSlice} from './slices/setup';
 
 /**
@@ -196,7 +197,7 @@ export interface DemoPathwayAccess {
  * Everything the light demo holds: the base (below) and each area's slice, each in its own file under `slices/`, with
  * its own seed function (`seed.ts` calls them).
  */
-export type DemoState = BaseState & LabSlice & ClinicalSlice & SetupSlice & HospitalSlice;
+export type DemoState = BaseState & LabSlice & ClinicalSlice & SetupSlice & HospitalSlice & LabCaseSlice;
 
 /** A stage definition in the stage library (`PatientPathwayStageDefinitionResponse`, without its usage counts). */
 export type DemoStageDefinition = Omit<Schemas['PatientPathwayStageDefinitionResponse'], 'templateCount' | 'canBeDeleted'> & {id: string};

@@ -50,6 +50,17 @@ describe('the Read Me tour', () => {
     }
   });
 
+  it('opens only lab cases the seed has (MC15), and says when the case has been worked already', () => {
+    const state = seed();
+    const caseLinks = links.filter((link) => pathOf(link).startsWith('/lab/cases/'));
+    expect(caseLinks.length).toBeGreaterThan(0);
+    for (const link of caseLinks) expect(state.labCases.some((c) => c.id === pathOf(link).split('/')[3]), link).toBe(true);
+    const step = TOUR.find((s) => s.key === 'lab-case')!;
+    expect(step.whyNot!(state)).toBeNull();
+    for (const c of state.labCases) c.status = 'Reported';
+    expect(step.whyNot!(state)).toMatch(/finished this case/);
+  });
+
   it('asks only for the three demo accounts', () => {
     for (const step of TOUR) if (step.account) expect(DEMO_ACCOUNTS.map((a) => a.username)).toContain(step.account);
   });
