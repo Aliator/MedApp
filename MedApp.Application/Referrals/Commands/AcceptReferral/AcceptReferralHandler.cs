@@ -22,8 +22,9 @@ namespace MedApp.Application.Referrals.Commands.AcceptReferral;
 /// stage's visit), and saved in one <c>SaveChangesAsync</c> with the referral's change and its <c>Accepted</c> history
 /// entry. Its target date is the waiting-time clock's (<see cref="WaitingClock"/>): the clock keeps running from the
 /// day the referral was received, with its target re-read for the priority chosen (a <c>TargetChanged</c> entry, if it
-/// differs from the priority asked for's). Then the person assigned (if any) and whoever registered the referral are
-/// told, and the monitor runs.
+/// differs from the priority asked for's). Its plan holds its template's addable branches, as any new pathway's does.
+/// Then the person assigned (if any) and whoever registered the referral are told, the monitor runs, and any team a
+/// first stage of theirs was handed to is told (<see cref="IPathwayHandovers"/>).
 /// <para>
 /// 404 when it's behind the viewer's team wall (recorded); 403 without <c>TriageReferrals</c> or membership of the referral's team, or to assign someone without
 /// <c>AssignPathways</c>; 409 once it's been triaged (naming who and how), on a restricted or anonymised record, if it
@@ -38,6 +39,8 @@ public sealed class AcceptReferralHandler(
     IPermissionHolders permissionHolders,
     INotificationSender notificationSender,
     IPathwayMonitor pathwayMonitor,
+    IPathwayHandovers handovers,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
     ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<AcceptReferralCommand, PatientPathwayResponse>
@@ -76,9 +79,17 @@ public sealed class AcceptReferralHandler(
         // Awaiting triage, its clock runs (no pauses yet), so the wait counts from the day it was received.
         var dueDate = referral.WaitStartOn.AddDays(WaitingClock.TargetDaysFor(referral.Team, priority));
 
-        var pathway = PathwayCreation.FromTemplate(template, referral.PatientId, request.Title, dueDate, priority, now);
+        // Its addable branches' stages are copied from their definitions into its plan (MC10), as for any new pathway.
+        var branchDefinitionIds = template.AddableBranches.SelectMany(b => b.StageDefinitionIds).Distinct().ToList();
+        var branchDefinitions = branchDefinitionIds.Count == 0
+            ? new Dictionary<Guid, PatientPathwayStageDefinition>()
+            : (await stagesRepository.GetStageDefinitionsByIdAsync(branchDefinitionIds, cancellationToken)).ToDictionary(d => d.Id);
+        var pathway = PathwayCreation.FromTemplate(
+            template, referral.PatientId, request.Title, dueDate, priority, now, branchDefinitions);
 
-        var change = new PathwayChange(pathway, actor, now);
+        // Teams are named in a handover's entry (MC7): a first stage another team works hands it over at once.
+        var teamNames = (await teams.GetAllAsync(includeArchived: true, cancellationToken)).ToDictionary(t => t.Id, t => t.Name);
+        var change = new PathwayChange(pathway, actor, now) { TeamNames = teamNames };
         PathwayCreation.Record(change, template.Name, dueDate, request.Notes, referral.Id);
         if (assignee is { } chosen)
             change.Assign(chosen.UserId, chosen.Username);
@@ -104,6 +115,7 @@ public sealed class AcceptReferralHandler(
             await notificationSender.SendAsync(triaged, cancellationToken);
 
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
+        await handovers.NotifyAsync(change, cancellationToken);
 
         var usernames = new Dictionary<Guid, string> { [actor.UserId] = actor.Username };
         if (assignee is { } named)

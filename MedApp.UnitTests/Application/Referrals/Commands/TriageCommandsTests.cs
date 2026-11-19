@@ -62,6 +62,8 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
     private Mock<IIdentityReadService> _identity = null!;
     private Mock<IPermissionHolders> _holders = null!;
     private Mock<IPathwayMonitor> _monitor = null!;
+    private Mock<IPathwayHandovers> _handovers = null!;
+    private Mock<MedApp.Application.Teams.Repositories.ITeamRepository> _teams = null!;
     private PathwayTemplate _template = null!;
     private readonly List<PathwayChange> _added = [];
     private readonly List<string> _order = [];
@@ -106,6 +108,13 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
             .Setup(m => m.NotifyAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()))
             .Callback(() => _order.Add("monitor"))
             .Returns(Task.CompletedTask);
+        _handovers = new Mock<IPathwayHandovers>();
+        _handovers
+            .Setup(h => h.NotifyAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _order.Add("handovers"))
+            .Returns(Task.CompletedTask);
+        _teams = new Mock<MedApp.Application.Teams.Repositories.ITeamRepository>();
+        _teams.Setup(t => t.GetAllAsync(true, It.IsAny<CancellationToken>())).ReturnsAsync([Team]);
         Notifications
             .Setup(n => n.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
             .Callback((Notification notification, CancellationToken _) =>
@@ -118,7 +127,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
 
     private AcceptReferralHandler Handler => new(
         Repository.Object, _pathways.Object, _stages.Object, _identity.Object, _holders.Object,
-        Notifications.Object, _monitor.Object, Boundary, Clock);
+        Notifications.Object, _monitor.Object, _handovers.Object, _teams.Object, Boundary, Clock);
 
     private AcceptReferralCommand Command(Referral referral, PathwayActor? actor = null, Guid? assignee = null, string? notes = null) =>
         new(referral.Id, _template.Id, "Urgent", null, assignee, notes, referral.Version, actor ?? Triager);
@@ -181,8 +190,42 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         told.ReferralId.Should().Be(referral.Id);
         told.Title.Should().Be(ReferralNotifications.TriagedTitle);
         told.Message.Should().Be($"{Triager.Username} accepted a {Team.Name} referral.");
-        _order.Should().Equal("save", "notify ReferralTriaged", "monitor");
+        _order.Should().Equal("save", "notify ReferralTriaged", "monitor", "handovers");
         _monitor.Verify(m => m.NotifyAsync(_added.Single(), Cts.Token), Times.Once);
+        _handovers.Verify(h => h.NotifyAsync(_added.Single(), Cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_FirstStageAnotherTeamWorks_HandsItOverNamingBothTeams()
+    {
+        var lab = new Team { Id = Guid.NewGuid(), Name = "Synthetic lab" };
+        _teams.Setup(t => t.GetAllAsync(true, It.IsAny<CancellationToken>())).ReturnsAsync([Team, lab]);
+        _template.Maps[0].OwnerTeamId = lab.Id;
+        var referral = GivenReferral();
+
+        await Handler.Handle(Command(referral), Cts.Token);
+
+        var change = _added.Single();
+        var handover = change.Handovers.Should().ContainSingle("its first stage is another team's").Subject;
+        handover.ToTeamId.Should().Be(lab.Id);
+        change.TeamNames.Should().ContainKey(lab.Id);
+        _handovers.Verify(h => h.NotifyAsync(change, Cts.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_TemplateWithAnAddableBranch_CopiesItsStagesIntoThePlan()
+    {
+        var biopsy = PathwaysTestConstants.CreateDefinition(PathwaysTestConstants.PathwayStage);
+        _template.AddableBranches = [new PathwayTemplateBranch(Guid.NewGuid(), "Synthetic branch", [biopsy.Id], [1], false)];
+        _stages
+            .Setup(s => s.GetStageDefinitionsByIdAsync(It.Is<IEnumerable<Guid>>(ids => ids.Contains(biopsy.Id)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([biopsy]);
+        var referral = GivenReferral();
+
+        await Handler.Handle(Command(referral), Cts.Token);
+
+        var branch = _added.Single().Pathway.Plan!.Branches.Should().ContainSingle().Subject;
+        branch.Stages.Should().ContainSingle().Which.StageDefinitionId.Should().Be(biopsy.Id);
     }
 
     [Test]
@@ -195,7 +238,7 @@ public sealed class AcceptReferralHandlerTests : TriageCommandTestBase
         var pathway = _added.Single().Pathway;
         pathway.Assignments.Single().UserId.Should().Be(AssigneeId);
         pathway.Status.Should().Be(PatientPathwayStatus.Assigned);
-        _order.Should().Equal("save", "notify PathwayAssigned", "notify ReferralTriaged", "monitor");
+        _order.Should().Equal("save", "notify PathwayAssigned", "notify ReferralTriaged", "monitor", "handovers");
         response.Assignments.Single().Username.Should().Be(AssigneeUsername);
     }
 
