@@ -133,8 +133,8 @@ export function SpecimenPage({id}: {id: string}) {
   return (
     <Page
       title={specimen ? `Specimen ${specimen.number}` : 'Specimen'}
-      subtitle={specimen ? `${specimen.specimenTypeName}, to ${specimen.laboratoryName}` : undefined}
-      backHref={specimen ? `/pathways/${specimen.pathwayId}` : '/lab'}
+      subtitle={specimen?.specimenTypeName ?? undefined}
+      backHref={specimen ? `/pathways/${specimen.pathwayId}` : '/lab/samples'}
       backLabel={specimen ? 'Back to pathway' : 'Back to the lab'}
       isLoading={isPending}
       loadingMessage="Loading specimen..."
@@ -273,7 +273,6 @@ function SpecimenDetails({specimen}: {specimen: Specimen}) {
           {`${formatDateTime(specimen.expectedByUtc ?? '')} (${specimen.expectedTurnaroundDays} ${specimen.expectedTurnaroundDays === 1 ? 'day' : 'days'})`}
         </MetadataListItem>
         <MetadataListItem label="Type">{shown(specimen.specimenTypeName)}</MetadataListItem>
-        <MetadataListItem label="Lab">{shown(specimen.laboratoryName)}</MetadataListItem>
         <MetadataListItem label="Requesting clinician">{shown(specimen.requestingUsername)}</MetadataListItem>
         <MetadataListItem label="Site">{shown(specimen.site)}</MetadataListItem>
         <MetadataListItem label="Pathway">

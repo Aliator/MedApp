@@ -82,7 +82,6 @@ export function ReportSpecimenDialog({isOpen, specimen, onClose}: ReportSpecimen
         <MetadataList columns={2} label={{position: 'top'}}>
           <MetadataListItem label="Specimen">{specimen.number}</MetadataListItem>
           <MetadataListItem label="Type">{specimen.specimenTypeName}</MetadataListItem>
-          <MetadataListItem label="Lab">{specimen.laboratoryName}</MetadataListItem>
           <MetadataListItem label="Lab's reference">{specimen.labReference || '—'}</MetadataListItem>
         </MetadataList>
         {problem && <AlertMessage message={problem} />}

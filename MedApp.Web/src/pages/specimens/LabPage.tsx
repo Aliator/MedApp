@@ -5,7 +5,6 @@ import {pixel, proportional} from '@astryxdesign/core/Table';
 import {useQuery} from '@tanstack/react-query';
 import {useState} from 'react';
 import {
-  laboratoriesQuery,
   SPECIMEN_VIEWS,
   specimenViewLabel,
   specimenWorklistQuery,
@@ -13,9 +12,7 @@ import {
 } from '../../api/specimens';
 import {useListSettings} from '../../app/listSettings';
 import {useCan} from '../../auth/auth';
-import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
-import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
-import {Page, useIsNarrow} from '../../components/pages/Page';
+import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {OverdueAtLabToken, SpecimenNumberCell, SpecimenPatientCell, SpecimenStatusToken} from '../../components/specimens/SpecimenCells';
@@ -72,13 +69,12 @@ const FILTER_FIELDS: ListFilterField[] = [
 const FAVOURITES: ListFilterFavourite[] = SPECIMEN_VIEWS.map((v) => ({label: specimenViewLabel(v), values: {view: v}}));
 
 /**
- * The view's page of specimens, for its lab, sort, page size and text search (the route's loader fetches the same,
+ * The view's page of specimens, for its sort, page size and text search (the route's loader fetches the same,
  * without a search). A POST, so the search stays out of URLs.
  */
 export function labListQuery(view: LabView, search: LabSearch, pageSize: number, text?: string) {
   return specimenWorklistQuery({
     view,
-    laboratoryId: search.lab,
     page: search.page ?? 1,
     pageSize,
     search: text,
@@ -88,21 +84,22 @@ export function labListQuery(view: LabView, search: LabSearch, pageSize: number,
 }
 
 export interface LabPageProps {
-  /** The view, lab, page and sort, from the URL. */
+  /** The view, page and sort, from the URL. */
   search: LabSearch;
   /** Updates the URL; the route passes navigate({search}). */
   onSearchChange: (search: LabSearch) => void;
 }
 
 /**
- * The lab's worklist (`/lab`; decision 90). It opens on its tabs, the views of where specimens are: To send, Expected
+ * The samples worklist (`/lab/samples`, moved from `/lab` for the lab's home in MC13; decision 90). It opens on its
+ * tabs, the views of where specimens are: To send, Expected
  * (sent, not received), In the lab (received, not reported), Overdue, Rejected and lost (30 days) and Reported (7
  * days), each oldest first; the person can change the tabs (`ListFilterBar`). The menu's Search searches by text: a
  * specimen number typed, or scanned from its label by a keyboard scanner (which types it and presses Enter), just
  * narrows the list to it, as does a patient's name or NHS number or a type; removing the view shows every specimen.
- * The Lab picker beside the title narrows it to one lab. Each row is the number (opening the specimen), the patient
- * with their NHS number, the lab, the status with Overdue at lab, and the view's time; every column but the patient's
- * NHS number sorts. The view, lab, page and sort live in the URL; the text searched never does (it goes in the
+ * Each row is the number with its type (opening the specimen), the patient with their NHS number, the status with
+ * Overdue at lab, and the view's time; every column but the patient's NHS number sorts (no lab column: the external
+ * labs list was dropped in MC13, as the centre's own lab does them all). The view, page and sort live in the URL; the text searched never does (it goes in the
  * request's body, as it may be a specimen number), so it's gone on a reload. Every patient shown is recorded as listed.
  */
 export function LabPage({search, onSearchChange}: LabPageProps) {
@@ -111,19 +108,15 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
   const [text, setText] = useState<string>();
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(labListQuery(view, search, pageSize, text));
-  const labs = useQuery(laboratoriesQuery(true));
-  const isNarrow = useIsNarrow();
   const time = VIEW_TIMES[view];
   const {sort, asc} = labSortOf(search, view);
   const total = data?.totalCount ?? 0;
-  const labName = labs.data?.find((lab) => lab.id === search.lab)?.name;
 
   const barValues: ListFilterValues = {q: text, view: view === 'All' ? undefined : view};
   const fromBar = (values: ListFilterValues) => {
     setText(typeof values.q === 'string' ? values.q : undefined);
     onSearchChange({
       view: typeof values.view === 'string' ? (values.view as LabView) : 'All',
-      lab: search.lab,
       sort: search.sort,
       asc: search.asc,
     });
@@ -145,13 +138,6 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
       renderCell: (s) => <SpecimenPatientCell specimen={s} />,
     },
     {
-      key: 'lab',
-      header: 'Lab',
-      sortable: true,
-      width: proportional(1.5, {minWidth: 80}),
-      renderCell: (s) => <TextCell text={s.laboratoryName} maxLines={2} />,
-    },
-    {
       key: 'status',
       header: 'Status',
       sortable: true,
@@ -169,24 +155,13 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
   const noun = total === 1 ? 'specimen' : 'specimens';
   return (
     <Page
-      title="Lab"
-      subtitle={isPending ? 'Loading specimens...' : `${viewLabel(view)}: ${total} ${noun}${labName ? ` for ${labName}` : ''}`}
+      title="Samples"
+      subtitle={isPending ? 'Loading specimens...' : `${viewLabel(view)}: ${total} ${noun}`}
       fill
-      message={isError && <AlertMessage message="The specimens could not be loaded. Please try again." />}
-      actions={
-        <AnchoredSelector
-          label="Lab"
-          isLabelHidden
-          options={[{value: '', label: 'All labs'}, ...(labs.data ?? []).map((lab) => ({value: lab.id ?? '', label: lab.name ?? ''}))]}
-          value={search.lab ?? ''}
-          onChange={(lab: string) => onSearchChange({...search, page: undefined, lab: lab || undefined})}
-          width={220}
-          containerStyle={NO_STATUS_LINE}
-        />
-      }>
+      message={isError && <AlertMessage message="The specimens could not be loaded. Please try again." />}>
       <DataTable
         data={(data?.items ?? []) as SpecimenRow[]}
-        columns={isNarrow ? columns.filter((c) => c.key !== 'lab') : columns}
+        columns={columns}
         idKey="id"
         isLoading={isPending}
         skeletonRows={pageSize}

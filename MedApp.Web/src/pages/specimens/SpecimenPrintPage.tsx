@@ -106,10 +106,9 @@ function RequestSheet({specimen}: {specimen: Specimen}) {
   return (
     <Card data-specimen-sheet="" padding={6} width="100%" aria-label={`Request sheet for specimen ${specimen.number}`}>
       <VStack gap={6} hAlign="stretch">
-        <Heading level={2}>{`Request for ${specimen.laboratoryName}`}</Heading>
+        <Heading level={2}>Request for the lab</Heading>
         <Identifiers specimen={specimen} />
         <MetadataList columns={2} label={{position: 'top'}}>
-          <MetadataListItem label="Lab">{specimen.laboratoryName}</MetadataListItem>
           <MetadataListItem label="Requesting clinician">{specimen.requestingUsername}</MetadataListItem>
           <MetadataListItem label="Site">{specimen.site?.trim() || '—'}</MetadataListItem>
           <MetadataListItem label="Taken by">{specimen.takenByUsername}</MetadataListItem>

@@ -30,7 +30,7 @@ const SERVICE_ALERT_LISTS: Record<string, {path: string; team: boolean}> = {
   MonitoredReferralNotTriaged: {path: '/referrals?', team: true},
   MonitoredResultNotSignedOff: {path: '/results?view=Awaiting&', team: true},
   MonitoredVisitNotBooked: {path: '/calendar/requires-appointment?', team: false},
-  MonitoredSpecimenOverdue: {path: '/lab?view=Overdue&', team: false},
+  MonitoredSpecimenOverdue: {path: '/lab/samples?view=Overdue&', team: false},
   MonitoredWaitBreached: {path: '/referrals?view=waiting&', team: true},
   MonitoredPauseReviewPassed: {path: '/referrals?view=paused&', team: true},
 };

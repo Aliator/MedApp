@@ -118,7 +118,7 @@ export function PathwaySpecimens({pathway}: {pathway: Pathway}) {
                     description={
                       <VStack gap={1}>
                         <Text type="supporting" color="secondary">
-                          {`${specimen.specimenTypeName} · ${specimen.laboratoryName}`}
+                          {specimen.specimenTypeName}
                         </Text>
                         <Text type="supporting" color="secondary">
                           {`Taken ${formatDateTime(specimen.takenAtUtc ?? '')}`}

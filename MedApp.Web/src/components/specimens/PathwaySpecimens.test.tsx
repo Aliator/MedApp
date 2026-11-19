@@ -2,7 +2,6 @@ import {screen, waitFor, within} from '@testing-library/react';
 import type {Pathway} from '../../api/pathways';
 import {json, mockApi, nurseUser, openDialog, renderWithApp, staffUser} from '../../test/render';
 import {
-  LABORATORIES,
   REQUESTERS,
   SPECIMEN_ID,
   SPECIMEN_PATHWAY_ID,
@@ -33,7 +32,6 @@ function renderSection(items = [testSummary(), testSummary({id: OLDER, number: '
   const fetch = mockApi({
     'GET /api/specimens/search': () => json({items, page: 1, pageSize: 100, totalCount: items.length, totalPages: 1}),
     'GET /api/specimen-types': () => json(SPECIMEN_TYPES),
-    'GET /api/laboratories': () => json(LABORATORIES),
     'GET /api/calendar/staff': () => json(REQUESTERS),
     [`POST /api/pathways/${SPECIMEN_PATHWAY_ID}/specimens`]: () => json(testSpecimen({number: 'MA26-000124'}), 201),
   });
@@ -51,7 +49,7 @@ describe('PathwaySpecimens', () => {
     expect(list.getByText('Rejected by the lab')).toBeInTheDocument();
     expect(list.getByText('Sent')).toBeInTheDocument();
     expect(list.getByText('Overdue at lab')).toBeInTheDocument();
-    expect(list.getAllByText('Skin biopsy (punch) · Northgate pathology')).toHaveLength(2);
+    expect(list.getAllByText('Skin biopsy (punch)')).toHaveLength(2);
     expect(list.getByText('Taken 2 Nov 2026, 09:00')).toBeInTheDocument();
     // Stages that took none and can't take one now aren't listed.
     expect(screen.queryByRole('heading', {name: 'Consultation'})).not.toBeInTheDocument();
@@ -67,8 +65,6 @@ describe('PathwaySpecimens', () => {
     expect(dialog.getByText('Biopsy')).toBeInTheDocument();
     await user.click(dialog.getByRole('combobox', {name: /Specimen type/}));
     await user.click(await screen.findByRole('option', {name: 'Skin biopsy (punch)'}));
-    await user.click(dialog.getByRole('combobox', {name: /^Lab/}));
-    await user.click(await screen.findByRole('option', {name: 'Northgate pathology'}));
     await waitFor(() => expect(dialog.getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('test-nurse'));
     await user.click(dialog.getByRole('button', {name: 'Record Specimen'}));
 

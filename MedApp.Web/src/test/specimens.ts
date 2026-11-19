@@ -1,4 +1,5 @@
-import type {Laboratory, Specimen, SpecimenSummary, SpecimenType} from '../api/specimens';
+import type {LabTest} from '../api/labTests';
+import type {Specimen, SpecimenSummary, SpecimenType} from '../api/specimens';
 
 /** Synthetic IDs and a synthetic patient (NHS numbers only from the 999 range, never issued to real people). */
 export const SPECIMEN_ID = '00000051-0000-0000-0000-000000000001';
@@ -7,8 +8,8 @@ export const SPECIMEN_PATHWAY_ID = '00000051-0000-0000-0000-000000000003';
 export const SPECIMEN_STAGE_ID = '00000051-0000-0000-0000-000000000004';
 export const BIOPSY_TYPE_ID = '00000051-0000-0000-0000-000000000005';
 export const SWAB_TYPE_ID = '00000051-0000-0000-0000-000000000006';
-export const NORTHGATE_LAB_ID = '00000051-0000-0000-0000-000000000007';
-export const RIVERSIDE_LAB_ID = '00000051-0000-0000-0000-000000000008';
+export const HISTOLOGY_TEST_ID = '00000051-0000-0000-0000-000000000007';
+export const BLOOD_COUNT_TEST_ID = '00000051-0000-0000-0000-000000000008';
 export const REPORT_ID = '00000051-0000-0000-0000-000000000009';
 export const NURSE_USER_ID = '00000051-0000-0000-0000-00000000000a';
 export const DOCTOR_USER_ID = '00000051-0000-0000-0000-00000000000b';
@@ -29,9 +30,35 @@ export const SPECIMEN_TYPES: SpecimenType[] = [
   {id: SWAB_TYPE_ID, name: 'Wound swab', expectedTurnaroundDays: 1, isArchived: false, canBeDeleted: true},
 ];
 
-export const LABORATORIES: Laboratory[] = [
-  {id: NORTHGATE_LAB_ID, name: 'Northgate pathology', usesMedApp: true, isArchived: false, canBeDeleted: false},
-  {id: RIVERSIDE_LAB_ID, name: 'Riverside lab', usesMedApp: false, isArchived: false, canBeDeleted: true},
+/** The lab's test catalogue (MC13): one used (it can't be deleted), one not. */
+export const LAB_TESTS: LabTest[] = [
+  {
+    id: HISTOLOGY_TEST_ID,
+    name: 'Skin histology',
+    kind: 'Histology',
+    snomedCode: '252416005',
+    targetDays: 7,
+    limitDays: 10,
+    atRiskDays: 2,
+    steps: [
+      {id: 'step-1', name: 'Cut-up', kind: 'Standard', isOptional: false},
+      {id: 'step-2', name: 'Sent for a second opinion', kind: 'SentForSecondOpinion', isOptional: true},
+    ],
+    isArchived: false,
+    canBeDeleted: false,
+  },
+  {
+    id: BLOOD_COUNT_TEST_ID,
+    name: 'Full blood count',
+    kind: 'Haematology',
+    snomedCode: null,
+    targetDays: 1,
+    limitDays: 2,
+    atRiskDays: 0,
+    steps: [{id: 'step-3', name: 'Analyser run', kind: 'Standard', isOptional: false}],
+    isArchived: false,
+    canBeDeleted: true,
+  },
 ];
 
 /** Holders of WorkPathways, as `GET api/calendar/staff?permission=WorkPathways` lists them. */
@@ -55,8 +82,6 @@ export function testSpecimen(fields: Partial<Specimen> = {}): Specimen {
     specimenTypeId: BIOPSY_TYPE_ID,
     specimenTypeName: 'Skin biopsy (punch)',
     expectedTurnaroundDays: 5,
-    laboratoryId: NORTHGATE_LAB_ID,
-    laboratoryName: 'Northgate pathology',
     site: 'Left forearm',
     requestNotes: 'Synthetic notes for the lab.',
     requestingUserId: DOCTOR_USER_ID,
@@ -107,7 +132,6 @@ export function testSummary(fields: Partial<SpecimenSummary> = {}): SpecimenSumm
     pathwayId: SPECIMEN_PATHWAY_ID,
     stageId: SPECIMEN_STAGE_ID,
     specimenTypeName: 'Skin biopsy (punch)',
-    laboratoryName: 'Northgate pathology',
     status: 'Sent',
     isOpen: true,
     takenAtUtc: '2026-11-02T09:00:00Z',

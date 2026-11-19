@@ -3,8 +3,6 @@ import {expectAnnounced, isDisabled, json, mockApi, nurseUser, openDialog, rende
 import {
   BIOPSY_TYPE_ID,
   DOCTOR_USER_ID,
-  LABORATORIES,
-  NORTHGATE_LAB_ID,
   NURSE_USER_ID,
   REQUESTERS,
   SPECIMEN_ID,
@@ -25,7 +23,6 @@ function renderDialog(props: Partial<SpecimenDetailsDialogProps> = {}, handlers:
   const onSaved = vi.fn();
   const fetch = mockApi({
     'GET /api/specimen-types': () => json(SPECIMEN_TYPES),
-    'GET /api/laboratories': () => json(LABORATORIES),
     'GET /api/calendar/staff': () => json(REQUESTERS),
     ...handlers,
   });
@@ -72,7 +69,6 @@ describe('SpecimenDetailsDialog', () => {
     expect(isDisabled(dialog().getByRole('button', {name: 'Record Specimen'}))).toBe(true);
 
     await choose(user, /Specimen type/, 'Skin biopsy (punch)');
-    await choose(user, /^Lab/, 'Northgate pathology');
     await user.type(dialog().getByRole('textbox', {name: /Site/}), 'Left forearm');
     await user.type(dialog().getByRole('textbox', {name: /Notes for the lab/}), 'Please process today');
     await user.click(dialog().getByRole('button', {name: 'Record Specimen'}));
@@ -81,7 +77,6 @@ describe('SpecimenDetailsDialog', () => {
     expect(await sentBody(fetch, 'POST')).toEqual({
       stageId: SPECIMEN_STAGE_ID,
       specimenTypeId: BIOPSY_TYPE_ID,
-      laboratoryId: NORTHGATE_LAB_ID,
       site: 'Left forearm',
       requestNotes: 'Please process today',
       requestingUserId: NURSE_USER_ID,
@@ -98,7 +93,6 @@ describe('SpecimenDetailsDialog', () => {
 
     await screen.findByRole('heading', {name: 'Record Specimen'});
     await choose(user, /Specimen type/, 'Wound swab');
-    await choose(user, /^Lab/, 'Riverside lab');
     await choose(user, /Requesting clinician/, 'dr.synthetic');
     const time = dialog().getByRole('textbox', {name: /Time taken/});
     await user.clear(time);
@@ -147,7 +141,6 @@ describe('SpecimenDetailsDialog', () => {
     await expectAnnounced('Specimen details saved');
     expect(await sentBody(fetch, 'PUT')).toEqual({
       specimenTypeId: BIOPSY_TYPE_ID,
-      laboratoryId: NORTHGATE_LAB_ID,
       site: 'Left forearm',
       requestNotes: 'Synthetic notes for the lab.',
       requestingUserId: 'gone',
@@ -162,12 +155,10 @@ describe('SpecimenDetailsDialog', () => {
       {},
       {
         'GET /api/specimen-types': () => json({}, 500),
-        'GET /api/laboratories': () => json({}, 500),
         'GET /api/calendar/staff': () => json({}, 500),
       },
     );
     expect(await screen.findByText('The specimen types could not be loaded.')).toBeInTheDocument();
-    expect(await screen.findByText('The labs could not be loaded.')).toBeInTheDocument();
     expect(await screen.findByText('The staff could not be loaded.')).toBeInTheDocument();
   });
 });

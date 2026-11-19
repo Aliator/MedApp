@@ -328,7 +328,7 @@ describe('NotificationBell', () => {
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
     expect(list.getByRole('link', {name: /^Referrals awaiting triage/})).toHaveAttribute('href', `/referrals?team=${team}`);
-    expect(list.getByRole('link', {name: /^Specimens overdue/})).toHaveAttribute('href', '/lab?view=Overdue');
+    expect(list.getByRole('link', {name: /^Specimens overdue/})).toHaveAttribute('href', '/lab/samples?view=Overdue');
   });
 
   it("opens a triaged referral's notification on the referral, with the referrals icon", async () => {

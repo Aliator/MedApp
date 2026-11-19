@@ -19,7 +19,6 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SetUpTwoFactorRouteImport } from './routes/set-up-two-factor'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibility'
-import { Route as AppLabRouteImport } from './routes/_app/lab'
 import { Route as AppMdtRouteImport } from './routes/_app/mdt'
 import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
 import { Route as AppPracticesRouteImport } from './routes/_app/practices'
@@ -51,6 +50,8 @@ import { Route as AppCalendarNeedsBookingRouteImport } from './routes/_app/calen
 import { Route as AppCalendarRequiresAppointmentRouteImport } from './routes/_app/calendar/requires-appointment'
 import { Route as AppDataRequestsIndexRouteImport } from './routes/_app/data-requests/index'
 import { Route as AppDataRequestsIdRouteImport } from './routes/_app/data-requests/$id'
+import { Route as AppLabIndexRouteImport } from './routes/_app/lab/index'
+import { Route as AppLabSamplesRouteImport } from './routes/_app/lab/samples'
 import { Route as AppLettersIndexRouteImport } from './routes/_app/letters/index'
 import { Route as AppLettersIdRouteImport } from './routes/_app/letters/$id'
 import { Route as AppPathwaysIndexRouteImport } from './routes/_app/pathways/index'
@@ -135,11 +136,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccessibilityRoute = AppAccessibilityRouteImport.update({
   id: '/accessibility',
   path: '/accessibility',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLabRoute = AppLabRouteImport.update({
-  id: '/lab',
-  path: '/lab',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMdtRoute = AppMdtRouteImport.update({
@@ -297,6 +293,16 @@ const AppDataRequestsIndexRoute = AppDataRequestsIndexRouteImport.update({
 const AppDataRequestsIdRoute = AppDataRequestsIdRouteImport.update({
   id: '/data-requests/$id',
   path: '/data-requests/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLabIndexRoute = AppLabIndexRouteImport.update({
+  id: '/lab/',
+  path: '/lab/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLabSamplesRoute = AppLabSamplesRouteImport.update({
+  id: '/lab/samples',
+  path: '/lab/samples',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLettersIndexRoute = AppLettersIndexRouteImport.update({
@@ -502,7 +508,6 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
-  '/lab': typeof AppLabRoute
   '/mdt': typeof AppMdtRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
@@ -531,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/lab/samples': typeof AppLabSamplesRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -538,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/account/': typeof AppAccountIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
   '/data-requests/': typeof AppDataRequestsIndexRoute
+  '/lab/': typeof AppLabIndexRoute
   '/letters/': typeof AppLettersIndexRoute
   '/pathways/': typeof AppPathwaysIndexRoute
   '/patients/': typeof AppPatientsIndexRoute
@@ -580,7 +587,6 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/accessibility': typeof AppAccessibilityRoute
-  '/lab': typeof AppLabRoute
   '/mdt': typeof AppMdtRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
@@ -610,6 +616,7 @@ export interface FileRoutesByTo {
   '/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/lab/samples': typeof AppLabSamplesRoute
   '/letters/$id': typeof AppLettersIdRoute
   '/pathways/new': typeof AppPathwaysNewRoute
   '/patients/add': typeof AppPatientsAddRoute
@@ -617,6 +624,7 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
   '/data-requests': typeof AppDataRequestsIndexRoute
+  '/lab': typeof AppLabIndexRoute
   '/letters': typeof AppLettersIndexRoute
   '/pathways': typeof AppPathwaysIndexRoute
   '/patients': typeof AppPatientsIndexRoute
@@ -661,7 +669,6 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/set-up-two-factor': typeof SetUpTwoFactorRoute
   '/_app/accessibility': typeof AppAccessibilityRoute
-  '/_app/lab': typeof AppLabRoute
   '/_app/mdt': typeof AppMdtRoute
   '/_app/no-permission': typeof AppNoPermissionRoute
   '/_app/practices': typeof AppPracticesRoute
@@ -691,6 +698,7 @@ export interface FileRoutesById {
   '/_app/calendar/needs-booking': typeof AppCalendarNeedsBookingRoute
   '/_app/calendar/requires-appointment': typeof AppCalendarRequiresAppointmentRoute
   '/_app/data-requests/$id': typeof AppDataRequestsIdRoute
+  '/_app/lab/samples': typeof AppLabSamplesRoute
   '/_app/letters/$id': typeof AppLettersIdRoute
   '/_app/pathways/new': typeof AppPathwaysNewRoute
   '/_app/patients/add': typeof AppPatientsAddRoute
@@ -698,6 +706,7 @@ export interface FileRoutesById {
   '/_app/account/': typeof AppAccountIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/data-requests/': typeof AppDataRequestsIndexRoute
+  '/_app/lab/': typeof AppLabIndexRoute
   '/_app/letters/': typeof AppLettersIndexRoute
   '/_app/pathways/': typeof AppPathwaysIndexRoute
   '/_app/patients/': typeof AppPatientsIndexRoute
@@ -743,7 +752,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
-    | '/lab'
     | '/mdt'
     | '/no-permission'
     | '/practices'
@@ -772,6 +780,7 @@ export interface FileRouteTypes {
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/data-requests/$id'
+    | '/lab/samples'
     | '/letters/$id'
     | '/pathways/new'
     | '/patients/add'
@@ -779,6 +788,7 @@ export interface FileRouteTypes {
     | '/account/'
     | '/calendar/'
     | '/data-requests/'
+    | '/lab/'
     | '/letters/'
     | '/pathways/'
     | '/patients/'
@@ -821,7 +831,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/accessibility'
-    | '/lab'
     | '/mdt'
     | '/no-permission'
     | '/practices'
@@ -851,6 +860,7 @@ export interface FileRouteTypes {
     | '/calendar/needs-booking'
     | '/calendar/requires-appointment'
     | '/data-requests/$id'
+    | '/lab/samples'
     | '/letters/$id'
     | '/pathways/new'
     | '/patients/add'
@@ -858,6 +868,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/calendar'
     | '/data-requests'
+    | '/lab'
     | '/letters'
     | '/pathways'
     | '/patients'
@@ -901,7 +912,6 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/set-up-two-factor'
     | '/_app/accessibility'
-    | '/_app/lab'
     | '/_app/mdt'
     | '/_app/no-permission'
     | '/_app/practices'
@@ -931,6 +941,7 @@ export interface FileRouteTypes {
     | '/_app/calendar/needs-booking'
     | '/_app/calendar/requires-appointment'
     | '/_app/data-requests/$id'
+    | '/_app/lab/samples'
     | '/_app/letters/$id'
     | '/_app/pathways/new'
     | '/_app/patients/add'
@@ -938,6 +949,7 @@ export interface FileRouteTypes {
     | '/_app/account/'
     | '/_app/calendar/'
     | '/_app/data-requests/'
+    | '/_app/lab/'
     | '/_app/letters/'
     | '/_app/pathways/'
     | '/_app/patients/'
@@ -1053,13 +1065,6 @@ declare module '@tanstack/react-router' {
       path: '/accessibility'
       fullPath: '/accessibility'
       preLoaderRoute: typeof AppAccessibilityRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/lab': {
-      id: '/_app/lab'
-      path: '/lab'
-      fullPath: '/lab'
-      preLoaderRoute: typeof AppLabRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/mdt': {
@@ -1277,6 +1282,20 @@ declare module '@tanstack/react-router' {
       path: '/data-requests/$id'
       fullPath: '/data-requests/$id'
       preLoaderRoute: typeof AppDataRequestsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lab/': {
+      id: '/_app/lab/'
+      path: '/lab'
+      fullPath: '/lab/'
+      preLoaderRoute: typeof AppLabIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lab/samples': {
+      id: '/_app/lab/samples'
+      path: '/lab/samples'
+      fullPath: '/lab/samples'
+      preLoaderRoute: typeof AppLabSamplesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/letters/': {
@@ -1536,7 +1555,6 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessibilityRoute: typeof AppAccessibilityRoute
-  AppLabRoute: typeof AppLabRoute
   AppMdtRoute: typeof AppMdtRoute
   AppNoPermissionRoute: typeof AppNoPermissionRoute
   AppPracticesRoute: typeof AppPracticesRoute
@@ -1566,6 +1584,7 @@ interface AppRouteChildren {
   AppCalendarNeedsBookingRoute: typeof AppCalendarNeedsBookingRoute
   AppCalendarRequiresAppointmentRoute: typeof AppCalendarRequiresAppointmentRoute
   AppDataRequestsIdRoute: typeof AppDataRequestsIdRoute
+  AppLabSamplesRoute: typeof AppLabSamplesRoute
   AppLettersIdRoute: typeof AppLettersIdRoute
   AppPathwaysNewRoute: typeof AppPathwaysNewRoute
   AppPatientsAddRoute: typeof AppPatientsAddRoute
@@ -1573,6 +1592,7 @@ interface AppRouteChildren {
   AppAccountIndexRoute: typeof AppAccountIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppDataRequestsIndexRoute: typeof AppDataRequestsIndexRoute
+  AppLabIndexRoute: typeof AppLabIndexRoute
   AppLettersIndexRoute: typeof AppLettersIndexRoute
   AppPathwaysIndexRoute: typeof AppPathwaysIndexRoute
   AppPatientsIndexRoute: typeof AppPatientsIndexRoute
@@ -1609,7 +1629,6 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessibilityRoute: AppAccessibilityRoute,
-  AppLabRoute: AppLabRoute,
   AppMdtRoute: AppMdtRoute,
   AppNoPermissionRoute: AppNoPermissionRoute,
   AppPracticesRoute: AppPracticesRoute,
@@ -1639,6 +1658,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarNeedsBookingRoute: AppCalendarNeedsBookingRoute,
   AppCalendarRequiresAppointmentRoute: AppCalendarRequiresAppointmentRoute,
   AppDataRequestsIdRoute: AppDataRequestsIdRoute,
+  AppLabSamplesRoute: AppLabSamplesRoute,
   AppLettersIdRoute: AppLettersIdRoute,
   AppPathwaysNewRoute: AppPathwaysNewRoute,
   AppPatientsAddRoute: AppPatientsAddRoute,
@@ -1646,6 +1666,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountIndexRoute: AppAccountIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppDataRequestsIndexRoute: AppDataRequestsIndexRoute,
+  AppLabIndexRoute: AppLabIndexRoute,
   AppLettersIndexRoute: AppLettersIndexRoute,
   AppPathwaysIndexRoute: AppPathwaysIndexRoute,
   AppPatientsIndexRoute: AppPatientsIndexRoute,
