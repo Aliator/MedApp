@@ -222,6 +222,7 @@ public sealed class AppointmentChange(
             Id = Guid.NewGuid(),
             AppointmentId = appointment.Id,
             PatientId = appointment.PatientId,
+            TeamId = appointment.TeamId,
             PathwayId = appointment.PathwayId,
             PathwayTitle = appointment.PathwayId is null
                 ? string.Empty

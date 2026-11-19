@@ -21,7 +21,7 @@ public static class StandardRoles
     public static readonly StandardRole Admin = new(
         Guid.Parse("7a3b0000-0000-4000-8000-000000000001"),
         AppRoles.Admin,
-        "Runs MedApp: accounts, roles, setup and privacy. Built in, with fixed permissions.",
+        "Runs MedApp: accounts, roles, setup, privacy and oversight, reading every team’s records; no clinical changes. Built in, with fixed permissions.",
         Permissions.Admin);
 
     /// <summary>
@@ -57,7 +57,7 @@ public static class StandardRoles
     public static readonly StandardRole SeniorClinician = new(
         Guid.Parse("7a3b0000-0000-4000-8000-000000000008"),
         "Senior clinician",
-        "Senior clinicians: as Clinician, and they unlock stages and finish one without its visit.",
+        "Senior clinicians: the same permissions as Clinician, unlocking stages and finishing one without its visit included.",
         new HashSet<Permission>
         {
             UseApp, ViewPatients, EditPatients, RegisterReferrals, TriageReferrals, CreatePathways, WorkPathways,
@@ -90,6 +90,19 @@ public static class StandardRoles
         "Laboratory staff who work on their pathway stages.",
         new HashSet<Permission> { UseApp, ViewPatients, WorkPathways, AttachFiles, RecordSpecimens, ProcessSpecimens });
 
+    /// <summary>
+    /// Lab's permissions, and authorising lab reports (MC15 of <c>docs/multi-clinic-plan.md</c>; the combined
+    /// migration adds it).
+    /// </summary>
+    public static readonly StandardRole Pathologist = new(
+        Guid.Parse("7a3b0000-0000-4000-8000-000000000009"),
+        "Pathologist",
+        "Pathologists: as Lab, and they enter lab cases’ results and authorise their reports.",
+        new HashSet<Permission>
+        {
+            UseApp, ViewPatients, WorkPathways, AttachFiles, RecordSpecimens, ProcessSpecimens, AuthoriseLabReports,
+        });
+
     public static readonly StandardRole Manager = new(
         Guid.Parse("7a3b0000-0000-4000-8000-000000000007"),
         "Manager",
@@ -99,8 +112,8 @@ public static class StandardRoles
             UseApp, ViewPatients, AssignPathways, ArrangeMeetings, ManageClinics, ViewInsights, ManageMonitoring,
         });
 
-    /// <summary>The six starting roles, editable, in the order the page lists them.</summary>
-    public static readonly IReadOnlyList<StandardRole> Starting = [Clinician, SeniorClinician, Nurse, Booking, Lab, Manager];
+    /// <summary>The seven starting roles, editable, in the order the page lists them.</summary>
+    public static readonly IReadOnlyList<StandardRole> Starting = [Clinician, SeniorClinician, Nurse, Booking, Lab, Pathologist, Manager];
 
     /// <summary>Every standard role: Admin, All staff (before roles), then the starting roles.</summary>
     public static readonly IReadOnlyList<StandardRole> All = [Admin, AllStaffBeforeRoles, .. Starting];

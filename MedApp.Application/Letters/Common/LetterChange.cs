@@ -163,6 +163,7 @@ public sealed class LetterChange(Letter letter, PatientPathway? pathway, Pathway
             PatientPathwayId = letter.PathwayId ?? PatientPathwayAuditEntry.NoPathway,
             PathwayTitle = pathway?.Title ?? string.Empty,
             PatientId = letter.PatientId,
+            TeamId = letter.TeamId,
             Action = action,
             UserId = actor.UserId,
             Username = actor.Username,

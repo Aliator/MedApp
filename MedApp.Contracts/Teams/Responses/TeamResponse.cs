@@ -9,6 +9,9 @@ public sealed class TeamResponse
     /// <summary>Archived teams can't be chosen for templates or given to staff; what has one keeps it.</summary>
     public bool IsArchived { get; set; }
 
+    /// <summary><c>Clinic</c> or <c>Lab</c> (the one team of the lab kind).</summary>
+    public string Kind { get; set; } = string.Empty;
+
     /// <summary>Send it back as <c>expectedVersion</c> with a change.</summary>
     public int Version { get; set; }
 

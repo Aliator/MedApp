@@ -14,6 +14,12 @@ public sealed class ReferralEvent
 
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): copied from its referral, for the timeline's filter. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     /// <summary>The pathway the referral was accepted into, if it had one at the time.</summary>
     public Guid? PathwayId { get; init; }
 

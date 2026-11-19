@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Patients.Common;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MedApp.Domain.Patients;
@@ -40,10 +41,14 @@ public static class PathwayMapper
         CancellationToken ct,
         string? patientName = null,
         Guid? viewerId = null,
-        IReadOnlySet<Permission>? viewerPermissions = null)
+        IReadOnlySet<Permission>? viewerPermissions = null,
+        TeamScope? viewerScope = null,
+        string? teamName = null)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(pathway), ct);
-        return ToResponse(pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerPermissions: viewerPermissions);
+        return ToResponse(
+            pathway, usernames, nowUtc, patientName, viewerId: viewerId, viewerPermissions: viewerPermissions,
+            viewerScope: viewerScope, teamName: teamName);
     }
 
     /// <summary>
@@ -58,6 +63,12 @@ public static class PathwayMapper
     /// record allow, with nothing that needs <see cref="Permission.CorrectRecords"/>. Every response to a request passes
     /// the caller's.
     /// </para>
+    /// <para>
+    /// <paramref name="viewerScope"/> is the viewer's team walls: only the pathway's own team changes it, so for anyone
+    /// else (an admin, the lab after hand-back) every flag is off and <c>ReadOnlyReason</c> says whose it is
+    /// (<paramref name="teamName"/>), except to an admin, who sees every team's records read only. Null: the viewer is
+    /// the change's own actor, whose team owns it.
+    /// </para>
     /// </summary>
     public static PatientPathwayResponse ToResponse(
         PatientPathway pathway,
@@ -66,7 +77,9 @@ public static class PathwayMapper
         string? patientName = null,
         Patient? patient = null,
         Guid? viewerId = null,
-        IReadOnlySet<Permission>? viewerPermissions = null)
+        IReadOnlySet<Permission>? viewerPermissions = null,
+        TeamScope? viewerScope = null,
+        string? teamName = null)
     {
         // The patient comes with the pathway when it was loaded with them, or separately for one just created.
         patient ??= pathway.Patient;
@@ -74,9 +87,13 @@ public static class PathwayMapper
         // A restricted or anonymised patient's pathways can't change, so nothing on them is offered.
         var readOnlyReason = PatientRules.WhyCantChange(patient);
         var canChange = readOnlyReason is null;
+        // Only the pathway's own team changes it (the team walls): admins and the lab read it.
+        var mine = viewerScope is null || TeamAccess.CanChange(pathway, viewerScope);
+        if (readOnlyReason is null && !mine && viewerScope is { SeesAllTeams: false })
+            readOnlyReason = TeamWalls.NotYourTeams(teamName);
         // A restricted record's pathways can still be paused: blocked or cancelled, with a reason.
         var canPause = !PatientRules.IsAnonymised(pathway.Patient);
-        var canWork = Allows(viewerPermissions, Permission.WorkPathways);
+        var canWork = Allows(viewerPermissions, Permission.WorkPathways) && mine;
 
         return new PatientPathwayResponse
         {
@@ -110,9 +127,9 @@ public static class PathwayMapper
             CanEditDetails = canWork && canChange && PathwayWorkflow.CanEditDetails(pathway),
             CanAddNotes = canWork && canChange && PathwayWorkflow.CanChangeNotes(pathway),
             CanChangeAssignments = Allows(viewerPermissions, Permission.AssignPathways)
-                && canChange && PathwayWorkflow.CanChangeAssignments(pathway),
+                && mine && canChange && PathwayWorkflow.CanChangeAssignments(pathway),
             CanBeDeleted = Allows(viewerPermissions, Permission.DeletePathways)
-                && canChange && PathwayWorkflow.CanBeDeleted(pathway),
+                && mine && canChange && PathwayWorkflow.CanBeDeleted(pathway),
             ReadOnlyReason = readOnlyReason,
             PatientFlags = pathway.Patient is null ? null : PatientMapper.ToFlags(pathway.Patient),
             Stages = pathway.Stages
@@ -149,19 +166,19 @@ public static class PathwayMapper
                     IsLocked = s.IsLocked,
                     CanEdit = canWork && canChange && PathwayWorkflow.CanEditStage(pathway, s),
                     CanUnlock = Allows(viewerPermissions, Permission.UnlockStages)
-                        && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
+                        && mine && canChange && PathwayWorkflow.CanUnlockStage(pathway, s),
                     CanSkip = canWork && canChange
                         && PathwayWorkflow.CanSkipStage(pathway, s, Allows(viewerPermissions, Permission.FinishWithoutVisit)),
                     CanReinstate = Allows(viewerPermissions, Permission.UnlockStages)
-                        && canChange && PathwayWorkflow.CanReinstateStage(pathway, s),
+                        && mine && canChange && PathwayWorkflow.CanReinstateStage(pathway, s),
                     SkippedAtUtc = s.SkippedAtUtc,
                     SkippedByUserId = s.SkippedByUserId,
                     SkippedByUsername = Username(usernames, s.SkippedByUserId),
                     SkipReason = s.SkipReason?.ToString(),
                     SkipDetail = s.SkipDetail,
-                    CanRecordSpecimen = Allows(viewerPermissions, Permission.RecordSpecimens)
+                    CanRecordSpecimen = Allows(viewerPermissions, Permission.RecordSpecimens) && mine
                         && Specimens.Common.SpecimenWorkflow.WhyCantTake(pathway, s) is null,
-                    CanRecordConsent = Allows(viewerPermissions, Permission.RecordConsent)
+                    CanRecordConsent = Allows(viewerPermissions, Permission.RecordConsent) && mine
                         && Consent.Common.ConsentWorkflow.WhyCantRecord(pathway, s) is null,
                     StartedAtUtc = s.StartedAtUtc,
                     StartedByUserId = s.StartedByUserId,
@@ -184,7 +201,8 @@ public static class PathwayMapper
                 .ToList(),
             Notes = PathwayNoteMapper.FirstNoteText(pathway),
             NoteList = PathwayNoteMapper.ToResponses(
-                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerPermissions)
+                pathway.Notes, usernames, viewerId, canChange && PathwayWorkflow.CanChangeNotes(pathway), canChange, viewerPermissions,
+                viewerTeamOwns: mine)
         };
     }
 

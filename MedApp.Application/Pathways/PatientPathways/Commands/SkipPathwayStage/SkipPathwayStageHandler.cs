@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
@@ -12,6 +13,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.SkipPathwayStage;
 
 public sealed class SkipPathwayStageHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
@@ -23,7 +25,7 @@ public sealed class SkipPathwayStageHandler(
 
     public async Task<PatientPathwayResponse> Handle(SkipPathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
         if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage, request.CanFinishWithoutVisit) is { } reason)

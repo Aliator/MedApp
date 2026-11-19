@@ -37,7 +37,12 @@ public interface IActivityLog
     /// <paramref name="pathwayId"/>), one entry each, except where the same view by the same person is already in
     /// the log from the last <see cref="ActivityOptions.ViewWindowMinutes"/> minutes.
     /// </summary>
-    Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null);
+    /// <remarks>
+    /// <paramref name="details"/>, when given, go on each entry (a pathway view's <c>access</c>, decision 207 of
+    /// <c>docs/multi-clinic-plan.md</c>); they never decide whether a view is new.
+    /// </remarks>
+    Task RecordViewsAsync(
+        ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null, object? details = null);
 
     /// <summary>
     /// Records that the actor saw one thing about a patient that <paramref name="details"/> names (a referral:
@@ -46,4 +51,12 @@ public interface IActivityLog
     /// must never hold a patient's details or clinical text.
     /// </summary>
     Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct);
+
+    /// <summary>
+    /// Records an entry about no patient (a refusal across a team wall: <see cref="ActivityAction.TeamBoundaryRefused"/>
+    /// with what was asked for), unless the same entry, with the same details, by the same person is already in the log
+    /// from the last <see cref="ActivityOptions.ViewWindowMinutes"/> minutes. The details must never hold a patient's
+    /// details or clinical text.
+    /// </summary>
+    Task RecordOnceAsync(ActivityAction action, object details, CancellationToken ct);
 }

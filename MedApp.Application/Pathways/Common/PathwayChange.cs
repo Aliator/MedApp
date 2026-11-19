@@ -3,6 +3,7 @@ using MedApp.Application.Referrals.Common;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Referrals;
+using MedApp.Domain.Teams;
 using Action = MedApp.Domain.Pathways.PatientPathways.PatientPathwayAuditAction;
 using static MedApp.Domain.Pathways.PatientPathways.PatientPathwayStatus;
 
@@ -38,6 +39,7 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
     private readonly List<PatientPathwayNoteVersion> _noteVersions = [];
     private readonly List<PatientPathwayNote> _deletedNotes = [];
     private readonly List<ReferralClockPause> _newPauses = [];
+    private readonly List<PathwayAccess> _newGrants = [];
     private ReferralChange? _clock;
 
     public PatientPathway Pathway => pathway;
@@ -69,6 +71,16 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
 
     /// <summary>Clock pauses the change started, to add with it.</summary>
     public IReadOnlyList<ReferralClockPause> NewPauses => _newPauses;
+
+    /// <summary>
+    /// Access grants the change made (the team walls, <see cref="PathwayAccess"/>), to add with it: grants are written
+    /// only in the same save as the event that causes them.
+    /// </summary>
+    public IReadOnlyList<PathwayAccess> NewGrants => _newGrants;
+
+    /// <summary>Grants the pathway's own team its access (<see cref="PathwayAccessReason.Owner"/>), as it's made.</summary>
+    public void GrantOwner() =>
+        _newGrants.Add(PathwayAccess.Owner(pathway.Id, pathway.PatientId, pathway.TeamId, nowUtc));
 
     /// <summary>
     /// Whether anything changed (every change is audited, or recorded in an appointment's or the referral's history).
@@ -166,6 +178,7 @@ public sealed class PathwayChange(PatientPathway pathway, PathwayActor actor, Da
         {
             Id = Guid.NewGuid(),
             PatientId = pathway.PatientId,
+            TeamId = pathway.TeamId,
             PathwayId = pathway.Id,
             StageId = stage.Id,
             Status = AppointmentStatus.Requested,

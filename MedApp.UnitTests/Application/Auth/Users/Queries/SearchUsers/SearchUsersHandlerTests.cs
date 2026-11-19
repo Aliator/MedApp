@@ -16,6 +16,7 @@ public sealed class SearchUsersHandlerTests
     private IFixture _fixture = null!;
     private Mock<IIdentityReadService> _identityReadService = null!;
     private SearchUsersHandler _handler = null!;
+    private Mock<MedApp.Application.Teams.Repositories.ITeamRepository> _teams = null!;
 
     [SetUp]
     public void SetUp()
@@ -24,6 +25,11 @@ public sealed class SearchUsersHandlerTests
 
         _identityReadService = new Mock<IIdentityReadService>();
         _fixture.Inject(_identityReadService.Object);
+        // Nobody is a clinic admin, unless a test says so.
+        _teams = new Mock<MedApp.Application.Teams.Repositories.ITeamRepository>();
+        _teams.Setup(t => t.GetClinicAdminsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
+        _fixture.Inject(_teams.Object);
 
         _handler = _fixture.Create<SearchUsersHandler>();
     }
@@ -41,7 +47,7 @@ public sealed class SearchUsersHandlerTests
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        result.Items.Should().BeEquivalentTo(users);
+        result.Items.Should().BeEquivalentTo(users.Select(u => u with { AccountType = "Admin" }));
         result.Page.Should().Be(1);
         result.TotalCount.Should().Be(23);
         result.TotalPages.Should().Be(3);

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Calendar.Hours.Queries.GetStaffHours;
 using MedApp.Application.Calendar.Hours.Commands.SetStaffHours;
 using MedApp.UnitTests.Common.Constants;
@@ -29,8 +30,8 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class CalendarControllerTests
 {
-    private static readonly CalendarActor StaffActor = new(UserId, Username, TestPermissions.Staff);
-    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin);
+    private static readonly CalendarActor StaffActor = new(UserId, Username, TestPermissions.Staff, TeamScope.For(UserId, [], TestPermissions.Staff));
+    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin, TeamScope.For(UserId, [], TestPermissions.Admin));
     private IFixture _fixture = null!;
     private CancellationTokenSource _cts = null!;
 
@@ -78,7 +79,7 @@ public sealed class CalendarControllerTests
         var request = _fixture.Create<GetCalendarRequest>();
 
         await ExpectOk(_fixture.Create<CalendarResponse>(),
-            new GetCalendarQuery(request.StaffUserId, request.From, request.To, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin)), request.WithoutAppointments),
+            new GetCalendarQuery(request.StaffUserId, request.From, request.To, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin), TeamScope.For(UserId, [], TestPermissions.For(isAdmin))), request.WithoutAppointments),
             c => c.GetCalendar(request, _cts.Token), role);
     }
 
@@ -117,7 +118,7 @@ public sealed class CalendarControllerTests
         var result = await Controller(mediator, role).CreateBlock(request, _cts.Token);
 
         mediator.Request.Should().Be(new CreateCalendarBlockCommand(
-            request.StaffUserId, request.ActivityTypeId, request.StartUtc, request.EndUtc, request.Note, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin))));
+            request.StaffUserId, request.ActivityTypeId, request.StartUtc, request.EndUtc, request.Note, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin), TeamScope.For(UserId, [], TestPermissions.For(isAdmin)))));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         var created = result.Should().BeOfType<CreatedResult>().Subject;
         created.Location.Should().Be($"/api/calendar/blocks/{block.BlockId}");

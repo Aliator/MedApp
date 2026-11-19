@@ -39,7 +39,7 @@ public sealed class WaitingClockTests : IntegrationTest
         _admin = await SignInAsAdminAsync();
         _booking = await CreateStaffAsync("Booking");
         _clinician = await CreateStaffAsync("Clinician");
-        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([Team.GeneralId])))
+        (await _admin.PutAsJsonAsync($"/api/auth/users/{_clinician.Username}/teams", new SetUserTeamsRequest([new(Team.GeneralId, null)])))
             .StatusCode.Should().Be(HttpStatusCode.OK);
     }
 

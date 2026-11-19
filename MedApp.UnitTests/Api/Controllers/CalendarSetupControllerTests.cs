@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
@@ -68,7 +69,7 @@ public sealed class CalendarSetupControllerTests
         new CalendarSetupController(mediator).WithRequest(SignedIn(role));
 
     /// <summary>The signed-in user as the controller passes them on, an admin or not.</summary>
-    private static CalendarActor Actor(string role) => new(UserId, Username, TestPermissions.For(role == "Admin"));
+    private static CalendarActor Actor(string role) => new(UserId, Username, TestPermissions.For(role == "Admin"), TeamScope.For(UserId, [], TestPermissions.For(role == "Admin")));
 
     private async Task ExpectOk(
         object response, object request, Func<CalendarSetupController, Task<IActionResult>> act, string role = "Admin")

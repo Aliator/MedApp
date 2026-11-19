@@ -12,6 +12,7 @@ public static class TeamMapper
         Id = team.Id,
         Name = team.Name,
         IsArchived = team.IsArchived,
+        Kind = team.Kind.ToString(),
         Version = team.Version,
         TemplateCount = usage.TemplateCount,
         PathwayCount = usage.PathwayCount,
@@ -36,19 +37,36 @@ public static class TeamMapper
         return ToResponse(team, usage.GetValueOrDefault(team.Id, TeamUsage.None));
     }
 
-    /// <summary>A team someone belongs to.</summary>
-    public static TeamMembershipResponse ToStaffResponse(Team team) => new()
+    /// <summary>A team someone belongs to, with its kind and their role in it.</summary>
+    public static TeamMembershipResponse ToStaffResponse(Team team, TeamMemberRole role = TeamMemberRole.Member) => new()
     {
         Id = team.Id,
         Name = team.Name,
-        IsArchived = team.IsArchived
+        IsArchived = team.IsArchived,
+        Kind = team.Kind.ToString(),
+        Role = role.ToString()
     };
 
-    /// <summary>The teams someone belongs to, sorted by name.</summary>
+    /// <summary>The teams someone belongs to, as members, sorted by name.</summary>
     public static IReadOnlyList<TeamMembershipResponse> ToStaffResponses(IEnumerable<Team> teams) =>
         teams
             .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(s => s.Id)
-            .Select(ToStaffResponse)
+            .Select(t => ToStaffResponse(t))
             .ToList();
+
+    /// <summary>Someone's memberships, each with its team's kind and their role, sorted by the team's name.</summary>
+    public static IReadOnlyList<TeamMembershipResponse> ToStaffResponses(IEnumerable<TeamMembership> memberships) =>
+        memberships
+            .OrderBy(m => m.Team.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(m => m.TeamId)
+            .Select(m => ToStaffResponse(m.Team, m.Role))
+            .ToList();
+
+    /// <summary>
+    /// A membership as the activity log names it: the team's name, and "(clinic admin)" for a clinic admin (as the light
+    /// demo writes it).
+    /// </summary>
+    public static string ActivityName(TeamMembershipResponse membership) =>
+        membership.Role == nameof(TeamMemberRole.ClinicAdmin) ? $"{membership.Name} (clinic admin)" : membership.Name;
 }

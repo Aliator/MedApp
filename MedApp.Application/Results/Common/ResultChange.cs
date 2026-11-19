@@ -140,6 +140,7 @@ public sealed class ResultChange(Result result, PatientPathway? pathway, Pathway
             PatientPathwayId = pathway?.Id ?? PatientPathwayAuditEntry.NoPathway,
             PathwayTitle = pathway?.Title ?? string.Empty,
             PatientId = result.PatientId,
+            TeamId = result.TeamId,
             StageId = result.Specimen?.StageId,
             StageName = result.Specimen is { } s ? pathway?.Stages.FirstOrDefault(st => st.Id == s.StageId)?.Name : null,
             Action = action,

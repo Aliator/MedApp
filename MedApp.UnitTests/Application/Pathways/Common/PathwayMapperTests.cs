@@ -83,7 +83,8 @@ public sealed class PathwayMapperTests
     {
         var pathway = CreatePathway(Status.Cancelled);
 
-        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: TestPermissions.Admin).CanBeDeleted.Should().BeTrue();
+        PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: new HashSet<Permission> { Permission.DeletePathways })
+            .CanBeDeleted.Should().BeTrue();
         PathwayMapper.ToResponse(pathway, Usernames, Now, viewerPermissions: StandardRoles.Clinician.Permissions)
             .CanBeDeleted.Should().BeFalse();
         // No viewer known: only what the pathway allows.

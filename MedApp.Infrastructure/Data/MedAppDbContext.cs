@@ -51,6 +51,7 @@ public sealed class MedAppDbContext(DbContextOptions<MedAppDbContext> options)
     public DbSet<PathwayNoteDeletionRequest> PathwayNoteDeletionRequests => Set<PathwayNoteDeletionRequest>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<TeamMembership> TeamMemberships => Set<TeamMembership>();
+    public DbSet<PathwayAccess> PathwayAccess => Set<PathwayAccess>();
     public DbSet<Referral> Referrals => Set<Referral>();
     public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<LetterTemplate> LetterTemplates => Set<LetterTemplate>();

@@ -11,5 +11,5 @@ public sealed class GetMyTeamsHandler(ITeamRepository repository)
     public async Task<IReadOnlyList<TeamMembershipResponse>> Handle(
         GetMyTeamsQuery request,
         CancellationToken cancellationToken) =>
-        TeamMapper.ToStaffResponses(await repository.GetForUserAsync(request.UserId, cancellationToken));
+        TeamMapper.ToStaffResponses(await repository.GetMembershipsAsync(request.UserId, cancellationToken));
 }

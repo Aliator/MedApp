@@ -51,7 +51,8 @@ public sealed class ActivityLog(
     public Task RecordAsync(ActivityEntry entry, CancellationToken ct) =>
         repository.AddAsync([entry], ct);
 
-    public async Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null)
+    public async Task RecordViewsAsync(
+        ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null, object? details = null)
     {
         var ids = patientIds.Distinct().ToList();
         if (ids.Count == 0)
@@ -67,7 +68,7 @@ public sealed class ActivityLog(
 
         var entries = ids
             .Where(id => !recent.Contains(id))
-            .Select(id => Entry(action, id, pathwayId: pathwayId, actor: actor))
+            .Select(id => Entry(action, id, details, pathwayId: pathwayId, actor: actor))
             .ToList();
 
         if (entries.Count > 0)
@@ -82,6 +83,19 @@ public sealed class ActivityLog(
 
         if (window > TimeSpan.Zero
             && await repository.HasRecentEntryAsync(actor.UserId, action, patientId, entry.Details, entry.AtUtc - window, ct))
+            return;
+
+        await repository.AddAsync([entry], ct);
+    }
+
+    public async Task RecordOnceAsync(ActivityAction action, object details, CancellationToken ct)
+    {
+        var actor = context.Actor;
+        var entry = Entry(action, details: details, actor: actor);
+        var window = TimeSpan.FromMinutes(Math.Max(0, options.Value.ViewWindowMinutes));
+
+        if (window > TimeSpan.Zero
+            && await repository.HasRecentEntryAsync(actor.UserId, action, null, entry.Details, entry.AtUtc - window, ct))
             return;
 
         await repository.AddAsync([entry], ct);

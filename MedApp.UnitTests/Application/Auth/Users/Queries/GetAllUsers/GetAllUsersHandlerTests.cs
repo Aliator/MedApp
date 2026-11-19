@@ -15,6 +15,7 @@ public sealed class GetAllUsersHandlerTests
     private IFixture _fixture = null!;
     private Mock<IIdentityReadService> _identityReadService = null!;
     private GetAllUsersHandler _handler = null!;
+    private Mock<MedApp.Application.Teams.Repositories.ITeamRepository> _teams = null!;
 
     [SetUp]
     public void SetUp()
@@ -23,18 +24,26 @@ public sealed class GetAllUsersHandlerTests
 
         _identityReadService = new Mock<IIdentityReadService>();
         _fixture.Inject(_identityReadService.Object);
+        // Nobody is a clinic admin, unless a test says so.
+        _teams = new Mock<MedApp.Application.Teams.Repositories.ITeamRepository>();
+        _teams.Setup(t => t.GetClinicAdminsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>());
+        _fixture.Inject(_teams.Object);
 
         _handler = _fixture.Create<GetAllUsersHandler>();
     }
 
     [Test]
-    public async Task Handle_ReturnsAllUsers()
+    public async Task Handle_ReturnsAllUsersWithTheirAccountTypes()
     {
         UserResponse[] users =
         [
             new(Guid.NewGuid(), AuthTestConstants.Usernames[0], new[] { AuthTestConstants.Roles[0] }),
-            new(Guid.NewGuid(), AuthTestConstants.Usernames[1], new[] { AuthTestConstants.Roles[1] })
+            new(Guid.NewGuid(), AuthTestConstants.Usernames[1], new[] { AuthTestConstants.Roles[1] }),
+            new(Guid.NewGuid(), "clinic.admin", new[] { "Clinician" })
         ];
+        _teams.Setup(t => t.GetClinicAdminsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid> { users[2].UserId });
 
         _identityReadService
             .Setup(s => s.GetUsersAsync(It.IsAny<CancellationToken>()))
@@ -42,7 +51,12 @@ public sealed class GetAllUsersHandlerTests
 
         var result = await _handler.Handle(new GetAllUsersQuery(), CancellationToken.None);
 
-        result.Should().BeEquivalentTo(users);
+        result.Should().BeEquivalentTo(
+        [
+            users[0] with { AccountType = AuthTestConstants.Roles[0] == "Admin" ? "Admin" : "Staff" },
+            users[1] with { AccountType = AuthTestConstants.Roles[1] == "Admin" ? "Admin" : "Staff" },
+            users[2] with { AccountType = "ClinicAdmin" },
+        ]);
     }
 
     [Test]

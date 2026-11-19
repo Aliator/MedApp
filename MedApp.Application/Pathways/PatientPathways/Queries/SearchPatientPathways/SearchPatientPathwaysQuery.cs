@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Contracts.Common;
 using MedApp.Contracts.Pathways.PatientPathways.Responses;
 using MediatR;
@@ -12,7 +13,8 @@ namespace MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathw
 /// matches; <paramref name="Priorities"/> is any of several, as <paramref name="Statuses"/> is.
 /// <paramref name="NobodyAssigned"/> keeps only pathways with no one assigned. <paramref name="TeamIds"/> is any of
 /// the pathways' own teams, and <paramref name="StageDefinitionIds"/> the stage reached: any of the definitions
-/// their current stage comes from.
+/// their current stage comes from. <paramref name="Scope"/> is the viewer's team walls (from the request; null only
+/// outside one, which is unscoped): only pathways they see in full are listed.
 /// </summary>
 public sealed record SearchPatientPathwaysQuery(
     int Page,
@@ -39,5 +41,10 @@ public sealed record SearchPatientPathwaysQuery(
     bool NobodyAssigned = false,
     IReadOnlyList<Guid>? TeamIds = null,
     IReadOnlyList<Guid>? StageDefinitionIds = null,
-    bool BreachedOnly = false)
-    : IRequest<PagedResponse<PatientPathwaySummaryResponse>>;
+    bool BreachedOnly = false,
+    TeamScope? Scope = null)
+    : IRequest<PagedResponse<PatientPathwaySummaryResponse>>
+{
+    /// <summary>The viewer's team walls: the request's, or the system's outside a request.</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
+}

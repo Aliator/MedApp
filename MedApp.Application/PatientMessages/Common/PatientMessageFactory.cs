@@ -35,6 +35,7 @@ public static class PatientMessageFactory
                 {
                     Id = Guid.NewGuid(),
                     PatientId = patient.Id,
+                    TeamId = appointment.TeamId,
                     AppointmentId = appointment.Id,
                     Kind = kind,
                     Channel = channel,
@@ -54,6 +55,7 @@ public static class PatientMessageFactory
         {
             Id = Guid.NewGuid(),
             PatientId = patient.Id,
+            TeamId = appointment.TeamId,
             AppointmentId = appointment.Id,
             Kind = kind,
             Channel = channel,

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
@@ -13,6 +14,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.UpdatePatientPathway;
 
 public sealed class UpdatePatientPathwayHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
@@ -21,7 +23,7 @@ public sealed class UpdatePatientPathwayHandler(
 {
     public async Task<PatientPathwayResponse> Handle(UpdatePatientPathwayCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.Id, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.Id, boundary, request.Actor.Teams, cancellationToken);
 
         if (!PathwayWorkflow.CanEditDetails(pathway))
             throw new ConflictException($"A pathway that's {PathwayWorkflow.Describe(pathway.Status)} can't be edited.");

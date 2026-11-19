@@ -5,6 +5,9 @@ namespace MedApp.Contracts.Authentication.Responses;
 /// <param name="TwoFactorEnabled">Whether the account signs in with an authenticator code as well as its password.</param>
 /// <param name="FullName">The person's full name as it goes on letters; null until given.</param>
 /// <param name="JobTitle">Their job title as it goes on letters; null until given.</param>
+/// <param name="AccountType">
+/// <c>Admin</c>, <c>ClinicAdmin</c> or <c>Staff</c>, worked out from their roles and their teams (never stored).
+/// </param>
 public sealed record UserResponse(
     Guid UserId,
     string Username,
@@ -13,5 +16,6 @@ public sealed record UserResponse(
     string? PendingEmail = null,
     bool TwoFactorEnabled = false,
     string? FullName = null,
-    string? JobTitle = null
+    string? JobTitle = null,
+    string? AccountType = null
 );

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using AutoFixture;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -23,7 +24,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class ClinicsControllerTests
 {
-    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin);
+    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin, TeamScope.For(UserId, [], TestPermissions.Admin));
     private IFixture _fixture = null!;
     private CancellationTokenSource _cts = null!;
 

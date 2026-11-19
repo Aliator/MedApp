@@ -26,7 +26,7 @@ public sealed class SearchPatientPathwaysHandler(
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var result = await repository.SearchAsync(request, now, cancellationToken);
+        var result = await repository.SearchAsync(request, request.Teams, now, cancellationToken);
         var items = await PathwayMapper.ToSummariesAsync(result.Items, identityReadService, now, cancellationToken);
 
         await activityLog.RecordViewsAsync(ActivityAction.PatientListed, result.Items.Select(p => p.PatientId), cancellationToken);

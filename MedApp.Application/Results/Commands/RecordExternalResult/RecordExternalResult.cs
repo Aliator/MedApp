@@ -95,6 +95,8 @@ public sealed class RecordExternalResultHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = file.PatientId,
+            // Its pathway's team, else the file's (the team walls).
+            TeamId = pathway?.TeamId ?? file.TeamId,
             PathwayId = pathway?.Id,
             Source = ResultSource.ExternalReport,
             Title = request.Title.Trim(),

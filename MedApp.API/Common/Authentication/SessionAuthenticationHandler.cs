@@ -43,6 +43,9 @@ public sealed class SessionAuthenticationHandler(
         foreach (var permission in (validation.Permissions ?? new HashSet<Permission>()).Order())
             claims.Add(new Claim(SessionAuthenticationDefaults.PermissionClaim, permission.ToString()));
 
+        foreach (var teamId in validation.TeamIds ?? [])
+            claims.Add(new Claim(SessionAuthenticationDefaults.TeamClaim, teamId.ToString()));
+
         if (validation.MustChangePassword)
             claims.Add(new Claim(SessionAuthenticationDefaults.MustChangePasswordClaim, "true"));
 

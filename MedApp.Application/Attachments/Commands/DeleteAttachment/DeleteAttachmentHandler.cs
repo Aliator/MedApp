@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
 using MedApp.Application.Common.Exceptions;
@@ -22,6 +23,7 @@ public sealed class DeleteAttachmentHandler(
     ISpecimenRepository specimens,
     MedApp.Application.Results.Repositories.IResultRepository results,
     IConsentRepository consents,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<DeleteAttachmentCommand>
 {
@@ -32,7 +34,8 @@ public sealed class DeleteAttachmentHandler(
     {
         var attachment = await attachments.GetForUpdateAsync(request.Id, cancellationToken);
         if (attachment is null || attachment.IsDeleted)
-            throw new NotFoundException($"File '{request.Id}' was not found.");
+            throw new NotFoundException(AttachmentWalls.NotFoundMessage(request.Id));
+        await AttachmentWalls.EnsureVisibleAsync(attachment, boundary, request.Actor.Teams, cancellationToken);
 
         if (!AttachmentMapper.CanDelete(attachment, request.Actor.UserId, request.CanCorrectRecords, canAttachFiles: true))
             throw new ForbiddenException("Only the person who attached a file, or an admin, can delete it.");

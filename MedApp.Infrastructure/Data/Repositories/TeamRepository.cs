@@ -192,17 +192,49 @@ public sealed class TeamRepository(MedAppDbContext context) : ITeamRepository
             .ThenBy(s => s.Id)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<TeamMembership>> GetMembershipsAsync(Guid userId, CancellationToken ct) =>
+        await context.TeamMemberships
+            .AsNoTracking()
+            .Include(m => m.Team)
+            .Where(m => m.UserId == userId)
+            .OrderBy(m => m.Team.Name)
+            .ThenBy(m => m.TeamId)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlySet<Guid>> GetClinicAdminsAsync(IEnumerable<Guid> userIds, CancellationToken ct)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new HashSet<Guid>();
+
+        return (await context.TeamMemberships
+                .AsNoTracking()
+                .Where(m => ids.Contains(m.UserId) && m.Role == TeamMemberRole.ClinicAdmin)
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(ct))
+            .ToHashSet();
+    }
+
+    public Task<Team?> GetLabAsync(CancellationToken ct) =>
+        context.Teams
+            .AsNoTracking()
+            .Where(t => t.Kind == TeamKind.Lab && !t.IsArchived)
+            .OrderBy(t => t.Id)
+            .FirstOrDefaultAsync(ct);
+
     public async Task SetForUserAsync(
-        Guid userId, IReadOnlyCollection<Guid> teamIds, ActivityEntry activity, CancellationToken ct)
+        Guid userId, IReadOnlyDictionary<Guid, TeamMemberRole> teams, ActivityEntry activity, CancellationToken ct)
     {
         var current = await context.TeamMemberships.Where(m => m.UserId == userId).ToListAsync(ct);
-        var wanted = teamIds.ToHashSet();
 
-        context.TeamMemberships.RemoveRange(current.Where(m => !wanted.Contains(m.TeamId)));
+        context.TeamMemberships.RemoveRange(current.Where(m => !teams.ContainsKey(m.TeamId)));
+        foreach (var membership in current.Where(m => teams.ContainsKey(m.TeamId)))
+            membership.Role = teams[membership.TeamId];
         var held = current.Select(m => m.TeamId).ToHashSet();
-        context.TeamMemberships.AddRange(wanted
-            .Where(id => !held.Contains(id))
-            .Select(id => new TeamMembership { UserId = userId, TeamId = id }));
+        context.TeamMemberships.AddRange(teams
+            .Where(t => !held.Contains(t.Key))
+            .Select(t => new TeamMembership { UserId = userId, TeamId = t.Key, Role = t.Value }));
         context.ActivityEntries.Add(activity);
 
         try

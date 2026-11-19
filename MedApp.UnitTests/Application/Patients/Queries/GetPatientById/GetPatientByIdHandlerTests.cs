@@ -43,7 +43,10 @@ public sealed class GetPatientByIdHandlerTests
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
-        result.Should().Be(new PatientResponse(patient.Id, patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email));
+        result.Should().BeEquivalentTo(new PatientResponse(patient.Id, patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email)
+        {
+            OtherTeamPathways = []
+        });
     }
 
     [Test]

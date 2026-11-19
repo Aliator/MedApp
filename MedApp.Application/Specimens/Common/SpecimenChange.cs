@@ -39,12 +39,27 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly List<PatientPathwayAuditEntry> _auditEntries = [];
+    private readonly List<MedApp.Domain.Teams.PathwayAccess> _newGrants = [];
 
     public Specimen Specimen => specimen;
 
     public IReadOnlyList<PatientPathwayAuditEntry> AuditEntries => _auditEntries;
 
     public bool HasChanges => _auditEntries.Count > 0;
+
+    /// <summary>Access grants the change made (the lab's, once passed the pathway), to add in the same save.</summary>
+    public IReadOnlyList<MedApp.Domain.Teams.PathwayAccess> NewGrants => _newGrants;
+
+    /// <summary>
+    /// Passes the pathway to the lab (<paramref name="labTeamId"/>) with its sample: the lab sees it in full from then on,
+    /// and keeps it (a <c>StageOwner</c> grant, decision 184). The handler checks first that it has none yet. Nothing
+    /// for the lab's own pathway.
+    /// </summary>
+    public void PassToLab(Guid labTeamId)
+    {
+        if (pathway.TeamId != labTeamId)
+            _newGrants.Add(MedApp.Domain.Teams.PathwayAccess.StageOwner(pathway.Id, pathway.PatientId, labTeamId, nowUtc));
+    }
 
     /// <summary>Records a new specimen as taken (its version is 1).</summary>
     public void Take()
@@ -201,6 +216,7 @@ public sealed class SpecimenChange(Specimen specimen, PatientPathway pathway, Pa
             PatientPathwayId = pathway.Id,
             PathwayTitle = pathway.Title,
             PatientId = specimen.PatientId,
+            TeamId = specimen.TeamId,
             StageId = specimen.StageId,
             StageName = stage?.Name,
             Action = action,

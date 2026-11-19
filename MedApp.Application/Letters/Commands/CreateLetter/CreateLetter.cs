@@ -70,6 +70,7 @@ public sealed class CreateLetterHandler(
         {
             Id = Guid.NewGuid(),
             PatientId = pathway?.PatientId ?? referral!.PatientId,
+            TeamId = teamId,
             PathwayId = pathway?.Id,
             ReferralId = referral?.Id,
             TemplateId = template.Id,

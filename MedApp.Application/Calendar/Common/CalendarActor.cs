@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 
 namespace MedApp.Application.Calendar.Common;
 
@@ -7,8 +8,16 @@ namespace MedApp.Application.Calendar.Common;
 /// can read any calendar, but only its owner or a holder of <see cref="Permission.ManageAnyCalendar"/> changes it, and
 /// only holders of <see cref="Permission.ArrangeMeetings"/> change meetings.
 /// </summary>
-public sealed record CalendarActor(Guid UserId, string Username, IReadOnlySet<Permission>? Permissions = null)
+/// <remarks>
+/// <paramref name="Scope"/> is their team walls (<see cref="TeamScope"/>, from the request; MC5 masks other teams'
+/// appointments with it). Null only outside a request, which is unscoped.
+/// </remarks>
+public sealed record CalendarActor(
+    Guid UserId, string Username, IReadOnlySet<Permission>? Permissions = null, TeamScope? Scope = null)
 {
+    /// <summary>Their team walls: a request's scope, or the system's outside a request.</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
+
     public const string NotYourCalendar = "You can't change someone else's calendar.";
     public const string NotYourTemplates = "You can't change someone else's calendar templates.";
     public const string CantSetHours = "Only staff who manage clinics or anyone's calendar can set working hours.";
@@ -39,7 +48,8 @@ public sealed record CalendarActor(Guid UserId, string Username, IReadOnlySet<Pe
         other is not null
         && UserId == other.UserId
         && Username == other.Username
-        && (Permissions ?? Empty).SetEquals(other.Permissions ?? Empty);
+        && (Permissions ?? Empty).SetEquals(other.Permissions ?? Empty)
+        && Equals(Scope, other.Scope);
 
     public override int GetHashCode() => HashCode.Combine(UserId, Username, Permissions?.Count ?? 0);
 

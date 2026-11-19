@@ -13,6 +13,12 @@ public sealed class Appointment
     public Guid Id { get; init; }
 
     public Guid PatientId { get; set; }
+
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its stage's pathway's, else the team chosen at booking (the clinician's). Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
     public Patient Patient { get; set; } = null!;
 
     /// <summary>The pathway it's for, if any. Set to none when the pathway is deleted (its history keeps it).</summary>

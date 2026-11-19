@@ -27,6 +27,12 @@ public sealed class Specimen
     public string Number { get; init; } = string.Empty;
 
     public Guid PatientId { get; init; }
+
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its pathway's. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
     public Patient Patient { get; set; } = null!;
 
     /// <summary>The pathway whose stage took it.</summary>

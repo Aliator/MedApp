@@ -58,4 +58,10 @@ public sealed record PatientResponse(
     public bool IsAnonymised { get; init; }
 
     public DateTime? AnonymisedAtUtc { get; init; }
+
+    /// <summary>
+    /// The patient's pathways in teams the viewer can't see into, as summary lines only (the team walls); empty for an
+    /// admin, who sees every team's.
+    /// </summary>
+    public List<OtherTeamPathwaySummaryResponse>? OtherTeamPathways { get; init; }
 }

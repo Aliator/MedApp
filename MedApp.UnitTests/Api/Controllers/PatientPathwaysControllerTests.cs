@@ -1,4 +1,5 @@
-﻿using AutoFixture;
+﻿using MedApp.Application.Common.Teams;
+using AutoFixture;
 using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
 using MedApp.API.Controllers;
@@ -35,7 +36,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 public sealed class PatientPathwaysControllerTests
 {
     // As the controllers see it: signed in with the old User role, now "All staff (before roles)".
-    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff);
+    private static readonly PathwayActor Actor = new(UserId, Username, TestPermissions.Staff, TeamScope.For(UserId, [], TestPermissions.Staff));
     private IFixture _fixture = null!;
     private PatientPathwayResponse _pathway = null!;
     private RecordingMediator _mediator = null!;
@@ -79,7 +80,7 @@ public sealed class PatientPathwaysControllerTests
 
     [Test]
     public async Task GetPatientPathwayById_ReturnsIt() =>
-        ExpectSentAndOk(new GetPatientPathwayByIdQuery(RecordId, UserId, TestPermissions.Staff), await Controller.GetPatientPathwayById(RecordId, _cts.Token));
+        ExpectSentAndOk(new GetPatientPathwayByIdQuery(RecordId, UserId, TestPermissions.Staff, Actor.Scope), await Controller.GetPatientPathwayById(RecordId, _cts.Token));
 
     [Test]
     public async Task AddPathwayNote_ReturnsTheNoteWithItsPathwaysAddress()
@@ -125,7 +126,7 @@ public sealed class PatientPathwaysControllerTests
             request.TemplateId, request.Statuses, request.Priority, request.AssignedToUserId, request.AssignedToMe,
             request.OverdueOnly, request.DueFrom, request.DueTo, request.IncludeClosed, request.Started, UserId,
             request.Priorities, request.Title, request.TemplateName, request.PatientName, request.NobodyAssigned,
-            request.TeamIds, request.StageDefinitionIds, request.BreachedOnly));
+            request.TeamIds, request.StageDefinitionIds, request.BreachedOnly, Actor.Scope));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
 
@@ -198,7 +199,8 @@ public sealed class PatientPathwaysControllerTests
         (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(delete, SignedIn("Admin"))).Should().BeTrue();
         (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(delete, SignedIn("User"))).Should().BeFalse();
         (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(request, SignedIn("User"))).Should().BeTrue();
-        (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(request, SignedIn("Admin"))).Should().BeTrue();
+        // Admins are read only (decision 208): they delete a note themselves, never ask.
+        (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(request, SignedIn("Admin"))).Should().BeFalse();
         (await ControllerAuthorisation.MayCallAsync<PatientPathwaysController>(request, SignedIn())).Should().BeFalse();
     }
 
@@ -246,7 +248,7 @@ public sealed class PatientPathwaysControllerTests
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, request, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles(role) }, WithoutVisit: true, Reason: "Synthetic reason.", CanFinishWithoutVisit: mayFinishWithoutVisit), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles(role), Scope = TeamScope.For(UserId, [], TestPermissions.ForRoles(role)) }, WithoutVisit: true, Reason: "Synthetic reason.", CanFinishWithoutVisit: mayFinishWithoutVisit), result);
     }
 
     [Test]
@@ -256,7 +258,7 @@ public sealed class PatientPathwaysControllerTests
 
         var result = await controller.FinishPathwayStage(RecordId, OtherId, null, _cts.Token);
 
-        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles("Senior clinician") }, WithoutVisit: false, Reason: null, CanFinishWithoutVisit: true), result);
+        ExpectSentAndOk(new FinishPathwayStageCommand(RecordId, OtherId, Actor with { Permissions = TestPermissions.ForRoles("Senior clinician"), Scope = TeamScope.For(UserId, [], TestPermissions.ForRoles("Senior clinician")) }, WithoutVisit: false, Reason: null, CanFinishWithoutVisit: true), result);
     }
 
     [TestCase("Admin", false)]
@@ -268,7 +270,7 @@ public sealed class PatientPathwaysControllerTests
         var result = await controller.SkipPathwayStage(RecordId, OtherId, new SkipPathwayStageRequest { Reason = "Other", Detail = "Synthetic detail." }, _cts.Token);
 
         ExpectSentAndOk(new SkipPathwayStageCommand(RecordId, OtherId, "Other", "Synthetic detail.",
-            Actor with { Permissions = TestPermissions.ForRoles(role) }, mayFinishWithoutVisit), result);
+            Actor with { Permissions = TestPermissions.ForRoles(role), Scope = TeamScope.For(UserId, [], TestPermissions.ForRoles(role)) }, mayFinishWithoutVisit), result);
     }
 
     [Test]

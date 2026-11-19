@@ -5,6 +5,12 @@ namespace MedApp.Application.Pathways.PatientPathways.Queries.GetPatientPathwayL
 
 /// <summary>
 /// These pathways' titles and patients' names, for the side nav's pins: labels for records the user already chose,
-/// not a read of them, so nothing is recorded in the activity log. Pathways that no longer exist are left out.
+/// not a read of them, so nothing is recorded in the activity log. Pathways that no longer exist, or are behind the
+/// viewer's team wall (<paramref name="Scope"/>; null only outside a request, which is unscoped), are left out.
 /// </summary>
-public sealed record GetPatientPathwayLabelsQuery(IReadOnlyList<Guid> Ids) : IRequest<IReadOnlyList<PatientPathwayLabelResponse>>;
+public sealed record GetPatientPathwayLabelsQuery(IReadOnlyList<Guid> Ids, MedApp.Application.Common.Teams.TeamScope? Scope = null)
+    : IRequest<IReadOnlyList<PatientPathwayLabelResponse>>
+{
+    /// <summary>The viewer's team walls: the request's, or the system's outside a request.</summary>
+    public MedApp.Application.Common.Teams.TeamScope Teams => Scope ?? MedApp.Application.Common.Teams.TeamScope.System;
+}

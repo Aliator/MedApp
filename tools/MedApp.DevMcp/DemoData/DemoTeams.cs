@@ -120,7 +120,9 @@ public static class DemoTeams
     {
         var lead = staff[0];
         var count = 0;
-        foreach (var member in staff.Where(m => m.Kind != StaffKind.Leaver))
+        // An admin is in no team (MC3, decision 209): the clinical lead and the service manager (an admin later) get
+        // none. MC12 moves their clinical work to staff accounts.
+        foreach (var member in staff.Where(m => m.Kind is not (StaffKind.Leaver or StaffKind.ClinicalLead or StaffKind.ServiceManager)))
         {
             var names = For(member.Kind);
             if (names.Count == 0)
@@ -130,7 +132,7 @@ public static class DemoTeams
             services.At(from.AddMinutes(2), lead.ActivityActor);
             await services.Run(sp => Guards.Validated(() =>
                 sp.GetRequiredService<IMediator>().Send(
-                    new SetUserTeamsCommand(member.Username, names.Select(n => teams.Ids[n]).ToList()), ct)));
+                    new SetUserTeamsCommand(member.Username, names.Select(n => new TeamChoice(teams.Ids[n])).ToList()), ct)));
             count += names.Count;
         }
 

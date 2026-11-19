@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Attachments.Repositories;
@@ -13,7 +14,8 @@ public sealed class GetAttachmentsHandler(
     IAttachmentRepository attachments,
     IPatientRepository patients,
     IPatientPathwayRepository pathways,
-    IActivityLog activityLog)
+    IActivityLog activityLog,
+    ITeamBoundary boundary)
     : IRequestHandler<GetAttachmentsQuery, AttachmentListResponse>
 {
     public async Task<AttachmentListResponse> Handle(GetAttachmentsQuery request, CancellationToken cancellationToken)
@@ -21,6 +23,14 @@ public sealed class GetAttachmentsHandler(
         // A 404 for a patient, pathway, stage or referral that doesn't exist, rather than an empty list.
         var target = await AttachmentTargets.ResolveAsync(
             request.PatientId, request.PathwayId, request.StageId, request.ReferralId, patients, pathways, attachments, cancellationToken);
+
+        // A pathway's, stage's or referral's files behind the viewer's team wall: a 404, as for one that isn't there.
+        if (target.Pathway is { } pathway)
+            await boundary.EnsurePathwayVisibleAsync(
+                pathway, request.Teams, Pathways.Common.PathwayRepositoryExtensions.NotFoundMessage(pathway.Id), cancellationToken);
+        else if (target.Referral is { } referral)
+            await boundary.EnsureTeamVisibleAsync(
+                "Referral", referral.Id, referral.TeamId, request.Teams, $"Referral '{referral.Id}' was not found.", cancellationToken);
 
         var (rows, totalCount) = await attachments.ListAsync(request, cancellationToken);
 

@@ -68,6 +68,7 @@ public static class MdtAudit
         PatientPathwayId = pathway.Id,
         PathwayTitle = pathway.Title,
         PatientId = item.PatientId,
+        TeamId = pathway.TeamId,
         Action = action,
         UserId = actor.UserId,
         Username = actor.Username,

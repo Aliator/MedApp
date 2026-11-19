@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Monitoring.Common;
 using MedApp.Application.Notifications.Common;
@@ -10,6 +11,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.DeletePathwayNote;
 
 public sealed class DeletePathwayNoteHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     INoteDeletionRequestRepository requests,
     IPathwayMonitor pathwayMonitor,
@@ -21,7 +23,7 @@ public sealed class DeletePathwayNoteHandler(
     {
         // A 409 for a restricted or anonymised record, as for every change to a pathway. Any status otherwise: deleting
         // is a correction (a note on the wrong patient), as an admin can delete a file at any time.
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForCorrectionOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var note = pathway.Notes.FirstOrDefault(n => n.Id == request.NoteId)
                    ?? throw new NotFoundException($"Note '{request.NoteId}' was not found on this pathway.");
 

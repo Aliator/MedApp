@@ -9,4 +9,10 @@ public sealed class TeamMembershipResponse
 
     /// <summary>They still belong to it, but it can't be given to anyone new.</summary>
     public bool IsArchived { get; set; }
+
+    /// <summary><c>Clinic</c> or <c>Lab</c>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>Their role in it: <c>Member</c> or <c>ClinicAdmin</c>.</summary>
+    public string Role { get; set; } = string.Empty;
 }

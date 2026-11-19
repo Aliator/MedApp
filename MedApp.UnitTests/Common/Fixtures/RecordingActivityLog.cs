@@ -20,6 +20,12 @@ public sealed class RecordingActivityLog : IActivityLog
     /// <summary>Calls to <see cref="RecordViewsAsync"/>.</summary>
     public List<(ActivityAction Action, List<Guid> PatientIds, Guid? PathwayId)> Views { get; } = [];
 
+    /// <summary>The details each call to <see cref="RecordViewsAsync"/> gave, as the log would store them ("{}" for none).</summary>
+    public List<string> ViewDetails { get; } = [];
+
+    /// <summary>Calls to <see cref="RecordOnceAsync"/>, with their details as the log would store them.</summary>
+    public List<(ActivityAction Action, string Details)> Once { get; } = [];
+
     /// <summary>Calls to <see cref="RecordViewAsync"/>, with their details as the log would store them.</summary>
     public List<(ActivityAction Action, Guid PatientId, string Details)> SingleViews { get; } = [];
 
@@ -57,9 +63,11 @@ public sealed class RecordingActivityLog : IActivityLog
         return Task.CompletedTask;
     }
 
-    public Task RecordViewsAsync(ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null)
+    public Task RecordViewsAsync(
+        ActivityAction action, IEnumerable<Guid> patientIds, CancellationToken ct, Guid? pathwayId = null, object? details = null)
     {
         Views.Add((action, patientIds.ToList(), pathwayId));
+        ViewDetails.Add(ActivityLog.SerializeDetails(details));
         Tokens.Add(ct);
         return Task.CompletedTask;
     }
@@ -67,6 +75,13 @@ public sealed class RecordingActivityLog : IActivityLog
     public Task RecordViewAsync(ActivityAction action, Guid patientId, object details, CancellationToken ct)
     {
         SingleViews.Add((action, patientId, ActivityLog.SerializeDetails(details)));
+        Tokens.Add(ct);
+        return Task.CompletedTask;
+    }
+
+    public Task RecordOnceAsync(ActivityAction action, object details, CancellationToken ct)
+    {
+        Once.Add((action, ActivityLog.SerializeDetails(details)));
         Tokens.Add(ct);
         return Task.CompletedTask;
     }

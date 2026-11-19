@@ -62,6 +62,7 @@ public static class ServiceExtensions
         // The activity log (the host provides IActivityContext, the request's actor), and its and the retention
         // schedule's settings, which the host binds to its configuration.
         services.AddScoped<IActivityLog, ActivityLog>();
+        services.AddScoped<MedApp.Application.Common.Teams.ITeamBoundary, MedApp.Application.Common.Teams.TeamBoundary>();
         services.AddOptions<ActivityOptions>();
         services.AddOptions<RetentionOptions>();
         // Which email domains a practice's secure address may be in (the host binds it, the Letters section).

@@ -1,3 +1,4 @@
+using MedApp.Domain.Teams;
 using MedApp.Domain.Letters;
 using MedApp.Domain.Patients;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -12,6 +13,14 @@ public sealed class LetterConfiguration : IEntityTypeConfiguration<Letter>
     public void Configure(EntityTypeBuilder<Letter> builder)
     {
         builder.ToTable("Letters");
+
+        // Its team (the team walls, decision 200): set when it's made, never edited by hand. A team anything has is
+        // archived, never deleted.
+        builder.HasOne<Team>()
+            .WithMany()
+            .HasForeignKey(x => x.TeamId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(x => x.TeamId);
 
         builder.HasKey(x => x.Id);
 

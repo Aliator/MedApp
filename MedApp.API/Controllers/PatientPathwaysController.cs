@@ -64,7 +64,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientPathwayById(Guid id, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.GetPermissions()), ct));
+        Ok(await mediator.Send(new GetPatientPathwayByIdQuery(id, User.GetUserId(), User.GetPermissions(), User.ToTeamScope()), ct));
 
     /// <summary>
     /// Pathways' titles and patients' names only, for the side nav's pins (at most 20). Not recorded in the activity
@@ -75,7 +75,7 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [RequirePermission(Permission.ViewPatients)]
     public async Task<IActionResult> GetPatientPathwayLabels([FromQuery] List<Guid>? ids, CancellationToken ct) =>
-        Ok(await mediator.Send(new GetPatientPathwayLabelsQuery(ids ?? []), ct));
+        Ok(await mediator.Send(new GetPatientPathwayLabelsQuery(ids ?? [], User.ToTeamScope()), ct));
 
     /// <summary>One page of pathways. By default sorted by target date, soonest first, without closed ones.</summary>
     [HttpGet("search")]
@@ -108,7 +108,8 @@ public sealed class PatientPathwaysController(IMediator mediator) : ControllerBa
             request.NobodyAssigned,
             request.TeamIds,
             request.StageDefinitionIds,
-            request.BreachedOnly), ct));
+            request.BreachedOnly,
+            User.ToTeamScope()), ct));
 
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(PatientPathwayResponse), StatusCodes.Status200OK)]

@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using FluentValidation;
 using FluentValidation.Results;
 using MedApp.Application.Appointments.Repositories;
@@ -15,6 +16,7 @@ using MediatR;
 namespace MedApp.Application.Pathways.PatientPathways.Commands.FinishPathwayStage;
 
 public sealed class FinishPathwayStageHandler(
+    ITeamBoundary boundary,
     IPatientPathwayRepository repository,
     IAppointmentRepository appointmentRepository,
     ILetterRepository letterRepository,
@@ -30,7 +32,7 @@ public sealed class FinishPathwayStageHandler(
 
     public async Task<PatientPathwayResponse> Handle(FinishPathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, cancellationToken);
+        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
         var stage = pathway.GetStageOrThrow(request.StageId);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

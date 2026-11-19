@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.UnitTests.Common.Constants;
 using AutoFixture;
 using FluentAssertions;
@@ -19,7 +20,7 @@ namespace MedApp.UnitTests.Api.Controllers;
 [TestFixture]
 public sealed class MeetingsControllerTests
 {
-    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin);
+    private static readonly CalendarActor AdminActor = new(UserId, Username, TestPermissions.Admin, TeamScope.For(UserId, [], TestPermissions.Admin));
     private IFixture _fixture = null!;
     private CancellationTokenSource _cts = null!;
 
@@ -45,7 +46,7 @@ public sealed class MeetingsControllerTests
 
         var result = await Controller(mediator, role).GetMeeting(RecordId, _cts.Token);
 
-        mediator.Request.Should().Be(new GetMeetingByIdQuery(RecordId, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin))));
+        mediator.Request.Should().Be(new GetMeetingByIdQuery(RecordId, new CalendarActor(UserId, Username, TestPermissions.For(isAdmin), TeamScope.For(UserId, [], TestPermissions.For(isAdmin)))));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
     }
@@ -162,7 +163,7 @@ public sealed class MeetingsControllerTests
         var result = await Controller(mediator, role).ReplyToMeeting(RecordId, request, _cts.Token);
 
         mediator.Request.Should().Be(new ReplyToMeetingCommand(
-            RecordId, "Declined", start, start.AddHours(1), new CalendarActor(UserId, Username, TestPermissions.For(isAdmin))));
+            RecordId, "Declined", start, start.AddHours(1), new CalendarActor(UserId, Username, TestPermissions.For(isAdmin), TeamScope.For(UserId, [], TestPermissions.For(isAdmin)))));
         mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(meeting);
     }

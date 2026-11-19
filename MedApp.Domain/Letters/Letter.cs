@@ -32,6 +32,12 @@ public sealed class Letter
 
     public Guid PatientId { get; init; }
 
+    /// <summary>
+    /// The team it belongs to (the team walls, decision 200 of <c>docs/multi-clinic-plan.md</c>): its pathway's, else its referral's. Set when
+    /// it's made, never edited by hand.
+    /// </summary>
+    public Guid TeamId { get; set; }
+
     /// <summary>The pathway it's about, if any; at least one of this and <see cref="ReferralId"/> is set.</summary>
     public Guid? PathwayId { get; init; }
 

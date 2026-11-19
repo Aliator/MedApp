@@ -44,6 +44,59 @@ public sealed class CreatePatientPathwayHandlerTests : PathwayHandlerTestBase
         new(_patient.Id, _template.Id, title, "Some notes", Today.AddDays(10), "high", Staff);
 
     [Test]
+    public async Task Handle_New_GrantsItsOwnTeamAccessInTheSameSave()
+    {
+        await Fixture.Create<CreatePatientPathwayHandler>().Handle(Command(), CancellationToken.None);
+
+        var change = SavedChanges.Should().ContainSingle().Subject;
+        var grant = change.NewGrants.Should().ContainSingle().Subject;
+        grant.Should().BeEquivalentTo(new
+        {
+            PathwayId = change.Pathway.Id,
+            PatientId = _patient.Id,
+            TeamId = (Guid?)_template.TeamId,
+            UserId = (Guid?)null,
+            Reason = MedApp.Domain.Teams.PathwayAccessReason.Owner,
+            StartedAtUtc = Now,
+            EndedAtUtc = (DateTime?)null,
+        });
+        change.Pathway.TeamId.Should().Be(_template.TeamId);
+    }
+
+    [Test]
+    public async Task Handle_AnotherTeamsTemplate_IsRefusedWithoutAdding()
+    {
+        var otherTeam = new MedApp.Application.Common.Teams.TeamScope(Staff.UserId, [Guid.NewGuid()], seesAllTeams: false);
+        var command = Command() with { Actor = Staff with { Scope = otherTeam } };
+
+        var act = () => Fixture.Create<CreatePatientPathwayHandler>().Handle(command, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>()).Which.Errors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(MedApp.Application.Common.Teams.TeamWalls.TemplateNotYours(TemplateName));
+        Repository.Verify(r => r.AddAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_TheirOwnTeamsTemplate_IsAllowed()
+    {
+        var ownTeam = new MedApp.Application.Common.Teams.TeamScope(Staff.UserId, [_template.TeamId], seesAllTeams: false);
+
+        await Fixture.Create<CreatePatientPathwayHandler>().Handle(Command() with { Actor = Staff with { Scope = ownTeam } }, CancellationToken.None);
+
+        SavedChanges.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task Handle_AnAdmin_StartsNoPathway()
+    {
+        var admin = new MedApp.Application.Common.Teams.TeamScope(Staff.UserId, [], seesAllTeams: true);
+
+        var act = () => Fixture.Create<CreatePatientPathwayHandler>().Handle(Command() with { Actor = Staff with { Scope = admin } }, CancellationToken.None);
+
+        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
+    }
+
+    [Test]
     public async Task Handle_PatientDoesNotExist_ThrowsNotFound()
     {
         var command = Command() with { PatientId = Guid.NewGuid() };

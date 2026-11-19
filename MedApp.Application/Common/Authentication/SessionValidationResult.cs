@@ -13,11 +13,16 @@ namespace MedApp.Application.Common.Authentication;
 /// What the user's roles allow, read with the roles on every request (null: nothing). Policies check these, never the
 /// role names.
 /// </param>
+/// <param name="TeamIds">
+/// The teams the user belongs to, read with the roles on every request (null: none): their team walls
+/// (<c>TeamScope</c>).
+/// </param>
 public sealed record SessionValidationResult(
     Guid UserId,
     string Username,
     IReadOnlyCollection<string> Roles,
     bool MustChangePassword = false,
     bool MustSetUpTwoFactor = false,
-    IReadOnlySet<Permission>? Permissions = null
+    IReadOnlySet<Permission>? Permissions = null,
+    IReadOnlyList<Guid>? TeamIds = null
 );
