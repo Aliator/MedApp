@@ -3,6 +3,7 @@ import {personById, usernameOf} from '../accounts';
 import {invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
 import {specimenNumber, type DemoSpecimen, type DemoSpecimenType, type SpecimenStatus} from '../slices/lab';
+import {teamName} from '../seed';
 import type {DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc, today} from '../time';
@@ -16,12 +17,11 @@ import {
   patientFlags,
   stepTime,
   ukShortDate,
-  withArticle,
 } from './labCommon';
 import {isAwaitingResult, registerResults} from './labResults';
 import {registerLabTests} from './labTests';
 import {findPathway, isCurrentStage} from './pathways';
-import {canSeeRecord, myScope, passToLab, seeRecord} from './teamWalls';
+import {canSeeRecord, labTeamId, myScope, passToLab, refuseAcrossWall, type TeamScope} from './teamWalls';
 
 /**
  * Specimens, the samples page and specimen types (lab tests: `labTests.ts`; results: `labResults.ts`), a simplified copy of the API's
@@ -46,13 +46,13 @@ const DESCRIBE: Record<SpecimenStatus, string> = {
 
 const REJECTION_REASONS = ['Unlabelled', 'Mislabelled', 'Leaked', 'InsufficientSample', 'WrongContainer', 'Other'];
 
-const CHANGED_MEANWHILE = 'Someone else changed this specimen while you had it open. Reload it to see their change, then try again.';
+const CHANGED_MEANWHILE = 'Someone else changed this sample while you had it open. Reload it to see their change, then try again.';
 const RESTRICTED_TAKE =
-  "This patient's record is restricted, so a specimen can't be recorded for them until an admin lifts the restriction. Ask an admin what to do with the specimen.";
+  "This patient's record is restricted, so a sample can't be recorded for them until an admin lifts the restriction. Ask an admin what to do with the sample.";
 const RESTRICTED_EDIT =
-  "This patient's record is restricted: the specimen can still go on to the lab and be reported, but its details can't be changed.";
+  "This patient's record is restricted: the sample can still go on to the lab and be reported, but its details can't be changed.";
 const EIE_NOT_ALLOWED =
-  'Only whoever recorded this specimen can mark it entered in error, within 24 hours of recording it. After that, ask an admin.';
+  'Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask an admin.';
 const MAX_NAME = 100;
 
 const typeOf = (specimen: DemoSpecimen) => db().specimenTypes.find((t) => t.id === specimen.specimenTypeId);
@@ -60,15 +60,44 @@ const expectedBy = (specimen: DemoSpecimen) => addDaysUtc(specimen.takenAtUtc, t
 const isOverdueAtLab = (specimen: DemoSpecimen) => isOpenSpecimen(specimen) && Date.parse(nowUtc()) > Date.parse(expectedBy(specimen));
 const stageOf = (specimen: DemoSpecimen) =>
   db().pathways.find((p) => p.id === specimen.pathwayId)?.stages.find((s) => s.id === specimen.stageId);
+const labTestOf = (specimen: DemoSpecimen) => db().labTests.find((t) => t.id === specimen.labTestId);
+const hospitalName = (hospitalId: string | null) => (hospitalId ? (db().hospitals.find((h) => h.id === hospitalId)?.name ?? 'The hospital') : null);
+/** Where a sample came from, in words: its clinic's name, or its hospital's. */
+const sourceName = (specimen: DemoSpecimen) =>
+  specimen.source === 'Hospital' ? hospitalName(specimen.hospitalId) : teamName(specimen.requestingTeamId);
+
+/** How many days before it's expected a sample counts as due soon (MC19 brings each test's own at-risk days). */
+const DUE_SOON_DAYS = 2;
+
+/** Whether a sample's due date matches the samples page's Due filter: open ones only, by `expectedBy`. */
+function matchesDue(specimen: DemoSpecimen, due: string | null | undefined): boolean {
+  if (!due) return true;
+  if (!isOpenSpecimen(specimen)) return false;
+  const left = Date.parse(expectedBy(specimen)) - Date.parse(nowUtc());
+  if (due === 'Overdue') return left < 0;
+  if (due === 'DueSoon') return left >= 0 && left <= DUE_SOON_DAYS * 86400_000;
+  if (due === 'NotDue') return left > DUE_SOON_DAYS * 86400_000;
+  return true;
+}
+
+/**
+ * Whether the viewer sees a sample (decision 200, MC14): the lab sees every one, a clinic its own team's (or a pathway
+ * it can see), and a hospital's only the lab (and admins, who see all).
+ */
+export function canSeeSample(specimen: DemoSpecimen, scope: TeamScope = myScope()): boolean {
+  const lab = labTeamId();
+  if (scope.seesAllTeams || (lab !== null && scope.teamIds.includes(lab))) return true;
+  return specimen.source === 'Clinic' && canSeeRecord(specimen, scope);
+}
 
 const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Completed: 'discharged', Cancelled: 'cancelled', Archived: 'archived'};
 
 /** `SpecimenWorkflow.WhyCantTake`: the stage must be editable (the current one, or one unlocked) and the pathway open. */
 function whyCantTake(pathway: DemoPathway, stage: DemoStage): string | null {
   if (!['Unassigned', 'Assigned', 'InProgress', 'InReview'].includes(pathway.status))
-    return `A specimen can't be recorded while the pathway is ${PATHWAY_STATUS_WORDS[pathway.status] ?? pathway.status}.`;
+    return `A sample can't be recorded while the pathway is ${PATHWAY_STATUS_WORDS[pathway.status] ?? pathway.status}.`;
   const editable = isCurrentStage(pathway, stage) || (stage.completedAtUtc !== null && stage.unlocked);
-  return editable ? null : 'A specimen can only be recorded at a stage being worked on. Finish the stages before it first.';
+  return editable ? null : 'A sample can only be recorded at a stage being worked on. Finish the stages before it first.';
 }
 
 /** Whether the signed-in person can record a specimen at this stage (the stage's `canRecordSpecimen`). */
@@ -88,7 +117,7 @@ export function labGate(pathway: DemoPathway, stage: DemoStage, isLast: boolean)
       .sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc) || a.number.localeCompare(b.number));
     if (open.length > 0) {
       const each = open.map((s) => `${s.number} (${typeOf(s)?.name ?? 'specimen'}, ${DESCRIBE[s.status]})`).join('; ');
-      const count = open.length === 1 ? 'a specimen is' : `${open.length} specimens are`;
+      const count = open.length === 1 ? 'a sample is' : `${open.length} samples are`;
       return `The pathway's last stage can't be finished while ${count} still with the lab: ${each}. Record each one's report, or mark it rejected, lost or entered in error.`;
     }
   }
@@ -107,6 +136,19 @@ const mayMarkEnteredInError = (specimen: DemoSpecimen) =>
   can('CorrectRecords') ||
   (specimen.recordedByUserId === me().id && can('RecordSpecimens') && Date.parse(nowUtc()) < Date.parse(addDaysUtc(specimen.recordedAtUtc, 1)));
 
+/** Where it came from and what it's for, as both responses carry them. */
+const sourceFields = (specimen: DemoSpecimen) => ({
+  source: specimen.source,
+  requestingTeamId: specimen.requestingTeamId,
+  requestingTeamName: teamName(specimen.requestingTeamId),
+  hospitalId: specimen.hospitalId,
+  hospitalName: hospitalName(specimen.hospitalId),
+  hospitalRequestId: specimen.hospitalRequestId,
+  labTestId: specimen.labTestId,
+  labTestName: labTestOf(specimen)?.name ?? null,
+  labCaseId: specimen.labCaseId,
+});
+
 function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummaryResponse'] {
   const patient = db().patients.find((p) => p.id === specimen.patientId);
   return {
@@ -116,6 +158,7 @@ function specimenSummary(specimen: DemoSpecimen): Schemas['SpecimenSummaryRespon
     patientName: patientName(specimen.patientId),
     patientNhsNumber: patient?.nhsNumber ?? null,
     patientDateOfBirth: patient?.dateOfBirth,
+    ...sourceFields(specimen),
     pathwayId: specimen.pathwayId,
     stageId: specimen.stageId,
     specimenTypeName: typeOf(specimen)?.name ?? null,
@@ -138,7 +181,7 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
   const processes = can('ProcessSpecimens');
   const pathway = db().pathways.find((p) => p.id === specimen.pathwayId);
   const readOnlyReason = !open
-    ? `This specimen has been ${DESCRIBE[specimen.status]}, so it can't be changed.`
+    ? `This sample has been ${DESCRIBE[specimen.status]}, so it can't be changed.`
     : flags.isAnonymised
       ? "This patient's record has been anonymised, so it can't be changed."
       : flags.isRestricted
@@ -150,6 +193,7 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
     patientId: specimen.patientId,
     patient: patientBanner(specimen.patientId),
     patientFlags: flags,
+    ...sourceFields(specimen),
     pathwayId: specimen.pathwayId,
     pathwayTitle: pathway?.title ?? null,
     stageId: specimen.stageId,
@@ -193,15 +237,21 @@ function specimenResponse(specimen: DemoSpecimen): Schemas['SpecimenResponse'] {
     // The full version draws the label's QR code on the server; the light demo shows the number as text only.
     label: {qrPath: null, size: 0},
     otherSpecimensFromStage: db()
-      .specimens.filter((s) => s.stageId === specimen.stageId && s.id !== specimen.id)
+      .specimens.filter((s) => specimen.stageId !== null && s.stageId === specimen.stageId && s.id !== specimen.id)
       .sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc))
       .map(specimenSummary),
   };
 }
 
-/** The specimen, or a 404: also when its pathway is behind the viewer's team wall (the lab sees those passed to it). */
+/** The sample, or a 404: also when it's behind the viewer's team wall (`canSeeSample`; the lab sees every one). */
 function findSpecimen(id: string): DemoSpecimen {
-  return seeRecord(db().specimens.find((s) => s.id === id), 'Specimen', 'The specimen');
+  return seeSample(db().specimens.find((s) => s.id === id));
+}
+
+function seeSample(specimen: DemoSpecimen | undefined): DemoSpecimen {
+  if (!specimen) refuse(notFound('The sample'));
+  if (!canSeeSample(specimen)) refuseAcrossWall('Specimen', specimen.id, 'The sample');
+  return specimen;
 }
 
 /** A step that can be taken now: from the version the page showed, and from the status it needs (`WhyCantMove`). */
@@ -212,15 +262,15 @@ function forStep(id: string, expectedVersion: number | undefined, to: SpecimenSt
   const from = specimen.status;
   const why =
     !isOpenSpecimen(specimen)
-      ? `This specimen has been ${DESCRIBE[from]}, so it can't be changed.`
+      ? `This sample has been ${DESCRIBE[from]}, so it can't be changed.`
       : to === 'Sent' && from !== 'Taken'
-        ? `Only a specimen not yet sent can be sent; this one has been ${DESCRIBE[from]}.`
+        ? `Only a sample not yet sent can be sent; this one has been ${DESCRIBE[from]}.`
         : to === 'Received' && from !== 'Sent'
           ? from === 'Taken'
-            ? 'Record the specimen as sent before the lab receives it.'
-            : `This specimen has already been ${DESCRIBE[from]}.`
+            ? 'Record the sample as sent before the lab receives it.'
+            : `This sample has already been ${DESCRIBE[from]}.`
           : to === 'RejectedByLab' && from === 'Taken'
-            ? 'Only a specimen sent to the lab can be rejected by it.'
+            ? 'Only a sample sent to the lab can be rejected by it.'
             : null;
   if (why) refuse(problem(409, why));
   return specimen;
@@ -232,10 +282,14 @@ function moved(specimen: DemoSpecimen) {
 
 /** The type and requesting clinician chosen for a specimen (`SpecimenChoices`): a 400 on the field otherwise. */
 function checkChoices(
-  body: {specimenTypeId?: string; requestingUserId?: string; site?: string | null; requestNotes?: string | null},
+  body: {specimenTypeId?: string; requestingUserId?: string; site?: string | null; requestNotes?: string | null; labTestId?: string | null},
   existing?: DemoSpecimen,
 ) {
   const errors: Record<string, string[]> = {};
+  // The test is optional and never chosen for the clinician (decision 191); an archived one only if it already had it.
+  const labTestId = body.labTestId || null;
+  const test = labTestId ? db().labTests.find((t) => t.id === labTestId) : undefined;
+  if (labTestId && (!test || (test.isArchived && test.id !== existing?.labTestId))) errors.labTestId = ["Choose a lab test that isn't archived, or none."];
   const type = db().specimenTypes.find((t) => t.id === body.specimenTypeId);
   if (!type || (type.isArchived && type.id !== existing?.specimenTypeId)) errors.specimenTypeId = ["Choose a specimen type that isn't archived."];
   const requesting = personById(body.requestingUserId);
@@ -245,10 +299,13 @@ function checkChoices(
   return {
     site: optionalText(body.site, 200, 'site', 'The site'),
     requestNotes: optionalText(body.requestNotes, 1000, 'requestNotes', 'The request notes'),
+    labTestId,
   };
 }
 
 const VIEW_ORDER: Record<string, {match: (s: DemoSpecimen) => boolean; key: (s: DemoSpecimen) => string; newestFirst?: boolean}> = {
+  // MC14's first tab: not yet at the lab (taken, or on its way), oldest taken first.
+  ToReceive: {match: (s) => s.status === 'Taken' || s.status === 'Sent', key: (s) => s.takenAtUtc},
   ToSend: {match: (s) => s.status === 'Taken', key: (s) => s.takenAtUtc},
   Expected: {match: (s) => s.status === 'Sent', key: (s) => s.sentAtUtc ?? ''},
   InLab: {match: (s) => s.status === 'Received', key: (s) => s.receivedAtUtc ?? ''},
@@ -261,7 +318,7 @@ const VIEW_ORDER: Record<string, {match: (s: DemoSpecimen) => boolean; key: (s: 
   All: {match: () => true, key: (s) => s.takenAtUtc, newestFirst: true},
 };
 
-/** What a specimen search asks for: a view, a pathway, a patient, text and a column to sort by. */
+/** What a sample search asks for: a view, a pathway, a patient, text, the samples page's filters and a column to sort by. */
 interface SpecimenListSearch {
   view?: string | null;
   pathwayId?: string | null;
@@ -269,10 +326,17 @@ interface SpecimenListSearch {
   search?: string | null;
   sort?: string | null;
   ascending?: boolean;
+  source?: string | null;
+  teamId?: string | null;
+  labTestId?: string | null;
+  status?: string | null;
+  due?: string | null;
 }
 
+const same = (a: string | null | undefined, b: string | null | undefined) => !b || a?.toLowerCase() === b.toLowerCase();
+
 /** The specimens a search finds, in the view's order or the column asked for (as `SpecimenSearch` in the API). */
-function specimenList({view: viewName, pathwayId, patientId, search, sort, ascending = true}: SpecimenListSearch) {
+function specimenList({view: viewName, pathwayId, patientId, search, sort, ascending = true, source, teamId, labTestId, status, due}: SpecimenListSearch) {
   const view = VIEW_ORDER[viewName ?? ''] ?? VIEW_ORDER.All;
   const term = search?.trim() ?? '';
   const compact = term.replace(/\s/g, '');
@@ -280,15 +344,22 @@ function specimenList({view: viewName, pathwayId, patientId, search, sort, ascen
   const items = db()
     .specimens.filter(
       (s) =>
-        canSeeRecord(s, scope) &&
+        canSeeSample(s, scope) &&
         view.match(s) &&
+        same(s.source, source) &&
+        same(s.requestingTeamId, teamId) &&
+        same(s.labTestId, labTestId) &&
+        same(s.status, status) &&
+        matchesDue(s, due) &&
         (!pathwayId || s.pathwayId === pathwayId) &&
         (!patientId || s.patientId === patientId) &&
         (!term ||
           contains(s.number, compact) ||
           contains(patientName(s.patientId), term) ||
           contains(db().patients.find((p) => p.id === s.patientId)?.nhsNumber, compact) ||
-          contains(typeOf(s)?.name, term)),
+          contains(typeOf(s)?.name, term) ||
+          contains(labTestOf(s)?.name, term) ||
+          contains(sourceName(s), term)),
     )
     .sort((a, b) => {
       const order = view.key(a).localeCompare(view.key(b)) || a.id.localeCompare(b.id);
@@ -299,6 +370,9 @@ function specimenList({view: viewName, pathwayId, patientId, search, sort, ascen
       number: (s) => s.number,
       patient: (s) => patientSortName(s.patientId),
       status: (s) => STATUS_ORDER.indexOf(s.status),
+      source: (s) => sourceName(s) ?? '',
+      test: (s) => labTestOf(s)?.name ?? '',
+      due: expectedBy,
       time: view.key,
     }) ?? items
   );
@@ -367,7 +441,7 @@ function registerSetupLists() {
     requirePermission('ManageSetup');
     const type = findType(params.id);
     if (!typeResponse(type).canBeDeleted)
-      return problem(409, `Specimens of type '${type.name}' have been recorded, so it can't be deleted. Archive it instead.`);
+      return problem(409, `Samples of type '${type.name}' have been recorded, so it can't be deleted. Archive it instead.`);
     db().specimenTypes = db().specimenTypes.filter((t) => t.id !== type.id);
   });
   on('post', '/api/specimen-types/{id}/archive', ({params}) => {
@@ -417,20 +491,20 @@ export function registerLab() {
   on('post', '/api/specimens/find', ({body}) => {
     requirePermission('ViewPatients');
     const number = (body.number ?? '').replace(/\s/g, '').toUpperCase();
-    if (!number || number.length > 20) return invalid({number: ['Type or scan the specimen number (at most 20 characters).']});
-    // The lab can't look up a sample it wasn't passed: another team's is a 404, as one that doesn't exist.
+    if (!number || number.length > 20) return invalid({number: ['Type or scan the sample number (at most 20 characters).']});
+    // A clinic can't look up another team's sample, or the hospital's: a 404, as one that doesn't exist.
     const specimen = db().specimens.find((s) => s.number.toUpperCase() === number);
-    return specimenResponse(seeRecord(specimen, 'Specimen', 'The specimen'));
+    return specimenResponse(seeSample(specimen));
   });
 
   on('post', '/api/pathways/{id}/specimens', ({params, body}) => {
     const viewer = me();
     requirePermission('RecordSpecimens');
     const pathway = findPathway(params.id);
-    if (!body.stageId) return invalid({stageId: ['Choose the stage that took the specimen.']});
+    if (!body.stageId) return invalid({stageId: ['Choose the stage that took the sample.']});
     const stage = pathway.stages.find((s) => s.id === body.stageId);
     if (!stage) return notFound('The stage');
-    const {site, requestNotes} = checkChoices(body);
+    const {site, requestNotes, labTestId} = checkChoices(body);
     if (patientFlags(pathway.patientId).isRestricted || patientFlags(pathway.patientId).isAnonymised) return problem(409, RESTRICTED_TAKE);
     const why = whyCantTake(pathway, stage);
     if (why) return problem(409, why);
@@ -440,6 +514,12 @@ export function registerLab() {
       id: newId(),
       number: specimenNumber(sequence, today()),
       patientId: pathway.patientId,
+      source: 'Clinic',
+      requestingTeamId: pathway.teamId,
+      hospitalId: null,
+      hospitalRequestId: null,
+      labTestId,
+      labCaseId: null,
       pathwayId: pathway.id,
       teamId: pathway.teamId,
       stageId: stage.id,
@@ -478,9 +558,9 @@ export function registerLab() {
     const specimen = findSpecimen(params.id);
     ensureVersion(body.expectedVersion, specimen.version, CHANGED_MEANWHILE);
     if (specimen.status !== 'Taken')
-      return problem(409, `A specimen's details can only be changed before it's sent; this one has been ${DESCRIBE[specimen.status]}.`);
+      return problem(409, `A sample's details can only be changed before it's sent; this one has been ${DESCRIBE[specimen.status]}.`);
     if (patientFlags(specimen.patientId).isRestricted || patientFlags(specimen.patientId).isAnonymised) return problem(409, RESTRICTED_EDIT);
-    const {site, requestNotes} = checkChoices(body, specimen);
+    const {site, requestNotes, labTestId} = checkChoices(body, specimen);
     if (!body.takenAtUtc) return invalid({takenAtUtc: ['Give the time it was taken.']});
     const takenAtUtc = Date.parse(body.takenAtUtc) === Date.parse(specimen.takenAtUtc) ? specimen.takenAtUtc : stepTime(body.takenAtUtc, null, 'taken', 'takenAtUtc');
     Object.assign(specimen, {
@@ -488,6 +568,7 @@ export function registerLab() {
       requestingUserId: body.requestingUserId,
       site,
       requestNotes,
+      labTestId,
       takenAtUtc,
     });
     moved(specimen);
@@ -529,8 +610,8 @@ export function registerLab() {
     specimen.rejectionReason = body.reason!;
     notify([specimen.requestingUserId, specimen.takenByUserId], viewer.id, {
       kind: 'SpecimenRejectedByLab',
-      title: 'Specimen rejected',
-      message: `The lab rejected ${withArticle(typeOf(specimen)?.name ?? 'lab')} specimen.`,
+      title: 'Sample rejected',
+      message: `The lab rejected a sample (${typeOf(specimen)?.name ?? 'no type'}).`,
       pathwayId: specimen.pathwayId,
       subjectId: specimen.id,
     });
@@ -541,14 +622,14 @@ export function registerLab() {
     const viewer = me();
     requirePermission('ViewPatients');
     if (!can('RecordSpecimens') && !can('ProcessSpecimens'))
-      return problem(403, "Your roles don't allow recording specimens, so you can't mark one lost.");
+      return problem(403, "Your roles don't allow recording samples, so you can't mark one lost.");
     const specimen = forStep(params.id, body.expectedVersion, 'Lost');
     const detail = closingDetail(body.detail);
     close(specimen, 'Lost', viewer.id, detail);
     notify([specimen.requestingUserId, specimen.takenByUserId], viewer.id, {
       kind: 'SpecimenLost',
-      title: 'Specimen lost',
-      message: `${viewer.username} marked ${withArticle(typeOf(specimen)?.name ?? 'lab')} specimen lost.`,
+      title: 'Sample lost',
+      message: `${viewer.username} marked a sample lost (${typeOf(specimen)?.name ?? 'no type'}).`,
       pathwayId: specimen.pathwayId,
       subjectId: specimen.id,
     });

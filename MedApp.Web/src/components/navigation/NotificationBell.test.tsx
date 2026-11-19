@@ -318,7 +318,7 @@ describe('NotificationBell', () => {
     const team = '0000000c-0000-0000-0000-0000000000a1';
     const base = {...unread, pathwayId: null, appointmentId: null, subjectId: team};
     const referrals = {...base, id: '0000000c-0000-0000-0000-000000000041', kind: 'MonitoredReferralNotTriaged', title: 'Referrals awaiting triage'};
-    const specimens = {...base, id: '0000000c-0000-0000-0000-000000000042', kind: 'MonitoredSpecimenOverdue', title: 'Specimens overdue'};
+    const specimens = {...base, id: '0000000c-0000-0000-0000-000000000042', kind: 'MonitoredSpecimenOverdue', title: 'Samples overdue'};
     mockApi({
       'GET /api/notifications': () => json({items: [referrals, specimens], unreadCount: 2}),
       'POST /api/notifications/*': () => new Response(null, {status: 204}),
@@ -328,7 +328,7 @@ describe('NotificationBell', () => {
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
     expect(list.getByRole('link', {name: /^Referrals awaiting triage/})).toHaveAttribute('href', `/referrals?team=${team}`);
-    expect(list.getByRole('link', {name: /^Specimens overdue/})).toHaveAttribute('href', '/lab/samples?view=Overdue');
+    expect(list.getByRole('link', {name: /^Samples overdue/})).toHaveAttribute('href', '/lab/samples?view=Overdue');
   });
 
   it("opens a triaged referral's notification on the referral, with the referrals icon", async () => {
@@ -363,18 +363,18 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/referrals/${referralId}`));
   });
 
-  it("opens a rejected or lost specimen's notification on the specimen, each with its own icon", async () => {
+  it("opens a rejected or lost sample's notification on the sample, each with its own icon", async () => {
     const specimenId = '00000051-0000-0000-0000-000000000001';
     const rejected = {
       ...unread,
       id: '0000000c-0000-0000-0000-000000000041',
       kind: 'SpecimenRejectedByLab',
-      title: 'Specimen rejected',
-      message: 'The lab rejected a Skin biopsy (punch) specimen.',
+      title: 'Sample rejected',
+      message: 'The lab rejected a Skin biopsy (punch) sample.',
       pathwayId,
       subjectId: specimenId,
     };
-    const lost = {...rejected, id: '0000000c-0000-0000-0000-000000000042', kind: 'SpecimenLost', title: 'Specimen lost', isRead: true};
+    const lost = {...rejected, id: '0000000c-0000-0000-0000-000000000042', kind: 'SpecimenLost', title: 'Sample lost', isRead: true};
     const fetch = mockApi({
       'GET /api/notifications': () => json({items: [rejected, lost], unreadCount: 1}),
       'POST /api/notifications/*': () => new Response(null, {status: 204}),
@@ -383,11 +383,11 @@ describe('NotificationBell', () => {
 
     await user.click(await screen.findByRole('button', {name: /^Notifications/}));
     const list = await panel();
-    expect(list.getByRole('link', {name: /^Specimen lost/})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    expect(list.getByRole('link', {name: /^Sample lost/})).toHaveAttribute('href', `/specimens/${specimenId}`);
     const icons = list.getAllByRole('listitem').map((item) => item.querySelector('svg')?.outerHTML);
     expect(icons[0]).toBeDefined();
     expect(icons[0]).not.toBe(icons[1]);
-    await user.click(list.getByRole('link', {name: /^Specimen rejected/}));
+    await user.click(list.getByRole('link', {name: /^Sample rejected/}));
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST /api/notifications/${rejected.id}/read`));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/specimens/${specimenId}`));

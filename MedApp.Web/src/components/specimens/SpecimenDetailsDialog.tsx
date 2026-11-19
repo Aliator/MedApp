@@ -7,6 +7,7 @@ import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
 import {staffWithPermissionQuery} from '../../api/calendar';
 import {ApiValidationError, fieldStatus, problemMessage, type ValidationErrors} from '../../api/errors';
+import {labTestsQuery} from '../../api/labTests';
 import {
   MAX_REQUEST_NOTES,
   specimenTypesQuery,
@@ -24,7 +25,10 @@ import {AppIcon} from '../shared/icons';
 import {StepTimeFields} from './StepTimeFields';
 
 /** The fields the API's 400 can name, each shown on its field; anything else goes above them. */
-const FIELDS = ['specimenTypeId', 'takenAtUtc', 'site', 'requestNotes', 'requestingUserId'];
+const FIELDS = ['specimenTypeId', 'labTestId', 'takenAtUtc', 'site', 'requestNotes', 'requestingUserId'];
+
+/** The test choice for none (MC14: the test is optional, and never chosen for the clinician). */
+const NO_TEST = 'none';
 
 /** Who can be a specimen's requesting clinician: holders of this permission (the API's `RequestingClinicianPermission`). */
 export const REQUESTING_PERMISSION = 'SignOffResults' as const;
@@ -50,8 +54,9 @@ function choices(items: readonly {id?: string; name?: string | null; isArchived?
 }
 
 /**
- * Recording a specimen taken at a pathway's stage (Record Specimen), or correcting one's details before it's sent
- * (Edit Specimen): its type (from the setup list, not archived), the requesting clinician (a holder of
+ * Recording a sample taken at a pathway's stage (Record Sample), or correcting one's details before it's sent
+ * (Edit Sample): its type (from the setup list, not archived), optionally the test asked of the lab (MC14; never
+ * pre-chosen), the requesting clinician (a holder of
  * SignOffResults, starting with you when you are one), when it was taken (now, or up to a week back), and optionally the
  * site and notes for the lab, which are free text in the clinical record. The patient shows as the banner does, and
  * the stage and pathway, so it's recorded on the right one (hazard H-47). A 400 shows on its fields; a 409 or 403 in
@@ -64,11 +69,13 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
   // Archived types come too when correcting, so one the specimen already has can stay.
   const types = useQuery({...specimenTypesQuery(isEditing), enabled: isOpen});
   const staff = useQuery({...staffWithPermissionQuery(REQUESTING_PERMISSION), enabled: isOpen});
+  const tests = useQuery({...labTestsQuery(isEditing), enabled: isOpen});
   const recordSpecimen = useRecordSpecimen(record?.pathwayId ?? '');
   const actions = useSpecimenActions(specimen?.id ?? '');
   const saving = isEditing ? actions.edit : recordSpecimen;
 
   const [typeId, setTypeId] = useState(specimen?.specimenTypeId ?? '');
+  const [testId, setTestId] = useState(specimen?.labTestId ?? '');
   const [requester, setRequester] = useState<string | null>(specimen?.requestingUserId ?? null);
   const [initialTaken] = useState<UkDateTime>(() => ukDateTime(specimen?.takenAtUtc ?? undefined));
   const [taken, setTaken] = useState<UkDateTime>(initialTaken);
@@ -92,16 +99,16 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
   const save = () => {
     setErrors(null);
     setMessage(null);
-    const input = {specimenTypeId: typeId, takenAtUtc, site, requestNotes, requestingUserId};
+    const input = {specimenTypeId: typeId, labTestId: testId, takenAtUtc, site, requestNotes, requestingUserId};
     const callbacks = {
       onSuccess: (saved: Specimen) => {
-        announce(isEditing ? 'Specimen details saved' : `Specimen ${saved.number ?? ''} recorded`);
+        announce(isEditing ? 'Sample details saved' : `Sample ${saved.number ?? ''} recorded`);
         onSaved?.(saved);
         onClose();
       },
       onError: (e: unknown) => {
         if (e instanceof ApiValidationError) setErrors(e.errors);
-        else setMessage(problemMessage(e, isEditing ? 'The specimen could not be saved. Please try again.' : 'The specimen could not be recorded. Please try again.'));
+        else setMessage(problemMessage(e, isEditing ? 'The sample could not be saved. Please try again.' : 'The sample could not be recorded. Please try again.'));
       },
     };
     if (isEditing)
@@ -115,14 +122,14 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
   return (
     <ConfirmDialog
       isOpen={isOpen}
-      title={isEditing ? `Edit Specimen ${specimen.number ?? ''}` : 'Record Specimen'}
+      title={isEditing ? `Edit Sample ${specimen.number ?? ''}` : 'Record Sample'}
       message={
         isEditing
           ? 'Correct its details before it goes to the lab. Once it has been sent they can no longer change.'
-          : "A specimen taken from the patient at this stage. It's given its own number, for its label and the lab."
+          : "A sample taken from the patient at this stage. It's given its own number, for its label and the lab."
       }
       icon={isEditing ? AppIcon.Edit : AppIcon.Specimens}
-      confirmText={isEditing ? 'Save' : 'Record Specimen'}
+      confirmText={isEditing ? 'Save' : 'Record Sample'}
       confirmDisabled={!isComplete}
       isProcessing={saving.isPending}
       hasSaveShortcut
@@ -144,6 +151,15 @@ export function SpecimenDetailsDialog({isOpen, onClose, patient, record, specime
           onChange={(value: string) => setTypeId(value)}
           isRequired
           status={types.isError ? {type: 'error', message: 'The specimen types could not be loaded.'} : fieldStatus(errors, 'specimenTypeId')}
+        />
+        <AnchoredSelector
+          label="Test"
+          description="The test asked of the lab, from its catalogue. Optional."
+          placeholder={tests.isPending ? 'Loading lab tests...' : 'No test chosen'}
+          options={[{value: NO_TEST, label: 'No test chosen'}, ...choices(tests.data, specimen?.labTestId ?? '')]}
+          value={testId || NO_TEST}
+          onChange={(value: string) => setTestId(value === NO_TEST ? '' : value)}
+          status={tests.isError ? {type: 'error', message: 'The lab tests could not be loaded.'} : fieldStatus(errors, 'labTestId')}
         />
         <AnchoredSelector
           label="Requesting clinician"

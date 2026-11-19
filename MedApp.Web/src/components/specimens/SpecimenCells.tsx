@@ -3,7 +3,7 @@ import {Link} from '@astryxdesign/core/Link';
 import {VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
 import {Token, type TokenColor} from '@astryxdesign/core/Token';
-import {specimenStatusLabel, type SpecimenSummary} from '../../api/specimens';
+import {sampleSourceName, specimenStatusLabel, type SpecimenSummary} from '../../api/specimens';
 import {useAccessibility} from '../../app/accessibility';
 import {formatDateTime} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
@@ -49,7 +49,28 @@ export function OverdueAtLabToken() {
   return <Token size="sm" label="Overdue at lab" color="red" icon={flags.statusIcons ? <Icon icon={AppIcon.Overdue} /> : undefined} />;
 }
 
-/** A specimen's number, linked to its page (a list's main link), with its type under it. */
+/**
+ * Where a sample came from (MC14, H-73): "Clinic" or "Hospital", always shown, so a clinic's and the hospital's samples
+ * can't be confused in the one database.
+ */
+export function SampleSourceToken({source}: {source: string | null | undefined}) {
+  const isHospital = source === 'Hospital';
+  return <Token size="sm" label={isHospital ? 'Hospital' : 'Clinic'} color={isHospital ? 'purple' : 'teal'} />;
+}
+
+/** Where a sample came from, for a list: the source, with the clinic's or hospital's name under it. */
+export function SampleSourceCell({specimen}: {specimen: Pick<SpecimenSummary, 'source' | 'requestingTeamName' | 'hospitalName'>}) {
+  return (
+    <VStack gap={1} hAlign="start">
+      <SampleSourceToken source={specimen.source} />
+      <Text type="supporting" color="secondary" maxLines={1}>
+        {sampleSourceName(specimen) || '—'}
+      </Text>
+    </VStack>
+  );
+}
+
+/** A sample's number, linked to its page (a list's main link), with its type under it. */
 export function SpecimenNumberCell({specimen}: {specimen: Pick<SpecimenSummary, 'id' | 'number' | 'specimenTypeName'>}) {
   return (
     <VStack gap={0} hAlign="start">
@@ -63,7 +84,7 @@ export function SpecimenNumberCell({specimen}: {specimen: Pick<SpecimenSummary, 
   );
 }
 
-/** The patient a specimen is from, linked to their page, with their NHS number under the name. */
+/** The patient a sample is from, linked to their page, with their NHS number under the name. */
 export function SpecimenPatientCell({specimen}: {specimen: Pick<SpecimenSummary, 'patientId' | 'patientName' | 'patientNhsNumber'>}) {
   return (
     <VStack gap={0} hAlign="start">

@@ -242,7 +242,7 @@ describe('PatientTimeline', () => {
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Appointments`));
   });
 
-  it("shows specimens' steps, linking to the specimen by its number beside its pathway, and filters to them", async () => {
+  it("shows samples' steps, linking to the sample by its number beside its pathway, and filters to them", async () => {
     const specimenId = '00000051-0000-0000-0000-000000000001';
     const specimen = (fields: Partial<TimelineEntry>) =>
       entry({kind: 'Specimens', specimenId, specimenNumber: 'MA26-000123', specimenTypeName: 'Skin biopsy (punch)', laboratoryName: 'Northgate pathology', ...fields});
@@ -265,18 +265,18 @@ describe('PatientTimeline', () => {
     });
     renderWithApp(<Harness />, {user: staffUser});
 
-    const taken = within((await screen.findByText('Skin biopsy (punch) specimen taken')).closest('li')!);
-    expect(taken.getByRole('link', {name: 'Specimen MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    const taken = within((await screen.findByText('Skin biopsy (punch) sample taken')).closest('li')!);
+    expect(taken.getByRole('link', {name: 'Sample MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
     expect(taken.getByRole('link', {name: 'Knee assessment'})).toBeInTheDocument();
-    expect(screen.getByText('Skin biopsy (punch) specimen rejected by Northgate pathology')).toBeInTheDocument();
+    expect(screen.getByText('Skin biopsy (punch) sample rejected by Northgate pathology')).toBeInTheDocument();
     expect(screen.getByText('Site changed')).toBeInTheDocument();
-    expect(screen.getAllByRole('link', {name: 'Specimen MA26-000123'})).toHaveLength(8);
+    expect(screen.getAllByRole('link', {name: 'Sample MA26-000123'})).toHaveLength(8);
 
-    screen.getByRole('button', {name: 'Specimens'}).click();
+    screen.getByRole('button', {name: 'Samples'}).click();
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Specimens`));
   });
 
-  it("shows results' sign-off, linking to the result and its specimen beside its pathway, and filters to them", async () => {
+  it("shows results' sign-off, linking to the result and its sample beside its pathway, and filters to them", async () => {
     const resultId = '00000061-0000-0000-0000-000000000001';
     const specimenId = '00000061-0000-0000-0000-000000000004';
     const result = (fields: Partial<TimelineEntry>) =>
@@ -300,12 +300,12 @@ describe('PatientTimeline', () => {
     const signedOff = within((await screen.findByText('Skin biopsy (punch) result signed off')).closest('li')!);
     expect(signedOff.getByText('Patient informed')).toBeInTheDocument();
     expect(signedOff.getByRole('link', {name: 'The result'})).toHaveAttribute('href', `/results/${resultId}`);
-    expect(signedOff.getByRole('link', {name: 'Specimen MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
+    expect(signedOff.getByRole('link', {name: 'Sample MA26-000123'})).toHaveAttribute('href', `/specimens/${specimenId}`);
     expect(signedOff.getByRole('link', {name: 'Knee assessment'})).toBeInTheDocument();
     expect(screen.getByText('Responsible clinician test-senior → dr.synthetic')).toBeInTheDocument();
     expect(screen.getByText('External report marked entered in error')).toBeInTheDocument();
     expect(screen.getAllByRole('link', {name: 'The result'})).toHaveLength(5);
-    expect(screen.getAllByRole('link', {name: 'Specimen MA26-000123'})).toHaveLength(4);
+    expect(screen.getAllByRole('link', {name: 'Sample MA26-000123'})).toHaveLength(4);
 
     screen.getByRole('button', {name: 'Results'}).click();
     await waitFor(() => expect(calls(fetch)).toContain(`GET ${TIMELINE}?PageSize=20&Kinds=Results`));

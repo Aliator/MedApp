@@ -21208,6 +21208,8 @@ export interface components {
             requestNotes?: string | null;
             /** Format: uuid */
             requestingUserId?: string;
+            /** Format: uuid */
+            labTestId?: string | null;
             /** Format: int32 */
             expectedVersion?: number;
         };
@@ -23223,6 +23225,8 @@ export interface components {
             requestNotes?: string | null;
             /** Format: uuid */
             requestingUserId?: string;
+            /** Format: uuid */
+            labTestId?: string | null;
         };
         RecoveryCodesResponse: {
             recoveryCodes?: string[] | null;
@@ -23786,11 +23790,25 @@ export interface components {
             patientId?: string;
             patient?: components["schemas"]["PathwayPatientResponse"];
             patientFlags?: components["schemas"]["PatientFlagsResponse"];
+            source?: string | null;
             /** Format: uuid */
-            pathwayId?: string;
+            requestingTeamId?: string | null;
+            requestingTeamName?: string | null;
+            /** Format: uuid */
+            hospitalId?: string | null;
+            hospitalName?: string | null;
+            /** Format: uuid */
+            hospitalRequestId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            labTestName?: string | null;
+            /** Format: uuid */
+            labCaseId?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
             pathwayTitle?: string | null;
             /** Format: uuid */
-            stageId?: string;
+            stageId?: string | null;
             stageName?: string | null;
             /** Format: uuid */
             specimenTypeId?: string;
@@ -23858,10 +23876,24 @@ export interface components {
             patientNhsNumber?: string | null;
             /** Format: date */
             patientDateOfBirth?: string;
+            source?: string | null;
             /** Format: uuid */
-            pathwayId?: string;
+            requestingTeamId?: string | null;
+            requestingTeamName?: string | null;
             /** Format: uuid */
-            stageId?: string;
+            hospitalId?: string | null;
+            hospitalName?: string | null;
+            /** Format: uuid */
+            hospitalRequestId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            labTestName?: string | null;
+            /** Format: uuid */
+            labCaseId?: string | null;
+            /** Format: uuid */
+            pathwayId?: string | null;
+            /** Format: uuid */
+            stageId?: string | null;
             specimenTypeName?: string | null;
             status?: string | null;
             isOpen?: boolean;
@@ -23915,6 +23947,13 @@ export interface components {
             search?: string | null;
             sort?: string | null;
             ascending?: boolean;
+            source?: string | null;
+            /** Format: uuid */
+            teamId?: string | null;
+            /** Format: uuid */
+            labTestId?: string | null;
+            status?: string | null;
+            due?: string | null;
         };
         StaffDetailsRequest: {
             fullName?: string | null;

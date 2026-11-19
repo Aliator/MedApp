@@ -544,7 +544,7 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
           {/* A note's text (admins only), formatted as it is on the pathway's page. */}
           {noteText && <RichText>{noteText}</RichText>}
           <HStack gap={2} vAlign="center" wrap="wrap">
-            {/* A result's entry links to the result, and to its specimen by its number, beside its pathway. */}
+            {/* A result's entry links to the result, and to its sample by its number, beside its pathway. */}
             {isResultEntry(entry) && entry.resultId && (
               <>
                 <Text type="supporting" maxLines={1}>
@@ -552,15 +552,15 @@ function TimelineEntryRow({entry}: {entry: TimelineEntry}) {
                 </Text>
                 {entry.specimenId && (
                   <Text type="supporting" maxLines={1}>
-                    <Link href={`/specimens/${entry.specimenId}`}>{`Specimen ${entry.specimenNumber ?? ''}`.trim()}</Link>
+                    <Link href={`/specimens/${entry.specimenId}`}>{`Sample ${entry.specimenNumber ?? ''}`.trim()}</Link>
                   </Text>
                 )}
               </>
             )}
-            {/* A specimen's entry links to the specimen, by its number, beside its pathway. */}
+            {/* A specimen's entry links to the sample, by its number, beside its pathway. */}
             {isSpecimenEntry(entry) && entry.specimenId && (
               <Text type="supporting" maxLines={1}>
-                <Link href={`/specimens/${entry.specimenId}`}>{`Specimen ${entry.specimenNumber ?? ''}`.trim()}</Link>
+                <Link href={`/specimens/${entry.specimenId}`}>{`Sample ${entry.specimenNumber ?? ''}`.trim()}</Link>
               </Text>
             )}
             {/* A referral's entry, or its letter's, links to the referral. No pathway to link to: an appointment not for

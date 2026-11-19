@@ -54,32 +54,33 @@ describe('SpecimenDetailsDialog', () => {
     vi.useFakeTimers({toFake: ['Date'], now: new Date('2026-11-18T14:05:00Z')});
   });
 
-  it('records a specimen: the patient, stage and pathway shown, you as the requester, taken now', async () => {
+  it('records a sample: the patient, stage and pathway shown, you as the requester, taken now', async () => {
     withAnnouncements();
     const recorded = testSpecimen();
     const {user, fetch, onSaved, onClose} = renderDialog({}, {[RECORD]: () => json(recorded, 201)});
 
-    expect(await screen.findByRole('heading', {name: 'Record Specimen'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Record Sample'})).toBeInTheDocument();
     expect(dialog().getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(dialog().getByText('Skin lesion review')).toBeInTheDocument();
     expect(dialog().getByText('Biopsy')).toBeInTheDocument();
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('test-nurse'));
     expect(dialog().getByRole('combobox', {name: /Taken on/})).toHaveValue('18 November 2026');
     expect(dialog().getByRole('textbox', {name: /Time taken/})).toHaveValue('14:05');
-    expect(isDisabled(dialog().getByRole('button', {name: 'Record Specimen'}))).toBe(true);
+    expect(isDisabled(dialog().getByRole('button', {name: 'Record Sample'}))).toBe(true);
 
     await choose(user, /Specimen type/, 'Skin biopsy (punch)');
     await user.type(dialog().getByRole('textbox', {name: /Site/}), 'Left forearm');
     await user.type(dialog().getByRole('textbox', {name: /Notes for the lab/}), 'Please process today');
-    await user.click(dialog().getByRole('button', {name: 'Record Specimen'}));
+    await user.click(dialog().getByRole('button', {name: 'Record Sample'}));
 
-    await expectAnnounced('Specimen MA26-000123 recorded');
+    await expectAnnounced('Sample MA26-000123 recorded');
     expect(await sentBody(fetch, 'POST')).toEqual({
       stageId: SPECIMEN_STAGE_ID,
       specimenTypeId: BIOPSY_TYPE_ID,
       site: 'Left forearm',
       requestNotes: 'Please process today',
       requestingUserId: NURSE_USER_ID,
+      labTestId: null,
       // Left at now: the API takes now.
       takenAtUtc: null,
     });
@@ -91,32 +92,32 @@ describe('SpecimenDetailsDialog', () => {
     let answer = json({title: 'Invalid', errors: {TakenAtUtc: ["It can't be more than 7 days ago."]}}, 400);
     const {user, fetch} = renderDialog({}, {[RECORD]: () => answer});
 
-    await screen.findByRole('heading', {name: 'Record Specimen'});
+    await screen.findByRole('heading', {name: 'Record Sample'});
     await choose(user, /Specimen type/, 'Wound swab');
     await choose(user, /Requesting clinician/, 'dr.synthetic');
     const time = dialog().getByRole('textbox', {name: /Time taken/});
     await user.clear(time);
     await user.type(time, '09:30');
     await user.tab();
-    await user.click(dialog().getByRole('button', {name: 'Record Specimen'}));
+    await user.click(dialog().getByRole('button', {name: 'Record Sample'}));
 
     expect(await dialog().findByText("It can't be more than 7 days ago.")).toBeInTheDocument();
     expect(await sentBody(fetch, 'POST')).toEqual(
       expect.objectContaining({specimenTypeId: SWAB_TYPE_ID, requestingUserId: DOCTOR_USER_ID, takenAtUtc: '2026-11-18T09:30:00.000Z', site: null}),
     );
 
-    answer = json({title: "This stage can't take a specimen now: the pathway is on hold."}, 409);
-    await user.click(dialog().getByRole('button', {name: 'Record Specimen'}));
-    expect(await dialog().findByText("This stage can't take a specimen now: the pathway is on hold.")).toBeInTheDocument();
+    answer = json({title: "This stage can't take a sample now: the pathway is on hold."}, 409);
+    await user.click(dialog().getByRole('button', {name: 'Record Sample'}));
+    expect(await dialog().findByText("This stage can't take a sample now: the pathway is on hold.")).toBeInTheDocument();
   });
 
   it("starts with nobody as the requester when you can't be one", async () => {
     renderDialog({}, {}, staffUser);
-    await screen.findByRole('heading', {name: 'Record Specimen'});
+    await screen.findByRole('heading', {name: 'Record Sample'});
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('Choose who asked for it'));
   });
 
-  it('corrects a specimen from the version shown, keeping its time and an archived type or deleted requester', async () => {
+  it('corrects a sample from the version shown, keeping its time and an archived type or deleted requester', async () => {
     withAnnouncements();
     const {user, fetch, onClose} = renderDialog(
       {
@@ -129,7 +130,7 @@ describe('SpecimenDetailsDialog', () => {
       },
     );
 
-    expect(await screen.findByRole('heading', {name: 'Edit Specimen MA26-000123'})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Edit Sample MA26-000123'})).toBeInTheDocument();
     await waitFor(() => expect(dialog().getByRole('combobox', {name: /Specimen type/})).toHaveTextContent('Old type (archived)'));
     expect(dialog().getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('Deleted user');
     expect(dialog().getByRole('textbox', {name: /Site/})).toHaveValue('Left forearm');
@@ -138,12 +139,13 @@ describe('SpecimenDetailsDialog', () => {
     await choose(user, /Specimen type/, 'Skin biopsy (punch)');
     await user.click(dialog().getByRole('button', {name: 'Save'}));
 
-    await expectAnnounced('Specimen details saved');
+    await expectAnnounced('Sample details saved');
     expect(await sentBody(fetch, 'PUT')).toEqual({
       specimenTypeId: BIOPSY_TYPE_ID,
       site: 'Left forearm',
       requestNotes: 'Synthetic notes for the lab.',
       requestingUserId: 'gone',
+      labTestId: 'ed000000-0000-0000-0000-000000000001',
       takenAtUtc: '2026-11-02T09:00:00Z',
       expectedVersion: 3,
     });

@@ -47,7 +47,7 @@ describe('ResultCells', () => {
     expect(screen.getByText('NHS No. 999 000 0026')).toBeInTheDocument();
     expect(screen.getByText('Born 1 Dec 1976')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Skin biopsy (punch) report'})).toHaveAttribute('href', `/results/${RESULT_ID}`);
-    expect(screen.getByText('Specimen MA26-000123')).toBeInTheDocument();
+    expect(screen.getByText('Sample MA26-000123')).toBeInTheDocument();
     expect(screen.getByText('External report')).toBeInTheDocument();
   });
 

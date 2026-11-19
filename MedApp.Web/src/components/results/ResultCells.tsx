@@ -78,7 +78,7 @@ export function ResultTitleCell({result}: {result: Pick<ResultSummary, 'id' | 't
         <Link href={`/results/${result.id}`}>{result.title}</Link>
       </Text>
       <Text type="supporting" color="secondary" maxLines={1}>
-        {result.specimenNumber ? `Specimen ${result.specimenNumber}` : 'External report'}
+        {result.specimenNumber ? `Sample ${result.specimenNumber}` : 'External report'}
       </Text>
     </VStack>
   );

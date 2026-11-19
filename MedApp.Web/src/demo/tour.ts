@@ -218,7 +218,7 @@ export const TOUR: TourStep[] = [
     title: 'The lab’s home',
     steps: [
       `${LAB.fullName}’s home in the lab: pathways new for the lab and its turn, samples to receive, in progress, overdue and back to the clinic, each opening its full list.`,
-      'Samples in the side nav is the whole worklist. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
+      'Samples in the side nav is the samples database: every sample, from the clinics and the hospital, each marked with where it came from, in tabs and searchable by clinic, test, status and due date. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
     ],
     account: LAB.username,
     path: '/lab',

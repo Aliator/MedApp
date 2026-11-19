@@ -22,7 +22,30 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(found.body).toMatchObject({id: toSend[0].id, label: {qrPath: null}});
   });
 
-  it('records a specimen at the current stage, sends it, and lets only the lab receive it', async () => {
+  it('keeps every sample in one database, with its source: the lab sees the hospital’s, a clinic only its own (MC14)', async () => {
+    startLightDemo(LAB);
+    type Row = {source: string; hospitalName: string | null; requestingTeamName: string | null; labTestName: string | null; pathwayId: string | null};
+    const search = async (body: object) => (await call('POST', '/api/specimens/search', {view: 'All', pageSize: 100, ...body})).body.items as Row[];
+    const all = await search({});
+    const hospital = all.filter((s) => s.source === 'Hospital');
+    expect(hospital.length).toBeGreaterThan(0);
+    expect(hospital.every((s) => s.hospitalName && s.pathwayId === null && s.requestingTeamName === null)).toBe(true);
+    expect(all.filter((s) => s.source === 'Clinic').every((s) => s.requestingTeamName && s.pathwayId)).toBe(true);
+    expect(await search({source: 'Hospital'})).toHaveLength(hospital.length);
+    expect((await search({teamId: TEAMS.dermatology})).every((s) => s.requestingTeamName === 'Dermatology')).toBe(true);
+    expect((await search({labTestId: LAB_TESTS.fullBloodCount})).every((s) => s.labTestName === 'Full blood count')).toBe(true);
+    expect((await search({view: 'ToReceive'})).length).toBeGreaterThan(0);
+    expect((await search({due: 'Overdue'})).length).toBeGreaterThan(0);
+
+    startLightDemo(STAFF);
+    const clinic = await search({});
+    expect(clinic.length).toBeGreaterThan(0);
+    expect(clinic.every((s) => s.source === 'Clinic' && s.requestingTeamName === 'Dermatology')).toBe(true);
+    const hospitalSample = db().specimens.find((s) => s.source === 'Hospital')!;
+    expect((await call('GET', `/api/specimens/${hospitalSample.id}`)).status).toBe(404);
+  });
+
+  it('records a sample at the current stage, sends it, and lets only the lab receive it', async () => {
     startLightDemo(STAFF);
     const pathway = (await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body;
     const stage = current(pathway);
@@ -41,15 +64,15 @@ describe('the light demo’s lab, results and referrals', () => {
     expect((await call('POST', `/api/specimens/${id}/sent`, {expectedVersion: 2})).status).toBe(409);
   });
 
-  it('tells the requesting clinician when the lab rejects a specimen', async () => {
+  it('tells the requesting clinician when the lab rejects a sample', async () => {
     startLightDemo(LAB);
     const specimen = (await call('GET', `/api/specimens/${LAB_IDS.specimenAtLab}`)).body;
     expect((await call('POST', `/api/specimens/${specimen.id}/rejected`, {reason: 'Other', expectedVersion: specimen.version})).status).toBe(400);
     const rejected = await call('POST', `/api/specimens/${specimen.id}/rejected`, {reason: 'Leaked', expectedVersion: specimen.version});
     expect(rejected.body).toMatchObject({status: 'RejectedByLab', isOpen: false, rejectionReason: 'Leaked'});
     expect(db().notifications.find((n) => n.userId === STAFF.id && n.subjectId === specimen.id && n.kind === 'SpecimenRejectedByLab')).toMatchObject({
-      title: 'Specimen rejected',
-      message: 'The lab rejected a Blood sample specimen.',
+      title: 'Sample rejected',
+      message: 'The lab rejected a sample (Blood sample).',
     });
   });
 
@@ -79,11 +102,11 @@ describe('the light demo’s lab, results and referrals', () => {
     expect(done.status).toBe(200);
   });
 
-  it('holds the last stage while a specimen is open or a result awaits, and nothing of the lab’s holds Harriet’s Treatment', () => {
+  it('holds the last stage while a sample is open or a result awaits, and nothing of the lab’s holds Harriet’s Treatment', () => {
     const {state} = startLightDemo(ADMIN);
     const ilona = state.pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
     const last = ilona.stages.at(-1)!;
-    expect(labGate(ilona, last, true)).toMatch(/^The pathway's last stage can't be finished while 2 specimens are still with the lab: MA\d{2}-\d{6} \(Blood sample, received\)/);
+    expect(labGate(ilona, last, true)).toMatch(/^The pathway's last stage can't be finished while 2 samples are still with the lab: MA\d{2}-\d{6} \(Blood sample, received\)/);
     expect(labGate(ilona, ilona.stages[2], false)).toBeNull();
     const daniyal = state.pathways.find((p) => p.id === PATHWAYS.notStarted)!;
     expect(labGate(daniyal, daniyal.stages.at(-1)!, true)).toMatch(/^The pathway's last stage can't be finished while a result awaits sign-off/);
@@ -107,7 +130,7 @@ describe('the light demo’s lab, results and referrals', () => {
     );
   });
 
-  it('keeps the specimen setup lists for admins', async () => {
+  it('keeps the sample setup lists for admins', async () => {
     startLightDemo(STAFF);
     expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping', expectedTurnaroundDays: 14})).status).toBe(403);
     startLightDemo(ADMIN);
