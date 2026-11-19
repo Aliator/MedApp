@@ -7,17 +7,20 @@ using Microsoft.Playwright;
 namespace MedApp.E2ETests.Calendar;
 
 /// <summary>
-/// Arranging a meeting from the team view: an admin narrows it to themselves and a member of staff, takes the first
-/// suggested time in New Meeting, finds the meeting on the member of staff's calendar, and cancels it there.
+/// Arranging a meeting from the team view: an admin (who arranges any meeting) narrows it to themselves and a member of
+/// staff, takes the first suggested time in New Meeting, finds the meeting on the member of staff's calendar, and
+/// cancels it there.
 /// </summary>
 [TestFixture]
 public sealed class MeetingTests : E2ETest
 {
+    protected override E2EAccount SignedInAs => E2EAccount.Admin;
+
     [Test]
     public async Task NewMeeting_FromTheTeamViewAtASuggestedTime_ShowsOnAnAttendeesCalendarAndCanBeCancelled()
     {
         var staffUsername = E2EData.UniqueName("staff").Replace(' ', '-').ToLowerInvariant();
-        await Api.CreateUserAsync(staffUsername, "All staff (before roles)");
+        await Api.CreateUserAsync(staffUsername, "Nurse");
         Data.OnCleanUp($"user {staffUsername}", () => Api.DeleteUserAsync(staffUsername, E2ESettings.Password!));
         var staffId = await Api.UserIdOfAsync(staffUsername);
         var meId = await Api.UserIdOfAsync(E2ESettings.Username!);

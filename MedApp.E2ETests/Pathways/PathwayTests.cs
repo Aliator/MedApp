@@ -25,7 +25,7 @@ public sealed class PathwayTests : E2ETest
         // Picking it shows the stages the pathway will copy.
         await Expect(Main).ToContainTextAsync($"1. {stages[0].Name}");
         await Expect(Main).ToContainTextAsync($"2. {stages[1].Name}");
-        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Target Date" }).FillAsync(Typed(dueDate));
+        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Target date" }).FillAsync(Typed(dueDate));
         await Main.GetByRole(AriaRole.Button, new() { Name = "Create Pathway" }).ClickAsync();
         await Page.GetByRole(AriaRole.Dialog, new() { Name = "Confirm New Pathway" })
             .GetByRole(AriaRole.Button, new() { Name = "Create Pathway" }).ClickAsync();

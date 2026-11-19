@@ -9,13 +9,13 @@ namespace MedApp.E2ETests.Notifications;
 public sealed class NotificationBellTests : E2ETest
 {
     [Test]
-    public async Task AssignedByAnotherAdmin_ShowsLiveInTheBellAndOpensThePathway()
+    public async Task AssignedByAColleague_ShowsLiveInTheBellAndOpensThePathway()
     {
-        var other = await CreateOtherAdminAsync();
+        // A service manager of the clinic (Manager assigns pathways), who assigns the run's member of staff.
+        var other = await CreateColleagueAsync(["Manager"]);
         var (template, _) = await CreateTemplateAsync(1);
         var patient = await CreatePatientAsync();
         var pathway = await CreatePathwayAsync(patient.Id, template.Id);
-        var me = await Api.UserIdOfAsync(E2ESettings.Username!);
         Data.OnCleanUp("the test's notification (marked read)", async () =>
         {
             foreach (var n in (await Api.NotificationsAsync()).Items.Where(n => n.PathwayId == pathway.Id && !n.IsRead))
@@ -34,8 +34,8 @@ public sealed class NotificationBellTests : E2ETest
         var nav = Page.GetByRole(AriaRole.Navigation, new() { Name = "Side navigation" });
         await Expect(nav.GetByRole(AriaRole.Button, new() { Name = BellName(unreadBefore), Exact = true })).ToBeVisibleAsync();
 
-        // Someone else assigns the E2E account, while the page is open: no reload.
-        await other.Api.AssignAsync(pathway.Id, me);
+        // Someone else assigns the run's member of staff, while the page is open: no reload.
+        await other.Api.AssignAsync(pathway.Id, Staff.UserId);
 
         var bell = nav.GetByRole(AriaRole.Button, new() { Name = BellName(unreadBefore + 1), Exact = true });
         await Expect(bell).ToBeVisibleAsync();
@@ -55,20 +55,4 @@ public sealed class NotificationBellTests : E2ETest
     }
 
     private static string BellName(int unread) => unread == 0 ? "Notifications" : $"Notifications, {unread} unread";
-
-    /// <summary>
-    /// A second admin, deleted after the test. They choose a password of their own first, as a new account must
-    /// before anything else.
-    /// </summary>
-    private async Task<(string Username, E2EApi Api)> CreateOtherAdminAsync()
-    {
-        var username = E2EData.UniqueName("admin").Replace(' ', '-').ToLowerInvariant();
-        var firstPassword = await Api.CreateUserAsync(username, "Admin", "All staff (before roles)");
-        Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
-
-        var firstSession = await SignInToApiAsync(username, firstPassword);
-        var chosenPassword = E2EData.NewPassword();
-        await firstSession.UpdateOwnPasswordAsync(username, firstPassword, chosenPassword);
-        return (username, await SignInToApiAsync(username, chosenPassword));
-    }
 }

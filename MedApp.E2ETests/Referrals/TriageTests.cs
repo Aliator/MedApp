@@ -5,48 +5,26 @@ using Microsoft.Playwright;
 namespace MedApp.E2ETests.Referrals;
 
 /// <summary>
-/// Triage: a referral registered by the E2E admin is accepted by a Clinician of its team, in a browser of their
-/// own, choosing the template, priority and target date (nothing is prefilled); the pathway opens, linked back to the
-/// referral, and whoever registered it is told.
+/// Triage: a referral to the E2E clinic, registered by the run's member of staff, is accepted by a Clinician of the
+/// clinic, in a browser of their own, choosing the template, priority and target date (nothing is prefilled); the
+/// pathway opens, linked back to the referral, and whoever registered it is told.
 /// </summary>
 [TestFixture]
 public sealed class TriageTests : E2ETest
 {
-    private static readonly string ChosenPassword = E2EData.NewPassword();
-
     [Test]
     public async Task Accept_AsAClinicianOfItsTeam_CreatesThePathwayLinkedToTheReferral()
     {
         var (template, _) = await CreateTemplateAsync(2);
-        var team = await Api.FirstTeamAsync();
 
         // A patient with a referral can't be deleted: they stay, with the referral (README); their pathway goes.
         var patient = await Api.CreatePatientAsync("Grace", E2EData.UniqueName("Patient"), new DateOnly(1984, 3, 21));
-        Data.OnCleanUp($"the pathways of {patient.LastName}", async () =>
-        {
-            foreach (var pathway in await Api.PathwaysOfPatientAsync(patient.Id))
-                await Api.CancelAndDeletePathwayAsync(pathway.Id);
-        });
-        var referral = await Api.RegisterReferralAsync(patient.Id, team.Id, "Synthetic reason for referral from the end-to-end tests.");
+        Data.OnCleanUp($"the pathways of {patient.LastName}", () => DeletePathwaysOfAsync(patient.Id));
+        var referral = await Api.RegisterReferralAsync(patient.Id, Team.Id, "Synthetic reason for referral from the end-to-end tests.");
 
-        // A Clinician who belongs to the team, with a password of their own.
-        var username = E2EData.UniqueName("clinician").Replace(' ', '-').ToLowerInvariant();
-        var firstPassword = await Api.CreateUserAsync(username, "Clinician");
-        Data.OnCleanUp($"user {username}", () => Api.DeleteUserAsync(username, E2ESettings.Password!));
-        await Api.SetTeamsAsync(username, team.Id);
-        await (await SignInToApiAsync(username, firstPassword)).UpdateOwnPasswordAsync(username, firstPassword, ChosenPassword);
-
-        // They sign in, in a browser of their own, and open the referral.
-        var options = ContextOptions();
-        options.StorageStatePath = null;
-        await using var theirs = await Browser.NewContextAsync(options);
-        theirs.SetDefaultTimeout(15_000);
-        var page = await theirs.NewPageAsync();
-        await OpenAsync(page, "/login");
-        await page.GetByRole(AriaRole.Textbox, new() { Name = "Username" }).FillAsync(username);
-        await page.GetByRole(AriaRole.Textbox, new() { Name = "Password" }).FillAsync(ChosenPassword);
-        await page.GetByRole(AriaRole.Button, new() { Name = "Sign in" }).ClickAsync();
-        await Expect(page).Not.ToHaveURLAsync(new Regex("/login"));
+        // A Clinician who belongs to the clinic signs in, in a browser of their own, and opens the referral.
+        var clinician = await CreateColleagueAsync(["Clinician"]);
+        var page = await SignInPageAsync(clinician.Username, clinician.Password);
         await OpenAsync(page, $"/referrals/{referral.Id}");
         var main = page.GetByRole(AriaRole.Main);
 
@@ -64,7 +42,7 @@ public sealed class TriageTests : E2ETest
         // The check shows the patient, the team and the template before anything is saved.
         var check = page.GetByRole(AriaRole.Dialog, new() { Name = "Check and Confirm" });
         await Expect(check).ToContainTextAsync(patient.LastName, new() { IgnoreCase = true });
-        await Expect(check).ToContainTextAsync(team.Name);
+        await Expect(check).ToContainTextAsync(Team.Name);
         await Expect(check).ToContainTextAsync(template.Name);
         await check.GetByRole(AriaRole.Button, new() { Name = "Accept Referral" }).ClickAsync();
 
@@ -80,14 +58,14 @@ public sealed class TriageTests : E2ETest
         {
             Assert.That(saved!.Status, Is.EqualTo("Accepted"));
             Assert.That(saved.PathwayId, Is.EqualTo(pathwayId));
-            Assert.That(saved.DecidedByUsername, Is.EqualTo(username));
+            Assert.That(saved.DecidedByUsername, Is.EqualTo(clinician.Username));
             Assert.That(pathway!.Priority, Is.EqualTo("High"));
-            Assert.That(saved.Clock!.TargetDays, Is.EqualTo(team.TargetDaysHigh));
+            Assert.That(saved.Clock!.TargetDays, Is.EqualTo(Team.TargetDaysHigh));
             Assert.That(pathway.DueDate, Is.EqualTo(saved.Clock.TargetOn));
             Assert.That(pathway.Referral!.Id, Is.EqualTo(referral.Id));
         });
 
-        // Whoever registered it (the E2E admin) is told.
+        // Whoever registered it (the run's member of staff) is told.
         var told = (await Api.NotificationsAsync()).Items.SingleOrDefault(n => n.ReferralId == referral.Id);
         Assert.That(told, Is.Not.Null);
         Assert.That(told!.Kind, Is.EqualTo("ReferralTriaged"));

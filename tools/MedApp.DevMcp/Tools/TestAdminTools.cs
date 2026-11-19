@@ -18,11 +18,14 @@ public sealed class TestAdminTools
     public const string Username = "admin";
     public const string Password = "admin";
 
-    /// <summary>Admin, and Clinician beside it, so the test login can also do a clinician's work (triage, later).</summary>
-    public static readonly string[] Roles = [AppRoles.Admin, StandardRoles.Clinician.Name];
+    /// <summary>
+    /// Admin alone: admins are read only and in no team (MC3 of <c>docs/multi-clinic-plan.md</c>), as the light demo's
+    /// admin is. Clinical work needs a member of staff in a team (<c>ensure_test_staff</c>).
+    /// </summary>
+    public static readonly string[] Roles = [AppRoles.Admin];
 
     [McpServerTool(Name = "ensure_test_admin", Idempotent = true)]
-    [Description("Makes sure the local test login admin / admin exists, with the Admin and Clinician roles, and isn't locked out. Creates the account (and any missing standard role) if it's missing; otherwise puts the password back to 'admin'. It's never made to change its password. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
+    [Description("Makes sure the local test login admin / admin exists, with the Admin role alone (any other is taken away: admins are read only; use ensure_test_staff for clinical work), and isn't locked out. Creates the account (and any missing standard role) if it's missing; otherwise puts the password back to 'admin'. It's never made to change its password. The password skips the app's password rules, so this is for local testing only. reset_demo_data runs it too.")]
     public static async Task<object> EnsureTestAdmin(
         UserManager<ApplicationUser> users,
         MedAppDbContext context,
@@ -49,9 +52,11 @@ public sealed class TestAdminTools
         Guards.Check(await users.SetLockoutEndDateAsync(user, null), $"Unlock {Username}");
         Guards.Check(await users.ResetAccessFailedCountAsync(user), $"Reset {Username}'s failed sign-ins");
 
-        var missing = Roles.Except(await users.GetRolesAsync(user), StringComparer.OrdinalIgnoreCase).ToArray();
-        if (missing.Length > 0)
+        var (missing, extra) = TestStaffTools.RoleChanges(await users.GetRolesAsync(user), Roles);
+        if (missing.Count > 0)
             Guards.Check(await users.AddToRolesAsync(user, missing), $"Give {Username} its roles");
+        if (extra.Count > 0)
+            Guards.Check(await users.RemoveFromRolesAsync(user, extra), $"Take {Username}'s other roles away");
 
         return new { username = Username, password = Password, created, roles = Roles };
     }
