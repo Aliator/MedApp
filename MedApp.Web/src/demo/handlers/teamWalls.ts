@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import type {DemoPerson} from '../accounts';
 import {invalid, notFound, problem, refuse} from '../api/http';
 import {teamName} from '../seed';
-import type {DemoAppointment, DemoPathway} from '../state';
+import type {DemoAppointment, DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
@@ -18,8 +18,9 @@ import {me, teamIdsOf} from './common';
  * - **Its records** (appointments, letters, results, consent, specimens, MDT items) follow it; one without a
  *   pathway follows its own team. **A referral** is its current team's (and its pathway's, once accepted): redirected,
  *   the old team stops seeing it; registered for another team, the registrar doesn't keep it (MC5).
- * - **Only the pathway's own team changes it** (and a record's own team, the record). The lab's specimen work is
- *   checked by its own handlers.
+ * - **Only the pathway's own team changes it** (and a record's own team, the record), except a stage another team
+ *   owns (the relay, MC7): that team (the lab) works it while it's current, and adds notes to the pathway meanwhile.
+ *   The lab's specimen work is checked by its own handlers.
  * - **Across a wall is a 404**, never a 403, and records `TeamBoundaryRefused` once per target in the view window.
  * - **On a calendar**, another team's appointment is busy time with no patient (`busyTimeOf`), so clashes still count.
  * - **Counts and Insights** count only what the viewer's teams may see (admins: every team).
@@ -53,6 +54,13 @@ export function canSeePathway(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope
 export const canChangePathway = (pathway: Pick<DemoPathway, 'teamId'>, scope: TeamScope = myScope()) =>
   scope.teamIds.includes(pathway.teamId);
 
+/** The team that works a stage: its owner (the lab, for its stages), else the pathway's own team (the relay, MC7). */
+export const stageTeamOf = (pathway: Pick<DemoPathway, 'teamId'>, stage: Pick<DemoStage, 'ownerTeamId'>) => stage.ownerTeamId ?? pathway.teamId;
+
+/** Whether the viewer's team works a stage (`TeamAccess.CanWorkStage`): it's their team's, by the stage's owner. */
+export const canWorkStage = (pathway: Pick<DemoPathway, 'teamId'>, stage: Pick<DemoStage, 'ownerTeamId'>, scope: TeamScope = myScope()) =>
+  scope.teamIds.includes(stageTeamOf(pathway, stage));
+
 /** Whether the viewer sees a record that belongs to a team: its pathway visible, or its own team theirs. */
 export function canSeeRecord(record: {teamId: string | null; pathwayId?: string | null}, scope: TeamScope = myScope()): boolean {
   if (scope.seesAllTeams || (record.teamId !== null && scope.teamIds.includes(record.teamId))) return true;
@@ -76,6 +84,10 @@ export function seeRecord<T extends {id?: string; teamId: string | null; pathway
   if (!canSeeRecord(record)) refuseAcrossWall(targetKind, record.id ?? '', what);
   return record;
 }
+
+/** Why the viewer's team can read a pathway but not change it: it's another team's. */
+export const notYourTeams = (pathway: Pick<DemoPathway, 'teamId'>) =>
+  `This pathway is ${teamName(pathway.teamId) ?? 'another team'}’s: your team can read it, and works on it only while one of its stages is with your team.`;
 
 /** Whether the viewer's team owns a record (an appointment, a referral), so may change it. */
 export const canChangeRecord = (record: {teamId: string | null}, scope: TeamScope = myScope()) =>
@@ -124,8 +136,13 @@ export const isPickedTeam = (teamId: string | null | undefined, picked: string |
 
 /** Refuses a change to a pathway the viewer's team can read but doesn't own (the lab's, after hand-back). */
 export function ensureCanChangePathway(pathway: DemoPathway) {
-  if (!canChangePathway(pathway))
-    refuse(problem(409, `This pathway is ${teamName(pathway.teamId) ?? 'another team'}’s: your team can read it, and only its own team changes it.`));
+  if (!canChangePathway(pathway)) refuse(problem(409, notYourTeams(pathway)));
+}
+
+/** Refuses work on a stage another team works (the relay): the lab's stage is the lab's, the clinic's the clinic's. */
+export function ensureCanWorkStage(pathway: DemoPathway, stage: DemoStage) {
+  if (!canWorkStage(pathway, stage))
+    refuse(problem(409, `The '${stage.name}' stage is ${teamName(stageTeamOf(pathway, stage)) ?? 'another team'}’s to work: it comes back when they finish it.`));
 }
 
 /** The lab team's ID (the one team of the lab kind). */
@@ -134,10 +151,18 @@ export const labTeamId = () => db().teams.find((t) => t.kind === 'Lab')?.id ?? n
 /** Passes a pathway to the lab (a sample recorded on it): the lab sees it in full from then on, and keeps it. */
 export function passToLab(pathway: DemoPathway) {
   const lab = labTeamId();
-  if (!lab || lab === pathway.teamId) return;
+  if (lab) grantStageOwner(pathway, lab);
+}
+
+/**
+ * Gives a team that owns one of a pathway's stages its grant to see the pathway (`StageOwner`), when the stage is first
+ * reached (the relay) or the lab is passed a sample; never ended (decision 184). Its own team needs none.
+ */
+export function grantStageOwner(pathway: DemoPathway, teamId: string) {
+  if (teamId === pathway.teamId) return;
   const access = db().pathwayAccess;
-  if (access.some((a) => a.pathwayId === pathway.id && a.teamId === lab)) return;
-  access.push({pathwayId: pathway.id, patientId: pathway.patientId, teamId: lab, reason: 'StageOwner', startedAtUtc: nowUtc(), endedAtUtc: null});
+  if (access.some((a) => a.pathwayId === pathway.id && a.teamId === teamId)) return;
+  access.push({pathwayId: pathway.id, patientId: pathway.patientId, teamId, reason: 'StageOwner', startedAtUtc: nowUtc(), endedAtUtc: null});
 }
 
 const NOT_SUMMARISED: DemoPathway['status'][] = ['Cancelled', 'Archived'];

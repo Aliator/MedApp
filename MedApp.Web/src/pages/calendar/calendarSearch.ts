@@ -39,13 +39,13 @@ function ids(value: unknown): string[] | undefined {
   return valid.length ? valid : undefined;
 }
 
-/** Day, week or (admins only) team: one day with a column for each member of staff. */
+/** Day, week or team: one day with a column for each member of a team (anyone, MC11). */
 export const CALENDAR_VIEWS = ['day', 'week', 'team'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 /**
  * The Calendar page: the day shown (today by default), day, week or team (the week, or the day in a narrow window),
- * whose (yours), an open appointment, who the team view shows (everyone with a staff role, by default), and the
+ * whose (yours), an open appointment, which team the team view shows and who in it (everyone, by default), and the
  * grid's row length (15 minutes, or 5).
  */
 export interface CalendarSearch {
@@ -55,6 +55,8 @@ export interface CalendarSearch {
   appointment?: string;
   /** A meeting to open in its dialog (a meeting notification's link: `/calendar?date=…&view=day&meeting=<id>`). */
   meeting?: string;
+  /** The team the team view shows (any team; left out, your first). */
+  team?: string;
   who?: string[];
   /**
    * The grid's row length: 5-minute rows, written when they're chosen, or 15, which a link can name; left out, the
@@ -72,6 +74,7 @@ export function parseCalendarSearch(raw: Record<string, unknown>): CalendarSearc
     staff: id(raw.staff),
     appointment: id(raw.appointment),
     meeting: id(raw.meeting),
+    team: id(raw.team),
     who: ids(raw.who),
     rows: text(raw.rows) === '5' ? 5 : text(raw.rows) === '15' ? 15 : undefined,
   });

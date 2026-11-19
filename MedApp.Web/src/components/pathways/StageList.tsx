@@ -5,6 +5,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {Token} from '@astryxdesign/core/Token';
 import type {ReactNode} from 'react';
 import {needsLetterWords} from '../../api/letters';
+import {waitsForWords} from '../../api/pathwayRoutes';
 import type {PathwayStage} from '../../api/pathways';
 import {skipReasonLabel} from '../../api/stageSkips';
 import {formatDateTime} from '../../utils/dates';
@@ -35,6 +36,11 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
       {stage.isOptional && <Token size="sm" label="Optional" color="gray" />}
       {stage.choosesBranch && <Token size="sm" label="Branch point" color="purple" />}
       {stage.branch && <Token size="sm" label={`Branch: ${stage.branch}`} color="purple" />}
+      {/* The relay: a stage another team works (the lab's), named on it wherever the pathway is seen. */}
+      {stage.ownerTeamName && (
+        <Token size="sm" label={`Worked by ${stage.ownerTeamName}`} color="orange" />
+      )}
+      {stage.isCurrent && stage.handedOverFromTeamName && !stage.pickedUpAtUtc && <Token size="sm" label="Not picked up yet" color="red" />}
     </HStack>
   );
 }
@@ -42,6 +48,10 @@ export function StageStateTokens({stage}: {stage: PathwayStage}) {
 /** Who started, finished or skipped the stage, and when; a skip's reason in words, and its detail. */
 function StageActivity({stage}: {stage: PathwayStage}) {
   const lines = [
+    stage.handedOverFromTeamName &&
+      stage.reachedAtUtc &&
+      `Handed over by ${stage.handedOverFromTeamName}, ${formatDateTime(stage.reachedAtUtc)}`,
+    stage.pickedUpAtUtc && `Picked up by ${stage.pickedUpByUsername ?? 'unknown'}, ${formatDateTime(stage.pickedUpAtUtc)}`,
     stage.startedAtUtc && `Started by ${stage.startedByUsername ?? 'unknown'}, ${formatDateTime(stage.startedAtUtc)}`,
     stage.completedAtUtc && `Finished by ${stage.completedByUsername ?? 'unknown'}, ${formatDateTime(stage.completedAtUtc)}`,
     stage.skippedAtUtc &&
@@ -127,6 +137,8 @@ export interface StageDetailsProps {
   instructions?: InstructionsFolding;
   /** The stage's files, under its notes (e.g. an `AttachmentsFold`). */
   files?: ReactNode;
+  /** A join's words (`waitsForWords`): the stages before it that must each be finished or skipped first. */
+  waitsFor?: string | null;
 }
 
 /** What a stage that waits for results says, under its title. */
@@ -136,7 +148,7 @@ export const WAITS_FOR_RESULTS_WORDS = 'Waits for results: every result on the p
  * Everything about one stage under its title: description, its SNOMED CT concept (copied from its definition when
  * the pathway was made), who started and finished it, instructions (which fold), notes and files.
  */
-export function StageDetails({stage, work, instructions, files}: StageDetailsProps) {
+export function StageDetails({stage, work, instructions, files, waitsFor}: StageDetailsProps) {
   return (
     <VStack gap={3}>
       {stage.description && (
@@ -161,6 +173,12 @@ export function StageDetails({stage, work, instructions, files}: StageDetailsPro
       {stage.needsConsent && (
         <Text type="body" weight="semibold">
           Needs consent recorded before it can be finished
+        </Text>
+      )}
+      {/* A join (MC8): it starts only when every route into it is finished or skipped. */}
+      {waitsFor && (
+        <Text type="body" color="secondary">
+          {waitsFor}
         </Text>
       )}
       <StageActivity stage={stage} />
@@ -195,7 +213,7 @@ export interface StageListProps {
 }
 
 /**
- * A pathway's stages in order, read-only. Each stage folds: its header shows its number, name and state, and
+ * A pathway's stages in order (a topological order: routes side by side are listed one after the other), read-only. Each stage folds: its header shows its number, name and state, and
  * opening it shows who started and finished it, its instructions and its notes. The current stage starts open
  * (unless `isCurrentOpen` is false) and the others closed, so the page leads with the work in hand.
  */
@@ -221,7 +239,13 @@ export function StageList({
               onOpenChange={openStageIds ? (isOpen) => onStageOpenChange?.(stage.id ?? '', isOpen) : undefined}
               chevronPosition="end"
               trigger={<StageTitle stage={stage} extra={renderVisit?.(stage)} />}>
-              <StageDetails stage={stage} work={renderWork?.(stage)} instructions={instructions} files={renderFiles?.(stage)} />
+              <StageDetails
+                stage={stage}
+                work={renderWork?.(stage)}
+                instructions={instructions}
+                files={renderFiles?.(stage)}
+                waitsFor={waitsForWords(stage, stages)}
+              />
             </Collapsible>
           </Section>
         ))}

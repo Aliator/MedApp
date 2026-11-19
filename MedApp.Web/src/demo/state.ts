@@ -42,6 +42,21 @@ export interface DemoStage {
   /** `StageSkipReason` by name: BranchNotChosen, NotNeeded, PatientDeclined or Other. */
   skipReason: string | null;
   skipDetail: string | null;
+  /** The team that works it (the relay, MC7): the template's choice, or null for the pathway's own team. */
+  ownerTeamId: string | null;
+  /** When it became the current stage, or null if it hasn't yet. */
+  reachedAtUtc: string | null;
+  /** The team that handed it over when it was reached (its owner differs from the stage before's), or null. */
+  handedOverFromTeamId: string | null;
+  /** When the receiving team picked it up (or started or finished it), after a handover. */
+  pickedUpAtUtc: string | null;
+  pickedUpByUserId: string | null;
+}
+
+/** A link from one stage of a pathway to the next (`PatientPathwayStageLinks`): a fork has several from a stage, a join several to it. */
+export interface DemoStageLink {
+  fromStageId: string;
+  toStageId: string;
 }
 
 export interface DemoNote {
@@ -87,8 +102,12 @@ export interface DemoPathway {
   createdAt: string;
   lastUpdated: string;
   stages: DemoStage[];
+  /** How its stages lead to each other (MC8, tree pathways): copied from the template's links, by stage ID. */
+  links: DemoStageLink[];
   assignments: {userId: string; assignedByUserId: string; assignedAtUtc: string}[];
   notes: DemoNote[];
+  /** Each handover between teams (the relay), for the audit log: by IDs and team names, never free text. */
+  handovers: {stageId: string; fromTeamId: string; toTeamId: string; atUtc: string; byUserId: string}[];
   /** Changes of status (put on hold, taken off it, discharged), for the timeline. */
   statusChanges: {atUtc: string; userId: string; from: DemoPathway['status']; to: DemoPathway['status']}[];
 }
@@ -123,8 +142,8 @@ export type DemoAppointment = Schemas['AppointmentResponse'] & {teamId: string |
 
 /**
  * A grant to see a pathway in full (`PathwayAccess`, decision 201 of `docs/multi-clinic-plan.md`): `Owner` for the
- * pathway's own team, written with it; `StageOwner` for the lab once a sample is passed to it, never ended (decision
- * 184). Kept after the pathway is deleted. The rules that read them are in `handlers/teamWalls.ts`.
+ * pathway's own team, written with it; `StageOwner` for the lab once a stage it owns is reached (or a sample is passed
+ * to it), never ended (decision 184). Kept after the pathway is deleted. The rules that read them are in `handlers/teamWalls.ts`.
  */
 export interface DemoPathwayAccess {
   pathwayId: string;

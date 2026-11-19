@@ -30,6 +30,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {stageDescription} from '../../components/pathways/SnomedConcept';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
+import {afterWords, hasParallelRoutes, PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
 import {
   isAfterBranchPoint,
   PLAIN_STAGE,
@@ -124,13 +125,17 @@ function templateRows(template: PathwayTemplate | null): StageRow[] {
       isOptional: stage?.isOptional ?? false,
       choosesBranch: stage?.choosesBranch ?? false,
       branch: stage?.branch ?? '',
+      // Stage 1 allows only the lab as another owner (the relay, MC7).
+      byLab: Boolean(stage?.ownerTeamId),
     });
   });
 }
 
 /** A stage's options in a few words, for the confirmation ("optional", "branch point", "Benign"); empty when plain. */
 function optionWords(stage: StageRow): string {
-  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim()].filter(Boolean);
+  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim(), stage.byLab && 'the lab’s'].filter(
+    Boolean,
+  );
   return words.length > 0 ? ` (${words.join(', ')})` : '';
 }
 
@@ -173,6 +178,9 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
  * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
  * refuse in them shows on the stage. Saving asks first, then goes back to the list.
  *
+ * A template with routes side by side (MC8, tree pathways) shows its stages read-only, each with the stages it comes
+ * after, until the route editor (MC9) draws them: its name, team, retention class and clock stop still change.
+ *
  * Wide, the stages and the definitions to add sit side by side; narrow, they're one form card. Either way the
  * cards scroll, not the page.
  */
@@ -209,6 +217,7 @@ function TemplateEditor({
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {sensitivity: 'base'}));
   const backToList = () => void navigate({to: BACK});
   const usedBy = template?.pathwayCount ?? 0;
+  const hasRoutes = template !== null && hasParallelRoutes(template);
 
   const reorderable = useMemo(
     () =>
@@ -232,7 +241,16 @@ function TemplateEditor({
     setStages((current) => current.map((s) => (s.key === key ? {...s, ...options} : s)));
   // What the API would refuse in the stages' options, said on each stage before saving (the API's check is the last word).
   const optionProblems = stageOptionProblems(stages);
-  const stageOptions = stageOptionsToSend(stages);
+  // The relay (MC7): a stage can be the lab's, unless the template is the lab's own. A template that had one sends
+  // every stage's options, so one cleared is cleared.
+  const labTeamId = teams.find((t) => t.kind === 'Lab')?.id ?? null;
+  const canBeLabs = labTeamId !== null && teamId !== labTeamId;
+  const hadLabStages = (template?.stages ?? []).some((s) => s.ownerTeamId);
+  const stageOptions = stageOptionsToSend(
+    stages.map((s) => ({...s, byLab: canBeLabs && s.byLab})),
+    labTeamId,
+    hadLabStages,
+  );
 
   const submit = () =>
     save.mutate(
@@ -315,8 +333,36 @@ function TemplateEditor({
     </>
   );
 
-  const stageList =
-    stages.length === 0 ? (
+  const stageList = hasRoutes ? (
+    <VStack gap={3}>
+      <AlertMessage status="info" message={PARALLEL_ROUTES_LOCKED} />
+      <List hasDividers aria-label="Stages in order">
+        {stages.map((stage, i) => {
+          const definition = byId.get(stage.definitionId);
+          return (
+            <ListItem
+              key={stage.key}
+              label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}${optionWords(stage)}`}
+              description={
+                <VStack as="span" gap={1}>
+                  {stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
+                  <Text type="supporting" color="secondary">
+                    {afterWords(i + 1, template) ?? 'The first stage'}
+                  </Text>
+                </VStack>
+              }
+              endContent={
+                <HStack gap={2} vAlign="center">
+                  {stage.key === stopKey && <Token size="sm" label="Stops the clock" color="blue" />}
+                  <VisitRequirementToken requirement={definition?.visitRequirement} />
+                </HStack>
+              }
+            />
+          );
+        })}
+      </List>
+    </VStack>
+  ) : stages.length === 0 ? (
       <EmptyState
         title="No stages yet"
         description={isNarrow ? 'Add stages from the list below.' : 'Add stages from All Stages, beside this.'}
@@ -340,6 +386,7 @@ function TemplateEditor({
                   stage={stage}
                   description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
                   canBeInBranch={afterBranchPoint}
+                  canBeLabs={canBeLabs}
                   problem={optionProblems.get(i)}
                   isDisabled={save.isPending}
                   onChange={(options) => change(stage.key, options)}
@@ -383,7 +430,7 @@ function TemplateEditor({
                 icon={<Icon icon={AppIcon.Add} />}
                 variant="ghost"
                 size="sm"
-                isDisabled={save.isPending}
+                isDisabled={save.isPending || hasRoutes}
                 onClick={() => add(definition.id ?? '')}
               />
             </HStack>
@@ -514,6 +561,8 @@ interface StageOptionFieldsProps {
   description: ReactNode;
   /** It comes after a branch point, so it can be put in a branch. */
   canBeInBranch: boolean;
+  /** The template isn't the lab's, so a stage can be the lab's to work (the relay). */
+  canBeLabs?: boolean;
   /** What the API would refuse in its options, if anything. */
   problem?: string;
   isDisabled: boolean;
@@ -526,7 +575,7 @@ interface StageOptionFieldsProps {
  * for a stage after a branch point, the Branch it's in (left empty, it always runs). Any problem the API would refuse
  * shows under them. Plain stages show just the two boxes, unticked.
  */
-function StageOptionFields({stage, description, canBeInBranch, problem, isDisabled, onChange}: StageOptionFieldsProps) {
+function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false, problem, isDisabled, onChange}: StageOptionFieldsProps) {
   // The branch field stays while it has a name, so one left after its branch point moved can still be cleared.
   const hasBranchField = (canBeInBranch && !stage.choosesBranch) || stage.branch !== '';
   return (
@@ -547,6 +596,15 @@ function StageOptionFields({stage, description, canBeInBranch, problem, isDisabl
           onChange={(choosesBranch) => onChange({choosesBranch})}
           isDisabled={isDisabled}
         />
+        {canBeLabs && (
+          <CheckboxInput
+            label="The lab’s stage"
+            size="sm"
+            value={stage.byLab ?? false}
+            onChange={(byLab) => onChange({byLab})}
+            isDisabled={isDisabled}
+          />
+        )}
         {hasBranchField && (
           <TextInput
             label="Branch"

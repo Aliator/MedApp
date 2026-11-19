@@ -1,6 +1,6 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, LAB, personByUsername, STAFF} from '../accounts';
-import {MORE_APPOINTMENTS, PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from '../ids';
+import {MEETINGS, MORE_APPOINTMENTS, PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from '../ids';
 import {ukDateOf} from '../time';
 import {db} from '../store';
 
@@ -21,12 +21,18 @@ describe('the team walls in the light demo', () => {
     expect(timeline.items.some((e: {pathwayId?: string}) => e.pathwayId === PATHWAYS.priyaGynaecology)).toBe(false);
   });
 
-  it('lets the lab read only the pathways passed to it, and change none of them', async () => {
+  it('lets the lab read only the pathways passed to it, and change them only while it has a stage of theirs', async () => {
     startLightDemo(LAB);
+    // At the lab's Histology stage: the lab works it and adds notes, and changes nothing else.
     const passed = await call('GET', `${PATHWAY}/${PATHWAYS.histologyToFinish}`);
     expect(passed.status).toBe(200);
-    expect(passed.body.canWorkOnStages).toBe(false);
-    expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/notes`, {text: 'x'})).status).toBe(409);
+    expect(passed.body).toMatchObject({canWorkOnStages: true, canAddNotes: true, canEditDetails: false, readOnlyReason: null});
+    expect((await call('POST', `${PATHWAY}/${PATHWAYS.histologyToFinish}/notes`, {text: 'x'})).status).toBe(200);
+    expect((await call('PATCH', `${PATHWAY}/${PATHWAYS.histologyToFinish}`, {title: 'x'})).status).toBe(409);
+    // Handed back (Harriet's is at Treatment): read only.
+    const back = (await call('GET', `${PATHWAY}/${PATHWAYS.consentToRecord}`)).body;
+    expect(back).toMatchObject({canWorkOnStages: false, canAddNotes: false});
+    expect((await call('POST', `${PATHWAY}/${PATHWAYS.consentToRecord}/notes`, {text: 'x'})).status).toBe(409);
     expect((await call('GET', `${PATHWAY}/${PATHWAYS.biopsyToBook}`)).status).toBe(404);
   });
 
@@ -130,5 +136,53 @@ describe('the team walls in the light demo', () => {
     const refused = await call('GET', `/api/patients/search?${gynae}`);
     expect(refused.status).toBe(400);
     expect(refused.body.errors.teamId).toBeDefined();
+  });
+});
+
+describe('team calendars and the meeting rule in the light demo (MC11)', () => {
+  it("shows another team's meeting as just busy \"Meeting\": no title, attendees or ID, and a 404 when opened", async () => {
+    startLightDemo(LAB);
+    const meeting = db().meetings.find((m) => m.id === MEETINGS.skinMdt)!;
+    const day = meeting.date!;
+    const team = (await call('GET', `/api/calendar/team?Date=${day}&TeamId=${TEAMS.dermatology}`)).body;
+    const nadia = team.members.find((m: {staffUserId: string}) => m.staffUserId === STAFF.id);
+    expect(nadia.meetings).toEqual([]);
+    expect(nadia.otherTeamsBusy).toContainEqual({staffUserId: STAFF.id, username: STAFF.username, startUtc: meeting.startUtc, endUtc: meeting.endUtc, what: 'Meeting'});
+    expect(JSON.stringify(team)).not.toContain(meeting.title!);
+    expect(JSON.stringify(team)).not.toContain(MEETINGS.skinMdt);
+    expect((await call('GET', `/api/calendar/meetings/${MEETINGS.skinMdt}`)).status).toBe(404);
+
+    startLightDemo(STAFF);
+    const own = (await call('GET', `/api/calendar?StaffUserId=${USERS.sandiford}&From=${day}&To=${day}`)).body;
+    expect(own.meetings.map((m: {id: string}) => m.id)).toContain(MEETINGS.skinMdt);
+  });
+
+  it("shows anyone any team's calendar: their first team's by default, with its members", async () => {
+    startLightDemo(STAFF);
+    const mine = (await call('GET', '/api/calendar/team')).body;
+    expect(mine.teamId).toBe(TEAMS.dermatology);
+    expect(mine.teamMembers.map((m: {username: string}) => m.username)).toEqual(['b.sandiford', 'n.thornbury', 't.hallworth']);
+    expect(mine.members).toHaveLength(3);
+
+    const gynaecology = (await call('GET', `/api/calendar/team?TeamId=${TEAMS.gynaecology}&StaffUserIds=${STAFF.id}`)).body;
+    expect(gynaecology.teamName).toBe('Gynaecology');
+    // Who is narrowed to the team's own members.
+    expect(gynaecology.members.map((m: {staffUserId: string}) => m.staffUserId)).toEqual([USERS.hallworth]);
+  });
+
+  it('books meetings only with your own team, except an MDT; admins arrange any', async () => {
+    const {state} = startLightDemo(personByUsername('j.whitlock')!);
+    state.memberships[USERS.whitlock] = [{teamId: TEAMS.dermatology, role: 'Member'}];
+    const startUtc = new Date(Date.now() + 3 * 86400_000).toISOString();
+    const endUtc = new Date(Date.parse(startUtc) + 30 * 60000).toISOString();
+    const meeting = {title: 'Planning', startUtc, endUtc, attendeeUserIds: [STAFF.id, LAB.id]};
+    const refused = await call('POST', '/api/calendar/meetings', meeting);
+    expect(refused.status).toBe(400);
+    expect(refused.body.errors.attendeeUserIds[0]).toMatch(/^r\.aldous isn’t in your team/);
+    expect((await call('POST', '/api/calendar/meetings', {...meeting, attendeeUserIds: [STAFF.id]})).status).toBe(200);
+    expect((await call('POST', '/api/calendar/meetings', {...meeting, isMdt: true, teamId: TEAMS.dermatology})).status).toBe(200);
+
+    startLightDemo(ADMIN);
+    expect((await call('POST', '/api/calendar/meetings', meeting)).status).toBe(200);
   });
 });

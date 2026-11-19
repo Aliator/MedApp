@@ -2579,7 +2579,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 
-**Further controls** (planned, MC7; before the feature's first live use):
+**Further controls** (planned, MC7: built in the light demo only, 19 Nov 2026, the API in Stage 1's final stage; before the feature's first live use):
 - **The handover notification** to the receiving team. Protective.
 - **New for us and Back from the lab views,** oldest first. Detective.
 - **Pick-up** (`StagePickedUp`), so a handover nobody has picked up shows as such. Detective.
@@ -2610,7 +2610,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 
-**Further controls** (planned, MC7; before the feature's first live use):
+**Further controls** (planned, MC7: built in the light demo only, 19 Nov 2026, the API in Stage 1's final stage; before the feature's first live use):
 - **The owner shown** in the template editor and on each stage. Information.
 - **Only the pathway's team or the lab** can own a stage in Stage 1. Design.
 - **Transferred:** a clinical review of each template's stage owners before go-live, and on each change (DCB0160).
@@ -2637,6 +2637,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 **Possible harm.** A missed result or treatment. One patient; Major in the worst credible case.
 
 **Existing controls:** none (not built). Today's pathways have one current stage.
+- **Built in the web app and light demo (MC8, 19 Nov 2026; the API follows):** review (then discharge) only when every stage on every route is finished or skipped; the pathway page shows every current stage, lists say each by name; the last-stage gates apply to the stage whose finish leaves none to do on any route.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 

@@ -33,8 +33,10 @@ import {
   OPEN_PATHWAY_STATUSES,
   TASK_PRIORITIES,
   TASK_SORTS,
+  TASK_VIEWS,
   type TaskSortColumn,
   type TasksSearch,
+  type TaskView,
 } from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
 import {useTeamAndStageFields} from '../pathways/pathwayFilterFields';
@@ -117,11 +119,22 @@ const actionsColumn: DataTableColumn<TaskRow> = {
   renderCell: (p) => <PathwayActions id={p.id ?? ''} patientId={p.patientId ?? ''} />,
 };
 
-/** Tasks not started show their template (there's no stage to show yet); the others, the stage they're at. */
-const columnsFor = (progress: Progress) => [
+/** Who works the current stage (the relay): the lab, or the pathway's own team. */
+const withColumn: DataTableColumn<TaskRow> = {
+  key: 'with',
+  header: 'With',
+  width: PATHWAY_COLUMN_WIDTH.template,
+  renderCell: (p) => <TextCell text={p.awaitingPickUp ? `${p.currentStageTeamName ?? ''} (not picked up)` : p.currentStageTeamName} />,
+};
+
+/**
+ * Tasks not started show their template (there's no stage to show yet); the others, the stage they're at. A team view
+ * shows the stage and who has it.
+ */
+const columnsFor = (progress: Progress, view: TaskView | undefined) => [
   pathwayColumn,
   patientColumn,
-  progress === 'notStarted' ? templateColumn : stageColumn,
+  ...(view ? [stageColumn, withColumn] : [progress === 'notStarted' ? templateColumn : stageColumn]),
   dueColumn,
   waitColumn,
   priorityColumn,
@@ -134,6 +147,15 @@ const PROGRESS_TEXT: Record<Progress, {noun: string; empty: string}> = {
   started: {noun: 'started', empty: 'Nothing in progress'},
   any: {noun: 'to do', empty: 'Nothing assigned to you'},
 };
+
+/** The team views' words: the bar's and favourites' labels, and the list's when there's nothing in one. */
+const VIEW_TEXT: Record<TaskView, {label: string; empty: string}> = {
+  ourTurn: {label: 'Our turn', empty: 'Nothing is with your team'},
+  newForUs: {label: 'New for us', empty: 'Nothing waiting to be picked up'},
+  awaitingLab: {label: 'Awaiting the lab', empty: 'Nothing is with the lab'},
+  backFromLab: {label: 'Back from the lab', empty: 'Nothing back from the lab'},
+};
+const VIEWS = Object.keys(TASK_VIEWS) as TaskView[];
 
 /** The search's fields, as the API filters a user's tasks, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -149,6 +171,7 @@ const FILTER_FIELDS: ListFilterField[] = [
       {value: 'started', label: 'Started'},
     ],
   },
+  {kind: 'choice', key: 'view', label: 'Team view', options: VIEWS.map((v) => ({value: v, label: VIEW_TEXT[v].label}))},
   {
     kind: 'choice',
     key: 'status',
@@ -169,11 +192,17 @@ const FAVOURITES: ListFilterFavourite[] = [
   {label: 'Overdue', values: {overdue: true}},
   {label: 'Breached', values: {breached: true}},
   {label: 'On hold', values: {status: 'Blocked'}},
+  // The relay's team views: work passed between the clinic and the lab.
+  ...VIEWS.map((view) => ({label: VIEW_TEXT[view].label, values: {view}})),
 ];
 
-/** The API search behind the list: unfinished pathways assigned to me, with its filters. */
+/**
+ * The API search behind the list: unfinished pathways assigned to me, with its filters; or, in a team view, the team's
+ * pathways in it (whoever they're assigned to, started or not).
+ */
 export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch {
   const progress = progressOf(search);
+  if (search.view) return {...taskQuery({...search, view: undefined, progress: 'any'}, pageSize), AssignedToMe: undefined, View: TASK_VIEWS[search.view]};
   return {
     AssignedToMe: true,
     Started: progress === 'any' ? undefined : progress === 'started',
@@ -201,7 +230,8 @@ export function taskQuery(search: TasksSearch, pageSize?: number): PathwaySearch
  */
 const barValues = (search: TasksSearch) => {
   const progress = progressOf(search);
-  return {...search, progress: progress === 'any' ? undefined : progress};
+  // A team view isn't about my progress, so the progress filter doesn't show with one.
+  return {...search, progress: progress === 'any' || search.view ? undefined : progress};
 };
 const fromBar = (values: ListFilterValues): Partial<TasksSearch> => ({
   ...(values as Partial<TasksSearch>),
@@ -239,11 +269,14 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
   const clearSearch = () => onSearchChange({sort: search.sort, asc: search.asc});
 
   const noun = total === 1 ? 'pathway' : 'pathways';
+  const view = search.view;
   const subtitle = isPending
     ? 'Loading...'
-    : isFiltered
-      ? `${total} matching ${noun}`
-      : `${total} ${noun} ${PROGRESS_TEXT[progress].noun}`;
+    : view
+      ? `${total} ${noun}: ${VIEW_TEXT[view].label}`
+      : isFiltered
+        ? `${total} matching ${noun}`
+        : `${total} ${noun} ${PROGRESS_TEXT[progress].noun}`;
 
   return (
     <Page
@@ -253,7 +286,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
       message={isError && <AlertMessage message="Your tasks could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
-        columns={columnsFor(progress)}
+        columns={columnsFor(progress, view)}
         idKey="id"
         isLoading={isPending}
         skeletonRows={pageSize}
@@ -279,7 +312,9 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
           onPageChange: (next) => onSearchChange({...search, page: next > 1 ? next : undefined}),
         }}
         emptyState={
-          isFiltered ? (
+          view && !hasTaskFilters({...search, view: undefined}) ? (
+            <EmptyState title={VIEW_TEXT[view].empty} icon={<Icon icon={AppIcon.Success} size="lg" />} />
+          ) : isFiltered ? (
             <EmptyState
               title="No pathways match your search"
               icon={<Icon icon={AppIcon.Search} size="lg" />}

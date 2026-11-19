@@ -87,6 +87,7 @@ const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost'];
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
   PathwayAssigned: AppIcon.Assign,
+  PathwayHandedOver: AppIcon.Send,
   AppointmentBooked: AppIcon.AppointmentBooked,
   AppointmentRescheduled: AppIcon.Book,
   AppointmentCancelled: AppIcon.StatusCancelled,

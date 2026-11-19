@@ -2706,6 +2706,7 @@ export interface paths {
             parameters: {
                 query?: {
                     Date?: string;
+                    TeamId?: string;
                     StaffUserIds?: string[];
                 };
                 header?: never;
@@ -11281,6 +11282,7 @@ export interface paths {
                     DueTo?: string;
                     IncludeClosed?: boolean;
                     Started?: boolean;
+                    View?: string;
                     TeamId?: string;
                 };
                 header?: never;
@@ -11846,6 +11848,68 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pathways/patient-pathways/{id}/stages/{stageId}/pick-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientPathwayResponse"];
+                        "application/json": components["schemas"]["PatientPathwayResponse"];
+                        "text/json": components["schemas"]["PatientPathwayResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -21538,11 +21602,20 @@ export interface components {
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;
+            links?: components["schemas"]["PathwayTemplateLinkResponse"][] | null;
+        };
+        PathwayTemplateLinkResponse: {
+            /** Format: int32 */
+            fromStageOrder?: number;
+            /** Format: int32 */
+            toStageOrder?: number;
         };
         PathwayTemplateStageOptionsRequest: {
             isOptional?: boolean;
             choosesBranch?: boolean;
             branch?: string | null;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
         };
         PathwayTemplateStageResponse: {
             /** Format: int32 */
@@ -21559,6 +21632,9 @@ export interface components {
             choosesBranch?: boolean;
             branch?: string | null;
             stopsClock?: boolean;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
+            ownerTeamName?: string | null;
         };
         PatientExportResponse: {
             /** Format: date-time */
@@ -21729,6 +21805,7 @@ export interface components {
             lastUpdated?: string;
             /** Format: uuid */
             currentStageId?: string | null;
+            currentStageIds?: string[] | null;
             /** Format: int32 */
             completedStageCount?: number;
             /** Format: int32 */
@@ -21786,6 +21863,7 @@ export interface components {
             isOptional?: boolean;
             choosesBranch?: boolean;
             branch?: string | null;
+            predecessorIds?: string[] | null;
             branches?: components["schemas"]["PatientPathwayBranchResponse"][] | null;
             needsBranchChoice?: boolean;
             state?: string | null;
@@ -21813,6 +21891,19 @@ export interface components {
             /** Format: uuid */
             completedByUserId?: string | null;
             completedByUsername?: string | null;
+            /** Format: uuid */
+            ownerTeamId?: string | null;
+            ownerTeamName?: string | null;
+            isWithAnotherTeam?: boolean;
+            /** Format: date-time */
+            reachedAtUtc?: string | null;
+            handedOverFromTeamName?: string | null;
+            /** Format: date-time */
+            pickedUpAtUtc?: string | null;
+            /** Format: uuid */
+            pickedUpByUserId?: string | null;
+            pickedUpByUsername?: string | null;
+            canPickUp?: boolean;
         };
         PatientPathwaySummaryResponse: {
             /** Format: uuid */
@@ -21836,6 +21927,8 @@ export interface components {
             /** Format: int32 */
             stageCount?: number;
             currentStageName?: string | null;
+            currentStageTeamName?: string | null;
+            awaitingPickUp?: boolean;
             assignees?: string[] | null;
             /** Format: date-time */
             lastUpdated?: string;
@@ -22985,9 +23078,13 @@ export interface components {
         TeamCalendarResponse: {
             /** Format: date */
             date?: string;
+            /** Format: uuid */
+            teamId?: string | null;
+            teamName?: string | null;
             day?: components["schemas"]["CalendarDayResponse"];
             members?: components["schemas"]["CalendarResponse"][] | null;
             everyoneFree?: components["schemas"]["TimeRangeResponse"][] | null;
+            teamMembers?: components["schemas"]["StaffMemberResponse"][] | null;
         };
         TemplateStageTimesResponse: {
             /** Format: uuid */
