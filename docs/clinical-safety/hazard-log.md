@@ -2347,7 +2347,7 @@ Throughout, the plan keeps the device line (decision 69): MedApp records what cl
 
 **Possible harm.** A treatment changed or stopped on wrong information. One patient; Considerable in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** in the backend (MC3 and MC4 of the backend catch-up; live once its combined migration is applied): a pathway takes its template's team; `TeamScope` on every pathway list's repository method and the scoped guards on every pathway command (`TeamScopeConventionTests`); the walls' unit tests (`TeamAccessTests`, `TeamAccessSqlTests`, `PathwayTeamWallsTests`). The integration leak suites come with the migration; MC5 the other areas.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Considerable, Low: **2**.
 
@@ -2547,7 +2547,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Possible harm.** An adverse interaction or an unneeded procedure. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built). Today every member of staff sees every pathway.
+**Existing controls:** in the backend (MC4 of the backend catch-up; live once its combined migration is applied): the other-clinic summary on the patient record and the timeline's overview (`otherTeamPathways`: the clinic, in progress or completed, since when).
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Low: **3**.
 
