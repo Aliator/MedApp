@@ -61,6 +61,9 @@ export const AUDIT_ACTIONS = [
   'LabReportAuthorised',
   'RepeatSampleRequested',
   'LabCaseEnteredInError',
+  'LabReportSent',
+  'SurgeryDetailsAdded',
+  'LabCaseClosed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -110,6 +113,9 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   LabReportAuthorised: 'Lab report authorised',
   RepeatSampleRequested: 'Repeat sample requested',
   LabCaseEnteredInError: 'Lab case entered in error',
+  LabReportSent: 'Lab report sent to the hospital',
+  SurgeryDetailsAdded: 'Surgery details added',
+  LabCaseClosed: 'Lab case closed',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -263,7 +269,13 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
     case 'LabReportAuthorised':
     case 'RepeatSampleRequested':
     case 'LabCaseEnteredInError':
+    case 'LabCaseClosed':
       return text(d.number) ?? '';
+    // MC20: the hospital it went to (an admin-written name) and how; surgery details hold no text here.
+    case 'LabReportSent':
+      return [text(d.number), text(d.hospital) ? `to ${text(d.hospital)}` : null].filter(Boolean).join(' ');
+    case 'SurgeryDetailsAdded':
+      return [text(d.number), d.noSurgeryExpected === true ? 'no surgery expected' : null].filter(Boolean).join(': ');
     default:
       if ((entry.action ?? '').startsWith('Result')) return describeResult(d);
       return (entry.action ?? '').startsWith('Specimen') ? describeSpecimen(d) : '';

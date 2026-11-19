@@ -270,6 +270,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Migration** `AddedSurgeryDetails`.
 - **Governance:** H-74, DPIA 46.
 - **Light demo:** surgery details and closing; the PDF and sending are "not in the light demo" (record as sent works).
+- **Built in the demo first (19 Nov 2026), decisions:** authorising a hospital case sends its report in the same action (hospital cases only; `hospitalReport` on the case: `DiagnosticReport-Lab`'s final status, addressed to the request's surgeon, the hospital's delivery method, sent when and by whom), so it goes `AwaitingSurgeryDetails`; the clock stops at the authorising; `POST api/lab-cases/{id}/surgery-details` (`ProcessSpecimens`, the lab): date, procedure, outcome and other details as written, or "No surgery expected" with why (only once sent); added before the report they're kept and the case stays open, added after they close it; Lab Cases' tab and the lab home's list Awaiting surgery details; Reported now means authorised, whatever came after. No amended report after authorising (not in MC20's scope). Backend stage to do: the migration, the `LabReport` letter's PDF, the governance entries (H-74, DPIA 46).
 
 **MC21. Pathology at MDTs** (S). After MC5. ∥ any Phase 2 PR.
 - **Scope:** lab members (Pathologist) can attend any MDT (the MDT exception, MC11) and be an item's **presenter** (`MdtItem.PresenterUserId`); the item shows its lab case and report.

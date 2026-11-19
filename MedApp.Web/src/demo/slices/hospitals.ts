@@ -78,6 +78,13 @@ export const HOSPITAL_REQUESTS = {
   mayaBiopsy: id(0xc2, 2),
   /** Ellis Varden, a centre patient too (matched by the lab to his record): routine, received 9 days ago, so past the lab's 7 (breached, MC19) while away for a second opinion. */
   ellisExcision: id(0xc2, 3),
+  /**
+   * Wilfred Ashdown's diagnostic biopsy before it (MC20): reported and sent back to the hospital 10 days ago; the
+   * hospital's surgery details (the excision now in the lab) arrived since, so the case is closed.
+   */
+  wilfredBiopsy: id(0xc2, 4),
+  /** Ellis Varden's earlier biopsy (MC20): reported and sent 12 days ago, awaiting the hospital's surgery details. */
+  ellisBiopsy: id(0xc2, 5),
 } as const;
 
 /** Each request's lab case (MC15 seeds them: `slices/labCases.ts`). */
@@ -85,6 +92,8 @@ export const HOSPITAL_LAB_CASES = {
   wilfred: id(0xc3, 1),
   maya: id(0xc3, 2),
   ellis: id(0xc3, 3),
+  wilfredBiopsy: id(0xc3, 4),
+  ellisBiopsy: id(0xc3, 5),
 } as const;
 
 /** Patients the hospital sent and the centre doesn't otherwise see (hidden from non-lab staff's search). */
@@ -97,6 +106,8 @@ export const HOSPITAL_PATIENTS = {
 export const HOSPITAL_IDS = {
   /** A hospital request to open as the lab (`r.aldous`). */
   urgentRequest: HOSPITAL_REQUESTS.wilfredExcision,
+  /** A hospital case reported and sent, awaiting the hospital's surgery details (MC20). */
+  awaitingSurgeryDetails: HOSPITAL_LAB_CASES.ellisBiopsy,
   hospitalOnlyPatient: HOSPITAL_PATIENTS.wilfredAshdown,
 } as const;
 
@@ -202,6 +213,25 @@ export function seedHospitals(state: BaseState, lab: Pick<LabSlice, 'specimenSeq
         priority: 'Routine',
         isCancerPathway: false,
         reportNeededBy: daysFrom(6),
+      }),
+      // MC20: two earlier requests, reported and sent back (their cases: `slices/labCases.ts`).
+      request(HOSPITAL_REQUESTS.wilfredBiopsy, HOSPITAL_LAB_CASES.wilfredBiopsy, 16, {
+        patientId: HOSPITAL_PATIENTS.wilfredAshdown,
+        hospitalPatientNumber: 'RG-204817',
+        nhsNumber: '9991031375',
+        surgeonName: 'Ms A. Example (synthetic)',
+        priority: 'Urgent',
+        isCancerPathway: true,
+        reportNeededBy: null,
+      }),
+      request(HOSPITAL_REQUESTS.ellisBiopsy, HOSPITAL_LAB_CASES.ellisBiopsy, 18, {
+        patientId: PATIENTS.ellisVarden,
+        hospitalPatientNumber: 'RG-118953',
+        nhsNumber: ellis?.nhsNumber ?? null,
+        surgeonName: 'Ms A. Example (synthetic)',
+        priority: 'Routine',
+        isCancerPathway: false,
+        reportNeededBy: null,
       }),
     ],
   };

@@ -17,7 +17,7 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect(toReport.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.ilonaBlood]);
     expect(toReport.items[0]).toMatchObject({nextKind: 'Report', source: 'Clinic', labTestName: 'Full blood count'});
     const hospital = (await call('POST', '/api/lab-cases/search', {view: 'All', source: 'Hospital'})).body;
-    expect(hospital.totalCount).toBe(3);
+    expect(hospital.totalCount).toBe(5);
 
     startLightDemo(STAFF);
     const clinic = (await call('POST', '/api/lab-cases/search', {view: 'All'})).body;
@@ -68,10 +68,10 @@ describe('the light demo’s lab cases (MC15)', () => {
 
     expect((await call('POST', `/api/lab-cases/${c.id}/report`, {results: ' ', expectedVersion: c.version})).status).toBe(400);
     c = (await call('POST', `/api/lab-cases/${c.id}/report`, {results: 'Synthetic results.', expectedVersion: c.version})).body;
-    expect(c).toMatchObject({status: 'Reported', reportText: 'Synthetic results.', reportedByUsername: LAB.username, resultId: null});
+    // A hospital case's report goes back to the hospital in the same action (MC20).
+    expect(c).toMatchObject({status: 'AwaitingSurgeryDetails', reportText: 'Synthetic results.', reportedByUsername: LAB.username, resultId: null});
     expect(c.samples.every((s: {status: string}) => s.status === 'Reported')).toBe(true);
-    // The hospital's request shows its case reported.
-    expect((await call('GET', `/api/hospital-requests/${HOSPITAL_REQUESTS.mayaBiopsy}`)).body.labCaseStatus).toBe('Reported');
+    expect((await call('GET', `/api/hospital-requests/${HOSPITAL_REQUESTS.mayaBiopsy}`)).body.labCaseStatus).toBe('AwaitingSurgeryDetails');
     // The audit log has its entries, with no results text.
     const entries = auditEntries().filter((e) => e.details?.includes(c.id));
     expect(entries.map((e) => e.action)).toEqual(expect.arrayContaining(['LabCaseOpened', 'LabStepRecorded', 'LabReportAuthorised']));
@@ -175,5 +175,77 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect((await caseOf(LAB_CASES.wilfred)).clock).toMatchObject({setBy: 'Hospital', hospitalDueBasis: 'ReportNeededBy', state: 'OnTime', daysLeft: 3});
     expect((await caseOf(LAB_CASES.maya)).clock).toMatchObject({setBy: 'Lab', hospitalDueBasis: 'HospitalDefault', state: 'OnTime'});
     expect((await caseOf(LAB_CASES.priyaBiopsy)).clock?.state).toMatch(/^Reported/);
+  });
+
+  it('sends a hospital case’s report back to its hospital when authorised, its clock stopped there (MC20)', async () => {
+    startLightDemo(LAB);
+    const request = db().hospitalRequests.find((r) => r.id === HOSPITAL_REQUESTS.mayaBiopsy)!;
+    const c = db().labCases.find((x) => x.id === LAB_CASES.maya)!;
+    // Every step done, for the report.
+    c.steps.push(
+      ...['Accessioned', 'Outcome'].map((kind, i) => ({
+        id: `s${i}`,
+        kind: kind as 'Accessioned' | 'Outcome',
+        testStepId: null,
+        choice: kind === 'Outcome' ? ('SampleAdequate' as const) : null,
+        outcome: kind === 'Outcome' ? ('Adequate' as const) : null,
+        detail: null,
+        atUtc: c.receivedAtUtc!,
+        byUserId: LAB.id,
+        enteredInError: null,
+      })),
+    );
+    let view = await caseOf(c.id);
+    while (view.next.kind !== 'Report')
+      view =
+        view.next.kind === 'Step'
+          ? (await call('POST', `/api/lab-cases/${c.id}/steps`, {testStepId: view.next.testStepId, expectedVersion: view.version})).body
+          : (await call('POST', `/api/lab-cases/${c.id}/outcomes`, {choice: view.next.choice.choice, outcome: 'NoMoreWork', expectedVersion: view.version})).body;
+    view = (await call('POST', `/api/lab-cases/${c.id}/report`, {results: 'Synthetic results.', expectedVersion: view.version})).body;
+    expect(view.hospitalReport).toMatchObject({status: 'Final', letterKind: 'LabReport', hospitalId: request.hospitalId, addressedTo: request.surgeonName, sentByUsername: LAB.username});
+    expect(view.hospitalReport.sentAtUtc).toBe(view.reportedAtUtc);
+    expect(view.clock.state).toMatch(/^Reported/);
+    expect(view).toMatchObject({status: 'AwaitingSurgeryDetails', canAddSurgeryDetails: true, canRecord: false});
+    const awaiting = (await call('POST', '/api/lab-cases/search', {view: 'AwaitingSurgeryDetails'})).body.items.map((x: {id: string}) => x.id);
+    expect(awaiting).toContain(c.id);
+    expect(auditEntries().some((e) => e.action === 'LabReportSent' && e.details?.includes(c.id))).toBe(true);
+  });
+
+  it('adds the hospital’s surgery details as written, closing a case awaiting them, with no text in the audit log (MC20)', async () => {
+    startLightDemo(LAB);
+    let c = await caseOf(LAB_CASES.ellisBiopsy);
+    expect(c).toMatchObject({status: 'AwaitingSurgeryDetails', canAddSurgeryDetails: true, hospitalReport: {letterKind: 'LabReport'}});
+    const url = `/api/lab-cases/${c.id}/surgery-details`;
+    expect((await call('POST', url, {expectedVersion: c.version})).status).toBe(400);
+    expect((await call('POST', url, {noSurgeryExpected: true, expectedVersion: c.version})).status).toBe(400);
+    expect((await call('POST', url, {procedure: 'x', expectedVersion: c.version - 1})).status).toBe(409);
+    c = (
+      await call('POST', url, {surgeryOn: '2026-11-10', procedure: 'Wide local excision (synthetic)', outcome: 'Completed (synthetic).', expectedVersion: c.version})
+    ).body;
+    expect(c).toMatchObject({status: 'Closed', canAddSurgeryDetails: false, closedByUsername: LAB.username});
+    expect(c.surgeryDetails.at(-1)).toMatchObject({surgeryOn: '2026-11-10', procedure: 'Wide local excision (synthetic)', addedByUsername: LAB.username});
+    expect((await call('POST', url, {procedure: 'Again', expectedVersion: c.version})).status).toBe(409);
+    const entries = auditEntries().filter((e) => e.details?.includes(c.id));
+    expect(entries.map((e) => e.action)).toEqual(expect.arrayContaining(['SurgeryDetailsAdded', 'LabCaseClosed']));
+    expect(entries.some((e) => e.details?.includes('excision') || e.details?.includes('Completed'))).toBe(false);
+  });
+
+  it('keeps surgery details that arrive before the report, and refuses them on a clinic’s case or from anyone but the lab (MC20)', async () => {
+    startLightDemo(LAB);
+    let c = await caseOf(LAB_CASES.wilfred);
+    expect(c.surgeryDetails).toHaveLength(1);
+    expect((await call('POST', `/api/lab-cases/${c.id}/surgery-details`, {noSurgeryExpected: true, detail: 'x', expectedVersion: c.version})).status).toBe(400);
+    c = (await call('POST', `/api/lab-cases/${c.id}/surgery-details`, {detail: 'Extra clinical details (synthetic).', expectedVersion: c.version})).body;
+    expect(c).toMatchObject({status: 'Open'});
+    expect(c.surgeryDetails).toHaveLength(2);
+
+    const clinic = await caseOf(LAB_CASES.ilonaBlood);
+    expect(clinic.canAddSurgeryDetails).toBe(false);
+    expect((await call('POST', `/api/lab-cases/${clinic.id}/surgery-details`, {procedure: 'x', expectedVersion: clinic.version})).status).toBe(409);
+
+    startLightDemo(ADMIN);
+    const asAdmin = await caseOf(LAB_CASES.ellisBiopsy);
+    expect(asAdmin.canAddSurgeryDetails).toBe(false);
+    expect((await call('POST', `/api/lab-cases/${asAdmin.id}/surgery-details`, {procedure: 'x', expectedVersion: asAdmin.version})).status).toBeGreaterThanOrEqual(403);
   });
 });

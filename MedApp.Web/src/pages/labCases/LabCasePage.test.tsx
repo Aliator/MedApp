@@ -1,6 +1,6 @@
 import {screen, within} from '@testing-library/react';
 import {json, mockApi, openDialog, renderWithApp, userWithRoles} from '../../test/render';
-import {CASE_ID, testCase, testClock} from '../../test/labCases';
+import {CASE_ID, testCase, testClock, testHospitalCase} from '../../test/labCases';
 import {LabCasePage} from './LabCasePage';
 
 const labUser = userWithRoles('test-lab', 'Lab');
@@ -67,6 +67,35 @@ describe('LabCasePage', () => {
     expect(screen.getByText('At risk')).toBeInTheDocument();
     expect(screen.getByText('10 November 2026 (limit 13 Nov 2026)')).toBeInTheDocument();
     expect(screen.getByText('7 November 2026, as the request gave it')).toBeInTheDocument();
+  });
+
+  it('shows a hospital case’s report as sent, and offers the lab its surgery details (MC20)', async () => {
+    const {user} = renderPage(() => json(testHospitalCase()));
+    expect(await screen.findByText('Ms A. Example (synthetic), Riverside General (test)')).toBeInTheDocument();
+    expect(screen.getByText('Awaiting the hospital’s surgery details.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Add Surgery Details'}));
+    expect(within(openDialog()!).getByRole('heading', {name: 'Add Surgery Details'})).toBeInTheDocument();
+  });
+
+  it('shows the surgery details as written, and when the case closed (MC20)', async () => {
+    renderPage(() =>
+      json(
+        testHospitalCase({
+          status: 'Closed',
+          canAddSurgeryDetails: false,
+          closedAtUtc: '2026-11-06T10:00:00Z',
+          closedByUsername: 'test-lab',
+          surgeryDetails: [
+            {id: 'sd-1', surgeryOn: '2026-11-05', procedure: 'Excision (synthetic)', outcome: 'Completed (synthetic).', noSurgeryExpected: false, detail: null, addedAtUtc: '2026-11-06T10:00:00Z', addedByUsername: 'test-lab'},
+          ],
+        }),
+      ),
+    );
+    const list = within(await screen.findByRole('list', {name: 'Surgery details'}));
+    expect(list.getByText('Excision (synthetic), 5 November 2026')).toBeInTheDocument();
+    expect(list.getByText('Completed (synthetic).')).toBeInTheDocument();
+    expect(screen.getByText(/^Case closed/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Add Surgery Details'})).not.toBeInTheDocument();
   });
 
   it('says when it isn’t there, or is another team’s', async () => {
