@@ -132,6 +132,7 @@ import {
   RiGroupLine,
   RiLightbulbLine,
   RiFlaskLine,
+  RiDossierLine,
   RiMailSendLine,
   RiMicroscopeLine,
   RiPrinterLine,
@@ -353,6 +354,8 @@ export const AppIcon = {
   Specimens: remix(RiTestTubeLine),
   /** The lab's home (the side nav's Lab), and the specimen types and lab tests (setup). */
   Lab: remix(RiFlaskLine),
+  /** The lab's cases (MC15): a request's samples, steps and report, worked as one. */
+  LabCases: remix(RiDossierLine),
   SpecimenSent: remix(RiTruckLine),
   SpecimenReceived: remix(RiMicroscopeLine),
   /** Finding a specimen by its number, typed or scanned from its label. */

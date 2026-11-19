@@ -82,7 +82,7 @@ const itemHrefOf = (notification: AppNotification) =>
 const hrefOf = (notification: AppNotification) => serviceAlertHref(notification) ?? itemHrefOf(notification);
 
 /** The kinds about a specimen, whose `subjectId` is the specimen. */
-const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost'];
+const SPECIMEN_KINDS = ['SpecimenRejectedByLab', 'SpecimenLost', 'RepeatSampleRequested'];
 
 /** Each kind's icon, beside its title, so what happened shows at a glance. */
 const KIND_ICONS: Record<string, IconType> = {
@@ -106,6 +106,7 @@ const KIND_ICONS: Record<string, IconType> = {
   ReferralTriaged: AppIcon.Referrals,
   SpecimenRejectedByLab: AppIcon.StatusCancelled,
   SpecimenLost: AppIcon.Warning,
+  RepeatSampleRequested: AppIcon.Refresh,
   LetterAwaitingApproval: AppIcon.Letters,
   LetterApproved: AppIcon.Success,
   LetterReturned: AppIcon.Back,

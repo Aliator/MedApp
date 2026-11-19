@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, CARROW, PEOPLE, STAFF, type DemoMembership} from '../accounts';
+import {ADMIN, CARROW, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, STAGES, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
@@ -41,6 +41,7 @@ export const ROLES = {
   booking: id(0xf2, 5),
   lab: id(0xf2, 6),
   manager: id(0xf2, 7),
+  pathologist: id(0xf2, 8),
 } as const;
 
 /** Clinic patterns; the sessions they made are in `CLINIC_SESSIONS`. */
@@ -285,6 +286,7 @@ const ROLE_SPECS: [keyof typeof ROLES, string, string, readonly Permission[]][] 
     ['UseApp', 'ViewPatients', 'EditPatients', 'DeletePatients', 'RegisterReferrals', 'BookAppointments', 'ManageAnyCalendar', 'ManageClinics', 'AttachFiles', 'SendLetters'],
   ],
   ['lab', 'Lab', 'Laboratory staff who work on their pathway stages.', ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens']],
+  ['pathologist', 'Pathologist', 'Pathologists: as Lab, and they enter lab cases’ results and authorise their reports.', PATHOLOGIST_ROLE],
   [
     'manager',
     'Manager',

@@ -5,6 +5,7 @@ import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from
 import {CLINICAL_IDS} from './slices/clinical';
 import {HOSPITAL_IDS} from './slices/hospitals';
 import {LAB_IDS} from './slices/lab';
+import {LAB_CASE_IDS} from './slices/labCases';
 import type {DemoState} from './state';
 
 /** One step of the Read Me's guided tour: a button that opens the exact page or record, as the right account. */
@@ -248,6 +249,23 @@ export const TOUR: TourStep[] = [
     buttonLabel: 'Open the hospital request as the lab',
   },
   {
+    key: 'lab-case',
+    title: 'Work a lab case',
+    steps: [
+      'Opens Wilfred Ashdown’s case from the hospital: received, accessioned, “Sample adequate?” recorded as adequate, and the test’s steps done. Each step says who and when.',
+      'What’s Next asks “Needs more work?”. Choose an outcome yourself (nothing is chosen for you): No more work, extra tests (special stains) or a second opinion, which adds their steps first.',
+      'Once there’s no more work, Enter Results and Authorise: the results go back to the hospital (for a clinic’s case, to the clinician as a result to sign off). “Insufficient” at “Sample adequate?” asks the clinic for a repeat instead.',
+      'Lab Cases in the side nav lists every case: open, to report (Ilona Petrova’s is ready), reported and repeats asked for.',
+    ],
+    account: LAB.username,
+    path: `/lab/cases/${LAB_CASE_IDS.atChoice}`,
+    buttonLabel: 'Open the lab case as the lab',
+    whyNot: (state) =>
+      state.labCases.find((c) => c.id === LAB_CASE_IDS.atChoice)?.status === 'Open'
+        ? null
+        : `You've finished this case already in your copy of the demo. ${RESET_HINT}`,
+  },
+  {
     key: 'fork',
     title: 'A pathway that forks',
     steps: [
@@ -440,6 +458,10 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
   {title: 'Real-time notifications', full: 'New notifications arrive at once on any open page, over a live connection (SignalR).'},
   {title: 'Real sign-in and two-factor', full: 'Passwords, sessions that time out, account lockout, and codes from an authenticator app or email.'},
   {title: 'Email', full: 'Password reset, confirming an address, and sign-in codes by email.'},
+  {
+    title: 'Lab reports as files',
+    full: 'A lab case’s report is a file the lab attaches and authorises. Here the results are typed in as text.',
+  },
   {
     title: 'File uploads',
     full: 'Attach files to patients, pathways and referrals, with thumbnails, type checks from the contents, and virus scanning.',

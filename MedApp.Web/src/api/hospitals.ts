@@ -32,7 +32,7 @@ export const LAB_REQUEST_PRIORITIES = [
 export const labRequestPriorityLabel = (priority: string | null | undefined) =>
   LAB_REQUEST_PRIORITIES.find((p) => p.value === priority)?.label ?? priority ?? '';
 
-/** A lab case's status (`LabCaseStatus`): Open until MC15 adds its steps and report. */
+/** A lab case's status (`LabCaseStatus`, MC15) in words. */
 export const labCaseStatusLabel = (status: string | null | undefined) =>
   ({Open: 'Open', Reported: 'Reported', AwaitingSurgeryDetails: 'Awaiting surgery details', Closed: 'Closed', RepeatRequested: 'Repeat requested', EnteredInError: 'Entered in error'})[
     status ?? ''
