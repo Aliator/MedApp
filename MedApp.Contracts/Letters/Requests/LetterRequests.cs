@@ -129,4 +129,10 @@ public sealed class SearchLettersRequest
     public string? Sort { get; set; }
 
     public bool Ascending { get; set; } = true;
+
+    /// <summary>
+    /// The clinic picker: only this team's letters (none: all the caller may see). Anyone but an admin may pick only one
+    /// of their own teams (400 otherwise).
+    /// </summary>
+    public Guid? TeamId { get; set; }
 }

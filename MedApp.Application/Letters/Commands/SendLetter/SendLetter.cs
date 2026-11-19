@@ -70,7 +70,7 @@ public sealed class SendLetterHandler(
 
     public async Task<LetterResponse> Handle(SendLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         var recipient = Sending.RecipientOrThrow(letter, request.RecipientId);
         LetterWorkflow.EnsureVersion(letter, request.ExpectedVersion);
@@ -149,7 +149,7 @@ public sealed class RecordLetterSentHandler(LetterRecords records, TimeProvider 
 {
     public async Task<LetterResponse> Handle(RecordLetterSentCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         var recipient = Sending.RecipientOrThrow(letter, request.RecipientId);
         LetterWorkflow.EnsureVersion(letter, request.ExpectedVersion);
