@@ -67,7 +67,7 @@ describe('SpecimenPage', () => {
     renderPage(testSpecimen({otherSpecimensFromStage: [testSummary({id: 'other', number: 'MA26-000100', status: 'Lost'})]}));
 
     expect(await screen.findByRole('heading', {name: 'Specimen MA26-000123', level: 1})).toBeInTheDocument();
-    expect(screen.getByText('Skin biopsy (punch), to Northgate pathology')).toBeInTheDocument();
+    expect(screen.getAllByText('Skin biopsy (punch)')[0]).toBeInTheDocument();
     expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getAllByText('Taken').length).toBeGreaterThan(0);
     expect(screen.getByText('7 Nov 2026, 09:00 (5 days)')).toBeInTheDocument();
@@ -195,7 +195,6 @@ describe('SpecimenPage', () => {
       everything,
       {
         'GET /api/specimen-types': () => json([]),
-        'GET /api/laboratories': () => json([]),
         'GET /api/calendar/staff': () => json([]),
       },
       labUser,

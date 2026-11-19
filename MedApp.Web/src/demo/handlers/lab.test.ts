@@ -1,7 +1,7 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {ADMIN, CARROW, HALLWORTH, LAB, STAFF} from '../accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATES} from '../ids';
-import {LAB_IDS, SPECIMEN_TYPES, LABORATORIES, RESULTS} from '../slices/lab';
+import {LAB_IDS, LAB_TESTS, SPECIMEN_TYPES, RESULTS} from '../slices/lab';
 import {db} from '../store';
 import {daysFrom, today} from '../time';
 import {labGate} from './lab';
@@ -27,7 +27,7 @@ describe('the light demo’s lab, results and referrals', () => {
     const pathway = (await call('GET', pathwayPath(PATHWAYS.histologyToFinish))).body;
     const stage = current(pathway);
     expect(stage).toMatchObject({name: 'Histology (lab)', canRecordSpecimen: true});
-    const body = {stageId: stage.id, specimenTypeId: SPECIMEN_TYPES.skinBiopsy, laboratoryId: LABORATORIES.valley, requestingUserId: STAFF.id};
+    const body = {stageId: stage.id, specimenTypeId: SPECIMEN_TYPES.skinBiopsy, requestingUserId: STAFF.id};
     expect((await call('POST', `/api/pathways/${PATHWAYS.histologyToFinish}/specimens`, {...body, specimenTypeId: SPECIMEN_TYPES.skinSwab})).status).toBe(400);
     const taken = await call('POST', `/api/pathways/${PATHWAYS.histologyToFinish}/specimens`, body);
     expect(taken.status).toBe(200);
@@ -118,7 +118,28 @@ describe('the light demo’s lab, results and referrals', () => {
     expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping', expectedTurnaroundDays: 21})).body).toMatchObject({canBeDeleted: true});
     expect((await call('DELETE', `/api/specimen-types/${SPECIMEN_TYPES.bloodSample}`)).status).toBe(409);
     expect((await call('DELETE', `/api/specimen-types/${SPECIMEN_TYPES.skinSwab}`)).status).toBe(204);
-    expect((await call('POST', `/api/laboratories/${LABORATORIES.centre}/archive`)).body).toMatchObject({isArchived: true, canBeDeleted: false});
+    expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping 2', expectedTurnaroundDays: 7, snomedCode: 'abc'})).status).toBe(400);
+    expect((await call('GET', '/api/laboratories')).status).toBe(501);
+  });
+
+  it('keeps the lab test catalogue for admins, checking its times and steps (MC13)', async () => {
+    const test = {name: 'Nail clipping for fungi', kind: 'Microbiology', targetDays: 14, limitDays: 21, atRiskDays: 3, steps: [{name: 'Culture', kind: 'Standard'}]};
+    startLightDemo(STAFF);
+    expect((await call('POST', '/api/lab-tests', test)).status).toBe(403);
+    startLightDemo(ADMIN);
+    expect((await call('GET', '/api/lab-tests')).body).toHaveLength(3);
+    expect((await call('GET', '/api/lab-tests?includeArchived=true')).body).toHaveLength(4);
+    expect((await call('POST', '/api/lab-tests', {...test, name: 'skin histology'})).status).toBe(409);
+    expect((await call('POST', '/api/lab-tests', {...test, limitDays: 7})).body.errors).toHaveProperty('limitDays');
+    expect((await call('POST', '/api/lab-tests', {...test, atRiskDays: 14})).body.errors).toHaveProperty('atRiskDays');
+    expect((await call('POST', '/api/lab-tests', {...test, steps: []})).body.errors).toHaveProperty('steps');
+    expect((await call('POST', '/api/lab-tests', {...test, kind: 'Astrology'})).body.errors).toHaveProperty('kind');
+    const added = (await call('POST', '/api/lab-tests', test)).body;
+    expect(added).toMatchObject({name: 'Nail clipping for fungi', snomedCode: null, canBeDeleted: true, steps: [{name: 'Culture', kind: 'Standard', isOptional: false}]});
+    const histology = (await call('PUT', `/api/lab-tests/${LAB_TESTS.skinHistology}`, {...test, name: 'Skin histology', kind: 'Histology', limitDays: 14})).body;
+    expect(histology).toMatchObject({limitDays: 14, steps: [{name: 'Culture'}]});
+    expect((await call('POST', `/api/lab-tests/${LAB_TESTS.skinHistology}/archive`)).body).toMatchObject({isArchived: true});
+    expect((await call('DELETE', `/api/lab-tests/${LAB_TESTS.liverFunction}`)).status).toBe(204);
   });
 
   it('registers, edits and withdraws a referral, showing a possible duplicate first', async () => {

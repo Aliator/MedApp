@@ -102,26 +102,25 @@ describe('route guards', () => {
     expect(await screen.findByText('Main site')).toBeInTheDocument();
   });
 
-  it('sends someone without ManageSetup away from Specimen Types and Labs, and lets an admin in', async () => {
-    const fetch = mockApi({'GET /api/specimen-types': () => json([]), 'GET /api/laboratories': () => json([])});
+  it('sends someone without ManageSetup away from Specimen Types and Lab Tests, and lets an admin in', async () => {
+    const fetch = mockApi({'GET /api/specimen-types': () => json([]), 'GET /api/lab-tests': () => json([])});
     const {router, unmount} = renderApp({path: '/admin/specimen-setup', user: staffUser});
     await waitFor(() => expect(router.state.location.pathname).toBe('/no-permission'));
     expect(fetch.mock.calls.some(([r]) => new URL((r as Request).url).pathname.includes('specimen'))).toBe(false);
     unmount();
 
     renderApp({path: '/admin/specimen-setup', user: adminUser});
-    expect(await screen.findByRole('heading', {name: 'Specimen Types and Labs', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Specimen Types and Lab Tests', level: 1})).toBeInTheDocument();
   });
 
-  it('opens the Lab on To send for those who send specimens, asking for that view', async () => {
+  it('opens Samples on To send for those who send specimens, asking for that view', async () => {
     const fetch = mockApi({
       // The Lab's worklist is a POST since #200, so a specimen number typed into its search stays out of the address.
       'POST /api/specimens/search': () => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
-      'GET /api/laboratories': () => json([]),
     });
-    renderApp({path: '/lab', user: nurseUser});
+    renderApp({path: '/lab/samples', user: nurseUser});
 
-    expect(await screen.findByRole('heading', {name: 'Lab', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Samples', level: 1})).toBeInTheDocument();
     const views = async () =>
       Promise.all(
         fetch.mock.calls

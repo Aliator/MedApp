@@ -16,7 +16,6 @@ import type {paths} from './schema';
 export type Specimen = Schemas['SpecimenResponse'];
 export type SpecimenSummary = Schemas['SpecimenSummaryResponse'];
 export type SpecimenType = Schemas['SpecimenTypeResponse'];
-export type Laboratory = Schemas['LaboratoryResponse'];
 export type SpecimenSearch = NonNullable<paths['/api/specimens/search']['get']['parameters']['query']>;
 export type SpecimenWorklistSearch = Schemas['SpecimenWorklistRequest'];
 
@@ -91,7 +90,6 @@ export const specimenKeys = {
 export const specimenSetupKeys = {
   all: ['specimen-setup'] as const,
   types: (includeArchived: boolean) => ['specimen-setup', 'types', includeArchived] as const,
-  laboratories: (includeArchived: boolean) => ['specimen-setup', 'laboratories', includeArchived] as const,
 };
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -153,14 +151,6 @@ export function specimenTypesQuery(includeArchived = false) {
   });
 }
 
-/** The labs by name; archived ones only with `includeArchived` (the setup page). */
-export function laboratoriesQuery(includeArchived = false) {
-  return queryOptions({
-    queryKey: specimenSetupKeys.laboratories(includeArchived),
-    queryFn: () => unwrap(api.GET('/api/laboratories', {params: {query: {includeArchived}}})),
-  });
-}
-
 /**
  * After any change to a specimen: it (when given, it replaces the cached one), every specimen list and lab view, and
  * the timelines (each change is an entry).
@@ -176,7 +166,6 @@ export async function refreshSpecimens(queryClient: QueryClient, specimen?: Spec
 /** What's typed when a specimen is recorded or its details corrected. Times are UTC ISO strings with `Z`. */
 export interface SpecimenDetailsInput {
   specimenTypeId: string;
-  laboratoryId: string;
   /** When it was taken; left out when recording, the API takes now. */
   takenAtUtc?: string;
   site: string;
@@ -189,7 +178,6 @@ function toDetailsRequest(input: SpecimenDetailsInput) {
   const optional = (value: string) => value.trim() || null;
   return {
     specimenTypeId: input.specimenTypeId,
-    laboratoryId: input.laboratoryId,
     site: optional(input.site),
     requestNotes: optional(input.requestNotes),
     requestingUserId: input.requestingUserId,
@@ -198,7 +186,7 @@ function toDetailsRequest(input: SpecimenDetailsInput) {
 
 /**
  * Records a specimen taken at one of a pathway's stages (`POST api/pathways/{id}/specimens`), returning it (201). The
- * API's 400 names `specimenTypeId`, `laboratoryId`, `takenAtUtc`, `site`, `requestNotes` or `requestingUserId`; a stage
+ * API's 400 names `specimenTypeId`, `takenAtUtc`, `site`, `requestNotes` or `requestingUserId`; a stage
  * that can't take one now, or a restricted record, is a 409 in its words.
  */
 export function useRecordSpecimen(pathwayId: string) {
@@ -310,7 +298,7 @@ export function useFindSpecimen() {
   });
 }
 
-/** Refreshes the setup lists, and the specimens, which carry their types' and labs' names. */
+/** Refreshes the setup lists, and the specimens, which carry their types' names. */
 function useRefreshSetup() {
   const queryClient = useQueryClient();
   return async () => {
@@ -321,24 +309,17 @@ function useRefreshSetup() {
   };
 }
 
-/** Adds a specimen type (no `id`) or changes one's name or expected days (holders of ManageSetup). A name taken is a 409. */
+/**
+ * Adds a specimen type (no `id`) or changes one's name, expected days or SNOMED CT specimen code (holders of
+ * ManageSetup; MC13). A name taken is a 409.
+ */
 export function useSaveSpecimenType() {
   const onSuccess = useRefreshSetup();
   return useMutation({
-    mutationFn: ({id, ...body}: {id?: string; name: string; expectedTurnaroundDays: number}) =>
+    mutationFn: ({id, ...body}: {id?: string; name: string; expectedTurnaroundDays: number; snomedCode: string | null}) =>
       id
         ? unwrap(api.PUT('/api/specimen-types/{id}', {params: {path: {id}}, body}))
         : unwrap(api.POST('/api/specimen-types', {body})),
-    onSuccess,
-  });
-}
-
-/** Adds a lab (no `id`) or changes one (holders of ManageSetup). A name taken is a 409. */
-export function useSaveLaboratory() {
-  const onSuccess = useRefreshSetup();
-  return useMutation({
-    mutationFn: ({id, ...body}: {id?: string; name: string; usesMedApp: boolean}) =>
-      id ? unwrap(api.PUT('/api/laboratories/{id}', {params: {path: {id}}, body})) : unwrap(api.POST('/api/laboratories', {body})),
     onSuccess,
   });
 }
@@ -351,17 +332,6 @@ export function useSpecimenTypeActions() {
     archive: useMutation({mutationFn: (id: string) => unwrap(api.POST('/api/specimen-types/{id}/archive', path(id))), onSuccess}),
     restore: useMutation({mutationFn: (id: string) => unwrap(api.POST('/api/specimen-types/{id}/restore', path(id))), onSuccess}),
     remove: useMutation({mutationFn: (id: string) => unwrap(api.DELETE('/api/specimen-types/{id}', path(id))), onSuccess}),
-  };
-}
-
-/** Archive, restore and delete for labs. Deleting one a specimen was sent to is a 409 (its `canBeDeleted` says so). */
-export function useLaboratoryActions() {
-  const onSuccess = useRefreshSetup();
-  const path = (id: string) => ({params: {path: {id}}});
-  return {
-    archive: useMutation({mutationFn: (id: string) => unwrap(api.POST('/api/laboratories/{id}/archive', path(id))), onSuccess}),
-    restore: useMutation({mutationFn: (id: string) => unwrap(api.POST('/api/laboratories/{id}/restore', path(id))), onSuccess}),
-    remove: useMutation({mutationFn: (id: string) => unwrap(api.DELETE('/api/laboratories/{id}', path(id))), onSuccess}),
   };
 }
 

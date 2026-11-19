@@ -3,7 +3,7 @@ import {ADMIN} from '../accounts';
 import {PATIENTS} from '../ids';
 import {today} from '../time';
 
-type Row = {id: string; number?: string; patientName?: string; status?: string; laboratoryName?: string};
+type Row = {id: string; number?: string; patientName?: string; status?: string};
 const ids = (rows: Row[]) => rows.map((r) => r.id);
 const sortedCopy = (values: string[], descending = false) => {
   const copy = [...values].sort((a, b) => a.localeCompare(b));
@@ -22,8 +22,6 @@ describe('the light demo’s searched and sorted lists', () => {
     const byPatient = (await call('POST', '/api/specimens/search', {view: 'All', search: target.patientName!.split(' ')[0], pageSize: 100})).body.items as Row[];
     expect(byPatient.every((s) => s.patientName === target.patientName || s.patientName!.includes(target.patientName!.split(' ')[0]))).toBe(true);
 
-    const byLab = (await call('POST', '/api/specimens/search', {view: 'All', sort: 'lab', ascending: false, pageSize: 100})).body.items as Row[];
-    expect(byLab.map((s) => s.laboratoryName!)).toEqual(sortedCopy(all.map((s) => s.laboratoryName!), true));
     const byNumberSorted = (await call('POST', '/api/specimens/search', {view: 'All', sort: 'number', pageSize: 100})).body.items as Row[];
     expect(byNumberSorted.map((s) => s.number!)).toEqual(sortedCopy(all.map((s) => s.number!)));
 

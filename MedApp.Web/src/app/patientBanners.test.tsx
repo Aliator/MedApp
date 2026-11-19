@@ -85,7 +85,6 @@ const specimen = {
   pathwayId,
   pathwayTitle: 'Knee review',
   specimenTypeName: 'Skin biopsy (punch)',
-  laboratoryName: 'Northgate pathology',
   requestingUsername: 'test-admin',
   status: 'Taken',
   isOpen: true,

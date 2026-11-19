@@ -214,14 +214,25 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'lab',
-    title: 'The specimen worklist',
+    title: 'The lab’s home',
     steps: [
-      'The Lab page: specimens to send, expected, in the lab, overdue and reported. Open one to mark it received, rejected or lost.',
-      'A pathway’s last stage can’t be finished while any of its specimens is still with the lab.',
+      `${LAB.fullName}’s home in the lab: pathways new for the lab and its turn, samples to receive, in progress, overdue and back to the clinic, each opening its full list.`,
+      'Samples in the side nav is the whole worklist. A pathway’s last stage can’t be finished while any of its samples is still with the lab.',
     ],
     account: LAB.username,
     path: '/lab',
-    buttonLabel: 'Open the Lab worklist',
+    buttonLabel: 'Open the lab’s home',
+  },
+  {
+    key: 'lab-tests',
+    title: 'The lab’s test catalogue',
+    steps: [
+      'Each test the lab does: its kind, its target and limit in calendar days (7 and 10 for histology, as the RCPath turnaround), when it’s at risk, and its steps in order.',
+      'There’s no list of outside labs any more: the centre’s own lab does every test.',
+    ],
+    account: ADMIN.username,
+    path: '/admin/specimen-setup',
+    buttonLabel: 'Open the test catalogue',
   },
   {
     key: 'fork',

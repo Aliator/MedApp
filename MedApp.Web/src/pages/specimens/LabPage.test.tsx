@@ -1,6 +1,6 @@
 import {screen, waitFor, within} from '@testing-library/react';
 import {json, mockApi, nurseUser, openSearch, pickFavourite, renderWithApp, searchBar, userWithRoles} from '../../test/render';
-import {LABORATORIES, NORTHGATE_LAB_ID, SPECIMEN_ID, testSummary} from '../../test/specimens';
+import {SPECIMEN_ID, testSummary} from '../../test/specimens';
 import {HalfViewContext} from '../../components/pages/halfView';
 import type {LabSearch} from './labSearch';
 import {LabPage} from './LabPage';
@@ -15,7 +15,6 @@ function renderPage(search: LabSearch = {}, user = labUser, handlers: Record<str
   const items = [testSummary({isOverdueAtLab: true}), testSummary({id: 'second', number: 'MA26-000124', patientNhsNumber: null})];
   const fetch = mockApi({
     [WORKLIST]: () => pageOf(items),
-    'GET /api/laboratories': () => json(LABORATORIES),
     ...handlers,
   });
   const result = renderWithApp(<LabPage search={search} onSearchChange={onSearchChange} />, {user});
@@ -29,10 +28,10 @@ async function worklistCalls(fetch: ReturnType<typeof mockApi>) {
 }
 
 describe('LabPage', () => {
-  it("opens on Expected for the lab's staff: each specimen's number, patient, lab, status and when it was sent", async () => {
+  it("opens on Expected for the lab's staff: each specimen's number, patient, status and when it was sent", async () => {
     const {fetch} = renderPage();
 
-    expect(await screen.findByRole('heading', {name: 'Lab', level: 1})).toBeInTheDocument();
+    expect(await screen.findByRole('heading', {name: 'Samples', level: 1})).toBeInTheDocument();
     expect(await screen.findByRole('tab', {name: 'Expected', selected: true})).toBeInTheDocument();
     expect(screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label') ?? t.textContent)).toHaveLength(6);
     expect(await screen.findByRole('link', {name: 'MA26-000123'})).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}`);
@@ -46,15 +45,14 @@ describe('LabPage', () => {
     expect(await worklistCalls(fetch)).toEqual([{search: '', body: {view: 'Expected', page: 1, pageSize: 10}}]);
   });
 
-  it('opens on To send for those who send them, and keeps a view, lab and sort from the address', async () => {
-    const {fetch} = renderPage({view: 'Reported', lab: NORTHGATE_LAB_ID, sort: 'patient', asc: false}, nurseUser);
+  it('opens on To send for those who send them, and keeps a view and sort from the address', async () => {
+    const {fetch} = renderPage({view: 'Reported', sort: 'patient', asc: false}, nurseUser);
 
     expect(await screen.findByRole('tab', {name: 'Reported', selected: true})).toBeInTheDocument();
-    expect(await screen.findByText('Reported: 2 specimens for Northgate pathology')).toBeInTheDocument();
+    expect(await screen.findByText('Reported: 2 specimens')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', {name: /Reported/})).toBeInTheDocument();
     expect((await worklistCalls(fetch))[0].body).toEqual({
       view: 'Reported',
-      laboratoryId: NORTHGATE_LAB_ID,
       page: 1,
       pageSize: 10,
       sort: 'patient',
@@ -62,15 +60,12 @@ describe('LabPage', () => {
     });
   });
 
-  it('changes the view from its tabs, and the lab from the picker beside the title, in the address', async () => {
-    const {user, onSearchChange} = renderPage({lab: NORTHGATE_LAB_ID, page: 2});
+  it('changes the view from its tabs, in the address, with no lab picker (the external labs list was dropped)', async () => {
+    const {user, onSearchChange} = renderPage({page: 2});
 
     await pickFavourite(user, 'In the lab');
-    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'InLab', lab: NORTHGATE_LAB_ID, sort: undefined, asc: undefined});
-
-    await user.click(screen.getByRole('combobox', {name: /^Lab/}));
-    await user.click(await screen.findByRole('option', {name: 'All labs'}));
-    expect(onSearchChange).toHaveBeenLastCalledWith({page: undefined, lab: undefined});
+    expect(onSearchChange).toHaveBeenLastCalledWith({view: 'InLab', sort: undefined, asc: undefined});
+    expect(screen.queryByRole('combobox', {name: /^Lab/})).not.toBeInTheDocument();
   });
 
   it('narrows the list to a specimen number typed or scanned into the search, sent in the body and never the address', async () => {
@@ -133,8 +128,8 @@ describe('LabPage', () => {
     expect(await screen.findByText(time)).toBeInTheDocument();
   });
 
-  it('leaves out the lab column in a narrow window', async () => {
-    mockApi({[WORKLIST]: () => pageOf([testSummary()]), 'GET /api/laboratories': () => json(LABORATORIES)});
+  it('has no lab column, in a narrow window too', async () => {
+    mockApi({[WORKLIST]: () => pageOf([testSummary()])});
     renderWithApp(
       <HalfViewContext.Provider value={{isHalf: true}}>
         <LabPage search={{}} onSearchChange={vi.fn()} />
