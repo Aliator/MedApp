@@ -21533,6 +21533,13 @@ export interface components {
             stageDefinitionIdsInOrder?: string[] | null;
             /** Format: int32 */
             clockStopStageOrder?: number | null;
+            links?: components["schemas"]["PathwayTemplateLinkResponse"][] | null;
+        };
+        PathwayTemplateLinkResponse: {
+            /** Format: int32 */
+            fromStageOrder?: number;
+            /** Format: int32 */
+            toStageOrder?: number;
         };
         PathwayTemplateStageOptionsRequest: {
             isOptional?: boolean;
@@ -21724,6 +21731,7 @@ export interface components {
             lastUpdated?: string;
             /** Format: uuid */
             currentStageId?: string | null;
+            currentStageIds?: string[] | null;
             /** Format: int32 */
             completedStageCount?: number;
             /** Format: int32 */
@@ -21781,6 +21789,7 @@ export interface components {
             isOptional?: boolean;
             choosesBranch?: boolean;
             branch?: string | null;
+            predecessorIds?: string[] | null;
             branches?: components["schemas"]["PatientPathwayBranchResponse"][] | null;
             needsBranchChoice?: boolean;
             state?: string | null;

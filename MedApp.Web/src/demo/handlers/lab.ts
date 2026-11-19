@@ -19,7 +19,7 @@ import {
   withArticle,
 } from './labCommon';
 import {isAwaitingResult, registerResults} from './labResults';
-import {currentStage, findPathway} from './pathways';
+import {findPathway, isCurrentStage} from './pathways';
 import {canSeeRecord, myScope, passToLab, seeRecord} from './teamWalls';
 
 /**
@@ -67,7 +67,7 @@ const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Comple
 function whyCantTake(pathway: DemoPathway, stage: DemoStage): string | null {
   if (!['Unassigned', 'Assigned', 'InProgress', 'InReview'].includes(pathway.status))
     return `A specimen can't be recorded while the pathway is ${PATHWAY_STATUS_WORDS[pathway.status] ?? pathway.status}.`;
-  const editable = stage.id === currentStage(pathway)?.id || (stage.completedAtUtc !== null && stage.unlocked);
+  const editable = isCurrentStage(pathway, stage) || (stage.completedAtUtc !== null && stage.unlocked);
   return editable ? null : 'A specimen can only be recorded at a stage being worked on. Finish the stages before it first.';
 }
 

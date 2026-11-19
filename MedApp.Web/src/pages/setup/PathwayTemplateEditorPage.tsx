@@ -30,6 +30,7 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {stageDescription} from '../../components/pathways/SnomedConcept';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
+import {afterWords, hasParallelRoutes, PARALLEL_ROUTES_LOCKED} from '../../api/pathwayRoutes';
 import {
   isAfterBranchPoint,
   PLAIN_STAGE,
@@ -173,6 +174,9 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
  * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
  * refuse in them shows on the stage. Saving asks first, then goes back to the list.
  *
+ * A template with routes side by side (MC8, tree pathways) shows its stages read-only, each with the stages it comes
+ * after, until the route editor (MC9) draws them: its name, team, retention class and clock stop still change.
+ *
  * Wide, the stages and the definitions to add sit side by side; narrow, they're one form card. Either way the
  * cards scroll, not the page.
  */
@@ -209,6 +213,7 @@ function TemplateEditor({
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, {sensitivity: 'base'}));
   const backToList = () => void navigate({to: BACK});
   const usedBy = template?.pathwayCount ?? 0;
+  const hasRoutes = template !== null && hasParallelRoutes(template);
 
   const reorderable = useMemo(
     () =>
@@ -315,8 +320,36 @@ function TemplateEditor({
     </>
   );
 
-  const stageList =
-    stages.length === 0 ? (
+  const stageList = hasRoutes ? (
+    <VStack gap={3}>
+      <AlertMessage status="info" message={PARALLEL_ROUTES_LOCKED} />
+      <List hasDividers aria-label="Stages in order">
+        {stages.map((stage, i) => {
+          const definition = byId.get(stage.definitionId);
+          return (
+            <ListItem
+              key={stage.key}
+              label={`${i + 1}. ${definition?.name ?? 'Unknown stage'}${optionWords(stage)}`}
+              description={
+                <VStack as="span" gap={1}>
+                  {stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
+                  <Text type="supporting" color="secondary">
+                    {afterWords(i + 1, template) ?? 'The first stage'}
+                  </Text>
+                </VStack>
+              }
+              endContent={
+                <HStack gap={2} vAlign="center">
+                  {stage.key === stopKey && <Token size="sm" label="Stops the clock" color="blue" />}
+                  <VisitRequirementToken requirement={definition?.visitRequirement} />
+                </HStack>
+              }
+            />
+          );
+        })}
+      </List>
+    </VStack>
+  ) : stages.length === 0 ? (
       <EmptyState
         title="No stages yet"
         description={isNarrow ? 'Add stages from the list below.' : 'Add stages from All Stages, beside this.'}
@@ -383,7 +416,7 @@ function TemplateEditor({
                 icon={<Icon icon={AppIcon.Add} />}
                 variant="ghost"
                 size="sm"
-                isDisabled={save.isPending}
+                isDisabled={save.isPending || hasRoutes}
                 onClick={() => add(definition.id ?? '')}
               />
             </HStack>
