@@ -31,6 +31,7 @@ import {
 } from './insightsText';
 import {insightsPageQuery} from './insightsPageQuery';
 import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
+import {useClinicPicker} from '../../components/teams/ClinicPicker';
 
 export interface InsightsPageProps {
   /** The period, team and template, from the URL. */
@@ -40,7 +41,6 @@ export interface InsightsPageProps {
 }
 
 const ALL_TEMPLATES = 'all';
-const ALL_TEAMS = 'all';
 const DIMMED = {opacity: 0.6};
 const LAST_WEEK = 'this time last week';
 
@@ -54,6 +54,9 @@ const STAGE_TIME: ChartSeries[] = [
   {key: 'averageWorkingHours', label: 'Being worked on', colour: SERIES_COLOURS[1]},
 ];
 
+/** Whether a template is in a team (any template, for every team). */
+const isInTeam = (templateTeam: string | undefined, team: string | undefined) => !team || templateTeam?.toLowerCase() === team;
+
 type AssigneeRow = OverdueByAssignee & {name: string};
 type StageRow = StageTime & {name: string};
 type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
@@ -62,7 +65,8 @@ type CardName = 'assignee' | 'priority' | 'throughput' | 'stages';
  * Insights (admin): an overview of the pathway work, to keep an eye on it. Headline counts against this time last
  * week (open, in progress, overdue, discharged), where the overdue work is (by assignee and by priority), how many
  * were created and discharged each week, and how long each template's stages take, waiting and being worked on. A
- * period (4, 12 or 26 weeks), a team (the pathways' own) and a template filter everything, from the URL.
+ * period (4, 12 or 26 weeks), a team (the pathways' own: the clinic picker, top right) and a template filter
+ * everything, from the URL.
  *
  * Each chart is in a `ChartCard`, with a summary and a table of its numbers. A tile, or an overdue bar or row, opens
  * the pathways list filtered to what it counts.
@@ -76,7 +80,12 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
 
   const templates = useQuery(allTemplatesQuery);
   const teams = useQuery(teamsQuery(true));
-  const {data, isPending, isError, isPlaceholderData} = useQuery(insightsPageQuery(search));
+  // The clinic picker (admins, and staff in more than one team): a new team keeps the template only if it's the team's.
+  const clinic = useClinicPicker('insights', search.clinic, (team) => {
+    const template = templates.data?.find((t) => t.id?.toLowerCase() === search.template);
+    onSearchChange({...search, clinic: team, template: template && isInTeam(template.teamId, team) ? search.template : undefined});
+  });
+  const {data, isPending, isError, isPlaceholderData} = useQuery(insightsPageQuery(search, clinic.teamId));
   // The template and team the numbers on screen are for: while others load, the last ones' stay, under their names.
   const templateId = data?.templateId?.toLowerCase();
   const teamId = data?.teamId?.toLowerCase();
@@ -87,28 +96,15 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
     ? (teams.data?.find((s) => s.id?.toLowerCase() === teamId)?.name ?? 'one team')
     : undefined;
   const open = (href: string) => void router.navigate({href});
-  const isInTeam = (templateTeam: string | undefined, team: string | undefined) =>
-    !team || templateTeam?.toLowerCase() === team;
 
-  const teamOptions = [
-    {value: ALL_TEAMS, label: 'All teams'},
-    ...(teams.data ?? []).map((s) => ({value: s.id?.toLowerCase() ?? '', label: s.isArchived ? `${s.name} (archived)` : (s.name ?? '')})),
-  ];
   // With a team chosen, only its templates (a pathway's team is its template's when it was made).
   const templateOptions = [
     {value: ALL_TEMPLATES, label: 'All templates'},
     ...[...(templates.data ?? [])]
-      .filter((t) => isInTeam(t.teamId, search.team) || t.id?.toLowerCase() === search.template)
+      .filter((t) => isInTeam(t.teamId, clinic.teamId) || t.id?.toLowerCase() === search.template)
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
       .map((t) => ({value: t.id?.toLowerCase() ?? '', label: t.isArchived ? `${t.name} (archived)` : (t.name ?? '')})),
   ];
-
-  /** A new team keeps the template only if it's one of the team's. */
-  const chooseTeam = (value: string) => {
-    const team = value === ALL_TEAMS ? undefined : value;
-    const template = templates.data?.find((t) => t.id?.toLowerCase() === search.template);
-    onSearchChange({...search, team, template: template && isInTeam(template.teamId, team) ? search.template : undefined});
-  };
 
   const filters = (
     <HStack gap={4} vAlign="end" wrap="wrap" style={NO_FIELD_STATUS_LINE}>
@@ -122,15 +118,6 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
         }
         variant="secondary"
         width={180}
-      />
-      <AnchoredSelector
-        label="Team"
-        isLabelHidden
-        options={teamOptions}
-        value={search.team ?? ALL_TEAMS}
-        onChange={chooseTeam}
-        variant="secondary"
-        width={220}
       />
       <AnchoredSelector
         label="Template"
@@ -164,6 +151,7 @@ export function InsightsPage({search, onSearchChange}: InsightsPageProps) {
       fill
       isLoading={isPending}
       loadingMessage="Loading insights..."
+      actions={clinic.picker}
       message={isError && <AlertMessage message="The insights could not be loaded. Please try again." />}>
       <VStack gap={4} height="100%">
         {filters}

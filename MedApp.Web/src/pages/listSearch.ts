@@ -43,6 +43,17 @@ function compact<T extends object>(search: T): T {
   return Object.fromEntries(Object.entries(search).filter(([, v]) => v !== undefined)) as T;
 }
 
+// The clinic picker (MC6) ---------------------------------------------------------------------------------
+
+/** The clinic picker's value for every team the person may see (`components/teams/ClinicPicker`). */
+export const ALL_CLINICS = 'all';
+
+/** The URL's `clinic` (the clinic picker): `all`, or a team's ID in lower case; anything else is dropped. */
+export function parseClinic(value: unknown): string | undefined {
+  const t = text(value)?.toLowerCase();
+  return t === ALL_CLINICS || (t && GUID.test(t)) ? t : undefined;
+}
+
 // Patients ------------------------------------------------------------------------------------------------
 
 /** URL sort names, as in Blazor (so old links keep working), and the API's names for them. */
@@ -60,6 +71,8 @@ export interface PatientsListSearch {
   dobTo?: string;
   /** Digits of an NHS number (spaces ignored by the API), which the patient's number contains. */
   nhs?: string;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
 }
 
 export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListSearch {
@@ -73,6 +86,7 @@ export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListS
     dobFrom: date(raw.dobFrom),
     dobTo: date(raw.dobTo),
     nhs: text(raw.nhs),
+    clinic: parseClinic(raw.clinic),
   });
 }
 
@@ -287,6 +301,8 @@ export interface PathwaysListSearch {
   templateId?: string;
   dueFrom?: string;
   dueTo?: string;
+  /** The clinic picker's team, or `all` (see `parseClinic`). */
+  clinic?: string;
 }
 
 const flag = (value: unknown) => (bool(value) ? true : undefined);
@@ -336,6 +352,7 @@ export function parsePathwaysSearch(saved: Record<string, unknown>): PathwaysLis
     templateId: guid(raw.templateId),
     dueFrom: date(raw.dueFrom),
     dueTo: date(raw.dueTo),
+    clinic: parseClinic(raw.clinic),
   });
 }
 
@@ -466,10 +483,13 @@ export const INSIGHTS_WEEKS = [4, 12, 26] as const;
 export type InsightsWeeks = (typeof INSIGHTS_WEEKS)[number];
 export const DEFAULT_INSIGHTS_WEEKS: InsightsWeeks = 12;
 
-/** Insights' filters: the period (12 weeks unless the URL says otherwise), a team and a template (their IDs). */
+/**
+ * Insights' filters: the period (12 weeks unless the URL says otherwise), the clinic picker's team (or `all`) and a
+ * template (its ID). Its team was `team` before the clinic picker (MC6), and still reads that way.
+ */
 export interface InsightsSearch {
   weeks?: InsightsWeeks;
-  team?: string;
+  clinic?: string;
   template?: string;
 }
 
@@ -478,7 +498,7 @@ export function parseInsightsSearch(saved: Record<string, unknown>): InsightsSea
   const weeks = INSIGHTS_WEEKS.find((w) => w === Number(text(raw.weeks)));
   return compact({
     weeks: weeks === DEFAULT_INSIGHTS_WEEKS ? undefined : weeks,
-    team: guid(raw.team),
+    clinic: parseClinic(raw.clinic) ?? guid(raw.team),
     template: guid(raw.template),
   });
 }

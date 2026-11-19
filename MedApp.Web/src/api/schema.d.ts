@@ -1135,6 +1135,7 @@ export interface paths {
                     To?: string;
                     Search?: string;
                     View?: string;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7986,6 +7987,7 @@ export interface paths {
                     Search?: string;
                     Sort?: string;
                     Ascending?: boolean;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11281,6 +11283,7 @@ export interface paths {
                     IncludeClosed?: boolean;
                     Started?: boolean;
                     View?: string;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -12844,6 +12847,7 @@ export interface paths {
                     DateOfBirthFrom?: string;
                     DateOfBirthTo?: string;
                     NhsNumber?: string;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -13766,6 +13770,7 @@ export interface paths {
                     BreachedOnly?: boolean;
                     Paused?: boolean;
                     ClockStopped?: boolean;
+                    TeamId?: string;
                 };
                 header?: never;
                 path?: never;

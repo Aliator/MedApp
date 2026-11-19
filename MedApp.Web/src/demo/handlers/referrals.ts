@@ -10,7 +10,7 @@ import {daysFrom, nowUtc, today, ukDateOf} from '../time';
 import {can, contains, flag, list, me, paged, patientName, requirePermission, sorted, teamIdsOf} from './common';
 import {ensureVersion, optionalText, patientBanner, patientFlags, whyRecordCantChange} from './labCommon';
 import {createPathway, pathwayResponse} from './pathways';
-import {canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
+import {canSeeRecord, ensureCanChangeRecord, isPickedTeam, myScope, pickedTeam, seeRecord} from './teamWalls';
 
 /**
  * Referrals, triage and the waiting-time clock, a simplified copy of the API's `ReferralWorkflow` and `WaitingClock`.
@@ -366,8 +366,9 @@ export function registerReferrals() {
     const stopped = flag(query, 'ClockStopped');
     const search = query.get('Search');
     const scope = myScope();
+    const picked = pickedTeam(query, scope);
     const items = db().referrals.filter((r) => {
-      if (!canSeeRecord(r, scope)) return false;
+      if (!canSeeRecord(r, scope) || !isPickedTeam(r.teamId, picked)) return false;
       const clock = referralSummaryClock(r);
       return (
         (statuses.length === 0 || statuses.includes(r.status)) &&

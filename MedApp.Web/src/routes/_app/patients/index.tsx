@@ -4,11 +4,13 @@ import {PatientsListPage} from '../../../pages/patients/PatientsListPage';
 import {preload} from '../../../api/preload';
 import {listSettingsFor} from '../../../app/listSettings';
 import {patientsListQuery} from '../../../pages/patients/PatientsListPage';
+import {clinicFor} from '../../../components/teams/ClinicPicker';
 
 export const Route = createFileRoute('/_app/patients/')({
   validateSearch: parsePatientsSearch,
   loaderDeps: ({search}) => search,
-  loader: ({context, deps}) => preload(context.queryClient, patientsListQuery(deps, listSettingsFor(context.queryClient).pageSize)),
+  loader: ({context, deps}) =>
+    preload(context.queryClient, patientsListQuery(deps, listSettingsFor(context.queryClient).pageSize, clinicFor(context.queryClient, 'patients', deps.clinic))),
   component: PatientsRoute,
 });
 
