@@ -31,7 +31,13 @@ public static class PatientTimelineSearch
     {
         var patientId = query.PatientId;
         var noPathway = PatientPathwayAuditEntry.NoPathway;
-        var filtered = entries.Where(e => e.PatientId == patientId && e.Action != PatientPathwayAuditAction.AttachmentDownloaded);
+        // Downloads, and consults (MC25: the web app has no timeline kind for them yet), are in the audit log only.
+        var filtered = entries.Where(e => e.PatientId == patientId
+                                          && e.Action != PatientPathwayAuditAction.AttachmentDownloaded
+                                          && e.Action != PatientPathwayAuditAction.ConsultRequested
+                                          && e.Action != PatientPathwayAuditAction.ConsultReplied
+                                          && e.Action != PatientPathwayAuditAction.ConsultClosed
+                                          && e.Action != PatientPathwayAuditAction.ConsultWithdrawn);
 
         if (!query.Teams.SeesAllTeams)
         {

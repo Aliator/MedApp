@@ -71,5 +71,11 @@ public enum PatientTimelineKind
     Mdt,
 
     /// <summary>Consent to a stage was recorded, withdrawn or marked entered in error.</summary>
-    Consent
+    Consent,
+
+    /// <summary>
+    /// A consult was sent, replied to, closed or withdrawn (MC25; never its text). In the audit log only: the timeline
+    /// leaves them out (<c>PatientTimelineSearch</c>), as the web app has no kind for them yet.
+    /// </summary>
+    Consults
 }

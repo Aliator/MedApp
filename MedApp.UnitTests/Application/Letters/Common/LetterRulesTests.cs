@@ -248,6 +248,12 @@ public sealed class LetterRulesTests : LetterHandlerTestBase
         validator.Validate(Command(new LetterRecipientCommandItem("GpPractice", Guid.Empty, null, null, null, null)))
             .Errors.Should().ContainSingle(e => e.ErrorMessage.Contains("directory"));
         validator.Validate(Command(new LetterRecipientCommandItem("Other", null, null, null, null, null))).Errors.Should().HaveCount(2);
+        // A hospital (MC28) is typed in as someone else is.
+        validator.Validate(Command(new LetterRecipientCommandItem("Hospital", null, null, null, null, null)))
+            .Errors.Select(e => e.ErrorMessage).Should().BeEquivalentTo("Name is required for a hospital.", "Address is required for a hospital.");
+        validator.Validate(Command(new LetterRecipientCommandItem("Hospital", null, "Example General Hospital", "1 Example Way", "ZZ9 9ZZ", null)))
+            .IsValid.Should().BeTrue();
+        validator.Validate(Command(new LetterRecipientCommandItem("Patient", null, null, null, null, null))).IsValid.Should().BeTrue();
         validator.Validate(Command(new LetterRecipientCommandItem("Other", null, "A Person", "1\n2\n3\n4", "nope", "x@example.com")))
             .Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("at most 3 lines"))
             .And.Contain(m => m.Contains("UK postcode")).And.Contain(m => m.Contains("nhs.net"));

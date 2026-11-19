@@ -64,7 +64,7 @@ public sealed class LetterTemplateMapperTests
 
     [Test]
     public void LetterKind_KeepsItsStoredNumbers() =>
-        Enum.GetValues<LetterKind>().Select(k => (int)k).Should().Equal(0, 1, 2, 3, 4, 5);
+        Enum.GetValues<LetterKind>().Select(k => (int)k).Should().Equal(0, 1, 2, 3, 4, 5, 7);
 
     [Test]
     public void Identifiers_LeaveOutWhatIsntKnown()

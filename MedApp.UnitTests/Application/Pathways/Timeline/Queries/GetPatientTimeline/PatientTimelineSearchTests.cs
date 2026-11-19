@@ -52,6 +52,16 @@ public sealed class PatientTimelineSearchTests
     }
 
     [Test]
+    public void Page_Consults_AreLeftOut_EvenWhenAskedFor()
+    {
+        var sent = CreateEntry(Action.ConsultRequested, Now.AddHours(-2));
+        var replied = CreateEntry(Action.ConsultReplied, Now.AddHours(-1));
+
+        Run(CreateTimelineQuery(isAdmin: true), [.. All(), sent, replied]).Select(r => r.Entry).Should().NotContain([sent, replied]);
+        Run(CreateTimelineQuery() with { Kinds = ["Consults"] }, sent, replied).Should().BeEmpty();
+    }
+
+    [Test]
     public void Page_Kinds_ReturnsOnlyThoseKinds()
     {
         var query = CreateTimelineQuery() with { Kinds = ["notes", "Created"] };
