@@ -97,3 +97,40 @@ export function testCaseSummary(more: Partial<LabCaseSummary> = {}): LabCaseSumm
     ...more,
   };
 }
+
+/** A hospital case whose report went back to the hospital, awaiting its surgery details (MC20). */
+export function testHospitalCase(more: Partial<LabCase> = {}): LabCase {
+  return testCase({
+    status: 'AwaitingSurgeryDetails',
+    source: 'Hospital',
+    requestingTeamId: null,
+    requestingTeamName: null,
+    hospitalId: '00000052-0000-0000-0000-0000000000e1',
+    hospitalName: 'Riverside General (test)',
+    hospitalRequestId: '00000052-0000-0000-0000-0000000000e2',
+    pathwayId: null,
+    pathwayTitle: null,
+    stageId: null,
+    stageName: null,
+    next: undefined,
+    canRecord: false,
+    reportText: 'Synthetic results.',
+    reportedAtUtc: '2026-11-04T10:00:00Z',
+    reportedByUsername: 'test-lab',
+    hospitalReport: {
+      status: 'Final',
+      letterKind: 'LabReport',
+      hospitalId: '00000052-0000-0000-0000-0000000000e1',
+      hospitalName: 'Riverside General (test)',
+      addressedTo: 'Ms A. Example (synthetic)',
+      deliveryMethod: 'Post',
+      issuedAtUtc: '2026-11-04T10:00:00Z',
+      sentAtUtc: '2026-11-04T10:00:00Z',
+      sentByUsername: 'test-lab',
+    },
+    surgeryDetails: [],
+    canAddSurgeryDetails: true,
+    readOnlyReason: 'The report has gone to the hospital, so the steps and report can’t be changed. The hospital’s surgery details can still be added.',
+    ...more,
+  });
+}

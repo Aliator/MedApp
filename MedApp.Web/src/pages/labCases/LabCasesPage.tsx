@@ -28,7 +28,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'choice', key: 'source', label: 'From', options: [{value: 'Clinic', label: 'A clinic'}, {value: 'Hospital', label: 'The hospital'}]},
 ];
 
-/** Its tabs: Open, At risk, Overdue, To report, Reported, Repeat requested and All. */
+/** Its tabs: Open, At risk, Overdue, To report, Reported, Awaiting surgery details (MC20), Repeat requested and All. */
 const FAVOURITES: ListFilterFavourite[] = LAB_CASE_VIEWS.map((v) => ({label: labCaseViewLabel(v), values: v === 'All' ? {view: 'All'} : {view: v}}));
 
 const EMPTY: Record<LabCaseView, string> = {
@@ -37,6 +37,7 @@ const EMPTY: Record<LabCaseView, string> = {
   Overdue: 'No case is overdue',
   ToReport: 'Nothing to report',
   Reported: 'No reported cases',
+  AwaitingSurgeryDetails: 'Nothing awaiting surgery details',
   RepeatRequested: 'No repeat samples asked for',
   All: 'No lab cases yet',
 };

@@ -15,6 +15,7 @@ import {labCaseQuery, labOutcomeLabel, type LabCase, type LabCaseStep} from '../
 import {useCan} from '../../auth/auth';
 import {LabCaseDialog, type LabCaseDialogKind} from '../../components/labCases/LabCaseDialog';
 import {LabClockDetails} from '../../components/labCases/LabClock';
+import {SurgeryDetailsDialog} from '../../components/labCases/SurgeryDetailsDialog';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {PatientBanner} from '../../components/patients/PatientBanner';
@@ -24,7 +25,8 @@ import {AppIcon} from '../../components/shared/icons';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {SampleSourceToken, SpecimenStatusToken} from '../../components/specimens/SpecimenCells';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
-import {formatDateTime} from '../../utils/dates';
+import {dispatchMethodWords} from '../../api/letters';
+import {formatDate, formatDateTime} from '../../utils/dates';
 
 const by = (at: string | null | undefined, who: string | null | undefined) => (at ? `${formatDateTime(at)}${who ? ` by ${who}` : ''}` : 'Not yet');
 
@@ -41,14 +43,17 @@ const stepLabel = (step: LabCaseStep) => (step.kind === 'Outcome' ? `${step.name
  * and none chosen or suggested (decision 191), or the results (Enter Results and Authorise, for holders of
  * AuthoriseLabReports). **Clock** (MC19): when it's due, which deadline set it (the lab's target or the hospital's date,
  * the sooner), both dates, and when it's at risk. Only the lab team works a case; anyone else reads it. Opening it is
- * recorded as viewing it.
+ * recorded as viewing it. **Hospital cases** (MC20): the report goes back to the request's hospital when authorised,
+ * shown as sent and when; the hospital's surgery details, added by the lab as written (Add Surgery Details), close a case
+ * awaiting them.
  */
 export function LabCasePage({id}: {id: string}) {
   const isNarrow = useIsNarrow();
   const {data: labCase, error, isPending} = useQuery(labCaseQuery(id));
   const canProcess = useCan('ProcessSpecimens');
   const [dialog, setDialog] = useState<LabCaseDialogKind | null>(null);
-  const [open, setOpen] = useState({next: true, clock: true, details: true, steps: true, samples: true, report: true});
+  const [isAddingSurgery, setAddingSurgery] = useState(false);
+  const [open, setOpen] = useState({next: true, clock: true, details: true, steps: true, samples: true, report: true, surgery: true});
   const toggle = (part: keyof typeof open) => setOpen((current) => ({...current, [part]: !current[part]}));
   const isMissing = error instanceof ApiError && error.status === 404;
   const close = () => setDialog(null);
@@ -76,7 +81,11 @@ export function LabCasePage({id}: {id: string}) {
         )
       }
       actions={
-        labCase?.canMarkEnteredInError && (
+        <HStack gap={2}>
+          {labCase?.canAddSurgeryDetails && (
+            <Button label="Add Surgery Details" variant="secondary" icon={<Icon icon={AppIcon.Add} />} onClick={() => setAddingSurgery(true)} />
+          )}
+          {labCase?.canMarkEnteredInError && (
           <DropdownMenu
             items={[
               {
@@ -91,15 +100,23 @@ export function LabCasePage({id}: {id: string}) {
             alignment="end"
             button={{label: 'More', variant: 'secondary', icon: <Icon icon={AppIcon.Menu} />}}
           />
-        )
+          )}
+        </HStack>
       }
-      dialogs={labCase && dialog && <LabCaseDialog dialog={dialog} labCase={labCase} onClose={close} />}>
+      dialogs={
+        labCase &&
+        (isAddingSurgery ? (
+          <SurgeryDetailsDialog labCase={labCase} onClose={() => setAddingSurgery(false)} />
+        ) : (
+          dialog && <LabCaseDialog dialog={dialog} labCase={labCase} onClose={close} />
+        ))
+      }>
       {labCase &&
         (isNarrow ? (
-          <FoldingCard sections={[next(labCase), clock(labCase), details(labCase), steps(labCase), samples(labCase), report(labCase)]} />
+          <FoldingCard sections={[next(labCase), clock(labCase), details(labCase), steps(labCase), samples(labCase), report(labCase), ...surgery(labCase)]} />
         ) : (
           <TwoColumns
-            start={<FoldingCard sections={[next(labCase), clock(labCase), details(labCase), report(labCase)]} />}
+            start={<FoldingCard sections={[next(labCase), clock(labCase), details(labCase), report(labCase), ...surgery(labCase)]} />}
             end={<FoldingCard sections={[steps(labCase), samples(labCase)]} />}
           />
         ))}
@@ -138,6 +155,10 @@ export function LabCasePage({id}: {id: string}) {
   function report(c: LabCase) {
     return section('report', 'Report', <CaseReport labCase={c} />);
   }
+  /** A hospital case's surgery details (MC20); none for a clinic's. */
+  function surgery(c: LabCase) {
+    return c.source === 'Hospital' ? [section('surgery', 'Surgery Details', <SurgeryDetails labCase={c} />)] : [];
+  }
 }
 
 /** What the case needs next, and the buttons that record it (for the lab team), or why nothing's left to do. */
@@ -148,6 +169,8 @@ function NextWork({labCase, canWork, onOpen}: {labCase: LabCase; canWork: boolea
       <Text type="body" color="secondary">
         {labCase.status === 'Reported'
           ? 'Nothing: the report has been authorised.'
+          : labCase.status === 'AwaitingSurgeryDetails'
+            ? 'The report has gone back to the hospital. Add the surgery details when the hospital sends them: they close the case.'
           : labCase.status === 'RepeatRequested'
             ? 'Nothing here: a repeat sample was asked for. A new sample opens a new case.'
             : `Nothing: the case is ${labCaseStatusLabel(labCase.status).toLowerCase()}.`}
@@ -341,6 +364,7 @@ function CaseReport({labCase}: {labCase: LabCase}) {
           )}
         </MetadataListItem>
       </MetadataList>
+      {labCase.hospitalReport && <HospitalReportSent report={labCase.hospitalReport} />}
       <VStack gap={1} hAlign="stretch">
         <Text type="body" weight="semibold">
           Results
@@ -349,6 +373,61 @@ function CaseReport({labCase}: {labCase: LabCase}) {
           {labCase.reportText}
         </Text>
       </VStack>
+    </VStack>
+  );
+}
+
+/** The report as it went back to the hospital (MC20): to whom, how, and when it was sent. */
+function HospitalReportSent({report}: {report: NonNullable<LabCase['hospitalReport']>}) {
+  return (
+    <MetadataList columns={2} label={{position: 'top'}}>
+      <MetadataListItem label="Sent to">{`${shown(report.addressedTo)}, ${shown(report.hospitalName)}`}</MetadataListItem>
+      <MetadataListItem label="Sent">{by(report.sentAtUtc, report.sentByUsername)}</MetadataListItem>
+      <MetadataListItem label="How">{shown(dispatchMethodWords(report.deliveryMethod))}</MetadataListItem>
+    </MetadataList>
+  );
+}
+
+/** What the hospital sent after its request, as written, oldest first; and when the case closed. */
+function SurgeryDetails({labCase}: {labCase: LabCase}) {
+  const details = labCase.surgeryDetails ?? [];
+  return (
+    <VStack gap={3} hAlign="stretch">
+      {details.length === 0 ? (
+        <Text type="body" color="secondary">
+          {labCase.status === 'AwaitingSurgeryDetails' ? 'Awaiting the hospital’s surgery details.' : 'None from the hospital yet.'}
+        </Text>
+      ) : (
+        <List edge="flush" hasDividers aria-label="Surgery details">
+          {details.map((d) => (
+            <ListItem
+              key={d.id}
+              align="first-line"
+              label={
+                <Text type="body" weight="semibold">
+                  {d.noSurgeryExpected ? 'No surgery expected' : [d.procedure, d.surgeryOn ? formatDate(d.surgeryOn) : null].filter(Boolean).join(', ') || 'Details'}
+                </Text>
+              }
+              description={
+                <VStack gap={0}>
+                  {d.outcome && (
+                    <Text type="body" style={PRESERVE_LINES}>
+                      {d.outcome}
+                    </Text>
+                  )}
+                  {d.detail && (
+                    <Text type="supporting" color="secondary" style={PRESERVE_LINES}>
+                      {d.detail}
+                    </Text>
+                  )}
+                  <Text type="supporting" color="secondary">{`Added ${by(d.addedAtUtc, d.addedByUsername)}`}</Text>
+                </VStack>
+              }
+            />
+          ))}
+        </List>
+      )}
+      {labCase.status === 'Closed' && <Text type="body">{`Case closed ${by(labCase.closedAtUtc, labCase.closedByUsername)}.`}</Text>}
     </VStack>
   );
 }
