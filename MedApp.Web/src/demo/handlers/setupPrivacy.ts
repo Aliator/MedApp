@@ -109,7 +109,8 @@ function exportOf(patient: Patient): Schemas['PatientExportResponse'] {
         skippedBy: usernameOf(s.skippedByUserId),
         skipReason: s.skipReason,
         skipDetail: s.skipDetail,
-        branch: s.branch,
+        // The outcome recorded at a choice node (the export's `branch`, until the API renames it).
+        branch: s.outcome,
       })),
     })),
     pathwayHistory: auditEntries()

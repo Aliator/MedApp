@@ -5,13 +5,14 @@ import {newId} from '../ids';
 import {
   andList,
   chainLinks,
-  hasParallelRoutes,
+  CHOICE_KINDS,
+  hasRoutes,
   MAX_BRANCH_REASON_LENGTH,
   PARALLEL_ROUTES_LOCKED,
   templateGraphProblems,
 } from '../../api/pathwayRoutes';
 import {MAX_BRANCH_LENGTH} from '../../api/stageSkips';
-import {ownerAccess, pathwayLinks, teamName, templateStages} from '../seed';
+import {growPathway, ownerAccess, planOf, plannedOrders, teamName} from '../seed';
 import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
 import {endOfUkDay, nowUtc, today} from '../time';
@@ -42,9 +43,13 @@ import {
  * the API's `PathwayWorkflow`: stages follow their links (MC8, tree pathways), so a stage is current when it's neither
  * finished nor skipped and nothing before it is still to do; a fork's routes run side by side, and a join waits for
  * each. The first stage started or finished starts the pathway, and finishing or skipping the last on every route puts
- * it in review. Optional stages can be skipped, a branch point's branch is chosen as it's finished (never by MedApp),
- * and the gates without an override (`StageGates`: the lab's, the letter's and consent's) are checked on every finish.
- * There's no monitoring.
+ * it in review. Optional stages can be skipped, and the gates without an override (`StageGates`: the lab's, the letter's
+ * and consent's) are checked on every finish. There's no monitoring.
+ *
+ * **Choice nodes** (the owner's model, 19 Nov): a pathway holds only the stages up to its next choice node (an
+ * assessment or a lab result). Finishing one records its outcome, chosen by the clinician (never by MedApp, none
+ * pre-selected), and adds that outcome's stages from the pathway's plan (`growPathway`); unchosen outcomes never appear.
+ * The lab enters its result as it finishes its own stage, and the clinic's review (the lab result choice node) shows it.
  *
  * **The relay** (MC7): a template's stage can be owned by another team (the lab, in Stage 1). Only its owner works it
  * while it's current (and adds notes to the pathway meanwhile); when a finish or skip makes current a stage whose team
@@ -65,10 +70,6 @@ const allFinished = (pathway: DemoPathway) => pathway.stages.every((s) => (isDon
 /** The stages straight before a stage (its links' froms). */
 const predecessorsOf = (pathway: DemoPathway, stage: DemoStage) =>
   inOrder(pathway).filter((s) => pathway.links.some((l) => l.fromStageId === s.id && l.toStageId === stage.id));
-
-/** The stages straight after a stage, in order. */
-const successorsOf = (pathway: DemoPathway, stage: DemoStage) =>
-  inOrder(pathway).filter((s) => pathway.links.some((l) => l.fromStageId === stage.id && l.toStageId === s.id));
 
 /** Every stage after a stage, on any route (its descendants), by ID. */
 function after(pathway: DemoPathway, stage: DemoStage): Set<string> {
@@ -117,22 +118,28 @@ function whySkipNotAllowed(pathway: DemoPathway, stage: DemoStage): string | nul
 }
 
 /**
- * A branch point's branches, in the template's order, each with its stages: one per stage straight after it (named by
- * its branch), with every stage on that route up to where the routes join (those after it and after no other branch's
- * first stage), nested branches included. None is ever chosen or pre-selected: the clinician chooses.
+ * A choice node's outcomes, in the template's order, each with the stages recording it would add (up to the next choice
+ * node). None is ever chosen or pre-selected: the clinician records one.
  */
-function branchesOf(pathway: DemoPathway, branchPoint: DemoStage): {name: string; stages: DemoStage[]}[] {
-  if (!branchPoint.choosesBranch) return [];
-  const firsts = successorsOf(pathway, branchPoint);
-  const routes = firsts.map((first) => new Set([first.id, ...after(pathway, first)]));
-  return firsts.map((first, i) => ({
-    name: first.branch ?? first.name,
-    stages: inOrder(pathway).filter((s) => routes[i].has(s.id) && routes.every((other, j) => j === i || !other.has(s.id))),
-  }));
+function outcomesOf(pathway: DemoPathway, stage: DemoStage): Schemas['PatientPathwayOutcomeResponse'][] {
+  const planned = pathway.plan.stages.find((s) => s.templateStageOrder === stage.templateStageOrder);
+  if (!stage.choiceKind || !planned) return [];
+  const has = new Set(pathway.stages.map((s) => s.templateStageOrder));
+  return planned.outcomes.map((outcome) => {
+    const recorded = pathway.stages.map((s) => (s.id === stage.id ? {...s, outcome: outcome.name ?? ''} : s));
+    const added = plannedOrders(pathway.plan, recorded).filter((order) => !has.has(order));
+    return {name: outcome.name, stageNames: added.map((order) => pathway.plan.stages.find((s) => s.templateStageOrder === order)?.name ?? '')};
+  });
 }
 
-/** Whether the pathway's last stage to do is this one (finishing it leaves none). */
-const isLastToDo = (pathway: DemoPathway, stage: DemoStage) => pathway.stages.every((s) => s.id === stage.id || !isToDo(s));
+/** Whether the lab works the stage (MC7's relay): the lab enters its result as it finishes it. */
+const isLabsStage = (stage: DemoStage) => stage.ownerTeamId !== null && stage.ownerTeamId === labTeamId();
+
+/** The longest result the lab can enter as it finishes a stage. */
+const MAX_RESULT_LENGTH = 4000;
+
+/** Whether the pathway's last stage to do is this one (finishing it leaves none; a choice node always adds more). */
+const isLastToDo = (pathway: DemoPathway, stage: DemoStage) => !stage.choiceKind && pathway.stages.every((s) => s.id === stage.id || !isToDo(s));
 
 /** Why a stage can't be finished yet, from the gates without an override (`StageGates`), or null. */
 function whyGated(pathway: DemoPathway, stage: DemoStage): string | null {
@@ -254,34 +261,21 @@ function noteResponse(note: DemoNote, pathway: DemoPathway): Schemas['PatientPat
   };
 }
 
-/** A branch point's branches as the page shows them. */
-const branchResponses = (pathway: DemoPathway, stage: DemoStage): Schemas['PatientPathwayBranchResponse'][] =>
-  branchesOf(pathway, stage).map((branch) => ({
-    name: branch.name,
-    stageNames: branch.stages.map((s) => s.name),
-    stageNamesToDo: branch.stages.filter(isToDo).map((s) => s.name),
-  }));
-
-/** The stages from the template, in order (none added on new information): a stage's place is its template stage order. */
-const fromTemplate = (pathway: DemoPathway) => inOrder(pathway).filter((s) => !s.branchAdditionId);
-
-/** The stage that ends the pathway: the one nothing comes after. */
-const endStage = (pathway: DemoPathway) => inOrder(pathway).filter((s) => successorsOf(pathway, s).length === 0).at(-1);
-
 /** The template's addable branches (MC10), in the template's order. */
 const addableBranchesOf = (pathway: DemoPathway) => db().templates.find((t) => t.id === pathway.templateId)?.addableBranches ?? [];
 
 /**
- * Where a template's addable branch can be added now (MC10): after a template stage it may follow (any but the last
- * when it names none), not skipped, while the pathway can be worked and its last stage is still to do; nowhere once
- * it's been added, unless it repeats.
+ * Where a template's addable branch can be added now (MC10): after a template stage it may follow (any when it names
+ * none), not skipped, while the pathway can be worked and has a stage still to do; nowhere once it's been added, unless
+ * it repeats. Its stages run on their own route, which ends by itself (a pathway's routes may end anywhere).
  */
 function afterStagesFor(pathway: DemoPathway, branch: Schemas['PathwayTemplateBranchResponse']): DemoStage[] {
-  const end = endStage(pathway);
-  if (!canWorkOnStages(pathway) || !end || !isToDo(end)) return [];
+  if (!canWorkOnStages(pathway) || !pathway.stages.some(isToDo)) return [];
   if (!branch.isRepeatable && (pathway.branchAdditions ?? []).some((a) => a.templateBranchId === branch.id)) return [];
   const allowed = branch.attachAfterStageOrders ?? [];
-  return fromTemplate(pathway).filter((s, i) => s.id !== end.id && !isSkipped(s) && (allowed.length === 0 || allowed.includes(i + 1)));
+  return inOrder(pathway).filter(
+    (s) => s.templateStageOrder !== null && !isSkipped(s) && (allowed.length === 0 || allowed.includes(s.templateStageOrder)),
+  );
 }
 
 /** A pathway's addable branches as its page lists them: in the template's order, never suggested or pre-selected. */
@@ -355,12 +349,17 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       waitsForResults: stage.waitsForResults,
       notes: stage.notes,
       isOptional: stage.isOptional,
-      choosesBranch: stage.choosesBranch,
-      branch: stage.branch,
+      choiceKind: stage.choiceKind,
+      outcomes: outcomesOf(pathway, stage),
+      outcome: stage.outcome,
+      needsOutcome: stage.choiceKind !== null && stage.outcome === null,
+      // The lab's result, entered as it finished its stage: shown on the pathway (as a note is), never in the audit log.
+      result: stage.result
+        ? {text: stage.result.text, enteredByUsername: usernameOf(stage.result.enteredByUserId), enteredAtUtc: stage.result.enteredAtUtc}
+        : null,
+      needsResult: isLabsStage(stage) && !stage.result,
       predecessorIds: predecessorsOf(pathway, stage).map((s) => s.id),
       branchAdditionId: stage.branchAdditionId ?? null,
-      branches: branchResponses(pathway, stage),
-      needsBranchChoice: stage.choosesBranch && stage.chosenBranch === null,
       state: isDone(stage) ? 'Completed' : isSkipped(stage) ? 'Skipped' : stage.startedAtUtc ? 'InProgress' : 'NotStarted',
       isCurrent: isCurrent(stage),
       isLocked: isDone(stage) && !stage.unlocked,
@@ -531,7 +530,6 @@ export function createPathway(input: {
   const now = nowUtc();
   const priority = (['Low', 'Medium', 'High', 'Urgent'].includes(input.priority ?? '') ? input.priority : 'Medium') as DemoPathway['priority'];
   const due = input.dueDate || new Date(Date.now() + 12 * 7 * 86400_000).toISOString().slice(0, 10);
-  const stages = templateStages(template, db().stageDefinitions).map((stage) => ({...stage, id: newId()}));
   const pathway: DemoPathway = {
     id: newId(),
     patientId: input.patientId,
@@ -546,8 +544,9 @@ export function createPathway(input: {
     blockedFromStatus: null,
     createdAt: now,
     lastUpdated: now,
-    stages,
-    links: pathwayLinks(template, stages),
+    stages: [],
+    links: [],
+    plan: planOf(template, db().stageDefinitions),
     assignments: input.assigneeUserId ? [{userId: input.assigneeUserId, assignedByUserId: viewer.id, assignedAtUtc: now}] : [],
     handovers: [],
     notes: input.notes?.trim()
@@ -566,6 +565,8 @@ export function createPathway(input: {
       : [],
     statusChanges: [],
   };
+  // It starts with the stages up to its first choice node (the owner's model): the rest grow as outcomes are recorded.
+  growPathway(pathway, () => newId());
   db().pathways.push(pathway);
   db().pathwayAccess.push(ownerAccess(pathway));
   // Its first stage is reached now: handed over at once if another team owns it.
@@ -712,13 +713,19 @@ export function registerPathways() {
     const {pathway, stage} = forStageWork(params.id, params.stageId);
     const reopened = isDone(stage) && stage.unlocked;
     if (!isCurrentStage(pathway, stage) && !reopened) return problem(409, 'Only a current stage can be finished.');
-    // A branch point's branch is chosen as it's first finished, by the clinician: never by MedApp.
-    const branches = branchesOf(pathway, stage);
-    const chosen = body.branch?.trim() ? branches.find((b) => b.name.toLowerCase() === body.branch!.trim().toLowerCase()) : undefined;
-    if (stage.choosesBranch && stage.chosenBranch === null && !chosen)
-      return invalid({branch: [`Choose which branch comes next: ${branches.map((b) => b.name).join(' or ')}.`]});
-    if (body.branch?.trim() && (!stage.choosesBranch || stage.chosenBranch !== null))
-      return invalid({branch: ['The branch was chosen already. It changes only by reinstating a stage it skipped.']});
+    // A choice node's outcome is recorded as it's first finished, by the clinician: never by MedApp, none pre-selected.
+    const outcomes = outcomesOf(pathway, stage);
+    const named = body.outcome?.trim() ?? '';
+    const chosen = named ? outcomes.find((o) => (o.name ?? '').toLowerCase() === named.toLowerCase()) : undefined;
+    if (stage.choiceKind && stage.outcome === null && !chosen)
+      return invalid({outcome: [`Record the outcome: ${outcomes.map((o) => o.name).join(', ')}.`]});
+    if (named && (!stage.choiceKind || stage.outcome !== null))
+      return invalid({outcome: ['The outcome was recorded already: it isn’t changed by finishing the stage again.']});
+    // The lab enters its result as it finishes its stage (the full version also takes a report file).
+    const result = body.result?.trim() ?? '';
+    if (isLabsStage(stage) && !stage.result && !result) return invalid({result: ['Enter the result before finishing the lab’s stage.']});
+    if (result.length > MAX_RESULT_LENGTH) return invalid({result: [`At most ${MAX_RESULT_LENGTH} characters.`]});
+    if (result && !isLabsStage(stage)) return invalid({result: ['Only the lab’s stages take a result.']});
     if (!reopened) {
       const attended = db().appointments.some((a) => a.stageId === stage.id && a.status === 'Attended');
       if (stage.visitRequirement !== 'None' && !attended && body.withoutVisit !== true)
@@ -732,10 +739,11 @@ export function registerPathways() {
     stage.completedAtUtc = now;
     stage.completedByUserId = viewer.id;
     stage.unlocked = false;
+    if (result) stage.result = {text: result, enteredByUserId: viewer.id, enteredAtUtc: now};
     if (chosen) {
-      stage.chosenBranch = chosen.name;
-      for (const other of branches.filter((b) => b !== chosen))
-        for (const skipped of other.stages.filter(isToDo)) skipStage(skipped, viewer.id, 'BranchNotChosen', null);
+      stage.outcome = chosen.name ?? named;
+      // That outcome's stages join the pathway, up to the next choice node; the others never appear.
+      growPathway(pathway, () => newId());
     }
     pickUp(stage, viewer.id);
     afterStageDone(pathway);
@@ -745,7 +753,7 @@ export function registerPathways() {
   });
 
   // A template's addable branch, added on new information (MC10): only from the template's list, with a reason, never
-  // suggested. Its stages run after the stage chosen, side by side with what's left, and join before the last stage.
+  // suggested. Its stages run after the stage chosen, side by side with what's left, on a route that ends by itself.
   on('post', '/api/pathways/patient-pathways/{id}/branches', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
@@ -761,12 +769,12 @@ export function registerPathways() {
     if (!after) return invalid({afterStageId: ['Choose the stage it comes after.']});
     if (!afterStagesFor(pathway, branch).some((s) => s.id === after.id))
       return problem(409, `The '${branch.name}' branch can’t be added after the '${after.name}' stage.`);
-    const end = endStage(pathway)!;
     const additionId = newId();
-    const added = (branch.stages ?? []).map((spec, i) => addedStage(pathway, findDefinition(spec.stageDefinitionId ?? ''), end.stageOrder + i, additionId));
-    end.stageOrder += added.length;
+    const last = Math.max(...pathway.stages.map((s) => s.stageOrder));
+    const added = (branch.stages ?? []).map((spec, i) => addedStage(pathway, findDefinition(spec.stageDefinitionId ?? ''), last + 1 + i, additionId));
     pathway.stages.push(...added);
-    [after, ...added].forEach((from, i) => pathway.links.push({fromStageId: from.id, toStageId: (added[i] ?? end).id}));
+    // A chain after the chosen stage, on a route of its own that ends by itself: discharge waits for it (every stage done).
+    added.forEach((stage, i) => pathway.links.push({fromStageId: (i === 0 ? after : added[i - 1]).id, toStageId: stage.id}));
     pathway.branchAdditions = [
       ...(pathway.branchAdditions ?? []),
       {
@@ -1147,9 +1155,9 @@ function addedStage(pathway: DemoPathway, definition: DemoStageDefinition, stage
     needsConsent: definition.needsConsent ?? false,
     waitsForResults: definition.waitsForResults ?? false,
     isOptional: false,
-    choosesBranch: false,
-    branch: null,
-    chosenBranch: null,
+    choiceKind: null,
+    outcome: null,
+    templateStageOrder: null,
     unlocked: false,
     notes: null,
     startedAtUtc: null,
@@ -1161,7 +1169,7 @@ function addedStage(pathway: DemoPathway, definition: DemoStageDefinition, stage
     skipReason: null,
     skipDetail: null,
     branchAdditionId,
-    ownerTeamId: fromTemplate(pathway).find((s) => s.stageDefinitionId === definition.id && s.ownerTeamId)?.ownerTeamId ?? null,
+    ownerTeamId: pathway.plan.stages.find((s) => s.stageDefinitionId === definition.id && s.ownerTeamId)?.ownerTeamId ?? null,
     reachedAtUtc: null,
     handedOverFromTeamId: null,
     pickedUpAtUtc: null,
@@ -1175,7 +1183,7 @@ function findDefinition(id: string): DemoStageDefinition {
   return definition;
 }
 
-/** A template's stages from its definitions in order, with each one's options (optional, a branch point, a branch). */
+/** A template's stages from its definitions in order, with each one's options (optional, a choice node's kind and outcomes). */
 function templateStageList(
   ids: string[],
   options: Schemas['PathwayTemplateStageOptionsRequest'][] | null | undefined,
@@ -1193,8 +1201,10 @@ function templateStageList(
       isArchived: definition.isArchived,
       visitRequirement: definition.visitRequirement,
       isOptional: options?.[i]?.isOptional ?? false,
-      choosesBranch: options?.[i]?.choosesBranch ?? false,
-      branch: options?.[i]?.branch?.trim() || null,
+      choiceKind: options?.[i]?.choiceKind || null,
+      outcomes: options?.[i]?.choiceKind
+        ? (options[i].outcomes ?? []).map((o) => ({name: o.name?.trim() ?? '', nextStageOrders: [...new Set(o.nextStageOrders ?? [])].sort((a, b) => a - b)}))
+        : null,
       stopsClock: clockStopStageOrder === i + 1,
       ownerTeamId: options?.[i]?.ownerTeamId || null,
       ownerTeamName: teamName(options?.[i]?.ownerTeamId),
@@ -1202,28 +1212,11 @@ function templateStageList(
   });
 }
 
-/** The template's branch rules (`TemplateBranchRules`; a branch's stages sit together, MC8), as 400s, or null when they hold. */
+/** A list's rules (a template without routes): at least one stage, the last not optional, and no choice node (those need routes). */
 function whyTemplateInvalid(stages: Schemas['PathwayTemplateStageResponse'][]): DemoReply | null {
   if (stages.length === 0) return invalid({stageDefinitionIdsInOrder: ['Add at least one stage.']});
-  const last = stages[stages.length - 1];
-  if (last.isOptional || last.choosesBranch || last.branch)
-    return invalid({stageOptions: ['The last stage can’t be optional, a branch point or in a branch.']});
-  let open: {names: Set<string>} | null = null;
-  for (const stage of stages) {
-    if (stage.choosesBranch) {
-      if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
-      if (stage.isOptional || stage.branch) return invalid({stageOptions: ['A branch point can’t be optional or in a branch.']});
-      open = {names: new Set()};
-    } else if (stage.branch) {
-      if (!open) return invalid({stageOptions: ['A stage in a branch must come straight after its branch point or another stage in a branch.']});
-      open.names.add(stage.branch.toLowerCase());
-    } else {
-      // A plain stage ends the branches (their join, MC8).
-      if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
-      open = null;
-    }
-  }
-  if (open && open.names.size < 2) return invalid({stageOptions: ['A branch point needs two branches after it.']});
+  if (stages[stages.length - 1].isOptional) return invalid({stageOptions: ['The last stage can’t be optional.']});
+  if (stages.some((s) => s.choiceKind)) return invalid({links: ['A choice node’s outcomes are routes: send the template’s links.']});
   return null;
 }
 
@@ -1298,12 +1291,14 @@ function registerSetupOfPathways() {
     const options =
       body.stageOptions ??
       (sameList
-        ? (template.stages ?? []).map((s) => ({isOptional: s.isOptional, choosesBranch: s.choosesBranch, branch: s.branch, ownerTeamId: s.ownerTeamId}))
+        ? (template.stages ?? []).map((s) => ({isOptional: s.isOptional, choiceKind: s.choiceKind, outcomes: s.outcomes, ownerTeamId: s.ownerTeamId}))
         : null);
     // The relay (MC7): a stage's owner is the template's own team (none given) or, in Stage 1, the lab; nothing else.
     const lab = labTeamId();
     if ((options ?? []).some((o) => o.ownerTeamId && o.ownerTeamId !== lab && o.ownerTeamId !== teamId))
       return invalid({stageOptions: ['A stage can be owned only by the template’s own team or the lab.']});
+    if ((options ?? []).some((o) => o.choiceKind && !CHOICE_KINDS.some((k) => k.value === o.choiceKind)))
+      return invalid({stageOptions: ['A choice node is an assessment or a lab result.']});
     const clockStop = body.clockStopStageOrder === undefined ? template.clockStopStageOrder : body.clockStopStageOrder;
     const stages = templateStageList(
       ids,
@@ -1313,18 +1308,19 @@ function registerSetupOfPathways() {
     // Routes drawn in the route editor (MC9) come as links, checked by the graph rules (`TemplateGraphRules`); a list
     // has its branch rules. A template with routes side by side changes its stages only with its links.
     const links = body.links?.map((l) => ({fromStageOrder: l.fromStageOrder, toStageOrder: l.toStageOrder})) ?? null;
-    const parallel = hasParallelRoutes(template);
+    const parallel = hasRoutes(template);
     if (links) {
       if (stages.length === 0) return invalid({stageDefinitionIdsInOrder: ['Add at least one stage.']});
       const [first] = [...templateGraphProblems(stages, links).entries()].sort(([a], [b]) => a - b);
       if (first) return invalid({links: [`Stage ${first[0] + 1}: ${first[1]}`]});
+    } else if (parallel) {
+      // Its routes are kept: only what doesn't change them (an owner, say) changes without its links.
+      const optionsOf = (list: Schemas['PathwayTemplateStageResponse'][]) =>
+        JSON.stringify(list.map((s) => [s.stageDefinitionId, s.isOptional, s.choiceKind ?? null, s.outcomes ?? null]));
+      if (optionsOf(stages) !== optionsOf(template.stages ?? [])) return invalid({stageDefinitionIdsInOrder: [PARALLEL_ROUTES_LOCKED]});
     } else {
       const why = whyTemplateInvalid(stages);
       if (why) return why;
-      const optionsOf = (list: Schemas['PathwayTemplateStageResponse'][]) =>
-        JSON.stringify(list.map((s) => [s.stageDefinitionId, s.isOptional, s.choosesBranch, s.branch ?? null]));
-      if (parallel && optionsOf(stages) !== optionsOf(template.stages ?? []))
-        return invalid({stageDefinitionIdsInOrder: [PARALLEL_ROUTES_LOCKED]});
     }
     const branches = body.addableBranches ? addableBranchList(body.addableBranches, template, stages.length) : (template.addableBranches ?? []);
     if (branches instanceof DemoReply) return branches;

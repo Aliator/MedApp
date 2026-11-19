@@ -178,7 +178,7 @@ describe('the light demo’s setup and admin handlers', () => {
     startLightDemo(ADMIN);
     const exported = (await call('GET', `/api/patients/${PATIENTS.harrietQuill}/export`)).body;
     expect(exported.patient).toMatchObject({lastName: 'Quill', practiceName: 'Example Lane Surgery (synthetic)'});
-    expect(exported.pathways[0].notes[0].text).toMatch(/excise/);
+    expect(exported.pathways[0].notes[0].text).toMatch(/refer to the hospital/);
     expect(exported.appointments.length).toBeGreaterThan(0);
     expect(db().activityLog.at(-1)).toMatchObject({action: 'PatientExported', patientId: PATIENTS.harrietQuill});
     startLightDemo(STAFF);

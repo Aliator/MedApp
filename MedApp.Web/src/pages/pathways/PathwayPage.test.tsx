@@ -1162,7 +1162,7 @@ describe('PathwayPage: files', () => {
   });
 });
 
-describe('PathwayPage: skipping stages and branches', () => {
+describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
   const patient = {id: 'patient-1', firstName: 'Test', lastName: 'Patient', dateOfBirth: '1960-05-04', nhsNumber: '9990000026'};
   /** Stage 2 is the current stage, with some options of its own. */
   const withCurrent = (stage: Record<string, unknown>, overrides: Record<string, unknown> = {}) => {
@@ -1170,11 +1170,11 @@ describe('PathwayPage: skipping stages and branches', () => {
     return {...base, patient, stages: [base.stages[0], {...base.stages[1], ...stage}], ...overrides};
   };
   const branchPoint = {
-    choosesBranch: true,
-    needsBranchChoice: true,
-    branches: [
-      {name: 'Benign', stageNames: ['Discharge letter'], stageNamesToDo: ['Discharge letter']},
-      {name: 'Treatment', stageNames: ['Treatment planning', 'Surgery'], stageNamesToDo: ['Treatment planning', 'Surgery']},
+    choiceKind: 'LabResult',
+    needsOutcome: true,
+    outcomes: [
+      {name: 'Benign', stageNames: ['Discharge letter']},
+      {name: 'Malignant', stageNames: ['Referral to hospital', 'Letter to GP']},
     ],
   };
 
@@ -1215,7 +1215,7 @@ describe('PathwayPage: skipping stages and branches', () => {
     expect(await dialog.findByText('Only the current stage can be skipped.')).toBeInTheDocument();
   });
 
-  it('asks which branch follows a branch point, none chosen, and finishes only once the clinician chooses', async () => {
+  it('asks for a choice node’s outcome, none chosen, and finishes only once the clinician records one', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(withCurrent(branchPoint)),
       [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
@@ -1227,7 +1227,7 @@ describe('PathwayPage: skipping stages and branches', () => {
     expect(dialog.getByRole('region', {name: 'Patient: Patient, Test'})).toBeInTheDocument();
     expect(dialog.getAllByRole('radio').map((r) => [r.getAttribute('value'), (r as HTMLInputElement).checked])).toEqual([
       ['Benign', false],
-      ['Treatment', false],
+      ['Malignant', false],
     ]);
     const finish = dialog.getByRole('button', {name: 'Finish Stage'});
     expect(isDisabled(finish)).toBe(true);
@@ -1235,14 +1235,14 @@ describe('PathwayPage: skipping stages and branches', () => {
     expect(calls(fetch)).not.toContain(`POST ${PATH}/stages/s2/finish`);
 
     await user.click(dialog.getByRole('radio', {name: /Benign/}));
-    expect(dialog.getByText('These stages will be skipped: Treatment planning, Surgery.')).toBeInTheDocument();
+    expect(dialog.getByText('These stages will be added: Discharge letter.')).toBeInTheDocument();
     await user.click(finish);
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
-    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({branch: 'Benign'});
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({outcome: 'Benign'});
   });
 
-  it('asks for the branch when finishing a branch point without its visit too, and sends both', async () => {
+  it('asks for the outcome when finishing a choice node without its visit too, and sends both', async () => {
     const fetch = mockApi({
       [`GET ${PATH}`]: () => json(withCurrent({...branchPoint, visitRequirement: 'Suggested'})),
       'GET /api/appointments/search': () => json(pageOf([])),
@@ -1255,16 +1255,16 @@ describe('PathwayPage: skipping stages and branches', () => {
     expect(dialog.getByText('Finish without a visit?')).toBeInTheDocument();
     const finish = dialog.getByRole('button', {name: 'Finish Without Visit'});
     expect(isDisabled(finish)).toBe(true);
-    await user.click(dialog.getByRole('radio', {name: /Treatment/}));
+    await user.click(dialog.getByRole('radio', {name: /Malignant/}));
     await user.click(finish);
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
-    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({withoutVisit: true, branch: 'Treatment'});
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({withoutVisit: true, outcome: 'Malignant'});
   });
 
-  it('finishes a branch point whose branch was chosen before (unlocked since) as any other stage', async () => {
+  it('finishes a choice node whose outcome was recorded before (unlocked since) as any other stage', async () => {
     const fetch = mockApi({
-      [`GET ${PATH}`]: () => json(withCurrent({...branchPoint, needsBranchChoice: false})),
+      [`GET ${PATH}`]: () => json(withCurrent({...branchPoint, needsOutcome: false})),
       [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
@@ -1277,6 +1277,24 @@ describe('PathwayPage: skipping stages and branches', () => {
     // No body: nothing to choose.
     const request = fetch.mock.calls.map(([r]) => r as Request).find((r) => r.method === 'POST');
     expect(await request!.clone().text()).toBe('');
+  });
+
+  it('asks the lab for its result as it finishes its stage, and sends it', async () => {
+    const fetch = mockApi({
+      [`GET ${PATH}`]: () => json(withCurrent({needsResult: true})),
+      [`POST ${PATH}/stages/s2/finish`]: () => json(working()),
+    });
+    const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
+
+    await user.click(await screen.findByRole('button', {name: 'Finish Stage'}));
+    const dialog = within(openDialog()!);
+    const finish = dialog.getByRole('button', {name: 'Finish Stage'});
+    expect(isDisabled(finish)).toBe(true);
+    await user.type(dialog.getByRole('textbox', {name: /Result/}), ' No dysplasia. ');
+    await user.click(finish);
+
+    await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));
+    expect(await bodyOf(fetch, `POST ${PATH}/stages/s2/finish`)).toEqual({result: 'No dysplasia.'});
   });
 
   it('shows skipped stages struck through with why, counts them in the progress, and lets an admin reinstate one', async () => {

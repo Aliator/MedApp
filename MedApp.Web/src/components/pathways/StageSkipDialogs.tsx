@@ -159,54 +159,74 @@ export function ReinstateStageDialog({stage, patient, isProcessing, onConfirm, o
   );
 }
 
-/**
- * The stages choosing a branch skips: those of every other branch after the branch point still to do (as the server
- * skips them), in order.
- */
-export function stagesSkippedBy(stage: PathwayStage, branch: string): string[] {
-  return (stage.branches ?? []).filter((b) => b.name !== branch).flatMap((b) => b.stageNamesToDo ?? []);
-}
-
-export interface BranchChoiceProps {
-  /** A branch point being finished for the first time (`needsBranchChoice`), with its `branches`. */
+export interface OutcomeChoiceProps {
+  /** A choice node being finished for the first time (`needsOutcome`), with its `outcomes`. */
   stage: PathwayStage;
-  /** The branch chosen, "" until the clinician chooses one. */
-  branch: string;
-  onBranchChange: (branch: string) => void;
+  /** The outcome recorded, "" until the clinician chooses one. */
+  outcome: string;
+  onOutcomeChange: (outcome: string) => void;
   isDisabled?: boolean;
 }
 
 /**
- * Choosing the branch at a branch point, as it's finished (decision 114). **The clinician chooses; MedApp never does**:
- * the branches are listed in the template's order, none chosen to begin with, each with its stages' names, and
- * nothing here reads results or notes to suggest one. Once one is chosen, it says which stages will be skipped.
- * The finish dialogs hold the choice, and keep Finish disabled until there is one.
+ * Recording a choice node's outcome as it's finished (the owner's model, 19 Nov). **The clinician records it; MedApp
+ * never chooses**: the outcomes are listed in the template's order, none chosen to begin with, each with the stages it
+ * adds, and nothing here reads results or notes to suggest one. The finish dialogs hold the choice, and keep Finish
+ * disabled until there is one. Unchosen outcomes never join the pathway.
  */
-export function BranchChoice({stage, branch, onBranchChange, isDisabled}: BranchChoiceProps) {
-  const skipped = branch ? stagesSkippedBy(stage, branch) : [];
+export function OutcomeChoice({stage, outcome, onOutcomeChange, isDisabled}: OutcomeChoiceProps) {
+  const chosen = (stage.outcomes ?? []).find((o) => o.name === outcome);
   return (
     <>
       <RadioList
-        label="Which branch follows?"
-        description="Choose the branch this patient's pathway takes. The other branches' stages are skipped."
-        value={branch}
-        onChange={onBranchChange}
+        label="What was the outcome?"
+        description="Record the outcome for this patient. Its stages are added to the pathway."
+        value={outcome}
+        onChange={onOutcomeChange}
         isRequired
         isDisabled={isDisabled}>
-        {(stage.branches ?? []).map((b) => (
+        {(stage.outcomes ?? []).map((o) => (
           <RadioListItem
-            key={b.name}
-            value={b.name ?? ''}
-            label={b.name ?? ''}
-            description={(b.stageNames ?? []).length > 0 ? `Stages: ${(b.stageNames ?? []).join(', ')}` : 'No stages'}
+            key={o.name}
+            value={o.name ?? ''}
+            label={o.name ?? ''}
+            description={(o.stageNames ?? []).length > 0 ? `Adds: ${(o.stageNames ?? []).join(', ')}` : 'Adds no stages'}
           />
         ))}
       </RadioList>
-      {branch && (
+      {chosen && (
         <Text type="body">
-          {skipped.length > 0 ? `These stages will be skipped: ${skipped.join(', ')}.` : 'No stages will be skipped.'}
+          {(chosen.stageNames ?? []).length > 0 ? `These stages will be added: ${(chosen.stageNames ?? []).join(', ')}.` : 'No stages will be added.'}
         </Text>
       )}
     </>
+  );
+}
+
+/** The longest result the lab can enter as it finishes its stage (the API's limit). */
+export const MAX_RESULT_LENGTH = 4000;
+
+export interface LabResultFieldProps {
+  result: string;
+  onResultChange: (result: string) => void;
+  isDisabled?: boolean;
+}
+
+/**
+ * The lab's result, entered as it finishes its own stage (`needsResult`): it goes back to the clinic with the pathway,
+ * and the clinic's review shows it. Written by the lab; MedApp never reads it to suggest anything.
+ */
+export function LabResultField({result, onResultChange, isDisabled}: LabResultFieldProps) {
+  const isTooLong = result.length > MAX_RESULT_LENGTH;
+  return (
+    <TextArea
+      label="Result"
+      description="What the lab found. It goes back to the clinic with the pathway."
+      value={result}
+      onChange={onResultChange}
+      isRequired
+      isDisabled={isDisabled}
+      status={isTooLong ? {type: 'error', message: `At most ${MAX_RESULT_LENGTH} characters.`} : undefined}
+    />
   );
 }

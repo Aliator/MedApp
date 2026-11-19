@@ -31,13 +31,14 @@ import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
 import {stageDescription} from '../../components/pathways/SnomedConcept';
 import {NO_STATUS_LINE} from '../../components/forms/fieldSpace';
-import {chainLinks, hasParallelRoutes, routeDepths, templateGraphProblems} from '../../api/pathwayRoutes';
+import {chainLinks, CHOICE_KINDS, choiceKindLabel, hasRoutes, routeDepths, templateGraphProblems} from '../../api/pathwayRoutes';
 import {AddableBranchesEditor, branchesToSend, templateBranchRows, type BranchRow} from './AddableBranchesEditor';
 import {
-  isAfterBranchPoint,
   linksFromRoutes,
+  outcomesFromRows,
   PLAIN_STAGE,
   routesFromLinks,
+  rowOutcomes,
   tidyRoutes,
   type Routes,
   stageOptionProblems,
@@ -46,7 +47,7 @@ import {
 } from './templateBranches';
 
 /**
- * A stage in the template being edited, with its options (optional, branch point, branch). The key is the row's own,
+ * A stage in the template being edited, with its options (optional, a choice node, its outcome). The key is the row's own,
  * as a definition may appear more than once.
  */
 export interface StageRow extends StageOptionsInput {
@@ -92,6 +93,9 @@ export function teamChoices(active: readonly Team[], template: PathwayTemplate |
   return choices;
 }
 
+/** The choice-node choice for a plain stage. */
+const NO_CHOICE = 'none';
+
 /** The clock-stop choice when no stage stops the clock. */
 const NO_STOP = 'none';
 
@@ -125,21 +129,28 @@ const row = (definitionId: string, options: Partial<StageOptionsInput> = {}): St
 /** A saved template's rows: its stages in order, each with the options the template gave it (plain when it has none). */
 function templateRows(template: PathwayTemplate | null): StageRow[] {
   const stages = [...(template?.stages ?? [])].sort((a, b) => (a.stageOrder ?? 0) - (b.stageOrder ?? 0));
-  return (template?.stageDefinitionIdsInOrder ?? []).map((definitionId, i) => {
+  const ids = template?.stageDefinitionIdsInOrder ?? [];
+  const outcomes = rowOutcomes(template, ids.length);
+  return ids.map((definitionId, i) => {
     const stage = stages[i]?.stageDefinitionId === definitionId ? stages[i] : undefined;
     return row(definitionId, {
       isOptional: stage?.isOptional ?? false,
-      choosesBranch: stage?.choosesBranch ?? false,
-      branch: stage?.branch ?? '',
+      choiceKind: stage?.choiceKind ?? '',
+      outcome: outcomes[i],
       // Stage 1 allows only the lab as another owner (the relay, MC7).
       byLab: Boolean(stage?.ownerTeamId),
     });
   });
 }
 
-/** A stage's options in a few words, for the confirmation ("optional", "branch point", "Benign"); empty when plain. */
+/** A stage's options in a few words, for the confirmation ("optional", "lab result", "Benign"); empty when plain. */
 function optionWords(stage: StageRow): string {
-  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim(), stage.byLab && 'the lab’s'].filter(
+  const words = [
+    stage.isOptional && 'optional',
+    stage.choiceKind && choiceKindLabel(stage.choiceKind).toLowerCase(),
+    stage.outcome.trim(),
+    stage.byLab && 'the lab’s',
+  ].filter(
     Boolean,
   );
   return words.length > 0 ? ` (${words.join(', ')})` : '';
@@ -180,14 +191,16 @@ export function PathwayTemplateEditorPage({id}: {id?: string}) {
 /**
  * The template editor (decision 17): its name, the team it belongs to, and its stages in order. Stages are added from the active stage
  * definitions (a definition may be added more than once), dragged into order (or moved with the keyboard from
- * each row's handle) and removed. Each stage can be made optional or a branch point, and a stage after a branch point
- * put in a branch, shown indented under it (docs/centre-phases-3-5-plan.md, decisions 113 and 117); what the API would
- * refuse in them shows on the stage. Saving asks first, then goes back to the list.
+ * each row's handle) and removed. Each stage can be made optional or a choice node (an assessment or a lab result,
+ * whose outcome the clinician records); what the API would refuse in them shows on the stage. Saving asks first, then
+ * goes back to the list.
  *
  * The route editor (MC9): Draw Routes turns the list into routes, where each stage says what it Comes after (any
- * stages above it), so routes can run side by side (a fork) and meet again (a join); a branch point's stages straight
- * after it each start a named branch. Stages indent by how deep in the routes they sit. A template with routes side
- * by side opens this way. The graph rules (`templateGraphProblems`) show on each stage before saving.
+ * stages above it), so routes can run side by side (a fork) and meet again (a join), and end anywhere (a discharge, a
+ * referral). A template is the full tree: each stage straight after a choice node names the outcome that leads to it
+ * (stages with the same name are one outcome's, side by side). Choosing a choice node draws routes; a template with
+ * routes opens this way. Stages indent by how deep in the routes they sit. The graph rules (`templateGraphProblems`)
+ * show on each stage before saving.
  *
  * Branches added on new information (MC10): the template's addable branches, edited below the stages.
  *
@@ -229,18 +242,12 @@ function TemplateEditor({
   const usedBy = template?.pathwayCount ?? 0;
   // The route editor (MC9): each row's predecessors by key, or null while the stages are a plain list.
   const [rawRoutes, setRoutes] = useState<Routes | null>(() =>
-    template !== null && hasParallelRoutes(template) ? routesFromLinks(stages, template.links ?? []) : null,
+    template !== null && hasRoutes(template) ? routesFromLinks(stages, template.links ?? []) : null,
   );
   const routes = rawRoutes && tidyRoutes(stages, rawRoutes);
   const links = routes ? linksFromRoutes(stages, routes) : null;
   const depths = links ? routeDepths(stages.length, links) : [];
-  const drawRoutes = () =>
-    setRoutes(
-      routesFromLinks(
-        stages,
-        chainLinks(stages.map((s, i) => ({stageOrder: i + 1, choosesBranch: s.choosesBranch, branch: s.branch}))),
-      ),
-    );
+  const drawRoutes = () => setRoutes(routesFromLinks(stages, chainLinks(stages.map((_, i) => ({stageOrder: i + 1})))));
   const [branches, setBranches] = useState<BranchRow[]>(() => templateBranchRows(template, stages));
 
   const reorderable = useMemo(
@@ -261,10 +268,18 @@ function TemplateEditor({
 
   const add = (definitionId: string) => setStages((current) => [...current, row(definitionId)]);
   const remove = (key: string) => setStages((current) => current.filter((s) => s.key !== key));
-  const change = (key: string, options: Partial<StageOptionsInput>) =>
+  const change = (key: string, options: Partial<StageOptionsInput>) => {
+    // A choice node's outcomes are routes: choosing one in a list draws them.
+    if (options.choiceKind && !routes) drawRoutes();
     setStages((current) => current.map((s) => (s.key === key ? {...s, ...options} : s)));
+  };
   // What the API would refuse in the stages' options, said on each stage before saving (the API's check is the last word).
-  const optionProblems = links ? templateGraphProblems(stages, links) : stageOptionProblems(stages);
+  const optionProblems = links
+    ? templateGraphProblems(
+        stages.map((s, i) => ({isOptional: s.isOptional, choiceKind: s.choiceKind || null, outcomes: s.choiceKind ? outcomesFromRows(stages, links, i) : null})),
+        links,
+      )
+    : stageOptionProblems(stages);
   // The relay (MC7): a stage can be the lab's, unless the template is the lab's own. A template that had one sends
   // every stage's options, so one cleared is cleared.
   const labTeamId = teams.find((t) => t.kind === 'Lab')?.id ?? null;
@@ -274,6 +289,7 @@ function TemplateEditor({
     stages.map((s) => ({...s, byLab: canBeLabs && s.byLab})),
     labTeamId,
     hadLabStages,
+    links,
   );
 
   const submit = () =>
@@ -405,14 +421,10 @@ function TemplateEditor({
         {stages.map((stage, i) => {
           const definition = byId.get(stage.definitionId);
           const before = routes?.[stage.key] ?? [];
-          // With routes, a stage straight after a branch point names the branch it starts.
-          const afterBranchPoint = routes
-            ? stages.some((other) => other.choosesBranch && before.includes(other.key))
-            : isAfterBranchPoint(stages, i);
-          // A stage in a branch sits indented under the branch point before it, so the branches read as groups; with
-          // routes, by how deep in them it sits.
-          const isInBranch = afterBranchPoint && !stage.choosesBranch && stage.branch.trim() !== '';
-          const indent = routes ? (depths[i + 1] ?? 0) : isInBranch ? 1 : 0;
+          // With routes, a stage straight after a choice node names the outcome that leads to it.
+          const afterChoice = routes !== null && stages.some((other) => other.choiceKind && before.includes(other.key));
+          // With routes, a stage sits indented by how deep in them it is.
+          const indent = routes ? (depths[i + 1] ?? 0) : 0;
           return (
             <ListItem
               key={stage.key}
@@ -423,7 +435,7 @@ function TemplateEditor({
                 <StageOptionFields
                   stage={stage}
                   description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
-                  canBeInBranch={afterBranchPoint}
+                  canHaveOutcome={afterChoice}
                   canBeLabs={canBeLabs}
                   comesAfter={
                     routes &&
@@ -614,8 +626,8 @@ interface StageOptionFieldsProps {
   stage: StageOptionsInput;
   /** The definition's description and SNOMED CT concept, as the row showed before options. */
   description: ReactNode;
-  /** It comes after a branch point, so it can be put in a branch. */
-  canBeInBranch: boolean;
+  /** It comes straight after a choice node, so it names the outcome that leads to it. */
+  canHaveOutcome: boolean;
   /** The template isn't the lab's, so a stage can be the lab's to work (the relay). */
   canBeLabs?: boolean;
   /** With routes (MC9), the stages it comes after. */
@@ -627,14 +639,13 @@ interface StageOptionFieldsProps {
 }
 
 /**
- * A template stage's description, then its options (decisions 113 and 117): Optional (staff may skip it, with a
- * reason, while it's current), Branch point (finishing it, the clinician chooses one of the branches after it) and,
- * for a stage after a branch point, the Branch it's in (left empty, it always runs). Any problem the API would refuse
- * shows under them. Plain stages show just the two boxes, unticked.
+ * A template stage's description, then its options: Optional (staff may skip it, with a reason, while it's current),
+ * Choice node (no, an assessment or a lab result: finishing it, the clinician records one of its outcomes) and, for a
+ * stage straight after a choice node, the Outcome that leads to it. Any problem the API would refuse shows under them.
  */
-function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false, comesAfter, problem, isDisabled, onChange}: StageOptionFieldsProps) {
-  // The branch field stays while it has a name, so one left after its branch point moved can still be cleared.
-  const hasBranchField = (canBeInBranch && !stage.choosesBranch) || stage.branch !== '';
+function StageOptionFields({stage, description, canHaveOutcome, canBeLabs = false, comesAfter, problem, isDisabled, onChange}: StageOptionFieldsProps) {
+  // The outcome field stays while it has a name, so one left after its choice node moved can still be cleared.
+  const hasOutcomeField = canHaveOutcome || stage.outcome !== '';
   return (
     <VStack as="span" gap={2}>
       {description}
@@ -647,11 +658,12 @@ function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false
           onChange={(isOptional) => onChange({isOptional})}
           isDisabled={isDisabled}
         />
-        <CheckboxInput
-          label="Branch point"
+        <AnchoredSelector
+          label="Choice node"
           size="sm"
-          value={stage.choosesBranch}
-          onChange={(choosesBranch) => onChange({choosesBranch})}
+          options={[{value: NO_CHOICE, label: 'No'}, ...CHOICE_KINDS.map((k) => ({value: k.value, label: k.label}))]}
+          value={stage.choiceKind || NO_CHOICE}
+          onChange={(value: string) => onChange({choiceKind: value === NO_CHOICE ? '' : value})}
           isDisabled={isDisabled}
         />
         {canBeLabs && (
@@ -663,13 +675,13 @@ function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false
             isDisabled={isDisabled}
           />
         )}
-        {hasBranchField && (
+        {hasOutcomeField && (
           <TextInput
-            label="Branch"
+            label="Outcome"
             size="sm"
-            value={stage.branch}
-            onChange={(branch) => onChange({branch})}
-            placeholder="e.g. Treatment"
+            value={stage.outcome}
+            onChange={(outcome) => onChange({outcome})}
+            placeholder="e.g. Benign"
             autoComplete="off"
             isDisabled={isDisabled}
             containerStyle={NO_STATUS_LINE}

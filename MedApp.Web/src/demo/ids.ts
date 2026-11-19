@@ -35,16 +35,18 @@ export const TEMPLATES = {
   inflammatorySkin: id(0xd2, 2),
   postMenopausalBleeding: id(0xd2, 3),
   diabetesReview: id(0xd2, 4),
-  /** Branches at the first visit: biopsy first, or treat directly. */
+  /** Two choice nodes: the first visit (an assessment: biopsy, or looks benign), then the histology result. */
   suspectedSkinCancer: id(0xd2, 5),
   /** A fork after the first visit (MC8): the biopsy and histology beside the bloods and lab tests, joined at the review. */
   lesionWithBloods: id(0xd2, 6),
+  /** Biomechanics, assessment only: the assessment's outcomes (orthoses, exercises, footwear advice, the hospital). */
+  lowerLimb: id(0xd2, 7),
 } as const;
 
 /** The skin lesion template's addable branches (MC10): routes a clinician may add on new information, never suggested. */
 export const TEMPLATE_BRANCHES = {
-  /** Wide excision and follow-up, after histology or the review: the tour adds it to Priya Holloway's pathway. */
-  melanomaRoute: id(0xfc, 1),
+  /** Blood tests and the lab's tests, after histology or the review: the tour adds it to Priya Holloway's pathway. */
+  bloodTests: id(0xfc, 1),
   /** Another biopsy and its histology, after any stage, as often as needed. */
   repeatBiopsy: id(0xfc, 2),
 } as const;
@@ -56,15 +58,23 @@ export const STAGES = {
   biopsyOrSample: id(0xd3, 2),
   histology: id(0xd3, 3),
   resultsAndTeamReview: id(0xd3, 4),
-  treatment: id(0xd3, 5),
+  /** Photographs for a referral, with consent (was Treatment: the centre treats nothing). */
+  clinicalPhotos: id(0xd3, 5),
   followUp: id(0xd3, 6),
   dischargeLetter: id(0xd3, 7),
-  medicinesReview: id(0xd3, 8),
+  /** Was Medicines review: the centre doesn't prescribe, so medicines go to the GP. */
+  gpReferral: id(0xd3, 8),
   bloodAndUrineTests: id(0xd3, 9),
   labTests: id(0xd3, 10),
   clinicReview: id(0xd3, 11),
-  /** Excision straight away, without a biopsy first (the branching template's second branch). */
-  excision: id(0xd3, 12),
+  /** Was Excision: surgery and specialist treatment are the hospital's. */
+  hospitalReferral: id(0xd3, 12),
+  carePlan: id(0xd3, 13),
+  biomechanicalAssessment: id(0xd3, 14),
+  castingAndMeasurement: id(0xd3, 15),
+  orthosesMade: id(0xd3, 16),
+  orthosesFitted: id(0xd3, 17),
+  exercisePlan: id(0xd3, 18),
 } as const;
 
 export const PATIENTS = {
@@ -108,9 +118,9 @@ export const PATHWAYS = {
   unassigned: id(0xd5, 7),
   /** Inflammatory skin review, Ilona Petrova, Nadia Thornbury's: follow-up booked this week. */
   followUpBooked: id(0xd5, 8),
-  /** Skin lesion, Harriet Quill, Nadia Thornbury's: at Treatment, which needs a consent record before it's finished. */
+  /** Skin lesion, Harriet Quill, Nadia Thornbury's: Basal cell carcinoma recorded; at Clinical photographs, which needs a consent record. */
   consentToRecord: id(0xd5, 9),
-  /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at the first visit, a branch point (biopsy or treat). */
+  /** Suspected skin cancer, Felix Moreton, Nadia Thornbury's: at the first visit, an assessment choice node (biopsy, or looks benign). */
   branchToChoose: id(0xd5, 10),
   /** Post-menopausal bleeding, Priya Holloway, Gynaecology's: beside her Dermatology one, behind the team wall; at Histology, new for the lab. */
   priyaGynaecology: id(0xd5, 11),
@@ -120,6 +130,8 @@ export const PATHWAYS = {
   forkedTests: id(0xd5, 13),
   /** Skin lesion, Callum Ashby, Nadia Thornbury's: back from the lab (Histology finished), not picked up yet. */
   backFromLab: id(0xd5, 14),
+  /** Lower limb biomechanics, Samuel Okafor, Biomechanics's: at its assessment, a choice node. */
+  biomechanicsAssessment: id(0xd5, 15),
 } as const;
 
 export const REFERRALS = {
@@ -164,7 +176,7 @@ export const ROOMS = {
 
 /** Appointments added with the second seed (pathways' extras). */
 export const MORE_APPOINTMENTS = {
-  /** Harriet Quill's excision, attended this morning (its stage needs a consent record to finish). */
+  /** Harriet Quill's clinical photographs, attended this morning (its stage needs a consent record to finish). */
   harrietExcision: id(0xf9, 1),
   harrietFirstVisit: id(0xf9, 2),
   harrietBiopsy: id(0xf9, 3),
