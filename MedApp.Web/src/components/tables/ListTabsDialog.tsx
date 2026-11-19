@@ -77,10 +77,10 @@ export function ListTabsDialog({
     return (
       <ConfirmDialog
         isOpen={isOpen}
-        title={mode.id ? 'Edit Tab' : 'Add Tab'}
-        message="Name the tab, and set the search it shows."
+        title={mode.id ? 'Edit Favourite' : 'Add Favourite'}
+        message="Name the favourite, and set the search it shows."
         icon={AppIcon.Favourite}
-        confirmText="Save Tab"
+        confirmText="Save Favourite"
         cancelText="Back"
         confirmDisabled={!mode.name.trim()}
         onConfirm={save}
@@ -93,8 +93,8 @@ export function ListTabsDialog({
               config={config}
               filters={mode.filters}
               onChange={(filters) => setMode({...mode, filters: [...filters]})}
-              label={`The tab's search: ${label}`}
-              placeholder="No filters: the tab shows everything. Add a filter..."
+              label={`The favourite's search: ${label}`}
+              placeholder="No filters: the favourite shows everything. Add a filter..."
               presentation="popover"
             />
           </VStack>
@@ -107,8 +107,8 @@ export function ListTabsDialog({
     return (
       <ConfirmDialog
         isOpen={isOpen}
-        title="Reset Tabs"
-        message="Go back to the list's own tabs? The tabs you added, and your changes to its own, are removed."
+        title="Reset Favourites"
+        message="Go back to the list's own favourites? The favourites you added, and your changes to its own, are removed."
         icon={AppIcon.Favourite}
         intent="warning"
         confirmText="Reset"
@@ -124,15 +124,15 @@ export function ListTabsDialog({
   return (
     <ConfirmDialog
       isOpen={isOpen}
-      title="Configure Tabs"
-      message="The tabs above the list, in order. Drag one to move it, or press its handle and use the arrow keys. Changes are saved as you make them."
+      title="Configure Favourites"
+      message="Your favourites, shown above the list, in order. Drag one to move it, or press its handle and use the arrow keys. Changes are saved as you make them."
       icon={AppIcon.Favourite}
       confirmText="Done"
       cancelText="Close"
       onConfirm={close}
       onCancel={close}>
       <VStack gap={4}>
-        <List reorderable={reorderable} hasDividers aria-label="Tabs in order">
+        <List reorderable={reorderable} hasDividers aria-label="Favourites in order">
           {tabs.map((tab, i) => (
             <ListItem
               key={tab.id}
@@ -151,7 +151,7 @@ export function ListTabsDialog({
                   />
                   <IconButton
                     label={`Remove ${tab.label}`}
-                    tooltip={tabs.length === 1 ? 'A list keeps one tab at least' : 'Remove'}
+                    tooltip={tabs.length === 1 ? 'A list keeps one favourite at least' : 'Remove'}
                     icon={<Icon icon={AppIcon.Delete} />}
                     variant="ghost"
                     size="sm"
@@ -165,7 +165,7 @@ export function ListTabsDialog({
         </List>
         <HStack gap={2} wrap="wrap">
           <Button
-            label="Add Tab"
+            label="Add Favourite"
             variant="secondary"
             icon={<Icon icon={AppIcon.Add} />}
             onClick={() => setMode({kind: 'edit', name: '', filters: toFilters(current)})}

@@ -2,7 +2,7 @@ import {DropdownMenu, type DropdownMenuOption} from '@astryxdesign/core/Dropdown
 import {Icon} from '@astryxdesign/core/Icon';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {PowerSearch, type PowerSearchConfig, type PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
-import {HStack, StackItem} from '@astryxdesign/core/Stack';
+import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Tab, TabList} from '@astryxdesign/core/TabList';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {useListTabs} from '../../app/favourites';
@@ -311,16 +311,20 @@ export function ListFilterBar({
 
   const menu: DropdownMenuOption[] = [
     showsSearch
-      ? {id: 'tabs', label: 'Tabs', description: 'Show the tabs', icon: AppIcon.Favourite, onClick: showTabs}
+      ? {id: 'tabs', label: 'Favourites', description: 'Show your favourites', icon: AppIcon.Favourite, onClick: showTabs}
       : {id: 'search', label: 'Search', description: 'Search with filters', icon: AppIcon.Search, onClick: () => setShowsSearch(true)},
-    {id: 'configure', label: 'Configuration…', description: 'Add, edit, order or reset the tabs', icon: AppIcon.Settings, onClick: () => setIsConfiguring(true)},
+    {id: 'configure', label: 'Configuration…', description: 'Add, edit, order or reset your favourites', icon: AppIcon.Settings, onClick: () => setIsConfiguring(true)},
   ];
 
   return (
     // The tabs or the search fill the row; the menu sits beside them.
     <HStack ref={bar} gap={2} vAlign="center" style={NO_FIELD_STATUS_LINE}>
-      <StackItem size="fill" style={MIN_WIDTH_ZERO}>
-        {showsSearch ? (
+      {/*
+        The favourites and the search share one space, the hidden one keeping its height, so switching between them
+        never changes the row's height (it jumped before: the two aren't the same height).
+      */}
+      <StackItem size="fill" style={SHARED_SPACE}>
+        <VStack style={showsSearch ? SHOWN : HIDDEN} aria-hidden={!showsSearch} inert={!showsSearch}>
           <PowerSearch
             config={config}
             filters={filters}
@@ -329,13 +333,14 @@ export function ListFilterBar({
             placeholder={placeholder}
             presentation="popover"
           />
-        ) : (
+        </VStack>
+        <VStack style={showsSearch ? HIDDEN : SHOWN} aria-hidden={showsSearch} inert={showsSearch}>
           <TabList value={selected?.id ?? ''} onChange={(id) => apply(tabs.find((t) => t.id === id)?.values ?? {})} role="tablist" hasDivider>
             {tabs.map((t) => (
               <Tab key={t.id} value={t.id} label={t.label} />
             ))}
           </TabList>
-        )}
+        </VStack>
       </StackItem>
       <DropdownMenu
         items={menu}
@@ -369,8 +374,13 @@ export function ListFilterBar({
   );
 }
 
-/** Lets the tab row shrink below its tabs' width, so it scrolls rather than pushing the menu off the row. */
-const MIN_WIDTH_ZERO = {minWidth: 0} as const;
+/**
+ * The favourites and the search in one grid cell, the row as tall as the taller. It may shrink below the favourites'
+ * width, so they scroll rather than pushing the menu off the row.
+ */
+const SHARED_SPACE = {minWidth: 0, display: 'grid'} as const;
+const SHOWN = {gridArea: '1 / 1', minWidth: 0, justifyContent: 'center'} as const;
+const HIDDEN = {gridArea: '1 / 1', minWidth: 0, visibility: 'hidden'} as const;
 
 /**
  * What password managers and browsers look for to leave a text box alone: `autocomplete="off"` alone doesn't stop
