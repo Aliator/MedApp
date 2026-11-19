@@ -125,6 +125,18 @@ describe('SpecimenPage', () => {
     expect(screen.queryByRole('menuitem', {name: /Entered in Error/})).not.toBeInTheDocument();
   });
 
+  it('links its lab case (MC15)', async () => {
+    renderPage({...received, labCaseId: 'case-1', labCaseNumber: 'MA26-000300'}, {}, labUser);
+    expect(await screen.findByRole('link', {name: 'MA26-000300'})).toHaveAttribute('href', '/lab/cases/case-1');
+    expect(screen.queryByRole('button', {name: 'Open Lab Case'})).not.toBeInTheDocument();
+  });
+
+  it('offers the lab Open Lab Case for a received sample with no case', async () => {
+    renderPage({...received, labCaseId: null, canOpenLabCase: true}, {}, labUser);
+    expect(await screen.findByRole('button', {name: 'Open Lab Case'})).toBeInTheDocument();
+    expect(screen.getByText('None yet')).toBeInTheDocument();
+  });
+
   it('offers nothing that changes it to someone who neither records nor processes samples', async () => {
     renderPage(received, {}, staffUser);
     expect(await screen.findByRole('link', {name: 'Print Label'})).toBeInTheDocument();

@@ -58,7 +58,7 @@ export interface DemoSpecimen {
   hospitalRequestId: string | null;
   /** The test asked for, from the lab's catalogue (MC13), if one was chosen. */
   labTestId: string | null;
-  /** Its lab case (MC15); none yet. */
+  /** Its lab case (MC15): the case it's worked in, or none (not received yet, or reported before lab cases). */
   labCaseId: string | null;
   /** Its pathway and stage: a clinic sample's; the hospital's have none. */
   pathwayId: string | null;
@@ -118,6 +118,9 @@ export interface DemoResult {
   enteredInErrorByUserId: string | null;
   errorDetail: string | null;
   version: number;
+  /** The lab case it reports (MC15), and the results the lab entered there (the light demo's report, in place of a file). */
+  labCaseId?: string | null;
+  reportText?: string | null;
 }
 
 /** A pause of a referral's waiting-time clock (patient-initiated only). */
@@ -557,10 +560,13 @@ export function seedLab(state: BaseState): LabSlice {
 /**
  * The sample a hospital request brings (MC14 with MC18): the lab's (its team), with no pathway or stage, numbered as
  * its case (one sequence), received by the lab when the request was registered, and taken when the hospital collected
- * it. The hospital's report goes back to the hospital (MC20), so it makes no result here.
+ * it, in the request's lab case. The hospital's report goes back to the hospital (MC20), so it makes no result here.
  */
 export function hospitalSample(
-  request: Pick<DemoHospitalRequest, 'id' | 'hospitalId' | 'patientId' | 'teamId' | 'specimenTypeId' | 'labTestId' | 'labCaseNumber' | 'collectedAtUtc' | 'registeredAtUtc' | 'registeredByUserId'>,
+  request: Pick<
+    DemoHospitalRequest,
+    'id' | 'hospitalId' | 'patientId' | 'teamId' | 'specimenTypeId' | 'labTestId' | 'labCaseId' | 'labCaseNumber' | 'collectedAtUtc' | 'registeredAtUtc' | 'registeredByUserId'
+  >,
   sampleId: string,
 ): DemoSpecimen {
   return {
@@ -572,8 +578,8 @@ export function hospitalSample(
     hospitalId: request.hospitalId,
     hospitalRequestId: request.id,
     labTestId: request.labTestId,
-    // MC15 opens its case; until then a sample has none.
-    labCaseId: null,
+    // The request's lab case (MC15), opened with it.
+    labCaseId: request.labCaseId,
     pathwayId: null,
     teamId: request.teamId,
     stageId: null,

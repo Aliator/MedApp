@@ -209,7 +209,7 @@ describe('ListFilterBar, tabs', () => {
     await waitFor(() => expect(searchBar()).toHaveTextContent(/Status: is\s*Open/));
     expect(screen.queryByRole('tab')).toBeNull();
 
-    await pickListOption(user, 'Tabs');
+    await pickListOption(user, 'Favourites');
     expect(selectedTab()).toBe('Open');
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -220,7 +220,7 @@ describe('ListFilterBar, tabs', () => {
     await waitFor(() => expect(searchBar()).toHaveTextContent(/Pathway: contains\s*knee/));
     expect(screen.getByRole('button', {name: 'List options'})).toBeInTheDocument();
 
-    await pickListOption(user, 'Tabs');
+    await pickListOption(user, 'Favourites');
 
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({status: 'Open', title: undefined}));
     expect(selectedTab()).toBe('Open');
@@ -247,11 +247,11 @@ describe('ListFilterBar, configuration', () => {
     const {user} = renderHarness({status: 'Open'}, TABS);
     await configure(user);
 
-    await user.click(dialog().getByRole('button', {name: 'Add Tab'}));
-    expect(dialog().getByRole('button', {name: 'Save Tab'})).toHaveAttribute('aria-disabled', 'true');
+    await user.click(dialog().getByRole('button', {name: 'Add Favourite'}));
+    expect(dialog().getByRole('button', {name: 'Save Favourite'})).toHaveAttribute('aria-disabled', 'true');
     await waitFor(() => expect(openDialog()!.querySelector('.astryx-power-search')).toHaveTextContent(/Status: is\s*Open/));
     await user.type(dialog().getByRole('textbox', {name: /Name/}), 'Open ones');
-    await user.click(dialog().getByRole('button', {name: 'Save Tab'}));
+    await user.click(dialog().getByRole('button', {name: 'Save Favourite'}));
 
     await waitFor(() => expect(listed().some((t) => t.includes('4. Open ones') && t.includes('Added by you'))).toBe(true));
     expect(tabNames()).toEqual(['Open', 'Overdue', 'Everything', 'Open ones']);
@@ -266,7 +266,7 @@ describe('ListFilterBar, configuration', () => {
     const name = dialog().getByRole('textbox', {name: /Name/});
     await user.clear(name);
     await user.type(name, 'Still open');
-    await user.click(dialog().getByRole('button', {name: 'Save Tab'}));
+    await user.click(dialog().getByRole('button', {name: 'Save Favourite'}));
     await waitFor(() => expect(tabNames()).toEqual(['Still open', 'Everything']));
 
     await user.click(dialog().getByRole('button', {name: 'Edit Still open'}));

@@ -8,6 +8,7 @@ import {db} from '../store';
 import {nowUtc, today, ukDateOf} from '../time';
 import {logActivity} from './adminLogs';
 import {contains, me, paged, pathwayPatient, patientName, patientSortName, requirePermission, sortedBy} from './common';
+import {openHospitalCase} from './labCases';
 import {ensureCanChange} from './setupPrivacy';
 import {myScope, refuseAcrossWall, type TeamScope} from './teamWalls';
 
@@ -110,7 +111,7 @@ function requestResponse(request: DemoHospitalRequest): Schemas['HospitalRequest
     source: request.source,
     labCaseId: request.labCaseId,
     labCaseNumber: request.labCaseNumber,
-    labCaseStatus: request.labCaseStatus,
+    labCaseStatus: state.labCases.find((c) => c.id === request.labCaseId)?.status ?? 'Open',
     registeredAtUtc: request.registeredAtUtc,
     registeredByUsername: usernameOf(request.registeredByUserId),
   };
@@ -303,13 +304,14 @@ export function registerHospitals() {
       source: 'Hospital',
       labCaseId: newId(),
       labCaseNumber: specimenNumber(state.specimenSequence),
-      labCaseStatus: 'Open',
       registeredAtUtc: nowUtc(),
       registeredByUserId: me().id,
     };
     state.hospitalRequests.push(request);
-    // Its sample joins the samples database (MC14), the hospital's source on it.
-    state.specimens.push(hospitalSample(request, newId()));
+    // Its sample joins the samples database (MC14), the hospital's source on it, and its lab case opens (MC15).
+    const sample = hospitalSample(request, newId());
+    state.specimens.push(sample);
+    openHospitalCase(request, sample, request.registeredByUserId);
     return requestResponse(request);
   });
 

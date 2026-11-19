@@ -717,6 +717,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           },
         ]
       : []),
+    // The lab's cases (MC15), for the lab, who work them; a case's page counts as under it.
+    ...(can(user, 'ProcessSpecimens')
+      ? [
+          {
+            key: 'lab-cases',
+            label: 'Lab Cases',
+            icon: AppIcon.LabCases,
+            href: '/lab/cases',
+            isSelected: isAt('/lab/cases'),
+            isHalfView: isHalfAt('/lab/cases'),
+            row: (
+              <SideNavItem
+                label="Lab Cases"
+                icon={AppIcon.LabCases}
+                href="/lab/cases"
+                isSelected={isAt('/lab/cases')}
+                ref={halfViewRow(isHalfAt('/lab/cases'))}
+                actions={<RowMenu label="Lab Cases" href="/lab/cases" />}
+              />
+            ),
+          },
+        ]
+      : []),
     // The hospitals' requests (MC18), for the lab, who register them; a request's page counts as under it.
     ...(can(user, 'ProcessSpecimens')
       ? [

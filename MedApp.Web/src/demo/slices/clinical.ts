@@ -207,7 +207,7 @@ export const CLINICAL_IDS = {
   mdtItemToDiscuss: MDT_ITEMS.toDiscuss,
   /** Harriet Quill's item on today's MDT, which r.aldous (the lab) presents. */
   mdtItemPresented: MDT_ITEMS.harrietPresented,
-  /** The consent form to choose for Harriet Quill's Clinical photographs stage. */
+  /** The consent form to choose for Ellis Varden's Take biopsy stage. */
   consentFormToChoose: CONSENT.adultForm,
   /** n.thornbury's letter to approve. */
   letterToApprove: LETTERS.awaitingApproval,

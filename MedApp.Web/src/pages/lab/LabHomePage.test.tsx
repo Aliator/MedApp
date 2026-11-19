@@ -9,6 +9,9 @@ const PATHWAY_ID = '00000051-0000-0000-0000-0000000000a1';
 
 const pageOf = (items: unknown[], totalCount = items.length) => json({items, page: 1, pageSize: 5, totalCount, totalPages: 1});
 
+const CASE_ID = '000000ca-0000-4000-8000-000000000001';
+const toReport = {id: CASE_ID, number: 'MA26-000300', labTestName: 'Full blood count', patientName: 'Freya Ahmed', sourceName: 'Dermatology'};
+
 const handedOver = {
   id: PATHWAY_ID,
   patientName: 'Freya Ahmed',
@@ -31,6 +34,7 @@ function renderPage(samples: Record<string, unknown[]> = {}, pathways: Record<st
       return pageOf(items, view === 'InLab' ? 12 : items.length);
     },
     'POST /api/hospital-requests/search': () => pageOf([testRequestSummary()]),
+    'POST /api/lab-cases/search': () => pageOf([toReport]),
   });
   return {...renderWithApp(<LabHomePage />, {user: labUser}), fetch};
 }
@@ -52,8 +56,12 @@ describe('LabHomePage', () => {
     expect(screen.getAllByRole('link', {name: 'Open the list'}).map((l) => l.getAttribute('href'))).toEqual([
       '/tasks?view=newForUs',
       '/lab/samples?view=Expected',
+      '/lab/cases?view=ToReport',
       '/hospital-requests',
     ]);
+    // Lab cases to report (MC15).
+    expect(screen.getByRole('link', {name: 'MA26-000300'})).toHaveAttribute('href', `/lab/cases/${CASE_ID}`);
+    expect(screen.getByText('Full blood count · Freya Ahmed · Dermatology')).toBeInTheDocument();
     // The hospital's requests (MC18), each opening its lab case.
     expect(screen.getByRole('link', {name: 'MA26-000201'})).toHaveAttribute('href', `/hospital-requests/${REQUEST_ID}`);
     // Empty lists say what they'd hold.
@@ -75,6 +83,7 @@ describe('LabHomePage', () => {
       'GET /api/pathways/patient-pathways/search': () => json({}, 500),
       'POST /api/specimens/search': () => pageOf([]),
       'POST /api/hospital-requests/search': () => pageOf([]),
+      'POST /api/lab-cases/search': () => pageOf([]),
     });
     renderWithApp(<LabHomePage />, {user: labUser});
 
@@ -84,6 +93,7 @@ describe('LabHomePage', () => {
       'Our turn',
       'To receive',
       'In progress',
+      'To report',
       'Overdue',
       'Back to the clinic',
       'From the hospital',
