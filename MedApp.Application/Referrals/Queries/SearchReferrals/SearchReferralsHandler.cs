@@ -1,5 +1,6 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Referrals.Common;
 using MedApp.Application.Referrals.Repositories;
@@ -12,8 +13,10 @@ using MediatR;
 namespace MedApp.Application.Referrals.Queries.SearchReferrals;
 
 /// <summary>
-/// A page of referrals. Each patient on the page is recorded as listed (once per person every few minutes), and a
-/// search by the patient's name as <c>PatientsSearched</c>, with the filters' names, never the term.
+/// A page of referrals the viewer may see (the team walls, in SQL), narrowed to the clinic picker's team if one is
+/// picked (400 for a team that isn't theirs, unless they're an admin). Each patient on the page is recorded as listed
+/// (once per person every few minutes; an admin's with <c>access</c> and <c>teamFilter</c>, decision 207), and a search
+/// by the patient's name as <c>PatientsSearched</c>, with the filters' names, never the term.
 /// </summary>
 public sealed class SearchReferralsHandler(
     IReferralRepository repository,
@@ -24,6 +27,7 @@ public sealed class SearchReferralsHandler(
 {
     public async Task<PagedResponse<ReferralSummaryResponse>> Handle(SearchReferralsQuery request, CancellationToken cancellationToken)
     {
+        TeamPicker.EnsureCanPick(request.TeamId, request.Teams);
         var teamIds = await TeamsToShowAsync(request, cancellationToken);
         var today = DueDates.ToUkDate(timeProvider.GetUtcNow().UtcDateTime);
         var result = await repository.SearchAsync(request, teamIds, today, cancellationToken);
@@ -38,7 +42,10 @@ public sealed class SearchReferralsHandler(
                 cancellationToken);
 
         await activityLog.RecordViewsAsync(
-            ActivityAction.PatientListed, result.Items.Select(row => row.Referral.PatientId), cancellationToken);
+            ActivityAction.PatientListed,
+            result.Items.Select(row => row.Referral.PatientId),
+            cancellationToken,
+            details: TeamPicker.ListDetails(request.TeamId, request.Teams));
 
         return PagedMapper.ToResponse(result, request.Page, request.PageSize, row => ReferralMapper.ToSummary(row, today));
     }

@@ -17,7 +17,7 @@ namespace MedApp.UnitTests.Application.Referrals.Commands;
 public sealed class ReferralPracticeTests : ReferralCommandTestBase
 {
     private RegisterReferralHandler Register => new(Repository.Object, Patients.Object, Teams.Object, Practices.Object, Clock);
-    private EditReferralHandler Edit => new(Repository.Object, Teams.Object, Practices.Object, Clock);
+    private EditReferralHandler Edit => new(Repository.Object, Teams.Object, Practices.Object, Boundary, Clock);
 
     private RegisterReferralCommand Registering(Guid? practiceId, string practice = "", string? ods = null) => new(
         Patient.Id, Team.Id, ReceivedOn, practice, null, ods, "High", Reason, false, Registrar, practiceId);

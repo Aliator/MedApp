@@ -35,6 +35,9 @@ public abstract class ReferralCommandTestBase
     protected Team Team { get; private set; } = null!;
     protected Patient Patient { get; private set; } = null!;
     protected CancellationTokenSource Cts { get; private set; } = null!;
+    protected RecordingActivityLog Activity { get; private set; } = null!;
+    protected GrantsTeamBoundary Walls { get; private set; } = null!;
+    protected MedApp.Application.Common.Teams.ITeamBoundary Boundary => Walls.Boundary;
 
     [SetUp]
     public void SetUpReferralMocks()
@@ -46,6 +49,8 @@ public abstract class ReferralCommandTestBase
         Team = TeamsTestConstants.CreateTeam();
         Patient = PatientsTestConstants.CreateValidPatient();
         Teams = TeamsTestConstants.RepositoryWith(Team);
+        Activity = new RecordingActivityLog();
+        Walls = new GrantsTeamBoundary(Activity, Teams);
         DirectoryPractice = PracticesTestConstants.CreatePractice();
         Practices = PracticesTestConstants.RepositoryWith(DirectoryPractice);
         Patients = new Mock<IPatientRepository>();
@@ -188,7 +193,7 @@ public sealed class RegisterReferralHandlerTests : ReferralCommandTestBase
 [TestFixture]
 public sealed class EditReferralHandlerTests : ReferralCommandTestBase
 {
-    private EditReferralHandler Handler => new(Repository.Object, Teams.Object, Practices.Object, Clock);
+    private EditReferralHandler Handler => new(Repository.Object, Teams.Object, Practices.Object, Boundary, Clock);
 
     private static EditReferralCommand Command(Referral referral, Guid teamId, int version = 3, string reason = Canary) => new(
         referral.Id, teamId, referral.ReceivedOn, Practice, Clinician, OdsCode, "High", reason, version, Registrar);
@@ -278,8 +283,8 @@ public sealed class CloseReferralHandlersTests : ReferralCommandTestBase
 {
     private Task<MedApp.Contracts.Referrals.Responses.ReferralResponse> Close(bool withdraw, Guid id, int version, string detail = Detail) =>
         withdraw
-            ? new WithdrawReferralHandler(Repository.Object, Clock).Handle(new WithdrawReferralCommand(id, $" {detail} ", version, Registrar), Cts.Token)
-            : new MarkReferralEnteredInErrorHandler(Repository.Object, Clock).Handle(new MarkReferralEnteredInErrorCommand(id, $" {detail} ", version, Registrar), Cts.Token);
+            ? new WithdrawReferralHandler(Repository.Object, Boundary, Clock).Handle(new WithdrawReferralCommand(id, $" {detail} ", version, Registrar), Cts.Token)
+            : new MarkReferralEnteredInErrorHandler(Repository.Object, Boundary, Clock).Handle(new MarkReferralEnteredInErrorCommand(id, $" {detail} ", version, Registrar), Cts.Token);
 
     [TestCase(true, ReferralStatus.Withdrawn)]
     [TestCase(false, ReferralStatus.EnteredInError)]

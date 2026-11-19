@@ -43,6 +43,7 @@ public abstract class LetterHandlerTestBase
     protected Mock<IReferralRepository> Referrals { get; private set; } = null!;
     protected InMemoryFileStore Store { get; private set; } = null!;
     protected RecordingActivityLog Activity { get; private set; } = null!;
+    protected GrantsTeamBoundary Walls { get; private set; } = null!;
     protected List<Notification> Sent { get; } = [];
     protected List<PatientPathwayAuditEntry> SavedAudit { get; } = [];
     protected List<Attachment> SavedFiles { get; } = [];
@@ -143,6 +144,7 @@ public abstract class LetterHandlerTestBase
 
         Store = new InMemoryFileStore();
         Activity = new RecordingActivityLog();
+        Walls = new GrantsTeamBoundary(Activity);
         var notifications = new Mock<INotificationSender>();
         notifications.Setup(n => n.SendAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()))
             .Callback((Notification n, CancellationToken _) => Sent.Add(n))
@@ -167,7 +169,8 @@ public abstract class LetterHandlerTestBase
         Fixture.Inject<TimeProvider>(new FixedTimeProvider(LettersTestConstants.NowUtc));
         Fixture.Inject(new LetterRecords(
             Letters.Object, patients.Object, Pathways.Object, Referrals.Object, practices,
-            identity.Object, Staff.Object, sites.Object, Transport.Object, Microsoft.Extensions.Options.Options.Create(Options)));
+            identity.Object, Staff.Object, sites.Object, Transport.Object, Microsoft.Extensions.Options.Options.Create(Options),
+            Walls.Boundary));
     }
 
     /// <summary>Puts a letter in the repository, read-only and for update (the same object).</summary>

@@ -44,7 +44,7 @@ public sealed class UpdateLetterHandler(LetterRecords records, TimeProvider time
 {
     public async Task<LetterResponse> Handle(UpdateLetterCommand request, CancellationToken cancellationToken)
     {
-        var record = await records.LoadAsync(request.LetterId, forUpdate: true, cancellationToken);
+        var record = await records.LoadForChangeAsync(request.LetterId, request.Actor, cancellationToken);
         var letter = record.Letter;
         if (letter.AuthorUserId != request.Actor.UserId)
             throw new ForbiddenException(LetterWorkflow.NotAuthorMessage);

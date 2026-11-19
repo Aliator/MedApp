@@ -31,6 +31,7 @@ public sealed class ClockCommandsTests
     private PathwayChange? _saved;
     private PatientPathway _pathway = null!;
     private Referral _referral = null!;
+    private GrantsTeamBoundary _walls = null!;
 
     private static readonly PathwayActor Worker = new(Staff.UserId, Staff.Username, TestPermissions.Staff);
 
@@ -41,6 +42,7 @@ public sealed class ClockCommandsTests
         _referrals = new Mock<IReferralRepository>();
         _pathways = new Mock<IPatientPathwayRepository>();
         _monitor = new Mock<IPathwayMonitor>();
+        _walls = new GrantsTeamBoundary(new RecordingActivityLog());
         _order = [];
         _saved = null;
 
@@ -69,9 +71,9 @@ public sealed class ClockCommandsTests
     [TearDown]
     public void TearDown() => _cts.Dispose();
 
-    private PauseClockHandler PauseHandler => new(_referrals.Object, _pathways.Object, _monitor.Object, new FixedTimeProvider(Now));
+    private PauseClockHandler PauseHandler => new(_referrals.Object, _pathways.Object, _monitor.Object, _walls.Boundary, new FixedTimeProvider(Now));
 
-    private ResumeClockHandler ResumeHandler(DateTime now) => new(_referrals.Object, _pathways.Object, _monitor.Object, new FixedTimeProvider(now));
+    private ResumeClockHandler ResumeHandler(DateTime now) => new(_referrals.Object, _pathways.Object, _monitor.Object, _walls.Boundary, new FixedTimeProvider(now));
 
     private PauseClockCommand Pause(string reason = "patientChoseToWait", string? detail = null, int version = 3) =>
         new(_referral.Id, reason, detail, Today.AddDays(30), version, Worker);
@@ -98,6 +100,55 @@ public sealed class ClockCommandsTests
         card.Pauses.Should().ContainSingle();
         card.CanPauseClock.Should().BeFalse();
         card.CanResumeClock.Should().BeTrue();
+    }
+
+    /// <summary>A member of these teams, with Staff's permissions.</summary>
+    private static PathwayActor WorkerIn(params Guid[] teams) =>
+        Worker with { Scope = GrantsTeamBoundary.MemberOf(Worker.UserId, teams) };
+
+    /// <summary>The referral's pathway is its team's, with the owner's grant written as it was made.</summary>
+    private void GivenTheReferralsTeamOwnsThePathway()
+    {
+        _pathway.TeamId = _referral.TeamId;
+        _walls.Grants.Add(MedApp.Domain.Teams.PathwayAccess.Owner(_pathway.Id, _pathway.PatientId, _referral.TeamId, Now));
+    }
+
+    [Test]
+    public async Task Pause_ByTheReferralsOwnTeam_PausesIt()
+    {
+        GivenTheReferralsTeamOwnsThePathway();
+
+        await PauseHandler.Handle(Pause() with { Actor = WorkerIn(_referral.TeamId) }, _cts.Token);
+
+        _saved!.NewPauses.Should().ContainSingle();
+    }
+
+    [Test]
+    public async Task Pause_AnotherTeamsReferral_IsA404AsIfItWerentThere_AndIsRecorded()
+    {
+        GivenTheReferralsTeamOwnsThePathway();
+
+        var act = () => PauseHandler.Handle(Pause() with { Actor = WorkerIn(Guid.NewGuid()) }, _cts.Token);
+
+        await act.Should().ThrowAsync<NotFoundException>().WithMessage(ReferralRepositoryExtensions.NotFoundMessage(_referral.Id));
+        _walls.Activity.Once.Should().ContainSingle()
+            .Which.Details.Should().Contain("\"targetKind\":\"Referral\"").And.Contain(_referral.Id.ToString());
+        _pathways.Verify(r => r.SaveAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Resume_ByATeamThatOnlyReadsThePathway_IsAConflictNamingWhoseItIs()
+    {
+        GivenTheReferralsTeamOwnsThePathway();
+        var lab = Guid.NewGuid();
+        _walls.Grants.Add(MedApp.Domain.Teams.PathwayAccess.StageOwner(_pathway.Id, _pathway.PatientId, lab, Now));
+
+        var act = () => ResumeHandler(Now).Handle(new ResumeClockCommand(_referral.Id, 3, WorkerIn(lab)), _cts.Token);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("This referral is another team’s: your team can read it, and only its own team changes it.");
+        _walls.Activity.Once.Should().BeEmpty("it's seen, so nothing was refused across a wall");
+        _pathways.Verify(r => r.SaveAsync(It.IsAny<PathwayChange>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
