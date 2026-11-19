@@ -27,8 +27,8 @@ describe('LabCasePage', () => {
     // None is chosen or suggested: each outcome is its own button, in a fixed order.
     const outcomes = ['No further work', 'Extra tests (special stains)', 'Send for second opinion'];
     for (const name of outcomes) expect(screen.getByRole('button', {name})).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'A second opinion'}));
-    expect(within(openDialog()!).getByRole('heading', {name: 'Needs more work? A second opinion'})).toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Send for second opinion'}));
+    expect(within(openDialog()!).getByRole('heading', {name: 'Needs more work? Send for second opinion'})).toBeInTheDocument();
   });
 
   it('offers the next step to record, and the results to a pathologist once every step is done', async () => {

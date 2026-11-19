@@ -84,7 +84,7 @@ describe('LetterPage', () => {
       [`PUT ${BASE}`]: () => json({title: 'Invalid', status: 400, errors: {'Recipients[1].Name': ["Give the recipient's name."], Body: ['Too long.']}}, 400),
     });
 
-    expect(await screen.findByText(/Merge fields such as/)).toBeInTheDocument();
+    expect(await screen.findByText(/Fields in {{ }}, such as/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Add Recipient'}));
     await user.click(await screen.findByRole('menuitem', {name: 'Someone else'}));
     await user.click(screen.getByRole('button', {name: 'Save'}));
