@@ -41,7 +41,7 @@ describe('patient messages in words', () => {
       'Sent',
       'Delivered',
       'Failed',
-      'Not sent: no longer applied',
+      'Not sent: no longer needed',
       'Not sent',
       '',
     ]);
@@ -50,10 +50,10 @@ describe('patient messages in words', () => {
         messageReasonLabel,
       ),
     ).toEqual([
-      'the patient chose no messages this way',
+      "the patient didn't choose messages this way",
       'no mobile number',
       'no email address',
-      'no longer applied',
+      'no longer needed',
       'the patient changed their choice',
       'the record is restricted or anonymised',
       'the provider refused it',
@@ -69,17 +69,20 @@ describe('patient messages in words', () => {
     expect(messageOutcome({kind: 'AppointmentReminder', status: 'Delivered'})).toBe('Delivered');
     expect(messageOutcome({kind: 'AppointmentReminder', status: 'Pending'})).toBe('Waiting to send');
     expect(messageOutcome({kind: 'AppointmentReminder', status: 'NotSent', statusReason: 'NoMobile'})).toBe(
-      'No reminder: no consent or contact (no mobile number)',
+      'No reminder: no mobile number',
     );
     expect(messageOutcome({kind: 'AppointmentMoved', status: 'NotSent', statusReason: 'NoConsent'})).toBe(
-      'No message: no consent or contact (the patient chose no messages this way)',
+      "No message: the patient didn't choose messages this way",
+    );
+    expect(messageOutcome({kind: 'AppointmentReminder', channel: 'Text', status: 'NotSent', statusReason: 'NoConsent'})).toBe(
+      "No reminder: the patient didn't choose texts",
     );
     expect(messageOutcome({kind: 'AppointmentReminder', status: 'NotSent', statusReason: 'RecordClosed'})).toBe(
       'Not sent: the record is restricted or anonymised',
     );
-    expect(messageOutcome({kind: 'AppointmentReminder', status: 'Cancelled', statusReason: 'NoLongerApplies'})).toBe('Not sent: no longer applied');
+    expect(messageOutcome({kind: 'AppointmentReminder', status: 'Cancelled', statusReason: 'NoLongerApplies'})).toBe('Not sent: no longer needed');
     expect(messageOutcome({kind: 'AppointmentReminder', status: 'Cancelled', statusReason: 'ChoiceChanged'})).toBe('Not sent: the patient changed their choice');
-    expect(messageOutcome({kind: 'AppointmentReminder', status: 'Cancelled'})).toBe('Not sent: no longer applied');
+    expect(messageOutcome({kind: 'AppointmentReminder', status: 'Cancelled'})).toBe('Not sent: no longer needed');
     expect(messageOutcome({kind: 'AppointmentCancelled', status: 'Failed', statusReason: 'permanent-failure'})).toBe('Failed: permanent-failure');
   });
 });

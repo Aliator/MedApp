@@ -17,7 +17,7 @@ type User = ReturnType<typeof renderPage>['user'];
 async function choose(user: User, next = 'Chosen-Synthetic1', confirm = next) {
   if (next) await user.type(await screen.findByLabelText(/^new password/i), next);
   if (confirm) await user.type(screen.getByLabelText(/^confirm new password/i), confirm);
-  await user.click(screen.getByRole('button', {name: 'Change password'}));
+  await user.click(screen.getByRole('button', {name: 'Change Password'}));
 }
 
 describe('ResetPasswordPage', () => {
@@ -53,7 +53,7 @@ describe('ResetPasswordPage', () => {
 
     expect(await screen.findByText(PASSWORD_RESET)).toBeInTheDocument();
     expect(PASSWORD_RESET).toBe("Your password has been changed and you've been signed out everywhere. Sign in with your new password.");
-    expect(screen.getByRole('link', {name: 'Sign in'})).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', {name: 'Sign In'})).toHaveAttribute('href', '/login');
     expect(await (fetch.mock.calls[0][0] as Request).json()).toEqual({userId: USER, token: 'synthetic+token', newPassword: 'Chosen-Synthetic1'});
     // Whoever this browser had signed in is signed out now.
     expect(queryClient.getQueryData(whoamiQuery.queryKey)).toBeUndefined();
@@ -104,7 +104,7 @@ describe('ResetPasswordPage', () => {
     await choose(user);
 
     expect(await findAlert(expired)).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Ask for a new link'})).toHaveAttribute('href', '/forgot-password');
+    expect(screen.getByRole('link', {name: 'Ask for a New Link'})).toHaveAttribute('href', '/forgot-password');
     expect(screen.queryByLabelText(/^new password/i)).not.toBeInTheDocument();
   });
 

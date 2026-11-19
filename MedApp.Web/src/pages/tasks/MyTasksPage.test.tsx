@@ -212,6 +212,6 @@ describe('MyTasksPage', () => {
     mockTasks(500);
     renderWithApp(<MyTasksPage search={{}} onSearchChange={() => {}} />, {user: staffUser});
 
-    await findAlert('Your tasks could not be loaded. Please try again.');
+    await findAlert('Your worklist could not be loaded. Please try again.');
   });
 });

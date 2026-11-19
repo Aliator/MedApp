@@ -29,7 +29,7 @@ export function TellPatientField({value, onChange, isPlural = false, isDisabled 
   return (
     <CheckboxInput
       label={isPlural ? 'Tell the patients by text or email' : 'Tell the patient by text or email'}
-      description="As they chose. The message gives the date, time and place, never the reason."
+      description="Sent the way the patient chose (text, email or both). It gives the date, time and place, never the reason."
       value={value}
       onChange={onChange}
       isDisabled={isDisabled}

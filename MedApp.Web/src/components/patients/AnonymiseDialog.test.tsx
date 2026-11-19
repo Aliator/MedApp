@@ -41,7 +41,7 @@ describe('AnonymiseDialog', () => {
     renderDialog();
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/pseudonymised rather than anonymous/)).toHaveTextContent(/still personal data/);
+    expect(within(dialog).getByText(/so it's still personal data/)).toHaveTextContent(/can't be undone/);
     expect(within(dialog).queryByText(/Retention:AdultYears/)).toBeNull();
     expect(within(dialog).getByRole('textbox', {name: /note/i})).toHaveAccessibleDescription(/must hold no patient details/);
   });

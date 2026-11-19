@@ -255,7 +255,7 @@ export function valuesFrom(fields: ListFilterField[], filters: readonly PowerSea
 /**
  * A list's tabs, or its search, with a menu beside them (the owner's design, 18 November 2026). The list opens on its
  * tabs (Astryx `TabList`): each a search, the list's own to start with (`favourites`), which the person can add to,
- * edit, remove, reorder and reset (**Configuration** in the menu: `ListTabsDialog`; only their changes are kept,
+ * edit, remove, reorder and reset (**Edit Favourites** in the menu: `ListTabsDialog`; only their changes are kept,
  * `useListTabs`). **Search** in the menu swaps the tabs for the power search bar (Astryx PowerSearch): each filter a
  * token, "field: operator value" (e.g. "First name: contains fre", "Status: is any of In progress, Blocked"), added by
  * typing a field's name (or, with `textKey`, what to search for); **Tabs** in the same menu goes back. A search that
@@ -313,7 +313,7 @@ export function ListFilterBar({
     showsSearch
       ? {id: 'tabs', label: 'Favourites', description: 'Show your favourites', icon: AppIcon.Favourite, onClick: showTabs}
       : {id: 'search', label: 'Search', description: 'Search with filters', icon: AppIcon.Search, onClick: () => setShowsSearch(true)},
-    {id: 'configure', label: 'Configuration…', description: 'Add, edit, order or reset your favourites', icon: AppIcon.Settings, onClick: () => setIsConfiguring(true)},
+    {id: 'configure', label: 'Edit Favourites…', description: 'Add, edit, order or reset your favourites', icon: AppIcon.Settings, onClick: () => setIsConfiguring(true)},
   ];
 
   return (

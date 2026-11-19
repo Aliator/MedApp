@@ -192,10 +192,10 @@ describe('NotepadPane', () => {
 
     await setRichText(box, 'Synthetic, failing first.');
     fireEvent.keyDown(box, {key: 's', ctrlKey: true});
-    await user.click(await screen.findByRole('button', {name: 'Retry'}));
+    await user.click(await screen.findByRole('button', {name: 'Try Again'}));
 
     await waitFor(() => expect(fetch.mock.calls.filter(([r]) => (r as Request).method === 'PUT')).toHaveLength(2));
-    await waitFor(() => expect(screen.queryByRole('button', {name: 'Retry'})).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', {name: 'Try Again'})).not.toBeInTheDocument());
   });
 
   it('saves a change before it closes', async () => {
@@ -238,7 +238,7 @@ describe('NotepadPane', () => {
 
     await user.click(screen.getByRole('button', {name: 'Close notepad'}));
 
-    expect(await screen.findByRole('button', {name: 'Retry'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Try Again'})).toBeInTheDocument();
     expect(screen.getByText('notepad open')).toBeInTheDocument();
   });
 
@@ -320,7 +320,7 @@ describe('NotepadPane', () => {
     await selectRichText(box, 'Synthetic second line.');
 
     await user.click(screen.getByRole('button', {name: 'Add Note to Pathway'}));
-    expect(within(openDialog()!).getByText(/the text you selected/)).toBeInTheDocument();
+    expect(within(openDialog()!).getByText(/the selected text/)).toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'Add Note'}));
 
     await waitFor(() => expect(fetch.mock.calls.some(([r]) => (r as Request).method === 'PUT')).toBe(true));

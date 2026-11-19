@@ -164,8 +164,8 @@ const PROGRESS_TEXT: Record<Progress, {noun: string; empty: string}> = {
 
 /** The team views' words: the bar's and favourites' labels, and the list's when there's nothing in one. */
 const VIEW_TEXT: Record<TaskView, {label: string; empty: string}> = {
-  ourTurn: {label: 'Our turn', empty: 'Nothing is with your team'},
-  newForUs: {label: 'New for us', empty: 'Nothing waiting to be picked up'},
+  ourTurn: {label: 'With my team', empty: 'Nothing is with your team'},
+  newForUs: {label: 'To pick up', empty: 'Nothing waiting to be picked up'},
   awaitingLab: {label: 'Awaiting the lab', empty: 'Nothing is with the lab'},
   backFromLab: {label: 'Back from the lab', empty: 'Nothing back from the lab'},
 };
@@ -297,7 +297,7 @@ export function MyTasksPage({search, onSearchChange}: MyTasksPageProps) {
       title="My Worklist"
       subtitle={subtitle}
       fill
-      message={isError && <AlertMessage label="Tasks not loaded" message="Your tasks could not be loaded. Please try again." />}>
+      message={isError && <AlertMessage label="Worklist not loaded" message="Your worklist could not be loaded. Please try again." />}>
       <DataTable
         data={rows}
         columns={columnsFor(progress, view)}

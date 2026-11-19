@@ -13,7 +13,7 @@ import {OneTimeCodeField} from '../../components/forms/OneTimeCodeField';
 /** The 401's `code` when this sign-in can't go on (it ran out, was used, or had too many wrong codes). */
 export const SIGN_IN_EXPIRED = 'sign_in_expired';
 
-const EXPIRED = 'This sign-in has run out. Enter your password again.';
+const EXPIRED = 'This sign-in timed out. Enter your password again.';
 
 /** When no more codes can be emailed for this sign-in. */
 export const NO_MORE_CODES = 'No more codes can be sent for this sign-in. Use a recovery code, or go back and start again.';
@@ -117,7 +117,7 @@ export function TwoFactorStep({challenge: {challenge, method, emailCode}, onRest
           size="lg"
           hasAutoFocus
         />
-        <Button type="submit" label="Sign in" variant="primary" size="lg" isLoading={login.isPending} />
+        <Button type="submit" label="Sign In" variant="primary" size="lg" isLoading={login.isPending} />
         {!(isEmail && sent === null) && (
           <Button
             label={

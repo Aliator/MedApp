@@ -152,7 +152,8 @@ function useResultsAnnouncement(pagination: DataTablePagination | undefined) {
   const pages = pagination ? Math.max(1, Math.ceil(pagination.totalItems / pagination.pageSize)) : 0;
   useEffect(() => {
     if (total === undefined) return;
-    const found = total === 0 ? 'No results' : `${total} ${total === 1 ? 'result' : 'results'}`;
+    // "Found", never "results", which could be read as clinical results.
+    const found = total === 0 ? 'Nothing found' : `${total} found`;
     announce(pages > 1 ? `${found}, page ${page} of ${pages}` : found);
   }, [announce, total, page, pages]);
 }

@@ -36,7 +36,7 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Username must not be empty.')).toBeInTheDocument();
     expect(screen.getByText('Password must not be empty.')).toBeInTheDocument();
-    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+    expect(screen.queryByText('Username or password is incorrect.')).not.toBeInTheDocument();
   });
 
   describe('coming back to a page after signing in', () => {
@@ -148,9 +148,9 @@ describe('LoginPage', () => {
   });
 
   it.each([
-    ['a wrong username or password', 401],
-    ['a server error', 500],
-  ])('shows "Invalid credentials" for %s', async (_, status) => {
+    ['a wrong username or password', 401, 'Username or password is incorrect.'],
+    ['a server error', 500, 'Sign-in failed. Please try again.'],
+  ])('says what went wrong for %s', async (_, status, words) => {
     mockFetch(() => json({title: 'Invalid credentials.', status}, status));
     const {user, router} = renderWithApp(<LoginPage />, {path: '/login'});
 
@@ -158,7 +158,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/^password/i), 'wrong');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
-    expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+    expect(await screen.findByText(words)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
 
@@ -172,7 +172,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     expect(await screen.findByText(message)).toBeInTheDocument();
-    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+    expect(screen.queryByText('Username or password is incorrect.')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
 
@@ -197,7 +197,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
     expect(await screen.findByText(message)).toBeInTheDocument();
-    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+    expect(screen.queryByText('Username or password is incorrect.')).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
 
@@ -227,7 +227,7 @@ describe('after a session timed out', () => {
     await user.type(screen.getByLabelText(/^password/i), 'wrong');
     await user.click(screen.getByRole('button', {name: /sign in/i}));
 
-    expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+    expect(await screen.findByText('Username or password is incorrect.')).toBeInTheDocument();
     expect(screen.queryByText(TIMED_OUT)).not.toBeInTheDocument();
   });
 

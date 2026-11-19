@@ -126,7 +126,7 @@ describe('NotepadPage in a half view', () => {
 
     await user.click(screen.getByRole('button', {name: 'Close notepad'}));
 
-    expect(await screen.findByRole('button', {name: 'Retry'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Try Again'})).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 

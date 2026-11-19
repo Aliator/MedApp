@@ -22,7 +22,7 @@ function renderDialog(handlers: Parameters<typeof mockApi>[0] = {}) {
 
 describe('DnaFollowUpDialog', () => {
   it('words the follow-up recorded so far, or none', () => {
-    expect(dnaFollowUpWords(missed)).toBe('Rebook, by b.staff, 23 Nov 2026, 10:00');
+    expect(dnaFollowUpWords(missed)).toBe('To be rebooked, by b.staff, 23 Nov 2026, 10:00');
     expect(dnaFollowUpWords({dnaFollowUp: 'ClinicianToReview'})).toBe('Clinician to review');
     expect(dnaFollowUpWords({dnaFollowUp: null})).toBeNull();
   });
@@ -36,7 +36,7 @@ describe('DnaFollowUpDialog', () => {
     expect(await dialog.findByRole('region', {name: 'Patient: Patient, Test'})).toHaveTextContent('NHS No. 999 000 0018');
     expect(dialog.getByText('Mon 23 Nov 2026, 09:00 to 09:30 with test-user')).toBeInTheDocument();
     expect(dialog.getByText('Knee review: Assessment')).toBeInTheDocument();
-    expect(dialog.getByText('Rebook, by b.staff, 23 Nov 2026, 10:00')).toBeInTheDocument();
+    expect(dialog.getByText('To be rebooked, by b.staff, 23 Nov 2026, 10:00')).toBeInTheDocument();
     expect(dialog.getByRole('textbox', {name: /Detail/})).toHaveAccessibleDescription(/Who decided, and why/);
   });
 
@@ -66,7 +66,7 @@ describe('DnaFollowUpDialog', () => {
 
     await screen.findByRole('heading', {name: 'Record Follow-up'});
     const dialog = within(openDialog()!);
-    await user.click(dialog.getByRole('radio', {name: 'Rebook'}));
+    await user.click(dialog.getByRole('radio', {name: 'To be rebooked'}));
     await user.click(dialog.getByRole('button', {name: 'Record Follow-up'}));
 
     expect(await dialog.findByText('The follow-up could not be recorded. Please try again.')).toBeInTheDocument();

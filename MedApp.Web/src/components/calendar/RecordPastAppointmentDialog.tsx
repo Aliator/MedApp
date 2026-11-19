@@ -292,7 +292,7 @@ function RecordPastForm({
             ...(pathways.data?.items ?? []).map((p) => ({
               value: p.id ?? '',
               label: p.title ?? '',
-              description: `Due ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
+              description: `Target date ${formatShortDate(p.dueDate ?? '')}${p.currentStageName ? ` · ${p.currentStageName}` : ''}`,
             })),
           ]}
         />
@@ -348,7 +348,7 @@ function RecordPastForm({
         description={
           existingNotes
             ? 'About the visit, added after its own notes. Staff see them on the appointment.'
-            : 'About the visit, as pathway notes are. Staff see them on the appointment.'
+            : 'Notes about the visit. Staff see them on the appointment.'
         }
         value={notes}
         onChange={setNotes}
@@ -367,7 +367,7 @@ function RecordPastForm({
         <>
           <AnchoredSelector
             label="Day"
-            description={`A weekday in the last ${PAST_APPOINTMENT_DAYS} days, or today; closed days too.`}
+            description={`A weekday in the last ${PAST_APPOINTMENT_DAYS} days, or today (closed days included).`}
             value={day ?? ''}
             placeholder="Choose a day"
             onChange={(next) => {
@@ -405,8 +405,8 @@ function RecordPastForm({
             </StackItem>
           </HStack>
           <Text type="supporting" color="secondary">
-            Times that had started by now. If one overlaps another of {staffName ? `${staffName}'s` : 'their'} appointments,
-            you&apos;ll be told when you record it.
+            Only times that have already started are shown. If one overlaps another of
+            {staffName ? ` ${staffName}'s ` : ' their '}appointments, you&apos;ll be told when you record it.
           </Text>
         </>
       )}
@@ -438,7 +438,7 @@ function RecordPastForm({
   return (
     <DialogFrame
       isOpen={isOpen}
-      title={stage ? 'Record Past Visit' : 'Record Past Appointment'}
+      title="Record Past Appointment"
       icon={<Icon icon={AppIcon.RecordPast} size="lg" color="accent" />}
       onClose={onClose}
       width={isNarrow ? 520 : 920}

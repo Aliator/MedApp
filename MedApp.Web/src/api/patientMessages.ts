@@ -82,7 +82,7 @@ export function messageStatusLabel(status: string | null | undefined): string {
     case 'Pending':
       return 'Waiting to send';
     case 'Cancelled':
-      return 'Not sent: no longer applied';
+      return 'Not sent: no longer needed';
     case 'NotSent':
       return 'Not sent';
     default:
@@ -98,13 +98,13 @@ export function messageReasonLabel(reason: string | null | undefined): string | 
     case '':
       return null;
     case 'NoConsent':
-      return 'the patient chose no messages this way';
+      return "the patient didn't choose messages this way";
     case 'NoMobile':
       return 'no mobile number';
     case 'NoEmail':
       return 'no email address';
     case 'NoLongerApplies':
-      return 'no longer applied';
+      return 'no longer needed';
     case 'ChoiceChanged':
       return 'the patient changed their choice';
     case 'RecordClosed':
@@ -125,15 +125,16 @@ const NO_CONSENT_OR_CONTACT = new Set(['NoConsent', 'NoMobile', 'NoEmail']);
 
 /**
  * A message's status with why, in words: "Delivered", "Failed: no mobile number", and for a message that couldn't go
- * for want of consent or contact, "No reminder: no consent or contact (no mobile number)".
+ * for want of consent or contact, "No reminder: no mobile number" or "No reminder: the patient didn't choose texts".
  */
-export function messageOutcome(message: Pick<PatientMessage, 'kind' | 'status' | 'statusReason'>): string {
+export function messageOutcome(message: Pick<PatientMessage, 'kind' | 'status' | 'statusReason'> & {channel?: string | null}): string {
   const reason = messageReasonLabel(message.statusReason);
   if (message.status === 'NotSent' && NO_CONSENT_OR_CONTACT.has(message.statusReason ?? '')) {
     const what = message.kind === 'AppointmentReminder' ? 'No reminder' : 'No message';
-    return `${what}: no consent or contact (${reason})`;
+    const channel = message.channel === 'Text' ? 'texts' : message.channel === 'Email' ? 'emails' : null;
+    return `${what}: ${message.statusReason === 'NoConsent' && channel ? `the patient didn't choose ${channel}` : reason}`;
   }
-  // A cancelled one says why it no longer went: "Not sent: no longer applied", or that the patient changed their choice.
+  // A cancelled one says why it no longer went: "Not sent: no longer needed", or that the patient changed their choice.
   if (message.status === 'Cancelled') return reason ? `Not sent: ${reason}` : messageStatusLabel(message.status);
   const status = messageStatusLabel(message.status);
   return reason ? `${status}: ${reason}` : status;

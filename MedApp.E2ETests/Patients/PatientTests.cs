@@ -23,13 +23,13 @@ public sealed class PatientTests : E2ETest
 
         await Main.GetByRole(AriaRole.Link, new() { Name = "Add Patient" }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Add New Patient" })).ToBeVisibleAsync();
-        await Main.GetByLabel("First Name").FillAsync("Ada");
-        await Main.GetByLabel("Last Name").FillAsync(lastName);
-        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Date of Birth" }).FillAsync(Typed(DateOfBirth));
-        await Main.GetByLabel("Email Address").FillAsync("ada.e2e@example.test");
+        await Main.GetByLabel("First name").FillAsync("Ada");
+        await Main.GetByLabel("Last name").FillAsync(lastName);
+        await Main.GetByRole(AriaRole.Combobox, new() { Name = "Date of birth" }).FillAsync(Typed(DateOfBirth));
+        await Main.GetByLabel("Email address").FillAsync("ada.e2e@example.test");
         await Main.GetByRole(AriaRole.Button, new() { Name = "Add Patient" }).ClickAsync();
-        var confirm = Page.GetByRole(AriaRole.Dialog, new() { Name = "Confirm Add Patient" });
-        await confirm.GetByRole(AriaRole.Button, new() { Name = "Confirm Add" }).ClickAsync();
+        var confirm = Page.GetByRole(AriaRole.Dialog, new() { Name = "Add Patient?" });
+        await confirm.GetByRole(AriaRole.Button, new() { Name = "Add Patient" }).ClickAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex("/patients$"));
         await FilterByLastNameAsync(lastName);
@@ -50,8 +50,8 @@ public sealed class PatientTests : E2ETest
         var newLastName = E2EData.UniqueName("Renamed");
         await OpenAsync($"/patients/{patient.Id}/edit");
 
-        await Main.GetByLabel("Last Name").FillAsync(newLastName);
-        await Main.GetByLabel("Email Address").FillAsync("renamed.e2e@example.test");
+        await Main.GetByLabel("Last name").FillAsync(newLastName);
+        await Main.GetByLabel("Email address").FillAsync("renamed.e2e@example.test");
         await Main.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
         await Page.GetByRole(AriaRole.Dialog, new() { Name = "Confirm Changes" })
             .GetByRole(AriaRole.Button, new() { Name = "Confirm Save" }).ClickAsync();

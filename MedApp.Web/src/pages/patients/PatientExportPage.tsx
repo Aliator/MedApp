@@ -155,8 +155,8 @@ const APPOINTMENT_ACTIONS: Record<string, string> = {
   Requested: 'Appointment requested',
   Booked: 'Appointment booked',
   Rescheduled: 'Appointment rescheduled',
-  Attended: 'Marked Attended',
-  DidNotAttend: 'Marked Did not attend',
+  Attended: 'Marked as attended',
+  DidNotAttend: 'Marked as did not attend',
   Cancelled: 'Appointment cancelled',
   NotesUpdated: 'Appointment notes changed',
   RecordedAfterEvent: 'Recorded after the event',
@@ -164,7 +164,7 @@ const APPOINTMENT_ACTIONS: Record<string, string> = {
   DnaFollowUpRecorded: 'Did not attend follow-up recorded',
 };
 
-/** An appointment history action in words: "DidNotAttend" → "Marked Did not attend". */
+/** An appointment history action in words: "DidNotAttend" → "Marked as did not attend". */
 export const appointmentChangeLabel = (action: string | null | undefined) => APPOINTMENT_ACTIONS[action ?? ''] ?? action ?? '';
 
 function parseDetails(details: string | null | undefined): Record<string, unknown> {
@@ -188,14 +188,14 @@ export function describeAppointmentChange(entry: Pick<ExportedAppointmentChange,
   const d = parseDetails(entry.details);
   switch (entry.action) {
     case 'Requested':
-      return d.automatic === true ? 'Requested automatically, as the stage involves a visit' : '';
+      return d.automatic === true ? 'Added to Requires Appointment automatically, as the stage needs a visit' : '';
     case 'Rescheduled': {
       const before = appointmentSlot(text(d.previousStartUtc) || null, text(d.previousEndUtc) || null, text(d.previousStaffUsername) || null);
       return before ? `From ${before}` : '';
     }
     case 'Attended':
     case 'DidNotAttend':
-      return d.previousStatus === 'Attended' || d.previousStatus === 'DidNotAttend' ? `Was marked ${appointmentStatusLabel(d.previousStatus)}` : '';
+      return d.previousStatus === 'Attended' || d.previousStatus === 'DidNotAttend' ? `Was marked as ${appointmentStatusLabel(d.previousStatus).toLowerCase()}` : '';
     case 'Cancelled':
       return [d.automatic === true ? 'Cancelled automatically' : null, text(d.reason) || null].filter(Boolean).join(': ');
     case 'RecordedAfterEvent':
@@ -284,9 +284,9 @@ function ReferralClock({referral}: {referral: ExportedReferral}) {
       <Heading level={4}>Waiting-time clock</Heading>
       <MetadataList columns={2} label={{position: 'top'}}>
         <MetadataListItem label="Target">{days(referral.targetDays ?? 0)}</MetadataListItem>
-        <MetadataListItem label="Wait Counted From">{referral.waitStartOn ? formatDate(referral.waitStartOn) : '—'}</MetadataListItem>
-        <MetadataListItem label="Target Date">{referral.targetOn ? formatDate(referral.targetOn) : '—'}</MetadataListItem>
-        <MetadataListItem label="Days Paused">{days(referral.pausedDays ?? 0)}</MetadataListItem>
+        <MetadataListItem label="Wait counted from">{referral.waitStartOn ? formatDate(referral.waitStartOn) : '—'}</MetadataListItem>
+        <MetadataListItem label="Target date">{referral.targetOn ? formatDate(referral.targetOn) : '—'}</MetadataListItem>
+        <MetadataListItem label="Days paused">{days(referral.pausedDays ?? 0)}</MetadataListItem>
         <MetadataListItem label="Stopped">
           {referral.stoppedOn ? `${formatDate(referral.stoppedOn)}: ${stopReasonWords(referral.stopReason) || 'no reason recorded'}` : 'Not stopped'}
         </MetadataListItem>
@@ -493,13 +493,13 @@ function ExportContent({data}: {data: PatientExport}) {
       <ExportSection title="Patient">
         <MetadataList columns={2} label={{position: 'top'}}>
           <MetadataListItem label="Name">{`${patient?.firstName ?? ''} ${patient?.lastName ?? ''}`.trim() || '—'}</MetadataListItem>
-          <MetadataListItem label="Date of Birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
-          <MetadataListItem label="NHS Number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
+          <MetadataListItem label="Date of birth">{patient?.dateOfBirth ? formatDate(patient.dateOfBirth) : '—'}</MetadataListItem>
+          <MetadataListItem label="NHS number">{patient?.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
           <MetadataListItem label="Email">{patient?.email || '—'}</MetadataListItem>
           <MetadataListItem label="Mobile">{patient?.mobilePhone ? formatMobile(patient.mobilePhone) : '—'}</MetadataListItem>
           <MetadataListItem label="Reminders">{reminderChannelLabel(patient?.reminderChannel)}</MetadataListItem>
           <MetadataListItem label="Address">{oneLineAddress(patient?.addressLines, patient?.postcode) || '—'}</MetadataListItem>
-          <MetadataListItem label="GP Practice">
+          <MetadataListItem label="GP practice">
             {patient?.practiceName
               ? `${patient.practiceName}${patient.practiceOdsCode ? ` (${patient.practiceOdsCode})` : ''}`
               : patient?.unlistedPractice
@@ -507,8 +507,8 @@ function ExportContent({data}: {data: PatientExport}) {
                 : '—'}
           </MetadataListItem>
           <MetadataListItem label="Patient ID">{patient?.id}</MetadataListItem>
-          <MetadataListItem label="Record Created">{when(patient?.createdAt)}</MetadataListItem>
-          <MetadataListItem label="Last Changed">{when(patient?.lastUpdated)}</MetadataListItem>
+          <MetadataListItem label="Record created">{when(patient?.createdAt)}</MetadataListItem>
+          <MetadataListItem label="Last changed">{when(patient?.lastUpdated)}</MetadataListItem>
           {patient?.restrictedAtUtc && (
             <MetadataListItem label="Restricted">{`${when(patient.restrictedAtUtc)}: ${patient.restrictionReason ?? ''}`}</MetadataListItem>
           )}
@@ -517,7 +517,7 @@ function ExportContent({data}: {data: PatientExport}) {
           )}
           {patient?.anonymisedAtUtc && <MetadataListItem label="Anonymised">{when(patient.anonymisedAtUtc)}</MetadataListItem>}
           {patient?.retentionKeptUntil && (
-            <MetadataListItem label="Kept Past Retention Until">
+            <MetadataListItem label="Kept past retention until">
               {`${formatDate(patient.retentionKeptUntil)}: ${patient.retentionKeptReason ?? ''}`}
             </MetadataListItem>
           )}
@@ -538,8 +538,8 @@ function ExportContent({data}: {data: PatientExport}) {
                     <MetadataListItem label="Priority">{pathway.priority}</MetadataListItem>
                     <MetadataListItem label="Target date">{pathway.dueDate ? formatDate(pathway.dueDate) : '—'}</MetadataListItem>
                     <MetadataListItem label="Created">{when(pathway.createdAt)}</MetadataListItem>
-                    <MetadataListItem label="Last Changed">{when(pathway.lastUpdated)}</MetadataListItem>
-                    <MetadataListItem label="Assigned To">{(pathway.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
+                    <MetadataListItem label="Last changed">{when(pathway.lastUpdated)}</MetadataListItem>
+                    <MetadataListItem label="Assigned to">{(pathway.assignedTo ?? []).join(', ') || 'Nobody'}</MetadataListItem>
                   </MetadataList>
                   {(pathway.notes ?? []).length > 0 && <Heading level={4}>{`Notes (${(pathway.notes ?? []).length})`}</Heading>}
                   {(pathway.notes ?? []).map((note) => (
@@ -609,22 +609,22 @@ function ExportContent({data}: {data: PatientExport}) {
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{referralStatusLabel(referral.status)}</MetadataListItem>
                     <MetadataListItem label="Received">{referral.receivedOn ? formatDate(referral.receivedOn) : '—'}</MetadataListItem>
-                    <MetadataListItem label="Priority Asked For">{referral.requestedPriority}</MetadataListItem>
+                    <MetadataListItem label="Requested priority">{referral.requestedPriority}</MetadataListItem>
                     <MetadataListItem label="Practice">{referral.referrerPractice || '—'}</MetadataListItem>
                     <MetadataListItem label="Clinician">{referral.referrerClinician || '—'}</MetadataListItem>
-                    <MetadataListItem label="ODS Code">{referral.referrerOdsCode || '—'}</MetadataListItem>
+                    <MetadataListItem label="ODS code">{referral.referrerOdsCode || '—'}</MetadataListItem>
                     <MetadataListItem label="Registered">{`${when(referral.registeredAtUtc)} by ${referral.registeredBy}`}</MetadataListItem>
                     <MetadataListItem label="Decided">
                       {referral.decidedAtUtc ? `${when(referral.decidedAtUtc)} by ${referral.decidedBy}` : 'Not yet'}
                     </MetadataListItem>
-                    {referral.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonWords(referral.rejectionReason)}</MetadataListItem>}
-                    {referral.redirectedTo && <MetadataListItem label="Redirected To">{referral.redirectedTo}</MetadataListItem>}
+                    {referral.rejectionReason && <MetadataListItem label="Why rejected">{rejectionReasonWords(referral.rejectionReason)}</MetadataListItem>}
+                    {referral.redirectedTo && <MetadataListItem label="Redirected to">{referral.redirectedTo}</MetadataListItem>}
                     {referral.decisionDetail && <MetadataListItem label="Detail">{referral.decisionDetail}</MetadataListItem>}
                     {referral.redirectDetail && (
-                      <MetadataListItem label="Redirected From Another Team">{referral.redirectDetail}</MetadataListItem>
+                      <MetadataListItem label="Redirected from another team">{referral.redirectDetail}</MetadataListItem>
                     )}
                     {referral.pathwayId && (
-                      <MetadataListItem label="Accepted Into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
+                      <MetadataListItem label="Accepted into">{pathwayTitles.get(referral.pathwayId) || 'A deleted pathway'}</MetadataListItem>
                     )}
                   </MetadataList>
                   <Text type="body">{`Reason for referral: ${referral.reason ?? ''}`}</Text>
@@ -646,7 +646,7 @@ function ExportContent({data}: {data: PatientExport}) {
                   <MetadataList columns={2} label={{position: 'top'}}>
                     <MetadataListItem label="Status">{specimenStatusLabel(specimen.status)}</MetadataListItem>
                     <MetadataListItem label="Pathway">{pathwayTitles.get(specimen.pathwayId) || 'A deleted pathway'}</MetadataListItem>
-                    <MetadataListItem label="Requested By">{specimen.requestedBy}</MetadataListItem>
+                    <MetadataListItem label="Requested by">{specimen.requestedBy}</MetadataListItem>
                     <MetadataListItem label="Taken">{`${when(specimen.takenAtUtc)} by ${specimen.takenBy}`}</MetadataListItem>
                     <MetadataListItem label="Site">{specimen.site || '—'}</MetadataListItem>
                     <MetadataListItem label="Sent">
@@ -661,7 +661,7 @@ function ExportContent({data}: {data: PatientExport}) {
                     {specimen.closedAtUtc && (
                       <MetadataListItem label="Closed">{`${when(specimen.closedAtUtc)} by ${specimen.closedBy ?? 'unknown'}`}</MetadataListItem>
                     )}
-                    {specimen.rejectionReason && <MetadataListItem label="Why Rejected">{rejectionReasonLabel(specimen.rejectionReason)}</MetadataListItem>}
+                    {specimen.rejectionReason && <MetadataListItem label="Why rejected">{rejectionReasonLabel(specimen.rejectionReason)}</MetadataListItem>}
                     {specimen.closedDetail && <MetadataListItem label="Detail">{specimen.closedDetail}</MetadataListItem>}
                   </MetadataList>
                   <Text type="body">{`Notes for the lab: ${specimen.requestNotes || 'none'}`}</Text>
@@ -688,17 +688,17 @@ function ExportContent({data}: {data: PatientExport}) {
                       {result.pathwayId ? pathwayTitles.get(result.pathwayId) || 'A deleted pathway' : 'Not on a pathway'}
                     </MetadataListItem>
                     <MetadataListItem label="Reported">{`${when(result.reportedAtUtc)} by ${result.reportedBy}, its report is under Files`}</MetadataListItem>
-                    <MetadataListItem label="Responsible Clinician">{result.responsibleClinician}</MetadataListItem>
+                    <MetadataListItem label="Responsible clinician">{result.responsibleClinician}</MetadataListItem>
                     <MetadataListItem label="Seen">{result.seenAtUtc ? `${when(result.seenAtUtc)} by ${result.seenBy ?? 'unknown'}` : 'Not seen'}</MetadataListItem>
-                    <MetadataListItem label="Signed Off">
+                    <MetadataListItem label="Signed off">
                       {result.signedOffAtUtc ? `${when(result.signedOffAtUtc)} by ${result.signedOffBy ?? 'unknown'}` : 'Not signed off'}
                     </MetadataListItem>
-                    {result.action && <MetadataListItem label="What Was Done">{resultActionLabel(result.action)}</MetadataListItem>}
+                    {result.action && <MetadataListItem label="What was done">{resultActionLabel(result.action)}</MetadataListItem>}
                     {result.actionDetail && <MetadataListItem label="Detail">{result.actionDetail}</MetadataListItem>}
                     {result.enteredInErrorAtUtc && (
-                      <MetadataListItem label="Entered in Error">{`${when(result.enteredInErrorAtUtc)} by ${result.enteredInErrorBy ?? 'unknown'}`}</MetadataListItem>
+                      <MetadataListItem label="Entered in error">{`${when(result.enteredInErrorAtUtc)} by ${result.enteredInErrorBy ?? 'unknown'}`}</MetadataListItem>
                     )}
-                    {result.errorDetail && <MetadataListItem label="What Was Wrong">{result.errorDetail}</MetadataListItem>}
+                    {result.errorDetail && <MetadataListItem label="What was wrong">{result.errorDetail}</MetadataListItem>}
                   </MetadataList>
                 </VStack>
               ))}

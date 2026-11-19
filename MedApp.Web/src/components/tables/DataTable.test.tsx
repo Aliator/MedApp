@@ -250,8 +250,8 @@ describe('DataTable surroundings', () => {
       return message;
     };
 
-    expect(await said(0)).toBe('No results');
-    expect(await said(1)).toBe('1 result');
-    expect(await said(25, 2)).toBe('25 results, page 2 of 3');
+    expect(await said(0)).toBe('Nothing found');
+    expect(await said(1)).toBe('1 found');
+    expect(await said(25, 2)).toBe('25 found, page 2 of 3');
   });
 });

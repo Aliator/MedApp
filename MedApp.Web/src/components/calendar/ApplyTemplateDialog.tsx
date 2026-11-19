@@ -36,14 +36,14 @@ export interface ApplyTemplateDialogProps {
 
 /**
  * Apply Template (docs/calendar-plan.md, decision 69): one of a person's day templates, an empty day ("No template"),
- * or "The default week's" (the day's override removed), on any of the working days of a week, ticked. Each day says
+ * or "Default week's template" (the day's override removed), on any of the working days of a week, ticked. Each day says
  * what applies now, and past days and closed days ("Closed: Christmas Day") are shown but can't be ticked, as the API
  * refuses them (409). There's no batch
  * endpoint, so each day is its own call, all at once; days that fail are named with the API's reason and stay ticked,
  * and the dialog stays open, while those that worked stay applied.
  *
  * It reads the week's days afresh each time it opens, without their appointments (`calendarDaysQuery`), so it names no
- * patients and records no reads of them. "The default week's" asks for every ticked day's own template to go, whatever
+ * patients and records no reads of them. "Default week's template" asks for every ticked day's own template to go, whatever
  * its copy says (one already gone is done), then reads the days again and names any that still has one.
  *
  * Use it from the Calendar page, for a calendar the viewer can change (its owner, or an admin).
@@ -103,7 +103,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
       ? [{type: 'section' as const, title: 'Day templates', options: active.map((t) => ({value: t.id ?? '', label: t.name ?? ''}))}, {type: 'divider' as const}]
       : []),
     {value: NO_TEMPLATE, label: 'No template', description: 'An empty day'},
-    {value: WEEK_TEMPLATE, label: "The default week's", description: 'Whatever the default week gives the day'},
+    {value: WEEK_TEMPLATE, label: "Default week's template", description: 'Whatever the default week gives the day'},
   ];
   const chosenName = active.find((t) => t.id === choice)?.name ?? '';
 
@@ -122,7 +122,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
     const isWeek = choice === WEEK_TEMPLATE;
     setFailures([]);
     setIsApplying(true);
-    // "The default week's" asks for every ticked day, not only those this copy says have a template of their own:
+    // "Default week's template" asks for every ticked day, not only those this copy says have a template of their own:
     // someone may have added or removed one since. One with none already follows the week (the API's 404): done.
     const results = await Promise.allSettled(
       dates.map((d) =>
@@ -141,7 +141,7 @@ function ApplyTemplateForm({isOpen, staffUserId, calendarStaff, date, startDate,
       const fresh = await queryClient.fetchQuery({...daysQuery, staleTime: 0}).catch(() => undefined);
       for (const d of fresh?.days ?? []) {
         if (d.date && d.isDayTemplateOverridden && dates.includes(d.date) && !failed.some((f) => f.date === d.date)) {
-          failed.push({date: d.date, message: 'It still has a day template of its own, perhaps given it meanwhile. Please try again.'});
+          failed.push({date: d.date, message: 'Someone gave this day its own template meanwhile. Please try again.'});
         }
       }
     }

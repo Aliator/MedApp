@@ -235,7 +235,7 @@ export function PatientFormFields({value, onChange, lookUp, errors, isDisabled =
     <>
       <FormSection title="Personal Information">
         <TextInput
-          label="First Name"
+          label="First name"
           value={value.firstName}
           onChange={(v) => set('firstName', v)}
           placeholder="Enter first name"
@@ -245,7 +245,7 @@ export function PatientFormFields({value, onChange, lookUp, errors, isDisabled =
           status={fieldStatus(errors, 'firstName')}
         />
         <TextInput
-          label="Last Name"
+          label="Last name"
           value={value.lastName}
           onChange={(v) => set('lastName', v)}
           placeholder="Enter last name"
@@ -293,7 +293,7 @@ export function PatientFormFields({value, onChange, lookUp, errors, isDisabled =
       </FormSection>
       <FormSection title="Contact Information" useGrid={false}>
         <TextInput
-          label="Email Address"
+          label="Email address"
           type="email"
           value={value.email}
           onChange={(v) => set('email', v)}

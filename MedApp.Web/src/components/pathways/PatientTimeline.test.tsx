@@ -117,7 +117,7 @@ describe('PatientTimeline', () => {
     // 23:30 UTC on the 15th is 00:30 on the 16th in the UK, so it's with the first.
     const today = within(await screen.findByRole('list', {name: 'Tuesday 16 June 2026'}));
     expect(today.getByText('Finished Consultation')).toBeInTheDocument();
-    expect(today.getByText('Assigned other.staff')).toBeInTheDocument();
+    expect(today.getByText('Assigned to other.staff')).toBeInTheDocument();
     expect(today.getByText('10:05 · test.staff')).toBeInTheDocument();
     expect(today.getByText('00:30 · test.staff')).toBeInTheDocument();
     expect(screen.getByRole('heading', {name: 'Monday 15 June 2026'})).toBeInTheDocument();
@@ -232,9 +232,9 @@ describe('PatientTimeline', () => {
     expect(screen.getByText('Finished Consultation without a visit')).toBeInTheDocument();
     expect(screen.getByText('Appointment recorded after the event for Consultation: did not attend')).toBeInTheDocument();
     expect(screen.getByText('Appointment marked entered in error for Consultation')).toBeInTheDocument();
-    expect(screen.getByText('Did not attend follow-up recorded for Consultation: Rebook')).toBeInTheDocument();
+    expect(screen.getByText('Did not attend follow-up recorded for Consultation: To be rebooked')).toBeInTheDocument();
     // Not for a pathway: no link, just when and who.
-    const missed = within(screen.getByText('Marked Did not attend').closest('li')!);
+    const missed = within(screen.getByText('Marked as did not attend').closest('li')!);
     expect(missed.queryByRole('link')).not.toBeInTheDocument();
     expect(missed.getByText('10:05 · test.staff')).toBeInTheDocument();
 
@@ -515,7 +515,7 @@ describe('PatientTimeline', () => {
       'Skipped: Follow-up',
       'Reinstated Consultation',
       'Had been skipped: Not needed',
-      'Unassigned other.staff',
+      'No longer assigned to other.staff',
       'Put on hold',
       'Taken off hold',
       'Status changed to completed',
@@ -525,7 +525,7 @@ describe('PatientTimeline', () => {
       'Target date 20 Jun 2026 → 27 Jun 2026',
       'Details edited',
       'Title changed',
-      'Exploded',
+      'Record changed',
     ])
       expect(await screen.findByText(text)).toBeInTheDocument();
   });

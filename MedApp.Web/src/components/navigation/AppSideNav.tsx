@@ -1012,12 +1012,12 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
     },
     {
       key: 'logout',
-      label: 'Logout',
+      label: 'Sign Out',
       icon: AppIcon.Logout,
       isSelected: false,
       row: (
         <SideNavItem
-          label="Logout"
+          label="Sign Out"
           icon={AppIcon.Logout}
           isDisabled={logout.isPending}
           onClick={() => setIsConfirmingLogout(true)}
@@ -1091,10 +1091,10 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
       <Theme theme={themes[defaultThemeSlug]} mode={mode}>
         <ConfirmDialog
           isOpen={isConfirmingLogout}
-          title="Log Out"
-          message="Are you sure you want to log out?"
+          title="Sign Out"
+          message="Are you sure you want to sign out?"
           icon={AppIcon.Logout}
-          confirmText="Log Out"
+          confirmText="Sign Out"
           isProcessing={logout.isPending}
           onConfirm={() => logout.mutate()}
           onCancel={() => setIsConfirmingLogout(false)}

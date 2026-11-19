@@ -37,9 +37,9 @@ export function PatientSummary({
       <Avatar name={name || undefined} size="lg" tooltip={false} />
       <MetadataList>
         <MetadataListItem label="Name">{name || '—'}</MetadataListItem>
-        {showDateOfBirth && dateOfBirth && <MetadataListItem label="Date of Birth">{formatDate(dateOfBirth)}</MetadataListItem>}
+        {showDateOfBirth && dateOfBirth && <MetadataListItem label="Date of birth">{formatDate(dateOfBirth)}</MetadataListItem>}
         {nhsNumber !== undefined && (
-          <MetadataListItem label="NHS Number">{nhsNumber?.trim() ? formatNhsNumber(nhsNumber) : 'Not given'}</MetadataListItem>
+          <MetadataListItem label="NHS number">{nhsNumber?.trim() ? formatNhsNumber(nhsNumber) : 'Not given'}</MetadataListItem>
         )}
         {showEmail && email && <MetadataListItem label="Email">{email}</MetadataListItem>}
         {additionalItems}

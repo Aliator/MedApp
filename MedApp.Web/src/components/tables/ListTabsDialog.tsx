@@ -124,7 +124,7 @@ export function ListTabsDialog({
   return (
     <ConfirmDialog
       isOpen={isOpen}
-      title="Configure Favourites"
+      title="Edit Favourites"
       message="Your favourites, shown above the list, in order. Drag one to move it, or press its handle and use the arrow keys. Changes are saved as you make them."
       icon={AppIcon.Favourite}
       confirmText="Done"

@@ -12,7 +12,7 @@ const unauthorized = () => new Response(null, {status: 401});
 const unavailable = () => json({title: 'Unavailable'}, 503);
 
 const renderTimeout = () => renderWithApp(<SessionTimeout />, {user: staffUser, path: '/patients'});
-const warning = () => waitFor(() => within(openDialog()!).getByRole('heading', {name: 'Your session is ending'}));
+const warning = () => waitFor(() => within(openDialog()!).getByRole('heading', {name: 'Your Session Is Ending'}));
 /** Moves the clock (and every timer) on, letting what it sets off settle. */
 const wait = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 const sessionChecks = (fetch: ReturnType<typeof mockApi>) => calls(fetch).filter((c) => c === SESSION).length;
@@ -45,7 +45,7 @@ describe('SessionTimeout', () => {
     await wait(30_000);
     expect(openDialog()).toHaveTextContent(/signed out in 4 minutes 2\d seconds/);
 
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay signed in'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay Signed In'}));
     await waitFor(() => expect(openDialog()).toBeNull());
     expect(calls(fetch)).toContain(EXTEND);
   });
@@ -69,7 +69,7 @@ describe('SessionTimeout', () => {
 
     await warning();
     expect(openDialog()).toHaveTextContent(/signed in for 24 hours, the longest a session can last/);
-    expect(within(openDialog()!).queryByRole('button', {name: 'Stay signed in'})).not.toBeInTheDocument();
+    expect(within(openDialog()!).queryByRole('button', {name: 'Stay Signed In'})).not.toBeInTheDocument();
     await user.click(within(openDialog()!).getByRole('button', {name: 'OK'}));
 
     await waitFor(() => expect(openDialog()).toBeNull());
@@ -103,7 +103,7 @@ describe('SessionTimeout', () => {
     const {user, router} = renderTimeout();
 
     await warning();
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign out'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Sign Out'}));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(calls(fetch)).toContain('POST /api/auth/logout');
@@ -114,7 +114,7 @@ describe('SessionTimeout', () => {
     const {user} = renderTimeout();
 
     await warning();
-    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay signed in'}));
+    await user.click(within(openDialog()!).getByRole('button', {name: 'Stay Signed In'}));
 
     expect(await within(openDialog()!).findByText('Your session could not be extended. Please try again.')).toBeInTheDocument();
   });

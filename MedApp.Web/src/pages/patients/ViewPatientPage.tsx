@@ -105,7 +105,7 @@ export function PatientView({id, isNarrow}: PatientViewProps) {
         ) : (
           patient && (
             <VStack gap={2} hAlign="stretch">
-              {problem.message && <AlertMessage label="Change not made" message={problem.message} />}
+              {problem.message && <AlertMessage label="Patient record not changed" message={problem.message} />}
               <PatientFlagBanners patient={patient} />
             </VStack>
           )
@@ -284,14 +284,14 @@ function PatientDetails({patient}: {patient: Patient}) {
   return (
     <>
       <ViewSection title="Personal Information">
-        <MetadataListItem label="First Name">{patient.firstName}</MetadataListItem>
-        <MetadataListItem label="Last Name">{patient.lastName}</MetadataListItem>
-        <MetadataListItem label="Date of Birth">{formatDate(patient.dateOfBirth ?? '')}</MetadataListItem>
+        <MetadataListItem label="First name">{patient.firstName}</MetadataListItem>
+        <MetadataListItem label="Last name">{patient.lastName}</MetadataListItem>
+        <MetadataListItem label="Date of birth">{formatDate(patient.dateOfBirth ?? '')}</MetadataListItem>
         <MetadataListItem label="Age">{age !== null ? `${age} ${age === 1 ? 'year' : 'years'}` : '—'}</MetadataListItem>
-        <MetadataListItem label="NHS Number">{patient.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
+        <MetadataListItem label="NHS number">{patient.nhsNumber ? formatNhsNumber(patient.nhsNumber) : 'Not given'}</MetadataListItem>
       </ViewSection>
       <ViewSection title="Contact Information" useGrid={false}>
-        <MetadataListItem label="Email Address">
+        <MetadataListItem label="Email address">
           <Link href={`mailto:${patient.email}`}>{patient.email}</Link>
         </MetadataListItem>
         <MetadataListItem label="Mobile">{patient.mobilePhone ? formatMobile(patient.mobilePhone) : 'Not given'}</MetadataListItem>
@@ -306,7 +306,7 @@ function PatientDetails({patient}: {patient: Patient}) {
             <MetadataListItem label="Practice">
               {patient.practice.isArchived ? `${patient.practice.name ?? ''} (archived)` : patient.practice.name}
             </MetadataListItem>
-            <MetadataListItem label="ODS Code">{patient.practice.odsCode || 'Not given'}</MetadataListItem>
+            <MetadataListItem label="ODS code">{patient.practice.odsCode || 'Not given'}</MetadataListItem>
             <MetadataListItem label="Address">
               <AddressLines lines={patient.practice.addressLines} postcode={patient.practice.postcode} />
             </MetadataListItem>

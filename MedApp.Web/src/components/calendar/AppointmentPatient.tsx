@@ -47,7 +47,7 @@ export function AppointmentPatientBanner({state, name}: {state: AppointmentPatie
   if (isError) {
     return (
       <Text type="body" color="secondary">
-        {`${name ? `${name}: their` : 'The patient’s'} details could not be loaded.`}
+        {`${name ? `${name}’s` : 'The patient’s'} details could not be loaded.`}
       </Text>
     );
   }

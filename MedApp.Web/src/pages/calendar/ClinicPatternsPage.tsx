@@ -198,7 +198,7 @@ export function CreateSessionsDialog({pattern, onClose}: {pattern: ClinicPattern
       {pattern && (
         <VStack gap={4} hAlign="stretch">
           <Text type="body" weight="semibold">{`${patternWhen(pattern)}, ${pattern.staffUsername}, ${pattern.roomName}`}</Text>
-          {problem && <AlertMessage label="Sessions not made" message={problem} />}
+          {problem && <AlertMessage label="Sessions not created" message={problem} />}
           {result ? (
             <>
               <AlertMessage status="success" label={madeWords(result).replace(/\.$/, '')} />
@@ -235,10 +235,10 @@ export function CreateSessionsDialog({pattern, onClose}: {pattern: ClinicPattern
   );
 }
 
-/** What Create sessions did, in words: "Made 4 sessions; skipped 2 dates." */
+/** What Create Sessions did, in words: "Created 4 sessions; skipped 2 dates." */
 export function madeWords(made: CreatedSessions): string {
   const created = made.created?.length ?? 0;
   const skipped = made.skipped?.length ?? 0;
-  const madePart = created === 0 ? 'Made no sessions' : created === 1 ? 'Made 1 session' : `Made ${created} sessions`;
+  const madePart = created === 0 ? 'Created no sessions' : created === 1 ? 'Created 1 session' : `Created ${created} sessions`;
   return skipped === 0 ? `${madePart}.` : `${madePart}; skipped ${skipped === 1 ? '1 date' : `${skipped} dates`}.`;
 }
