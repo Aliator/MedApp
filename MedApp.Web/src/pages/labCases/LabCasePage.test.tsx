@@ -108,6 +108,6 @@ describe('LabCasePage', () => {
   it('says when it isn’t there, or is another team’s', async () => {
     renderPage(() => json({title: 'Not found', status: 404}, 404));
     expect(await screen.findByText('Lab case not found')).toBeInTheDocument();
-    expect(screen.getByText("Lab case not found. It may have been deleted, or it's another team's.")).toBeInTheDocument();
+    expect(screen.getByText("It may have been deleted, or it's another team's.")).toBeInTheDocument();
   });
 });

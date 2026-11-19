@@ -112,7 +112,7 @@ export const REFERRAL_COLUMN_WIDTH = {
   team: proportional(1.5, {minWidth: 56}),
   practice: proportional(1.5, {minWidth: 56}),
   received: pixel(112),
-  /** "Day 128 of 126" over Breached and Paused. */
+  /** "Day 128 of 126" over Wait breached and Paused. */
   wait: pixel(132),
   priority: pixel(82),
   letter: pixel(72),

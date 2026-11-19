@@ -27,7 +27,7 @@ const STATUS_WORDS: Record<DemoConsentRecord['status'], string> = {Valid: 'valid
 
 /** The pathway statuses in words, for "Consent can't be recorded while the pathway is ...". */
 const PATHWAY_STATUS_WORDS: Partial<Record<DemoPathway['status'], string>> = {
-  Completed: 'discharged',
+  Completed: 'completed',
   Cancelled: 'cancelled',
   Archived: 'archived',
 };
@@ -219,7 +219,7 @@ export function registerConsent() {
         type: 'about:blank',
         title: 'Forbidden',
         status: 403,
-        detail: 'Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask an admin.',
+        detail: 'Only whoever recorded this consent can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.',
       });
     Object.assign(record, {
       status: 'EnteredInError',

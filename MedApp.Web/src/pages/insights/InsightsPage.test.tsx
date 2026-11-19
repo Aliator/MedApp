@@ -189,19 +189,19 @@ describe('InsightsPage', () => {
     const {user, onSearchChange} = renderInsights({template: TEMPLATE_ID});
 
     await screen.findByText('31 Aug 2026 to 16 Nov 2026, Knee review');
-    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All clinics', 'Allergy (archived)', 'Biomechanics']);
+    await user.click(screen.getByRole('combobox', {name: /^Team/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Allergy (archived)', 'Biomechanics']);
     await user.click(screen.getByRole('option', {name: 'Biomechanics'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, clinic: TEAM_ID});
     // Remembered for the page, with the account.
     expect(localStorage.getItem('medapp.clinicPicker.insights')).toBe(TEAM_ID);
 
-    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
+    await user.click(screen.getByRole('combobox', {name: /^Team/}));
     await user.click(screen.getByRole('option', {name: 'Allergy (archived)'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({template: undefined, clinic: OTHER_TEAM_ID});
 
-    await user.click(screen.getByRole('combobox', {name: /Clinic/}));
-    await user.click(screen.getByRole('option', {name: 'All clinics'}));
+    await user.click(screen.getByRole('combobox', {name: /^Team/}));
+    await user.click(screen.getByRole('option', {name: 'All teams'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({template: TEMPLATE_ID, clinic: undefined});
     expect(localStorage.getItem('medapp.clinicPicker.insights')).toBeNull();
   });

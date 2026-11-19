@@ -525,7 +525,7 @@ function afterStageDone(pathway: DemoPathway) {
   if (allFinished(pathway) && pathway.status === 'InProgress') pathway.status = 'InReview';
 }
 
-/** After a stage is reopened (unlocked or reinstated): a pathway in review or discharged is in progress again. */
+/** After a stage is reopened (unlocked or reinstated): a pathway in review or completed is in progress again. */
 function afterStageReopened(pathway: DemoPathway, userId: string) {
   if (pathway.status === 'InReview' || pathway.status === 'Completed') {
     if (pathway.status === 'Completed') pathway.statusChanges.push({atUtc: nowUtc(), userId, from: 'Completed', to: 'InProgress'});
@@ -835,7 +835,7 @@ export function registerPathways() {
     const last = Math.max(...pathway.stages.map((s) => s.stageOrder));
     const added = (branch.stages ?? []).map((spec, i) => addedStage(pathway, findDefinition(spec.stageDefinitionId ?? ''), last + 1 + i, additionId));
     pathway.stages.push(...added);
-    // A chain after the chosen stage, on a route of its own that ends by itself: discharge waits for it (every stage done).
+    // A chain after the chosen stage, on a route of its own that ends by itself: completing the pathway waits for it (every stage done).
     added.forEach((stage, i) => pathway.links.push({fromStageId: (i === 0 ? after : added[i - 1]).id, toStageId: stage.id}));
     pathway.branchAdditions = [
       ...(pathway.branchAdditions ?? []),
@@ -882,7 +882,7 @@ export function registerPathways() {
     const stage = pathway.stages.find((s) => s.id === params.stageId);
     if (!stage) return notFound('The stage');
     if (!isSkipped(stage) || !(isOpen(pathway) || pathway.status === 'Completed'))
-      return problem(409, 'Only a skipped stage of an open or discharged pathway can be reinstated.');
+      return problem(409, 'Only a skipped stage of an open or completed pathway can be reinstated.');
     if (!body.reason?.trim()) return invalid({reason: ['Say why it’s being reinstated.']});
     stage.skippedAtUtc = null;
     stage.skippedByUserId = null;
@@ -900,7 +900,7 @@ export function registerPathways() {
     const stage = pathway.stages.find((s) => s.id === params.stageId);
     if (!stage) return notFound('The stage');
     if (!isDone(stage) || stage.unlocked || !(isOpen(pathway) || pathway.status === 'Completed'))
-      return problem(409, 'Only a finished, locked stage of an open or discharged pathway can be unlocked.');
+      return problem(409, 'Only a finished, locked stage of an open or completed pathway can be unlocked.');
     stage.unlocked = true;
     afterStageReopened(pathway, viewer.id);
     touch(pathway);

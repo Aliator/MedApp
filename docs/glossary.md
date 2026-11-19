@@ -13,11 +13,11 @@ MedApp was built around "procedures". In November 2026 they became **pathways**,
 | Stages (the admin list) | **Stage library** | Screens only: the code still says `StageDefinition` |
 | Status In review | **Awaiting review** | Screens only: the status is still `InReview` |
 | Status Blocked | **On hold** | Screens only: the status is still `Blocked` |
-| Status Completed | **Discharged** | Screens only: the status is still `Completed` |
+| Status Completed, shown for a while as "Discharged" | **Completed** | Screens only: back to the status's own name |
 | Due date | **Target date** | Screens only: the field is still `DueDate` |
 | My Tasks | **My Worklist** | Screens only: the page is still `MyTasksPage`, at `/tasks` |
 
-**Unchanged:** Unassigned, Assigned, In progress, Cancelled, Archived, "Assigned to", the priorities, and Requires Appointment.
+**Unchanged:** Unassigned, Assigned, In progress, Cancelled, Archived, "Assigned to", the priorities, and the Requires Appointment page. The appointment status `Requested` shows as **To be booked**.
 
 **Calendar day and week templates are a different thing** and keep their names (`DayTemplate`, `WeekTemplate`, `/calendar/templates`).
 
@@ -26,12 +26,12 @@ MedApp was built around "procedures". In November 2026 they became **pathways**,
 "Screens only" means the label people see changed, and nothing underneath did: the enum member, the DTO field, the route and the column keep their names. So the code and the audit log say `Blocked` where the screen says "On hold".
 
 - **Statuses in words** come from one place on each side: `PathwayWorkflow.Describe` in the API (its messages) and `statusWords` / `statusLabel` in the web app (`MedApp.Web/src/utils/statusWords.ts`).
-- **The actions follow the statuses:** Put on Hold and Take off Hold (the status change to and from `Blocked`), Mark Discharged (to `Completed`).
+- **The actions follow the statuses:** Put on Hold and Take off Hold (the status change to and from `Blocked`), Mark Completed (to `Completed`).
 - **Field and column labels inside a page stay short:** a pathway's "Template", the "Stages" of a pathway.
 
 ## The waiting-time clock's words
 
-A referral's clock (`WaitingClock`, `docs/agents/referrals.md`) shows as the **wait**, "Day 84 of 126" (days waited of the target); **Breached** once it's past its target date; **Paused** (with its review date, flagged once past); and **Stopped**. The **clock-stop stage** is the template's stage whose finishing stops it (`StopsClock`). While the clock runs or is paused, a pathway's target date comes from it ("from the waiting-time clock").
+A referral's clock (`WaitingClock`, `docs/agents/referrals.md`) shows as the **wait**, "Day 84 of 126" (days waited of the target); **Wait breached** once it's past its target date; **Paused** (with its review date, flagged once past); and **Stopped**. The **clock-stop stage** is the template's stage whose finishing stops it (`StopsClock`). While the clock runs or is paused, a pathway's target date comes from it ("from the waiting-time clock").
 
 ## The multi-clinic centre's words
 
@@ -47,7 +47,7 @@ From `docs/multi-clinic-plan.md` (decision 181). Planned: each word arrives with
 - **Sample:** what screens call a specimen. The code keeps `Specimen` (FHIR's word).
 - **Lab case:** the lab's record of the work on a request: the test, its steps, the report and its clock.
 - **Hospital request:** the hospital asking the lab to examine a sample, shaped on FHIR UK Core's `ServiceRequest-Lab`.
-- **Clock** (a lab case's): its deadline, the lab's own limit or the hospital's date, whichever is sooner; at risk, then breached. Not the referral's waiting-time clock above.
+- **Clock** (a lab case's): its deadline, the lab's own limit or the hospital's date, whichever is sooner; shown as On time, **At risk**, then **Breached**. Not the referral's waiting-time clock above.
 - **Admin, staff, clinic admin:** the account types. Admins read everything and change nothing clinical; staff do clinical work in their team; a clinic admin is staff with small extras for their own team.
 
 ## Where "procedure" stays

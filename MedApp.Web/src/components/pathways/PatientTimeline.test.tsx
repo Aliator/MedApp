@@ -138,7 +138,7 @@ describe('PatientTimeline', () => {
       [`GET ${TIMELINE}`]: () =>
         json({
           items: [
-            letter({action: 'LetterApproved', letterTemplateName: 'Skin discharge'}),
+            letter({action: 'LetterApproved', letterTemplateName: 'Skin end of care'}),
             letter({action: 'LetterSubmitted', approverUsername: 'd.clinician'}),
             letter({action: 'LetterReturned'}),
             letter({action: 'LetterWithdrawn'}),

@@ -35,7 +35,6 @@ export type SaveSubject =
 
 /** The Blazor pages' messages for each kind of failure, naming what's being saved (a patient by default). */
 export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 'archive' | 'restore', subject: SaveSubject = 'patient'): SaveProblem {
-  const Subject = subject.charAt(0).toUpperCase() + subject.slice(1);
   const subjects = subject.endsWith('s') ? subject : /[^aeiou]y$/.test(subject) ? `${subject.slice(0, -1)}ies` : `${subject}s`;
   if (error instanceof ApiValidationError) return {validation: error.errors, message: null};
   if (error instanceof ApiError) {
@@ -47,7 +46,7 @@ export function saveProblem(error: unknown, action: 'save' | 'add' | 'delete' | 
         if (isPermissionMissing(error) && error.title) return {validation: null, message: error.title};
         return {validation: null, message: `You do not have permission to change ${subjects}.`};
       case 404:
-        return {validation: null, message: `${Subject} not found. It may have been deleted.`};
+        return {validation: null, message: `It can't be found: someone else may have deleted the ${subject}.`};
       case 409:
         // The API says why, e.g. "This patient has 2 pathways, so they can't be deleted."
         if (error.title) return {validation: null, message: error.title};

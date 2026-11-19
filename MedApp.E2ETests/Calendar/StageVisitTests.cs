@@ -47,15 +47,15 @@ public sealed class StageVisitTests : E2ETest
         // Its first stage needs a visit, which the app has asked to be booked.
         var visit = main.GetByRole(AriaRole.Group, new() { Name = "Visit", Exact = true });
         await Expect(visit).ToContainTextAsync("Visit required");
-        await Expect(visit).ToContainTextAsync("Requires appointment");
+        await Expect(visit).ToContainTextAsync("To be booked");
         await Expect(visit).ToContainTextAsync("the stage can't be finished until then");
-        await Expect(visit.GetByRole(AriaRole.Button, new() { Name = "Book Visit" })).ToBeVisibleAsync();
+        await Expect(visit.GetByRole(AriaRole.Button, new() { Name = "Book Appointment" })).ToBeVisibleAsync();
 
         // Finishing it anyway asks why.
         await main.GetByRole(AriaRole.Button, new() { Name = "Finish Stage" }).ClickAsync();
         var confirm = page.GetByRole(AriaRole.Dialog, new() { Name = "Finish without a visit?" });
         await Expect(confirm).ToContainTextAsync($"{stages[0].Name} requires a visit");
-        await Expect(confirm).ToContainTextAsync("Its visit comes off Requires Appointment.");
+        await Expect(confirm).ToContainTextAsync("Its appointment request is removed from the Requires Appointment list.");
         var finish = confirm.GetByRole(AriaRole.Button, new() { Name = "Finish Without Visit" });
         await Expect(finish).ToBeDisabledAsync();
         await confirm.GetByRole(AriaRole.Textbox, new() { Name = "Reason" }).FillAsync(Reason);

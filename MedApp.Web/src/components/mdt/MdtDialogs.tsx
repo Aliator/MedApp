@@ -90,7 +90,7 @@ export function ListForMdtDialog({patient, pathwayTitle, meetings, isLoadingMeet
         options={options}
       />
       {!isLoadingMeetings && options.length === 0 && (
-        <Text type="body" color="secondary">No MDTs are arranged yet. Whoever arranges meetings marks one as a team's MDT.</Text>
+        <Text type="body" color="secondary">No MDTs are arranged yet. Whoever arranges a meeting ticks This is an MDT meeting.</Text>
       )}
       <TextArea
         label="Question for the team"

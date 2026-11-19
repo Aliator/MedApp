@@ -257,7 +257,7 @@ export function registerResults() {
     requirePermission('ViewPatients');
     const result = findResult(params.id);
     if (!mayMarkEnteredInError(result))
-      return problem(403, 'Only whoever reported this result can mark it entered in error, within 24 hours of reporting it. After that, ask an admin.');
+      return problem(403, 'Only whoever reported this result can mark it entered in error, within 24 hours of reporting it. After that, ask someone who can correct records.');
     ensureVersion(body.expectedVersion, result.version, CHANGED_MEANWHILE);
     if (patientFlags(result.patientId).isAnonymised) return problem(409, ANONYMISED);
     if (result.status === 'EnteredInError') return problem(409, 'This result has already been marked entered in error.');

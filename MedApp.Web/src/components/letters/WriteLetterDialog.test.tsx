@@ -18,7 +18,7 @@ const template = (fields: Partial<LetterTemplate>): LetterTemplate => ({
 
 const templates = [
   template({name: 'Skin follow-up'}),
-  template({name: 'Any discharge', kind: 'DischargeSummary', teamId: null, teamName: null}),
+  template({name: 'Any end of care', kind: 'DischargeSummary', teamId: null, teamName: null}),
   template({name: 'Referral reply', kind: 'ReferralResponse'}),
   template({name: 'More please', kind: 'InformationRequest', teamId: null, teamName: null}),
   template({name: 'Old letter', isArchived: true}),
@@ -48,7 +48,7 @@ describe('WriteLetterDialog', () => {
 
   it("offers the team's and every team's templates (not archived), every kind from a pathway, only replies from a referral", () => {
     const names = (about: LetterAbout) => templatesForLetter(templates, DERMATOLOGY, about).map((t) => t.name);
-    expect(names({pathwayId: 'p'})).toEqual(['Any discharge', 'More please', 'Referral reply', 'Skin follow-up']);
+    expect(names({pathwayId: 'p'})).toEqual(['Any end of care', 'More please', 'Referral reply', 'Skin follow-up']);
     expect(names({referralId: 'r'})).toEqual(['More please', 'Referral reply']);
   });
 

@@ -10,7 +10,7 @@ import {formatDate, formatShortDate} from '../../utils/dates';
 import {AppIcon} from '../shared/icons';
 
 /**
- * A referral's waiting-time clock, the same way everywhere it shows (decision 38): "Day 84 of 126", with Breached
+ * A referral's waiting-time clock, the same way everywhere it shows (decision 38): "Day 84 of 126", with Wait breached
  * (in the error style, like Overdue), Paused (with its review date, flagged once that has passed: hazard H-42) and
  * Stopped. Administrative: whole UK days against the team's target for the priority, never ranked by anything
  * clinical, and never sent anywhere. `WaitCell` is a table's Wait column, `WaitingClockDetails` a page's account of
@@ -23,9 +23,9 @@ function useStatusIcon(icon: IconType) {
   return flags.statusIcons ? <Icon icon={icon} /> : undefined;
 }
 
-/** The Breached flag: the wait has gone past its target. */
+/** The Wait breached flag: the wait has gone past its target. */
 export function BreachedToken() {
-  return <Token size="sm" label="Breached" color="red" icon={useStatusIcon(AppIcon.Overdue)} />;
+  return <Token size="sm" label="Wait breached" color="red" icon={useStatusIcon(AppIcon.Overdue)} />;
 }
 
 /** The Paused flag. */
@@ -46,7 +46,7 @@ export function ReviewOverdueToken() {
 const isPaused = (clock: WaitingClock) => clock.state === 'Paused';
 const isStopped = (clock: WaitingClock) => clock.state === 'Stopped';
 
-/** The clock's flags, in a wrapping row: Breached, Paused, Review overdue, Stopped. Nothing for a clock running in time. */
+/** The clock's flags, in a wrapping row: Wait breached, Paused, Review overdue, Stopped. Nothing for a clock running in time. */
 export function ClockTokens({clock}: {clock: WaitingClock}) {
   const hasAny = clock.isBreached || isPaused(clock) || isStopped(clock);
   if (!hasAny) return null;

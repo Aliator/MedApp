@@ -166,7 +166,7 @@ export function ReferralPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage label="Referral not found" message="Referral not found. It may have been deleted." />
+          <AlertMessage label="Referral not found" message="It may have been deleted." />
         ) : error ? (
           <AlertMessage label="Referral not loaded" />
         ) : actionError ? (

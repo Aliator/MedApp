@@ -625,7 +625,7 @@ describe('server rendering', () => {
     expect(new URL(files.url).search).toBe(`?PathwayId=${pathwayId}`);
   });
 
-  it("renders the patient's banner on the server, with their NHS number", async () => {
+  it("renders who the patient is on the server, first in Details, with their NHS number", async () => {
     api({
       '/api/auth/whoami': signedIn,
       '/api/auth/me/settings': {settings: null},
@@ -636,11 +636,15 @@ describe('server rendering', () => {
 
     const html = await (await page(`/patients/${patient.id}`, 'medapp_session=abc')).text();
 
-    // Named for the patient, by its hidden "Patient:" and the name, whose family name is in capitals by CSS only.
-    expect(html).toMatch(/role="region" aria-labelledby="[^"]+ [^"]+"/);
-    expect(html).toContain('>Patient:<');
-    expect(html).toMatch(/text-transform:uppercase[^>]*>Patient<\/span>, Test/);
-    expect(html).toMatch(/NHS No\. (<!-- -->)?999 000 0018/);
+    // No banner here: Personal Information comes first in Details, with the name, date of birth and NHS number.
+    expect(html).not.toContain('>Patient:<');
+    const details = html.slice(html.indexOf('Personal Information'));
+    expect(html.indexOf('Personal Information')).toBeGreaterThan(-1);
+    expect(details.indexOf('Personal Information')).toBeLessThan(details.indexOf('Contact Information'));
+    expect(details).toMatch(/>Test</);
+    expect(details).toMatch(/>Patient</);
+    expect(details).toContain('1 January 1980');
+    expect(details).toMatch(/>(<!-- -->)?999 000 0018</);
   });
 
   it("renders a restricted record's short label on the server, with the whole message for screen readers, closed", async () => {

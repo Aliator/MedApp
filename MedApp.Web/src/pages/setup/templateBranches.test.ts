@@ -28,13 +28,13 @@ describe('template options and choice nodes', () => {
   });
 
   it('sends a choice node’s outcomes in their order, trimmed, each to the stages after it that it leads to', () => {
-    const rows = keyed([choice([[' Malignant ', [3, 2]], ['Benign', [4]], ['Uncertain', [2]], ['Discharge', []], ['', [5]]]), plain, plain, plain, plain]);
+    const rows = keyed([choice([[' Malignant ', [3, 2]], ['Benign', [4]], ['Uncertain', [2]], ['Care completed', []], ['', [5]]]), plain, plain, plain, plain]);
     // Stage 5 doesn't come after the choice node, and the unnamed outcome isn't sent.
     expect(outcomesFromRows(rows, links([[1, 2], [1, 3], [1, 4], [2, 5]]), 0)).toEqual([
       {name: 'Malignant', nextStageOrders: [2, 3]},
       {name: 'Benign', nextStageOrders: [4]},
       {name: 'Uncertain', nextStageOrders: [2]},
-      {name: 'Discharge', nextStageOrders: []},
+      {name: 'Care completed', nextStageOrders: []},
     ]);
   });
 

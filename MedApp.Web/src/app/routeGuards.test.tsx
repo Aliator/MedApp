@@ -113,7 +113,7 @@ describe('route guards', () => {
     expect(await screen.findByRole('heading', {name: 'Sample Types and Lab Tests', level: 1})).toBeInTheDocument();
   });
 
-  it('opens Samples on To send for those who send specimens, asking for that view', async () => {
+  it('opens Samples on To receive, for the clinic as for the lab (MC14), asking for that view', async () => {
     const fetch = mockApi({
       // The Lab's worklist is a POST since #200, so a specimen number typed into its search stays out of the address.
       'POST /api/specimens/search': () => json({items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0}),
@@ -128,7 +128,7 @@ describe('route guards', () => {
           .filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/api/specimens/search')
           .map(async (r) => ((await r.clone().json()) as {view?: string}).view),
       );
-    await waitFor(async () => expect(await views()).toContain('ToSend'));
+    await waitFor(async () => expect(await views()).toContain('ToReceive'));
   });
 
   it('sends someone without ManageSetup away from Teams, without asking for them', async () => {

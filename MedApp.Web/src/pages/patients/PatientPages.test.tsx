@@ -40,7 +40,7 @@ describe('ViewPatientPage', () => {
     renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
 
     expect(await screen.findByText('1 December 1976')).toBeInTheDocument();
-    expect(screen.getByText('Freya')).toBeInTheDocument();
+    expect(screen.getAllByText('Freya').length).toBeGreaterThan(0);
     expect(screen.getByText(`${ageOn('1976-12-01')} years`)).toBeInTheDocument();
     expect(screen.getByText(id)).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Edit Patient'})).toHaveAttribute('href', `/patients/${id}/edit`);
@@ -83,14 +83,18 @@ describe('ViewPatientPage', () => {
     expect(screen.getByText('01632 960001')).toBeInTheDocument();
   });
 
-  it("shows the patient's banner above the details, and their NHS number", async () => {
+  it('shows who the patient is first, under Personal Information, with their NHS number, and no banner', async () => {
     mockApi({[`GET /api/patients/${id}`]: () => json({...freya, nhsNumber: '9990000042'}), ...timeline});
     renderWithApp(<ViewPatientPage id={id} />, {user: adminUser});
 
-    const banner = await screen.findByRole('region', {name: 'Patient: Ahmed, Freya'});
-    expect(within(banner).getByText('NHS No. 999 000 0042')).toBeInTheDocument();
-    // And in the details, under Personal Information.
+    // Personal Information is the details' first part, before the contact details and the GP practice.
+    const personal = await screen.findByRole('heading', {name: 'Personal Information'});
+    const sections = screen.getAllByRole('heading').filter((h) => /Information|GP Practice/.test(h.textContent ?? ''));
+    expect(sections[0]).toBe(personal);
+    expect(screen.getAllByText('Freya').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ahmed').length).toBeGreaterThan(0);
     expect(screen.getAllByText('999 000 0042')).toHaveLength(1);
+    expect(screen.queryByRole('region', {name: 'Patient: Ahmed, Freya'})).not.toBeInTheDocument();
   });
 
   it('goes back to the list for an unknown patient', async () => {
@@ -126,15 +130,15 @@ describe('ViewPatientPage', () => {
     expect(screen.queryByRole('button', {name: 'Hide timeline'})).not.toBeInTheDocument();
   });
 
-  it('narrow, folds the details and the timeline in one card, keeping its filters', async () => {
+  it('narrow, puts the details and the timeline in one card, the details never folding, the timeline keeping its filters', async () => {
     mockApi({[`GET /api/patients/${id}`]: () => json(freya), ...timeline});
     const {user} = renderWithApp(<PatientView id={id} isNarrow />, {user: adminUser});
 
     expect(await screen.findByText('Pathway created')).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Notes'}));
-    await user.click(screen.getByRole('button', {name: 'Hide details'}));
-
-    expect(screen.queryByText('Freya')).not.toBeInTheDocument();
+    // The details never fold: who the patient is stays in view.
+    expect(screen.queryByRole('button', {name: 'Hide details'})).not.toBeInTheDocument();
+    expect(screen.getAllByText('Freya').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', {name: 'Notes'})).toHaveAttribute('aria-pressed', 'true');
 
     await user.click(screen.getByRole('button', {name: 'Hide timeline'}));
@@ -296,7 +300,7 @@ describe('ViewPatientPage: files', () => {
     await user.click(screen.getByRole('button', {name: 'Hide files'}));
 
     expect(screen.queryByText('referral.pdf')).not.toBeInTheDocument();
-    expect(screen.getByText('Freya')).toBeInTheDocument();
+    expect(screen.getAllByText('Freya').length).toBeGreaterThan(0);
   });
 });
 
@@ -668,7 +672,7 @@ describe('EditPatientPage', () => {
     await user.click(await screen.findByRole('button', {name: 'Save'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 
-    await findAlert('Patient not found. It may have been deleted.');
+    await findAlert("It can't be found: someone else may have deleted the patient.");
   });
 
   it("shows the API's validation errors on the fields", async () => {

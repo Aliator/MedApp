@@ -402,7 +402,7 @@ describe('BookAppointmentDialog', {timeout: 30_000}, () => {
               {id: 'stage-a', name: 'Referral', state: 'Completed'},
               {id: 'stage-b', name: 'Consent', state: 'InProgress', isCurrent: true, visitRequirement: 'Required'},
               {id: 'stage-c', name: 'Follow-up', state: 'NotStarted', visitRequirement: 'Suggested'},
-              {id: 'stage-d', name: 'Discharge', state: 'NotStarted', visitRequirement: 'None'},
+              {id: 'stage-d', name: 'Final letter', state: 'NotStarted', visitRequirement: 'None'},
             ],
           }),
         'POST /api/appointments': () => json(testRequested()),

@@ -120,8 +120,8 @@ describe('describeAuditDetails', () => {
   });
 
   it('gives the branch chosen and the stages it skipped, and why a skipped stage was reinstated', () => {
-    expect(describe_('BranchChosen', {branch: 'Treatment', skippedStageIds: ['s4'], skippedStages: ['Discharge letter', 'Follow-up']})).toBe(
-      'Chose Treatment; skipped Discharge letter, Follow-up',
+    expect(describe_('BranchChosen', {branch: 'Treatment', skippedStageIds: ['s4'], skippedStages: ['Final letter', 'Follow-up']})).toBe(
+      'Chose Treatment; skipped Final letter, Follow-up',
     );
     expect(describe_('BranchChosen', {branch: 'Treatment', skippedStages: 'not a list'})).toBe('Chose Treatment');
     expect(describe_('StageReinstated', {reason: 'Chose the wrong branch', skipReason: 'BranchNotChosen'})).toBe(

@@ -61,7 +61,7 @@ export function SpecimenPrintPage({id, sheet}: SpecimenPrintPageProps) {
         error && (
           <AlertMessage
             label={isMissing ? 'Sample not found' : 'Sample not loaded'}
-            message={isMissing ? 'Sample not found. It may have been deleted.' : undefined}
+            message={isMissing ? 'It may have been deleted.' : undefined}
           />
         )
       }

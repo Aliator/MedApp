@@ -95,7 +95,7 @@ export const PATHWAY_COLUMN_WIDTH = {
   status: pixel(108),
   due: pixel(112),
   priority: pixel(82),
-  /** The waiting-time clock: "Day 128 of 126" over Breached and Paused. */
+  /** The waiting-time clock: "Day 128 of 126" over Wait breached and Paused. */
   wait: pixel(132),
   /** Two icon buttons. */
   actions: pixel(84),

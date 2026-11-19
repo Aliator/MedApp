@@ -421,7 +421,7 @@ describe('PathwayTemplateEditorPage', () => {
       await user.click(screen.getByRole('option', {name: '3. Scan'}));
       await user.keyboard('{Escape}');
       await user.click(row(0).getByRole('button', {name: 'Add Outcome'}));
-      await user.type(row(0).getByRole('textbox', {name: 'Outcome 4'}), 'Discharge');
+      await user.type(row(0).getByRole('textbox', {name: 'Outcome 4'}), 'Care completed');
 
       await user.click(screen.getByRole('button', {name: 'Save'}));
       await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
@@ -434,7 +434,7 @@ describe('PathwayTemplateEditorPage', () => {
           {name: 'Benign', nextStageOrders: [2]},
           {name: 'Melanoma', nextStageOrders: [3]},
           {name: 'Uncertain', nextStageOrders: [3]},
-          {name: 'Discharge', nextStageOrders: []},
+          {name: 'Care completed', nextStageOrders: []},
         ],
       });
       expect(body.links).toEqual([

@@ -396,7 +396,7 @@ export function PatientExportPage({id}: {id: string}) {
         error ? (
           <AlertMessage
             label={isMissing ? 'Patient not found' : 'Export not made'}
-            message={isMissing ? 'Patient not found. They may have been deleted.' : 'The export could not be made. Please try again.'}
+            message={isMissing ? 'They may have been deleted.' : 'The export could not be made. Please try again.'}
           />
         ) : (
           data && (

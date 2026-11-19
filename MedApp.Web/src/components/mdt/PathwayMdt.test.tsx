@@ -37,7 +37,7 @@ describe('PathwayMdt', () => {
     expect(screen.queryByRole('button', {name: 'List for MDT'})).not.toBeInTheDocument();
   });
 
-  it('offers no listing for a discharged pathway', async () => {
+  it('offers no listing for a completed pathway', async () => {
     mockApi({'GET /api/mdt/pathways/proc-1/items': () => json([]), 'GET /api/mdt/meetings': () => json([])});
     renderWithApp(<PathwayMdt pathway={{...pathway, status: 'Completed'}} />, {user: staffUser});
     expect(await screen.findByText('Not listed for an MDT.')).toBeInTheDocument();

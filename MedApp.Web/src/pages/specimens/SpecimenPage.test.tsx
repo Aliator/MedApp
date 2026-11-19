@@ -245,7 +245,7 @@ describe('SpecimenPage', () => {
 
   it('says when it is not found, or could not be loaded', async () => {
     renderPage(() => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Sample not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await screen.findByText('It may have been deleted.')).toBeInTheDocument();
   });
 
   it('says when it could not be loaded', async () => {

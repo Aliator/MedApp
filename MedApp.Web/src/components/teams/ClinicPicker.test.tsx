@@ -66,8 +66,8 @@ describe('ClinicPicker', () => {
   it('offers an admin every team, archived ones too, and remembers the one chosen', async () => {
     const {user, onChange} = renderPicker(adminUser);
 
-    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All clinics', 'Dermatology', 'Laboratory', 'Gynaecology (archived)']);
+    await user.click(await screen.findByRole('combobox', {name: /^Team/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Dermatology', 'Laboratory', 'Gynaecology (archived)']);
     await user.click(screen.getByRole('option', {name: 'Laboratory'}));
 
     expect(onChange).toHaveBeenLastCalledWith(LAB);
@@ -75,13 +75,13 @@ describe('ClinicPicker', () => {
     expect(await screen.findByTestId('picked')).toHaveTextContent(LAB);
   });
 
-  it('forgets the choice for All clinics', async () => {
+  it('forgets the choice for All teams', async () => {
     localStorage.setItem('medapp.clinicPicker.patients', LAB);
     const {user, onChange} = renderPicker(adminUser);
 
     expect(await screen.findByTestId('picked')).toHaveTextContent(LAB);
-    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
-    await user.click(screen.getByRole('option', {name: 'All clinics'}));
+    await user.click(await screen.findByRole('combobox', {name: /^Team/}));
+    await user.click(screen.getByRole('option', {name: 'All teams'}));
 
     expect(onChange).toHaveBeenLastCalledWith(undefined);
     expect(localStorage.getItem('medapp.clinicPicker.patients')).toBeNull();
@@ -90,14 +90,14 @@ describe('ClinicPicker', () => {
   it('offers staff in more than one team only their own, by name', async () => {
     const {user} = renderPicker(twoTeams);
 
-    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All clinics', 'Dermatology', 'Gynaecology']);
+    await user.click(await screen.findByRole('combobox', {name: /^Team/}));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Dermatology', 'Gynaecology']);
   });
 
   it('isn’t shown to staff in one team', async () => {
     renderPicker(oneTeam, DERMATOLOGY);
 
-    expect(screen.queryByRole('combobox', {name: /Clinic/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', {name: /^Team/})).not.toBeInTheDocument();
     expect(await screen.findByTestId('picked')).toHaveTextContent('all');
   });
 });
