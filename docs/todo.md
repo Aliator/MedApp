@@ -104,6 +104,12 @@ The web and light demo were reworded (PRs #261 to #265); the API's own texts fol
 - **Priorities:** whether High, Medium and Low become NHS terms (Urgent suspected cancer, Urgent, Routine) is the owner's call.
 - **Names, not usernames,** across lists and labels (needs the API to send display names).
 
+## After the backend catch-up (combined migration, 19 November 2026)
+
+- **Corrections nobody can make:** `CorrectRecords` is Administrator-only, but admins are read only and in no team, so nobody can now delete someone else's file, withdraw a visit recorded after the event once its 30 days are up, or mark consent entered in error after the recorder's 24 hours (the team walls give an admin a 409; the endpoints need `AttachFiles` or `BookAppointments`). Decide who corrects records (a staff permission, or an admin exception to the walls) and match the light demo.
+- **Old branch points:** `AddedMultiClinicCentre` turns a branch point still to be chosen into a choice node only on an open pathway with nothing after it yet (it's grown from a plan); a closed pathway's, or one with work after it, became a plain stage, and its branches run in order.
+- **The contract:** the API's generated `schema.d.ts` matches the hand-edited one in substance (checked at the catch-up), but for a stage's `result` (the generator can't mark a reference nullable: `| null` kept by hand) and the export's lab cases, hospital requests and results text (the API exports more than the web reads). The committed file stays hand-edited until a schema filter covers nullable references.
+
 ## Dermatology pathways: gaps
 
 What the reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, in the light demo since `feature/dermatology-templates`) need that the model lacks:
