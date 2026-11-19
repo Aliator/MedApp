@@ -264,7 +264,7 @@ The multi-clinic centre (`docs/multi-clinic-plan.md`, section 8) was assessed fr
 |---|---|
 | Teams, the boundary between clinics, the relay, worklists | Not a device: access control and workflow |
 | Tree pathways, added branches | Not a device: staff choose; nothing suggested or pre-selected |
-| Hospital clocks and lab alerts | Not a device: **service alerts on time**, never on values (decision 186) |
+| Hospital clocks and lab alerts | Not a device: **service alerts on time**, never on values (decision 186). Checked against MC19's demo build: calendar-day arithmetic on received, collection and requested dates and the test's day counts only |
 | Lab cases, steps, reports | Not a device: workflow; reports stay documents |
 | Surgery details | Not a device: recorded as written; nothing calculated |
 | Consults, MDTs, photos | Not a device: communication and storage; photos not analysed |

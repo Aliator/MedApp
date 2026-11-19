@@ -2698,7 +2698,7 @@ The device line holds (`intended-purpose-and-device-decision.md`, the multi-clin
 
 **Possible harm.** A delayed cancer treatment. One patient; Major in the worst credible case.
 
-**Existing controls:** none (not built).
+**Existing controls:** built in the light demo first (MC19, 19 Nov 2026): both dates and which applies on the case page, the countdown, at risk and Overdue lists; the API's copy and the alerts job still to build.
 
 **Initial risk:** [For the CSO to assign.] Draft estimate: Major, Medium: **3**.
 

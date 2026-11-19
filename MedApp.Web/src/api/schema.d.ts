@@ -22680,6 +22680,7 @@ export interface components {
             openedByUsername?: string | null;
             /** Format: date-time */
             receivedAtUtc?: string | null;
+            clock?: components["schemas"]["LabClockResponse"];
             steps?: components["schemas"]["LabCaseStepResponse"][] | null;
             next?: components["schemas"]["LabCaseNextResponse"];
             samples?: components["schemas"]["SpecimenSummaryResponse"][] | null;
@@ -22756,6 +22757,7 @@ export interface components {
             openedAtUtc?: string;
             /** Format: date-time */
             reportedAtUtc?: string | null;
+            clock?: components["schemas"]["LabClockResponse"];
         };
         LabCaseSummaryResponsePagedResponse: {
             items?: components["schemas"]["LabCaseSummaryResponse"][] | null;
@@ -22767,6 +22769,25 @@ export interface components {
             totalCount?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        LabClockResponse: {
+            /** Format: date */
+            labDueOn?: string;
+            /** Format: date */
+            labLimitOn?: string;
+            /** Format: date */
+            hospitalDueOn?: string | null;
+            hospitalDueBasis?: string | null;
+            /** Format: date */
+            dueOn?: string;
+            setBy?: string | null;
+            /** Format: date-time */
+            dueAtUtc?: string;
+            /** Format: date */
+            atRiskOn?: string;
+            state?: string | null;
+            /** Format: int32 */
+            daysLeft?: number;
         };
         LabTestRequest: {
             name?: string | null;
@@ -24674,6 +24695,7 @@ export interface components {
             /** Format: date-time */
             expectedByUtc?: string;
             isOverdueAtLab?: boolean;
+            clock?: components["schemas"]["LabClockResponse"];
             /** Format: int32 */
             version?: number;
             canEdit?: boolean;
@@ -24738,6 +24760,7 @@ export interface components {
             /** Format: date-time */
             expectedByUtc?: string;
             isOverdueAtLab?: boolean;
+            clock?: components["schemas"]["LabClockResponse"];
         };
         SpecimenSummaryResponsePagedResponse: {
             items?: components["schemas"]["SpecimenSummaryResponse"][] | null;

@@ -1,6 +1,21 @@
 import type {LabCase, LabCaseSummary} from '../api/labCases';
 import {SPECIMEN_PATIENT, SPECIMEN_PATIENT_ID, testSummary} from './specimens';
 
+/** A clock (MC19): the hospital's date sooner than the lab's target, so it applies, and the case at risk. */
+export const testClock = (more: Partial<NonNullable<LabCase['clock']>> = {}): NonNullable<LabCase['clock']> => ({
+  labDueOn: '2026-11-10',
+  labLimitOn: '2026-11-13',
+  hospitalDueOn: '2026-11-07',
+  hospitalDueBasis: 'ReportNeededBy',
+  dueOn: '2026-11-07',
+  setBy: 'Hospital',
+  dueAtUtc: '2026-11-07T23:59:59.999Z',
+  atRiskOn: '2026-11-05',
+  state: 'AtRisk',
+  daysLeft: 1,
+  ...more,
+});
+
 /** A synthetic lab case (MC15), its patient from the specimens' fixtures (NHS number from the 999 range). */
 export const CASE_ID = '00000052-0000-0000-0000-000000000001';
 

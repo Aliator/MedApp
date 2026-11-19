@@ -1,6 +1,6 @@
 import {screen} from '@testing-library/react';
 import {json, mockApi, renderWithApp, userWithRoles} from '../../test/render';
-import {CASE_ID, testCaseSummary} from '../../test/labCases';
+import {CASE_ID, testCaseSummary, testClock} from '../../test/labCases';
 import {LabCasesPage} from './LabCasesPage';
 import {labCaseViewOf, parseLabCasesSearch} from './labCasesSearch';
 
@@ -9,7 +9,8 @@ const labUser = userWithRoles('test-lab', 'Lab');
 describe('LabCasesPage', () => {
   it('lists the tab’s cases, each opening its page, with where it came from and what it needs next', async () => {
     const fetch = mockApi({
-      'POST /api/lab-cases/search': () => json({items: [testCaseSummary()], page: 1, pageSize: 10, totalCount: 1, totalPages: 1}),
+      'POST /api/lab-cases/search': () =>
+        json({items: [testCaseSummary({clock: testClock({state: 'Breached', daysLeft: -2})})], page: 1, pageSize: 10, totalCount: 1, totalPages: 1}),
     });
     renderWithApp(<LabCasesPage search={{view: 'ToReport'}} onSearchChange={vi.fn()} />, {user: labUser});
 
@@ -17,6 +18,9 @@ describe('LabCasesPage', () => {
     expect(screen.getByText('To report: 1 case')).toBeInTheDocument();
     expect(screen.getByText('Dermatology')).toBeInTheDocument();
     expect(screen.getByText('Needs more work?')).toBeInTheDocument();
+    // Its clock (MC19): the countdown and the due date.
+    expect(screen.getByText('2 days overdue')).toBeInTheDocument();
+    expect(screen.getByText('Due 7 Nov 2026')).toBeInTheDocument();
     const body = await (fetch.mock.calls[0][0] as Request).clone().json();
     expect(body).toMatchObject({view: 'ToReport', page: 1});
   });
@@ -29,6 +33,7 @@ describe('LabCasesPage', () => {
       sort: 'number',
       asc: false,
     });
+    expect(parseLabCasesSearch({view: 'Overdue', sort: 'due'})).toEqual({view: 'Overdue', sort: 'due'});
     expect(parseLabCasesSearch({view: 'Nope', source: 'Elsewhere', page: '1', sort: 'x'})).toEqual({});
     expect(labCaseViewOf({})).toBe('Open');
   });

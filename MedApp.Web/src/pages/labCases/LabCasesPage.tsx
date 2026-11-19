@@ -10,6 +10,7 @@ import {LAB_CASE_VIEWS, labCaseSearchQuery, labCaseViewLabel, type LabCaseSummar
 import {labCaseStatusLabel} from '../../api/hospitals';
 import {useListSettings} from '../../app/listSettings';
 import {Page} from '../../components/pages/Page';
+import {LabClockCell} from '../../components/labCases/LabClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {SampleSourceToken, SpecimenPatientCell} from '../../components/specimens/SpecimenCells';
@@ -27,11 +28,13 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'choice', key: 'source', label: 'From', options: [{value: 'Clinic', label: 'A clinic'}, {value: 'Hospital', label: 'The hospital'}]},
 ];
 
-/** Its tabs: Open, To report, Reported, Repeat requested and All. */
+/** Its tabs: Open, At risk, Overdue, To report, Reported, Repeat requested and All. */
 const FAVOURITES: ListFilterFavourite[] = LAB_CASE_VIEWS.map((v) => ({label: labCaseViewLabel(v), values: v === 'All' ? {view: 'All'} : {view: v}}));
 
 const EMPTY: Record<LabCaseView, string> = {
   Open: 'No open cases',
+  AtRisk: 'No case is at risk',
+  Overdue: 'No case is overdue',
   ToReport: 'Nothing to report',
   Reported: 'No reported cases',
   RepeatRequested: 'No repeat samples asked for',
@@ -60,7 +63,9 @@ const asString = (value: unknown) => (typeof value === 'string' && value ? value
 
 /**
  * Lab Cases (`/lab/cases`, MC15): the lab's work, a case per request, from the clinics and the hospital. Tabs: Open
- * (oldest opened first), To report (every step done, "No more work" recorded), Reported, Repeat requested and All.
+ * (soonest due first), At risk and Overdue (MC19's clocks), To report (every step done, "No more work" recorded),
+ * Reported, Repeat requested and All. The Due column is the case's clock: the countdown, the due date (the sooner of the
+ * lab's target and the hospital's date) and a flag when at risk or overdue.
  * Each row is the case number with its test (opening the case), the patient with their NHS number, where it came from,
  * what it needs next and when it was opened. Search by case, patient, NHS number, test or source (in the body, never
  * the URL). The lab sees every case, a clinic its own; every patient shown is recorded as listed. Lists order by times
@@ -72,8 +77,10 @@ export function LabCasesPage({search, onSearchChange}: LabCasesPageProps) {
   const {pageSize} = useListSettings();
   const {data, isPending, isError} = useQuery(labCasesListQuery(search, pageSize, text));
   const total = data?.totalCount ?? 0;
-  const sort = search.sort ?? 'opened';
-  const asc = search.sort ? (search.asc ?? true) : view === 'Open' || view === 'ToReport';
+  // Open work is in due order (MC19), soonest first; the rest newest first.
+  const dueOrder = view === 'Open' || view === 'AtRisk' || view === 'Overdue' || view === 'ToReport';
+  const sort = search.sort ?? (dueOrder ? 'due' : 'opened');
+  const asc = search.sort ? (search.asc ?? true) : dueOrder;
 
   const fromBar = (values: ListFilterValues) => {
     setText(asString(values.q));
@@ -123,6 +130,7 @@ export function LabCasesPage({search, onSearchChange}: LabCasesPageProps) {
       width: proportional(1.5, {minWidth: 120}),
       renderCell: (c) => <TextCell text={c.status === 'Open' ? (c.nextName ?? '—') : labCaseStatusLabel(c.status)} />,
     },
+    {key: 'due', header: 'Due', sortable: true, width: pixel(150), renderCell: (c) => <LabClockCell clock={c.clock} />},
     {key: 'opened', header: 'Opened', sortable: true, width: pixel(150), renderCell: (c) => <TextCell text={formatDateTime(c.openedAtUtc ?? '')} />},
   ];
 

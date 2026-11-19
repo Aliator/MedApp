@@ -22,6 +22,8 @@ import {
 import {teamsQuery} from '../../api/teams';
 import {useListSettings} from '../../app/listSettings';
 import {Page} from '../../components/pages/Page';
+import {isLabClockRunning} from '../../api/labClocks';
+import {LabClockCell} from '../../components/labCases/LabClock';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {
@@ -222,7 +224,9 @@ export function LabPage({search, onSearchChange}: LabPageProps) {
       header: 'Due',
       sortable: true,
       width: pixel(150),
-      renderCell: (s) => <TextCell text={s.isOpen ? formatDateTime(s.expectedByUtc ?? '') : '—'} />,
+      // In a lab case, its strict clock (MC19); before one, the type's expected days.
+      renderCell: (s) =>
+        s.isOpen && isLabClockRunning(s.clock) ? <LabClockCell clock={s.clock} /> : <TextCell text={s.isOpen ? formatDateTime(s.expectedByUtc ?? '') : '—'} />,
     },
     {key: 'time', header: time.header, sortable: true, width: pixel(150), renderCell: (s) => <TextCell text={formatDateTime(time.at(s) ?? '')} />},
   ];

@@ -84,13 +84,14 @@ export const sampleSourceName = (sample: Pick<SpecimenSummary, 'source' | 'reque
   (sample.source === 'Hospital' ? sample.hospitalName : sample.requestingTeamName) ?? '';
 
 /**
- * The samples page's Due filter (MC14): open samples past their expected date, due within two days, or not yet due.
- * Date arithmetic only (decision 88); MC19 brings each test's own clock.
+ * The samples page's Due filter (MC14): open samples past their due date, at risk, or not yet due. A sample in a lab
+ * case follows its case's clock (MC19: at risk from its test's at-risk days); one not yet in a case, the type's
+ * expected days (due soon within two). Date arithmetic only (decision 88).
  */
 export const SAMPLE_DUE = ['Overdue', 'DueSoon', 'NotDue'] as const;
 export type SampleDue = (typeof SAMPLE_DUE)[number];
 
-const DUE_LABELS: Record<SampleDue, string> = {Overdue: 'Overdue', DueSoon: 'Due within 2 days', NotDue: 'Not yet due'};
+const DUE_LABELS: Record<SampleDue, string> = {Overdue: 'Overdue', DueSoon: 'At risk (due soon)', NotDue: 'Not yet due'};
 
 /** A Due filter in words. */
 export const sampleDueLabel = (due: SampleDue) => DUE_LABELS[due];

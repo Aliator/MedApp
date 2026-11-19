@@ -90,6 +90,8 @@ export const MONITORING_RULES = {
   hallworthOnHold: id(0xf7, 2),
   /** A service alert: Dermatology referrals waiting more than two days for triage (nothing runs it in the demo). */
   dermatologyTriage: id(0xf7, 3),
+  /** A service alert (MC19): any lab case past its due date (nothing runs it in the demo; one alert is seeded). */
+  labCaseOverdue: id(0xf7, 4),
 } as const;
 
 export interface DemoSite {
@@ -614,6 +616,20 @@ export function seedSetup(state: BaseState): SetupSlice {
         stageDefinitionId: null,
         thresholdDays: 2,
         teamId: TEAMS.dermatology,
+        isEnabled: true,
+        createdAtUtc: ago(10),
+        updatedAtUtc: ago(10),
+      },
+      {
+        id: MONITORING_RULES.labCaseOverdue,
+        ownerUserId: ADMIN.id,
+        subjectUserId: null,
+        event: 'LabCaseOverdue',
+        minimumPriority: null,
+        templateId: null,
+        stageDefinitionId: null,
+        thresholdDays: 0,
+        teamId: null,
         isEnabled: true,
         createdAtUtc: ago(10),
         updatedAtUtc: ago(10),

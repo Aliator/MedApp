@@ -11,6 +11,14 @@ const pageOf = (items: unknown[], totalCount = items.length) => json({items, pag
 
 const CASE_ID = '000000ca-0000-4000-8000-000000000001';
 const toReport = {id: CASE_ID, number: 'MA26-000300', labTestName: 'Full blood count', patientName: 'Freya Ahmed', sourceName: 'Dermatology'};
+const overdue = {
+  id: 'overdue-case',
+  number: 'MA26-000301',
+  labTestName: 'Skin histology',
+  patientName: 'Freya Ahmed',
+  sourceName: 'Riverside General',
+  clock: {dueOn: '2026-11-05', state: 'Breached', daysLeft: -2},
+};
 
 const handedOver = {
   id: PATHWAY_ID,
@@ -34,7 +42,10 @@ function renderPage(samples: Record<string, unknown[]> = {}, pathways: Record<st
       return pageOf(items, view === 'InLab' ? 12 : items.length);
     },
     'POST /api/hospital-requests/search': () => pageOf([testRequestSummary()]),
-    'POST /api/lab-cases/search': () => pageOf([toReport]),
+    'POST /api/lab-cases/search': async (request) => {
+      const {view} = (await request.clone().json()) as {view: string};
+      return pageOf(view === 'ToReport' ? [toReport] : view === 'Overdue' ? [overdue] : []);
+    },
   });
   return {...renderWithApp(<LabHomePage />, {user: labUser}), fetch};
 }
@@ -57,6 +68,7 @@ describe('LabHomePage', () => {
       '/tasks?view=newForUs',
       '/lab/samples?view=Expected',
       '/lab/cases?view=ToReport',
+      '/lab/cases?view=Overdue',
       '/hospital-requests',
     ]);
     // Lab cases to report (MC15).
@@ -64,8 +76,10 @@ describe('LabHomePage', () => {
     expect(screen.getByText('Full blood count · Freya Ahmed · Dermatology')).toBeInTheDocument();
     // The hospital's requests (MC18), each opening its lab case.
     expect(screen.getByRole('link', {name: 'MA26-000201'})).toHaveAttribute('href', `/hospital-requests/${REQUEST_ID}`);
+    // Overdue lab cases by their clock (MC19), with the countdown.
+    expect(screen.getByText('Skin histology · Freya Ahmed · Riverside General · 2 days overdue, due 5 Nov 2026')).toBeInTheDocument();
     // Empty lists say what they'd hold.
-    expect(screen.getByText("Nothing overdue. Not reported by the type's expected days.")).toBeInTheDocument();
+    expect(screen.getByText(/^Nothing at risk\. Lab cases near their due date/)).toBeInTheDocument();
     expect(screen.getByText('No pathway is with the lab. Pathways at a stage the lab works.')).toBeInTheDocument();
 
     const requests = fetch.mock.calls.map(([r]) => r as Request);
@@ -74,7 +88,7 @@ describe('LabHomePage', () => {
     const bodies = await Promise.all(
       requests.filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/api/specimens/search').map((r) => r.clone().json()),
     );
-    expect(bodies.map((b: {view: string}) => b.view).sort()).toEqual(['Expected', 'InLab', 'Overdue', 'Reported']);
+    expect(bodies.map((b: {view: string}) => b.view).sort()).toEqual(['Expected', 'InLab', 'Reported']);
     expect(bodies[0]).toMatchObject({page: 1, pageSize: 5});
   });
 
@@ -94,6 +108,7 @@ describe('LabHomePage', () => {
       'To receive',
       'In progress',
       'To report',
+      'At risk',
       'Overdue',
       'Back to the clinic',
       'From the hospital',
