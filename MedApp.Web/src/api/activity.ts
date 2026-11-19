@@ -57,6 +57,7 @@ export const ACTIVITY_ACTIONS = [
   'StaffDetailsChanged',
   'DataRequestPackDownloaded',
   'DataRequestChanged',
+  'TeamBoundaryRefused',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -109,6 +110,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   StaffDetailsChanged: 'Staff details changed',
   DataRequestPackDownloaded: 'Data request pack downloaded',
   DataRequestChanged: 'Data request changed',
+  TeamBoundaryRefused: 'Refused: another team’s',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -328,6 +330,9 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
     // What changed, never the requester, a reason or anything withheld.
     case 'DataRequestChanged':
       return DATA_REQUEST_CHANGES[String(d.change)] ?? text(d.change);
+    // What was asked for across a team wall (refused with a 404), by kind: the ID is in the details, never a patient's details.
+    case 'TeamBoundaryRefused':
+      return text(d.targetKind);
     case 'PatientRestricted':
     case 'PatientRestrictionLifted':
     case 'PatientDisputed':

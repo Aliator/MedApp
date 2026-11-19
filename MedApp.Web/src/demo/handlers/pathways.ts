@@ -2,7 +2,7 @@ import type {Schemas} from '../../api/client';
 import {PEOPLE, personById, usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
 import {newId} from '../ids';
-import {teamName, templateStages} from '../seed';
+import {ownerAccess, teamName, templateStages} from '../seed';
 import type {DemoNote, DemoNoteDeletionRequest, DemoPathway, DemoStage, DemoStageDefinition} from '../state';
 import {db} from '../store';
 import {endOfUkDay, nowUtc, today} from '../time';
@@ -10,6 +10,7 @@ import {can, contains, flag, list, me, NO_FLAGS, paged, pathwayPatient, patientN
 import {canRecordConsent, clinicalGate} from './clinical';
 import {canRecordSpecimen, labGate} from './lab';
 import {pathwayReferralResponse, referralSummaryClock} from './referrals';
+import {canChangePathway, canSeePathway, ensureCanChangePathway, myScope, refuseAcrossWall} from './teamWalls';
 
 /**
  * Pathways, their stages and notes, the stage library, the templates and Insights. The rules are a simplified copy of
@@ -109,6 +110,7 @@ function noteResponse(note: DemoNote, pathway: DemoPathway): Schemas['PatientPat
   const isMine = note.authorUserId === viewer.id;
   const takesNotes = !['Cancelled', 'Archived'].includes(pathway.status);
   const corrects = can('CorrectRecords');
+  const works = can('WorkPathways') && canChangePathway(pathway);
   return {
     id: note.id,
     authorUserId: note.authorUserId,
@@ -117,9 +119,9 @@ function noteResponse(note: DemoNote, pathway: DemoPathway): Schemas['PatientPat
     createdAtUtc: note.createdAtUtc,
     lastEditedAtUtc: note.lastEditedAtUtc,
     version: note.version,
-    canEdit: can('WorkPathways') && isMine && takesNotes && !note.deleted,
+    canEdit: works && isMine && takesNotes && !note.deleted,
     canDelete: corrects && !note.deleted,
-    canRequestDeletion: !corrects && can('WorkPathways') && !note.deleted && !note.pendingRequestId,
+    canRequestDeletion: !corrects && works && !note.deleted && !note.pendingRequestId,
     deletionRequestId: note.pendingRequestId,
   };
 }
@@ -134,7 +136,9 @@ const branchResponses = (pathway: DemoPathway, stage: DemoStage): Schemas['Patie
 
 /** A pathway as the API answers it, for the signed-in person. */
 export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayResponse'] {
-  const canWork = can('WorkPathways');
+  // Only the pathway's own team changes it (the team walls): admins and the lab read it.
+  const mine = canChangePathway(pathway);
+  const canWork = can('WorkPathways') && mine;
   const current = currentStage(pathway);
   const workable = canWork && canWorkOnStages(pathway);
   const referral = pathway.referralId ? db().referrals.find((r) => r.id === pathway.referralId) : undefined;
@@ -164,9 +168,9 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     canWorkOnStages: workable,
     canEditDetails: canWork && !['Cancelled', 'Archived'].includes(pathway.status),
     canAddNotes: canWork && !['Cancelled', 'Archived'].includes(pathway.status),
-    canChangeAssignments: can('AssignPathways') && isOpen(pathway),
-    canBeDeleted: can('DeletePathways') && ['Cancelled', 'Archived'].includes(pathway.status),
-    readOnlyReason: null,
+    canChangeAssignments: can('AssignPathways') && mine && isOpen(pathway),
+    canBeDeleted: can('DeletePathways') && mine && ['Cancelled', 'Archived'].includes(pathway.status),
+    readOnlyReason: mine || myScope().seesAllTeams ? null : `This pathway is ${teamName(pathway.teamId) ?? 'another team'}’s: your team can read it, and only its own team changes it.`,
     patientFlags: NO_FLAGS,
     stages: inOrder(pathway).map((stage) => ({
       id: stage.id,
@@ -178,7 +182,7 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       visitRequirement: stage.visitRequirement,
       needsLetterKind: stage.needsLetterKind,
       needsConsent: stage.needsConsent,
-      canRecordConsent: canRecordConsent(pathway, stage),
+      canRecordConsent: mine && canRecordConsent(pathway, stage),
       waitsForResults: stage.waitsForResults,
       notes: stage.notes,
       isOptional: stage.isOptional,
@@ -190,9 +194,9 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
       isCurrent: stage.id === current?.id,
       isLocked: isDone(stage) && !stage.unlocked,
       canEdit: workable && (stage.id === current?.id || (isDone(stage) && stage.unlocked)),
-      canUnlock: can('UnlockStages') && isDone(stage) && !stage.unlocked && (isOpen(pathway) || pathway.status === 'Completed'),
+      canUnlock: can('UnlockStages') && mine && isDone(stage) && !stage.unlocked && (isOpen(pathway) || pathway.status === 'Completed'),
       canSkip: canWork && whySkipNotAllowed(pathway, stage) === null,
-      canReinstate: can('UnlockStages') && isSkipped(stage) && (isOpen(pathway) || pathway.status === 'Completed'),
+      canReinstate: can('UnlockStages') && mine && isSkipped(stage) && (isOpen(pathway) || pathway.status === 'Completed'),
       skippedAtUtc: stage.skippedAtUtc,
       skippedByUserId: stage.skippedByUserId,
       skippedByUsername: usernameOf(stage.skippedByUserId),
@@ -245,17 +249,25 @@ export function pathwaySummary(pathway: DemoPathway): Schemas['PatientPathwaySum
   };
 }
 
-/** The pathway, or a 404. */
+/** The pathway, or a 404: also when it's behind the viewer's team wall (`teamWalls.ts`). */
 export function findPathway(id: string): DemoPathway {
   const pathway = db().pathways.find((p) => p.id === id);
   if (!pathway) refuse(notFound('The pathway'));
+  if (!canSeePathway(pathway)) refuseAcrossWall('Pathway', id, 'The pathway');
+  return pathway;
+}
+
+/** A pathway to change: visible (else a 404), and its own team's (else a 409: the lab and admins read it). */
+export function pathwayToChange(id: string): DemoPathway {
+  const pathway = findPathway(id);
+  ensureCanChangePathway(pathway);
   return pathway;
 }
 
 /** A change that can be made: the pathway is one the signed-in person can work, and open. */
 function forWork(id: string): DemoPathway {
   requirePermission('WorkPathways');
-  const pathway = findPathway(id);
+  const pathway = pathwayToChange(id);
   if (!canWorkOnStages(pathway)) refuse(problem(409, 'This pathway can’t be worked on while it’s on hold or closed.'));
   return pathway;
 }
@@ -340,6 +352,7 @@ export function createPathway(input: {
     statusChanges: [],
   };
   db().pathways.push(pathway);
+  db().pathwayAccess.push(ownerAccess(pathway));
   template.pathwayCount = (template.pathwayCount ?? 0) + 1;
   if (input.assigneeUserId && input.assigneeUserId !== viewer.id)
     db().notifications.push({
@@ -365,8 +378,10 @@ export function registerPathways() {
     const includeClosed = flag(query, 'IncludeClosed') === true || statuses.some((s) => ['Completed', 'Cancelled', 'Archived'].includes(s));
     const started = flag(query, 'Started');
     const search = query.get('Search');
+    const scope = myScope();
     const items = db().pathways.filter(
       (p) =>
+        canSeePathway(p, scope) &&
         (includeClosed || isOpen(p)) &&
         (statuses.length === 0 || statuses.includes(p.status)) &&
         (priorities.length === 0 || priorities.includes(p.priority)) &&
@@ -408,8 +423,9 @@ export function registerPathways() {
   on('get', '/api/pathways/patient-pathways/labels', ({query}) => {
     me();
     const ids = list(query, 'ids');
+    const scope = myScope();
     return db()
-      .pathways.filter((p) => ids.includes(p.id))
+      .pathways.filter((p) => ids.includes(p.id) && canSeePathway(p, scope))
       .map((p) => ({id: p.id, title: p.title, patientName: patientName(p.patientId)}));
   });
 
@@ -422,12 +438,16 @@ export function registerPathways() {
     requirePermission('CreatePathways');
     if (!body.patientId || !body.templateId)
       return invalid({templateId: ['Choose a template.']});
+    // A pathway takes its template's team: staff start pathways in their own team only (the team walls).
+    const template = db().templates.find((t) => t.id === body.templateId);
+    if (template && !myScope().teamIds.includes(template.teamId ?? ''))
+      return invalid({templateId: [`The '${template.name}' template is another team’s. Choose one of your team’s.`]});
     return pathwayResponse(createPathway({...body, patientId: body.patientId, templateId: body.templateId}));
   });
 
   on('patch', '/api/pathways/patient-pathways/{id}', ({params, body}) => {
     requirePermission('WorkPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     if (body.title?.trim()) pathway.title = body.title.trim();
     if (body.dueDate) pathway.dueDate = body.dueDate;
     if (body.priority && ['Low', 'Medium', 'High', 'Urgent'].includes(body.priority)) pathway.priority = body.priority as DemoPathway['priority'];
@@ -515,7 +535,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/reinstate', ({params, body}) => {
     const viewer = me();
     requirePermission('UnlockStages');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const stage = pathway.stages.find((s) => s.id === params.stageId);
     if (!stage) return notFound('The stage');
     if (!isSkipped(stage) || !(isOpen(pathway) || pathway.status === 'Completed'))
@@ -533,7 +553,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/stages/{stageId}/unlock', ({params}) => {
     const viewer = me();
     requirePermission('UnlockStages');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const stage = pathway.stages.find((s) => s.id === params.stageId);
     if (!stage) return notFound('The stage');
     if (!isDone(stage) || stage.unlocked || !(isOpen(pathway) || pathway.status === 'Completed'))
@@ -546,7 +566,7 @@ export function registerPathways() {
 
   on('delete', '/api/pathways/patient-pathways/{id}', ({params}) => {
     requirePermission('DeletePathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     if (!['Cancelled', 'Archived'].includes(pathway.status))
       return problem(409, 'Only a cancelled or archived pathway can be deleted.');
     const state = db();
@@ -560,7 +580,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/status', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const to = body.status as DemoPathway['status'];
     if (!allowedStatusChanges(pathway).includes(to)) return problem(409, 'That change of status isn’t allowed from here.');
     if ((to === 'Blocked' || to === 'Cancelled') && !body.reason?.trim())
@@ -575,7 +595,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/assignments/{userId}', ({params}) => {
     const viewer = me();
     requirePermission('AssignPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     if (!personById(params.userId)) return notFound('The member of staff');
     if (!pathway.assignments.some((a) => a.userId === params.userId))
       pathway.assignments.push({userId: params.userId, assignedByUserId: viewer.id, assignedAtUtc: nowUtc()});
@@ -586,7 +606,7 @@ export function registerPathways() {
 
   on('delete', '/api/pathways/patient-pathways/{id}/assignments/{userId}', ({params}) => {
     requirePermission('AssignPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     pathway.assignments = pathway.assignments.filter((a) => a.userId !== params.userId);
     if (pathway.status === 'Assigned' && pathway.assignments.length === 0) pathway.status = 'Unassigned';
     touch(pathway);
@@ -596,7 +616,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/notes', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     if (!body.text?.trim()) return invalid({text: ['Write the note.']});
     const note: DemoNote = {
       id: newId(),
@@ -615,7 +635,7 @@ export function registerPathways() {
 
   on('put', '/api/pathways/patient-pathways/{id}/notes/{noteId}', ({params, body}) => {
     const viewer = me();
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const note = pathway.notes.find((n) => n.id === params.noteId);
     if (!note) return notFound('The note');
     if (note.authorUserId !== viewer.id) return problem(403, 'Only a note’s author edits it.');
@@ -645,7 +665,7 @@ export function registerPathways() {
   on('post', '/api/pathways/patient-pathways/{id}/notes/{noteId}/deletion-requests', ({params, body}) => {
     const viewer = me();
     requirePermission('WorkPathways');
-    const pathway = findPathway(params.id);
+    const pathway = pathwayToChange(params.id);
     const note = pathway.notes.find((n) => n.id === params.noteId);
     if (!note || note.deleted) return notFound('The note');
     if (note.pendingRequestId) return problem(409, 'Someone has asked for this note to be deleted already.');

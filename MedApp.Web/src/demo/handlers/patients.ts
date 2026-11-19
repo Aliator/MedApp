@@ -8,6 +8,7 @@ import {logActivity} from './adminLogs';
 import {contains, int, list, me, paged, requirePermission, sorted} from './common';
 import {isOverdue} from './pathways';
 import {ensureCanChange, patientResponse} from './setupPrivacy';
+import {canSeePathway, canSeeRecord, myScope, otherTeamPathways} from './teamWalls';
 
 /**
  * Patients and their timeline. The timeline is read from the patient's pathways, appointments and referrals as they
@@ -21,12 +22,16 @@ function findPatient(id: string) {
   return db().patients.find((p) => p.id === id);
 }
 
-/** Every timeline entry for a patient, newest first. */
+/**
+ * Every timeline entry for a patient the viewer may see, newest first: other teams' pathways, appointments and
+ * referrals are left out, not summarised (the team walls; the overview has the summary lines).
+ */
 export function timelineOf(patientId: string): Entry[] {
   const state = db();
+  const scope = myScope();
   const entries: Entry[] = [];
   const add = (entry: Entry & {id: string; atUtc: string}) => entries.push(entry);
-  for (const p of state.pathways.filter((x) => x.patientId === patientId)) {
+  for (const p of state.pathways.filter((x) => x.patientId === patientId && canSeePathway(x, scope))) {
     const base = {pathwayId: p.id, pathwayTitle: p.title, isPathwayDeleted: false};
     add({
       ...base,
@@ -61,7 +66,7 @@ export function timelineOf(patientId: string): Entry[] {
         toStatus: c.to,
       });
   }
-  for (const a of state.appointments.filter((x) => x.patientId === patientId)) {
+  for (const a of state.appointments.filter((x) => x.patientId === patientId && canSeeRecord(x, scope))) {
     const base = {
       pathwayId: a.pathwayId,
       pathwayTitle: a.pathwayTitle,
@@ -79,7 +84,7 @@ export function timelineOf(patientId: string): Entry[] {
       add({...base, id: `${a.id}:outcome`, action: a.status === 'DidNotAttend' ? 'AppointmentDidNotAttend' : 'AppointmentAttended', atUtc: a.outcomeAtUtc, username: a.outcomeByUsername});
     if (a.status === 'Cancelled') add({...base, id: `${a.id}:cancelled`, action: 'AppointmentCancelled', atUtc: a.lastUpdated!, username: null});
   }
-  for (const r of state.referrals.filter((x) => x.patientId === patientId))
+  for (const r of state.referrals.filter((x) => x.patientId === patientId && canSeeRecord({teamId: x.teamId}, scope)))
     for (const event of r.history)
       add({
         id: `${event.id}:referral`,
@@ -141,7 +146,8 @@ export function registerPatients() {
     const patient = findPatient(params.id);
     if (!patient) return notFound('The patient');
     logActivity('PatientViewed', {patientId: patient.id});
-    return patientResponse(patient);
+    // Centre-wide (decision 183): anyone sees the patient; other teams' pathways only as summary lines.
+    return {...patientResponse(patient), otherTeamPathways: otherTeamPathways(params.id)};
   });
 
   on('post', '/api/patients', ({body}) => {
@@ -233,7 +239,8 @@ export function registerPatients() {
   on('get', '/api/patients/{id}/timeline/overview', ({params}) => {
     me();
     const state = db();
-    const pathways = state.pathways.filter((p) => p.patientId === params.id);
+    const scope = myScope();
+    const pathways = state.pathways.filter((p) => p.patientId === params.id && canSeePathway(p, scope));
     const open = pathways.filter((p) => !['Completed', 'Cancelled', 'Archived'].includes(p.status));
     return {
       upcoming: [...open]
@@ -242,8 +249,9 @@ export function registerPatients() {
       openCount: open.length,
       pathways: pathways.map((p) => ({id: p.id, title: p.title, isDeleted: false, createdOn: p.createdAt.slice(0, 10), deletedOn: null})),
       awaitingReferrals: state.referrals
-        .filter((r) => r.patientId === params.id && r.status === 'AwaitingTriage')
+        .filter((r) => r.patientId === params.id && r.status === 'AwaitingTriage' && canSeeRecord({teamId: r.teamId}, scope))
         .map((r) => ({referralId: r.id, teamName: teamName(r.teamId), receivedOn: r.receivedOn, requestedPriority: r.requestedPriority})),
+      otherTeamPathways: otherTeamPathways(params.id, scope),
     };
   });
 

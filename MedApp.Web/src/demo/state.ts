@@ -118,6 +118,23 @@ export interface DemoReferral {
 
 export type DemoNotification = Schemas['NotificationResponse'] & {userId: string};
 
+/** An appointment, as stored: the response's fields and its team (its pathway's, else the clinician's chosen at booking). */
+export type DemoAppointment = Schemas['AppointmentResponse'] & {teamId: string | null};
+
+/**
+ * A grant to see a pathway in full (`PathwayAccess`, decision 201 of `docs/multi-clinic-plan.md`): `Owner` for the
+ * pathway's own team, written with it; `StageOwner` for the lab once a sample is passed to it, never ended (decision
+ * 184). Kept after the pathway is deleted. The rules that read them are in `handlers/teamWalls.ts`.
+ */
+export interface DemoPathwayAccess {
+  pathwayId: string;
+  patientId: string;
+  teamId: string;
+  reason: 'Owner' | 'StageOwner';
+  startedAtUtc: string;
+  endedAtUtc: string | null;
+}
+
 /**
  * Everything the light demo holds: the base (below) and each area's slice, each in its own file under `slices/`, with
  * its own seed function (`seed.ts` calls them).
@@ -142,7 +159,9 @@ export interface BaseState {
   pathways: DemoPathway[];
   noteDeletionRequests: DemoNoteDeletionRequest[];
   referrals: DemoReferral[];
-  appointments: Schemas['AppointmentResponse'][];
+  appointments: DemoAppointment[];
+  /** Who may see each pathway in full, beyond admins (`handlers/teamWalls.ts`). */
+  pathwayAccess: DemoPathwayAccess[];
   blocks: Schemas['CalendarBlockResponse'][];
   meetings: Schemas['MeetingResponse'][];
   notifications: DemoNotification[];

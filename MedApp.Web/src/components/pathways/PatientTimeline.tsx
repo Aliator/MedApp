@@ -26,12 +26,14 @@ import {
   isSpecimenEntry,
   MAX_TIMELINE_PATHWAYS,
   NO_TIMELINE_FILTERS,
+  otherTeamPathwayLine,
   patientTimelineOverviewQuery,
   patientTimelineQuery,
   TIMELINE_KINDS,
   timelineKindLabel,
   type TimelineEntry,
   type TimelineFilters,
+  type OtherTeamPathway,
   type TimelineKind,
   type TimelineOverview,
   type TimelinePathway,
@@ -246,6 +248,7 @@ function UpcomingPathways({
   const upcoming = overview?.upcoming ?? [];
   const more = (overview?.openCount ?? 0) - upcoming.length;
   const referrals = overview?.awaitingReferrals ?? [];
+  const others = overview?.otherTeamPathways ?? [];
   return (
     <VStack gap={3}>
       <Heading level={3}>Upcoming</Heading>
@@ -255,7 +258,7 @@ function UpcomingPathways({
         <Spinner size="sm" label="Loading what's due..." />
       ) : upcoming.length === 0 ? (
         <Text type="body" color="secondary">
-          Nothing is due: the patient has no open pathways.
+          {others.length > 0 ? 'Nothing is due in your team: the patient has no open pathways you can see.' : 'Nothing is due: the patient has no open pathways.'}
         </Text>
       ) : (
         <List edge="flush" density="compact">
@@ -286,7 +289,32 @@ function UpcomingPathways({
           <Link href={`/patients/${patientId}/pathways`}>See all pathways</Link>
         </Text>
       )}
+      {others.length > 0 && <OtherTeamPathways pathways={others} />}
       {referrals.length > 0 && <AwaitingReferrals referrals={referrals} />}
+    </VStack>
+  );
+}
+
+/**
+ * The patient's pathways in other clinics, as summary lines only (the team walls): the clinic, in progress or
+ * completed, and since when. No title, stages or link: their details are that team's.
+ */
+function OtherTeamPathways({pathways}: {pathways: readonly OtherTeamPathway[]}) {
+  return (
+    <VStack gap={2}>
+      <Heading level={4}>In other clinics</Heading>
+      <List edge="flush" density="compact" aria-label="Pathways in other clinics">
+        {pathways.map((pathway, i) => (
+          <ListItem
+            key={`${pathway.teamName}-${pathway.since}-${i}`}
+            label={
+              <Text type="body" color="secondary">
+                {otherTeamPathwayLine(pathway)}
+              </Text>
+            }
+          />
+        ))}
+      </List>
     </VStack>
   );
 }

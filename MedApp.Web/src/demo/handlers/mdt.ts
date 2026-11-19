@@ -6,7 +6,8 @@ import type {DemoMdtItem} from '../slices/clinical';
 import {db} from '../store';
 import {daysFrom, nowUtc, ukTime} from '../time';
 import {can, me, pathwayPatient, requirePermission} from './common';
-import {findPathway} from './pathways';
+import {findPathway, pathwayToChange} from './pathways';
+import {canSeeRecord, myScope, seeRecord} from './teamWalls';
 
 /**
  * The MDT list (`api/mdt`), simplified from the API's `MdtRules`: pathways listed for a team's MDT (a calendar
@@ -84,10 +85,9 @@ function meetingResponse(meeting: Meeting): Schemas['MdtMeetingResponse'] {
   };
 }
 
+/** The item, or a 404: also when its pathway is behind the viewer's team wall. */
 function findItem(id: string): DemoMdtItem {
-  const item = db().mdtItems.find((i) => i.id === id);
-  if (!item) refuse(notFound('The MDT item'));
-  return item;
+  return seeRecord(db().mdtItems.find((i) => i.id === id), 'MdtItem', 'The MDT item');
 }
 
 function findMeeting(id: string): Meeting {
@@ -134,10 +134,11 @@ export function registerMdt() {
     requirePermission('ViewPatients');
     const meeting = findMeeting(params.meetingId);
     if (!isMdt(meeting)) return problem(409, "That meeting isn't an MDT.");
+    const scope = myScope();
     return {
       meeting: meetingResponse(meeting),
       items: db()
-        .mdtItems.filter((i) => meetingOf(i)?.id === meeting.id)
+        .mdtItems.filter((i) => meetingOf(i)?.id === meeting.id && canSeeRecord(i, scope))
         .sort(byListed)
         .map(itemResponse),
     };
@@ -145,8 +146,9 @@ export function registerMdt() {
   on('get', '/api/mdt/awaiting-meeting', ({query}) => {
     requirePermission('ViewPatients');
     const teamId = query.get('teamId');
+    const scope = myScope();
     return db()
-      .mdtItems.filter((i) => isOpen(i) && !meetingOf(i) && (!teamId || i.teamId === teamId))
+      .mdtItems.filter((i) => isOpen(i) && !meetingOf(i) && (!teamId || i.teamId === teamId) && canSeeRecord(i, scope))
       .sort(byListed)
       .map(itemResponse);
   });
@@ -169,7 +171,7 @@ export function registerMdt() {
     if (!question) errors.question = ['Give the question for the team.'];
     else if (question.length > MAX_QUESTION) errors.question = [`The question must not exceed ${MAX_QUESTION} characters.`];
     if (Object.keys(errors).length > 0) return invalid(errors);
-    const pathway = findPathway(body.pathwayId!);
+    const pathway = pathwayToChange(body.pathwayId!);
     if (['Completed', 'Cancelled', 'Archived'].includes(pathway.status))
       return problem(409, "A discharged, cancelled or archived pathway can't be listed for an MDT.");
     const meeting = findMeeting(body.meetingId!);

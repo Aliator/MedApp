@@ -33,6 +33,8 @@ export interface DemoSpecimen {
   number: string;
   patientId: string;
   pathwayId: string;
+  /** Its pathway's team (the team walls, `handlers/teamWalls.ts`). */
+  teamId: string;
   stageId: string;
   specimenTypeId: string;
   laboratoryId: string;
@@ -66,6 +68,8 @@ export interface DemoResult {
   id: string;
   patientId: string;
   pathwayId: string | null;
+  /** Its pathway's team, or for a report without a pathway, the responsible clinician's. */
+  teamId: string;
   specimenId: string | null;
   source: 'Specimen' | 'ExternalReport';
   title: string;
@@ -197,7 +201,7 @@ const plusMinutes = (isoUtc: string, minutes: number) => new Date(new Date(isoUt
 const earlierOf = (a: string, b: string) => (Date.parse(a) <= Date.parse(b) ? a : b);
 
 type ResultFields = Partial<DemoResult> &
-  Pick<DemoResult, 'patientId' | 'title' | 'reportAttachmentId' | 'reportedAtUtc' | 'reportedByUserId' | 'responsibleUserId'>;
+  Pick<DemoResult, 'patientId' | 'teamId' | 'title' | 'reportAttachmentId' | 'reportedAtUtc' | 'reportedByUserId' | 'responsibleUserId'>;
 
 const makeResult = (resultId: string, fields: ResultFields): DemoResult => ({
   id: resultId,
@@ -248,6 +252,7 @@ export function seedLab(state: BaseState): LabSlice {
       number: specimenNumber(sequence, takenAtUtc.slice(0, 10)),
       patientId: pathway(pathwayId).patientId,
       pathwayId,
+      teamId: pathway(pathwayId).teamId,
       stageId: stage(pathwayId, stageOrder).id,
       specimenTypeId: typeId,
       laboratoryId: labId,
@@ -359,6 +364,7 @@ export function seedLab(state: BaseState): LabSlice {
   const fromSpecimen = (s: DemoSpecimen, typeName: string) => ({
     patientId: s.patientId,
     pathwayId: s.pathwayId,
+    teamId: s.teamId,
     specimenId: s.id,
     title: `${typeName} ${s.number}`,
     reportAttachmentId: s.reportAttachmentId!,
@@ -391,6 +397,7 @@ export function seedLab(state: BaseState): LabSlice {
     makeResult(RESULTS.daniyalExternal, {
       patientId: pathway(PATHWAYS.notStarted).patientId,
       pathwayId: PATHWAYS.notStarted,
+      teamId: pathway(PATHWAYS.notStarted).teamId,
       source: 'ExternalReport',
       title: 'Blood tests from the GP practice',
       reportAttachmentId: REPORT_FILES.daniyal,

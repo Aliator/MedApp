@@ -61,7 +61,7 @@ describe('the Read Me tour', () => {
 
     state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
     state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)!.stages[2].completedAtUtc = '2026-11-18T10:00:00.000Z';
-    state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Biopsy or sample', status: 'Booked'});
+    state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Biopsy or sample', status: 'Booked', teamId: null});
     expect(byKey('triage').whyNot!(state)).toMatch(/already/);
     expect(byKey('finish-stage').whyNot!(state)).toMatch(/already/);
     expect(byKey('book').whyNot!(state)).toMatch(/already/);
@@ -94,8 +94,10 @@ describe('the Read Me tour', () => {
     expect(byKey('lab').account).toBe(LAB.username);
     expect(byKey('mdt').account).toBe(STAFF.username);
     expect(LAB.permissions).toContain('ProcessSpecimens');
-    // The admin's steps are what an admin does.
-    for (const step of TOUR.filter((s) => s.account === ADMIN.username)) expect(['account-types', 'meeting', 'insights']).toContain(step.key);
+    // The admin's steps are what an admin does: reading every team's list is one (the team walls).
+    for (const step of TOUR.filter((s) => s.account === ADMIN.username))
+      expect(['account-types', 'meeting', 'insights', 'on-hold-overdue']).toContain(step.key);
+    expect(byKey('team-walls').account).toBe(STAFF.username);
   });
 
   it('opens a patient to pin, and says when they are pinned already', () => {

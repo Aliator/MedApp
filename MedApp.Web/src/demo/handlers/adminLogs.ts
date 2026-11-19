@@ -18,7 +18,7 @@ type AuditEntry = Schemas['PatientPathwayAuditEntryResponse'];
 
 /** How long the same view by the same person adds nothing (`Activity:ViewWindowMinutes`). */
 const VIEW_WINDOW_MS = 5 * 60_000;
-const VIEWS = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'ReferralViewed'];
+const VIEWS = ['PatientViewed', 'PatientListed', 'PathwayViewed', 'ReferralViewed', 'TeamBoundaryRefused'];
 
 /**
  * Records an entry in the activity log as the signed-in person (field names and IDs only in `details`, never a
