@@ -188,7 +188,8 @@ export function registerResults() {
 
   on('get', '/api/results/count', () => {
     const viewer = me();
-    return {awaitingMine: db().results.filter((r) => isAwaitingResult(r) && r.responsibleUserId === viewer.id).length};
+    const scope = myScope();
+    return {awaitingMine: db().results.filter((r) => isAwaitingResult(r) && r.responsibleUserId === viewer.id && canSeeRecord(r, scope)).length};
   });
 
   on('get', '/api/results/{id}', ({params}) => {

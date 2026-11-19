@@ -125,7 +125,14 @@ export function referralSearchQuery(search: ReferralSearch) {
   });
 }
 
-/** How many referrals await triage in the caller's teams (every one's, if they have none): the side nav's count. */
+/**
+ * Whether a referral is now another team's, one the person isn't in, so they no longer see it (the team walls: one
+ * registered or redirected to another team). Someone in no team (an admin, who sees every team's) keeps it.
+ */
+export const isOutsideMyTeams = (myTeams: readonly {id: string}[] | undefined, teamId: string | null | undefined) =>
+  (myTeams ?? []).length > 0 && !(myTeams ?? []).some((t) => t.id === teamId);
+
+/** How many referrals await triage in the caller's teams (every team's, for an admin): the home page's count. */
 export const awaitingTriageCountQuery = queryOptions({
   queryKey: referralKeys.count,
   queryFn: () => unwrap(api.GET('/api/referrals/awaiting-triage/count')),

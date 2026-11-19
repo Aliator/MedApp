@@ -11,9 +11,11 @@ import {useQuery} from '@tanstack/react-query';
 import {useNavigate} from '@tanstack/react-router';
 import {useState} from 'react';
 import {useAnnounce} from '../../app/announcements';
+import {useCurrentUser} from '../../auth/auth';
 import {ApiError, ApiValidationError, problemMessage, type ValidationErrors} from '../../api/errors';
 import {whyCantChange} from '../../api/patients';
 import {
+  isOutsideMyTeams,
   referralEventWords,
   referralQuery,
   referralStatusLabel,
@@ -95,6 +97,7 @@ export function ReferralPage({id}: {id: string}) {
   const isNarrow = useIsNarrow();
   const announce = useAnnounce();
   const navigate = useNavigate();
+  const me = useCurrentUser();
   const {data: referral, error, isPending, refetch} = useQuery(referralQuery(id));
   const actions = useReferralActions(id);
   const attachments = useAttachmentsState();
@@ -233,6 +236,8 @@ export function ReferralPage({id}: {id: string}) {
                 onRedirected={(redirected) => {
                   announce(redirected.isOpen ? `Referral redirected to ${redirected.teamName}` : 'Referral redirected elsewhere');
                   setTriage(null);
+                  // Now another team's: this team no longer sees it (the team walls), so back to the list.
+                  if (redirected.isOpen && isOutsideMyTeams(me.teams, redirected.teamId)) void navigate({to: '/referrals'});
                 }}
               />
             )}

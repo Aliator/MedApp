@@ -10,7 +10,7 @@ import {can, contains, flag, list, me, NO_FLAGS, paged, pathwayPatient, patientN
 import {canRecordConsent, clinicalGate} from './clinical';
 import {canRecordSpecimen, labGate} from './lab';
 import {pathwayReferralResponse, referralSummaryClock} from './referrals';
-import {canChangePathway, canSeePathway, ensureCanChangePathway, myScope, refuseAcrossWall} from './teamWalls';
+import {canChangePathway, canSeePathway, ensureCanChangePathway, insightsTeams, myScope, refuseAcrossWall} from './teamWalls';
 
 /**
  * Pathways, their stages and notes, the stage library, the templates and Insights. The rules are a simplified copy of
@@ -736,9 +736,9 @@ export function registerPathways() {
  */
 function insights(weeks: number, templateId: string | null, teamId: string | null): Schemas['PathwayInsightsResponse'] {
   me();
-  const pathways = db().pathways.filter(
-    (p) => (!templateId || p.templateId === templateId) && (!teamId || p.teamId === teamId),
-  );
+  // Only the viewer's teams (an admin's: every team, or the one picked), as the API's `InsightsScope.TeamIds`.
+  const counted = insightsTeams(teamId);
+  const pathways = db().pathways.filter((p) => (!templateId || p.templateId === templateId) && counted(p.teamId));
   const open = pathways.filter(isOpen);
   const inProgress = pathways.filter((p) => p.status === 'InProgress');
   const overdue = pathways.filter(isOverdue);
@@ -763,7 +763,7 @@ function insights(weeks: number, templateId: string | null, teamId: string | nul
       .map((priority) => ({priority, count: overdue.filter((p) => p.priority === priority).length}))
       .filter((row) => row.count > 0),
     stageTimes: db()
-      .templates.filter((t) => (!templateId || t.id === templateId) && (!teamId || t.teamId === teamId))
+      .templates.filter((t) => (!templateId || t.id === templateId) && !!t.teamId && counted(t.teamId))
       .map((template, t) => ({
         templateId: template.id,
         templateName: template.name,
