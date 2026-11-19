@@ -283,6 +283,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 **MC22. Phase 2 demo data** (M). Last in the phase.
 - **Full demo:** the test catalogue (histology, bloods, microbiology), one hospital (invented, "Riverside General (demo)"), samples in every state from clinics and the hospital, clocks on time, at risk and breached, a second opinion, a repeat requested, reports sent, surgery details added and one awaited.
 - **Light demo:** the same, smaller; tour steps for the lab's home and a hospital case as `r.aldous`.
+- **Done in the light demo (19 Nov 2026):** the last gap, a repeat requested: Aisha Khoury's second biopsy recorded Insufficient (case `RepeatRequested`, sample rejected, her added Take biopsy reopened, the clinic told).
 
 ## 6. Phase 3: Dermatology (MC23 to MC29)
 

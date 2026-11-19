@@ -306,6 +306,7 @@ export const TOUR: TourStep[] = [
     steps: [
       'Opens Aisha Khoury’s pathway: the skin check found a second lesion, so Biopsy another lesion was added after the dermoscopy. Both biopsies are taken, so two Histology stages are current side by side, both the lab’s.',
       'Stages shows the tree: the added route indented on its own. It ends by itself, and she isn’t discharged until it’s done.',
+      'The second biopsy was too small to test: the lab recorded it insufficient, so its Take biopsy is reopened for a repeat and its Histology waits with the lab. Lab Cases’ Repeat requested tab has its case.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.forkedTests}`,

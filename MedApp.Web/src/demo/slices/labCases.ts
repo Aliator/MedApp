@@ -1,4 +1,4 @@
-import {LAB} from '../accounts';
+import {LAB, STAFF} from '../accounts';
 import {PATHWAYS, TEAMS, id} from '../ids';
 import {nowUtc} from '../time';
 import type {HospitalSlice} from './hospitals';
@@ -113,6 +113,8 @@ export const LAB_CASES = {
   priyaBiopsy: id(0xca, 2),
   /** Callum Ashby's biopsy: reported three days ago, which finished his Histology (its result awaits sign-off). */
   callumBiopsy: id(0xca, 3),
+  /** Aisha Khoury's second biopsy: "Sample adequate?" recorded Insufficient, so closed with a repeat requested (MC22). */
+  aishaBiopsy: id(0xca, 4),
   ...HOSPITAL_LAB_CASES,
 } as const;
 
@@ -128,6 +130,8 @@ export const LAB_CASE_IDS = {
   stageToReport: LAB_CASES.priyaBiopsy,
   /** Ellis Varden's earlier hospital case: reported and sent, awaiting the hospital's surgery details (MC20). */
   awaitingSurgeryDetails: LAB_CASES.ellisBiopsy,
+  /** Aisha Khoury's second biopsy: closed with a repeat requested, its Take biopsy reopened (MC22). */
+  repeatRequested: LAB_CASES.aishaBiopsy,
 } as const;
 
 /**
@@ -161,9 +165,9 @@ function spread(fromUtc: string, toUtc: string, n: number): string[] {
 type StepPlan = Pick<DemoLabCaseStep, 'kind'> & Partial<Pick<DemoLabCaseStep, 'testStepId' | 'choice' | 'outcome' | 'detail'>>;
 
 /**
- * Seeds the cases, after every other slice: the hospital's three (one each, from their requests), three of the
+ * Seeds the cases, after every other slice: the hospital's three (one each, from their requests), four of the
  * clinics' (Ilona Petrova's blood sample in the lab; Priya Holloway's biopsy, her Histology stage's, to report; Callum
- * Ashby's, reported, which finished his Histology), and one waiting for its sample for every other lab stage reached
+ * Ashby's, reported, which finished his Histology; Aisha Khoury's second biopsy, closed with a repeat requested), and one waiting for its sample for every other lab stage reached
  * (MC16). Older reported samples predate lab cases and have none, as after the full version's migration.
  */
 export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCaseSlice {
@@ -259,6 +263,47 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   const wilfredBiopsy = sentBack(HOSPITAL_REQUESTS.wilfredBiopsy, 10, biopsyReport);
   const wilfredSurgeryAt = daysAgo(2, 9);
 
+  // MC22: Aisha Khoury's second biopsy, recorded insufficient as the outcomes handler does it: the case closed with a
+  // repeat requested, the sample rejected (insufficient), the added route's Take biopsy reopened for the repeat (MC16),
+  // the lab's Histology picked up at receipt and still the lab's, and the clinic told without the reason.
+  const aisha = sample(SPECIMENS.aishaBiopsy);
+  const aishaPathway = pathwayOf(PATHWAYS.forkedTests);
+  const aishaHistology = labStageAfter(aishaPathway, aisha.stageId, TEAMS.lab)!;
+  const aishaRepeat = 'Too little tissue to section (synthetic).';
+  const aishaCase = make(
+    LAB_CASES.aishaBiopsy,
+    aisha.number,
+    [aisha],
+    histology,
+    [{kind: 'Accessioned'}, {kind: 'Outcome', choice: 'SampleAdequate', outcome: 'Insufficient', detail: aishaRepeat}],
+    new Date(Date.parse(aisha.receivedAtUtc!) + 6 * 3600_000).toISOString(),
+    {stageId: aishaHistology.id, status: 'RepeatRequested'},
+  );
+  const aishaRejectedAt = aishaCase.steps.at(-1)!.atUtc;
+  aishaCase.repeat = {detail: aishaRepeat, atUtc: aishaRejectedAt, byUserId: LAB.id};
+  Object.assign(aisha, {
+    status: 'RejectedByLab',
+    rejectionReason: 'InsufficientSample',
+    closedDetail: aishaRepeat,
+    closedAtUtc: aishaRejectedAt,
+    closedByUserId: LAB.id,
+    version: aisha.version + 1,
+  } satisfies Partial<DemoSpecimen>);
+  aishaPathway.stages.find((s) => s.id === aisha.stageId)!.unlocked = true;
+  aishaHistology.pickedUpAtUtc = aisha.receivedAtUtc;
+  aishaHistology.pickedUpByUserId = LAB.id;
+  state.notifications.push({
+    id: id(0xe5, 104),
+    userId: STAFF.id,
+    kind: 'RepeatSampleRequested',
+    title: 'Repeat sample requested',
+    message: 'The lab asked for a repeat sample (Skin histology). Take biopsy is reopened to take it.',
+    pathwayId: PATHWAYS.forkedTests,
+    subjectId: aisha.id,
+    createdAtUtc: aishaRejectedAt,
+    isRead: false,
+  });
+
   const seeded = [
     make(LAB_CASES.ilonaBlood, ilona.number, [ilona], LAB_TESTS.fullBloodCount, [...adequate, {kind: 'TestStep', testStepId: step(LAB_TESTS.fullBloodCount, 'Analyser run')}, noMoreWork], hoursAgo(2)),
     make(LAB_CASES.priyaBiopsy, priya.number, [priya], histology, [...adequate, ...histologySteps, noMoreWork], hoursAgo(4), {
@@ -269,6 +314,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       status: 'Reported',
       report: {text: callumReport, atUtc: callum.reportedAtUtc!, byUserId: LAB.id, resultId: RESULTS.callumBiopsy},
     }),
+    aishaCase,
     make(
       HOSPITAL_LAB_CASES.wilfred,
       request(HOSPITAL_REQUESTS.wilfredExcision).labCaseNumber,
