@@ -126,6 +126,7 @@ public static class SpecimensTestConstants
             SpecimenType = Biopsy(),
             Source = SpecimenSource.Clinic,
             RequestingTeamId = pathway.TeamId,
+            TeamId = pathway.TeamId,
             Site = "left forearm",
             RequestNotes = "Synthetic request notes.",
             RequestingUserId = Nurse.UserId,

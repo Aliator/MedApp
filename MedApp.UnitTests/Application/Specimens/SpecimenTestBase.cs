@@ -111,6 +111,7 @@ public abstract class SpecimenTestBase
         Repository.Setup(r => r.NextNumberAsync(It.IsAny<CancellationToken>())).ReturnsAsync(123);
         Repository.Setup(r => r.GetTypeAsync(Biopsy.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Biopsy);
         Repository.Setup(r => r.GetLabTestAsync(Histology.Id, It.IsAny<CancellationToken>())).ReturnsAsync(Histology);
+        Repository.Setup(r => r.GetReceivedWithoutCaseAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Repository.Setup(r => r.GetForStageAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         Repository
             .Setup(r => r.AddAsync(It.IsAny<Specimen>(), It.IsAny<IEnumerable<PatientPathwayAuditEntry>>(), It.IsAny<CancellationToken>()))
