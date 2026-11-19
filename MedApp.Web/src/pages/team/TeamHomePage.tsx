@@ -2,10 +2,12 @@ import {Grid} from '@astryxdesign/core/Grid';
 import {Link} from '@astryxdesign/core/Link';
 import {useQuery} from '@tanstack/react-query';
 import {appointmentsQuery, type Appointment} from '../../api/appointments';
+import {incomingConsultsQuery} from '../../api/consults';
 import type {ReferralSummary} from '../../api/referrals';
 import type {ResultSummary} from '../../api/results';
 import {pathwaySearchQuery} from '../../api/search';
 import {can, useCurrentUser, type CurrentUser} from '../../auth/auth';
+import {IncomingConsults} from '../../components/consults/IncomingConsults';
 import {Page, useIsNarrow} from '../../components/pages/Page';
 import {formatDate, formatDateTime} from '../../utils/dates';
 import {requiresAppointmentQuery} from '../calendar/RequiresAppointmentPage';
@@ -39,6 +41,7 @@ export const teamHomeQueries = (user: Pick<CurrentUser, 'permissions'>) => [
   backFromLabQuery,
   ...(can(user, 'SignOffResults') ? [toSignOffQuery] : []),
   ...(can(user, 'BookAppointments') ? [toBookQuery] : []),
+  incomingConsultsQuery(),
 ];
 
 const referralRow = (r: ReferralSummary) => ({
@@ -63,7 +66,8 @@ const appointmentRow = (a: Appointment) => ({
  * A clinic team's home (`/team`; MC24, demo first): the team's and my work, each list's first few and its count,
  * linking to the full list, as the lab's home does. **Triage** (referrals awaiting triage, for those who triage),
  * **My pathways** (assigned to me), **Back from the lab** (the relay's team view), **Results to sign off** (awaiting
- * mine, for those who sign off) and **Appointments to book** (Requested, for those who book). Built for any clinic
+ * mine, for those who sign off), **Appointments to book** (Requested, for those who book) and **Consults for your
+ * team** (other teams' open questions to it, MC25). Built for any clinic
  * team, from the existing searches (no new endpoint); lists order by dates only, as their full lists do, and every
  * patient shown is recorded as listed by the endpoints.
  */
@@ -131,6 +135,7 @@ export function TeamHomePage() {
             row={appointmentRow}
           />
         )}
+        <IncomingConsults title="Consults for your team" />
       </Grid>
     </Page>
   );

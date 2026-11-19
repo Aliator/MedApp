@@ -1,4 +1,5 @@
 import {screen} from '@testing-library/react';
+import {testConsult} from '../../test/consults';
 import {REQUEST_ID, testRequestSummary} from '../../test/hospitals';
 import {json, mockApi, renderWithApp, userWithRoles} from '../../test/render';
 import {SPECIMEN_ID, testSummary} from '../../test/specimens';
@@ -46,6 +47,7 @@ function renderPage(samples: Record<string, unknown[]> = {}, pathways: Record<st
       const {view} = (await request.clone().json()) as {view: string};
       return pageOf(view === 'ToReport' ? [toReport] : view === 'Overdue' ? [overdue] : []);
     },
+    'GET /api/consults/incoming': () => json([testConsult({canReply: true})]),
   });
   return {...renderWithApp(<LabHomePage />, {user: labUser}), fetch};
 }
@@ -81,9 +83,13 @@ describe('LabHomePage', () => {
     // Empty lists say what they'd hold.
     expect(screen.getByText(/^Nothing at risk\. Lab cases near their due date/)).toBeInTheDocument();
     expect(screen.getByText('No pathway is with the lab. Pathways at a stage the lab works.')).toBeInTheDocument();
+    // Other teams' open consults (MC25), each linking to its pathway, with Reply.
+    expect(screen.getByRole('link', {name: 'Skin lesion'})).toHaveAttribute('href', '/pathways/proc-1');
+    expect(screen.getByText('Question: Synthetic question for the lab.')).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Reply'})).toBeInTheDocument();
 
     const requests = fetch.mock.calls.map(([r]) => r as Request);
-    const views = requests.filter((r) => r.method === 'GET').map((r) => new URL(r.url).searchParams.get('View'));
+    const views = requests.filter((r) => r.method === 'GET' && new URL(r.url).pathname.startsWith('/api/pathways')).map((r) => new URL(r.url).searchParams.get('View'));
     expect(views.sort()).toEqual(['NewForUs', 'OurTurn']);
     const bodies = await Promise.all(
       requests.filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/api/specimens/search').map((r) => r.clone().json()),
@@ -98,6 +104,7 @@ describe('LabHomePage', () => {
       'POST /api/specimens/search': () => pageOf([]),
       'POST /api/hospital-requests/search': () => pageOf([]),
       'POST /api/lab-cases/search': () => pageOf([]),
+      'GET /api/consults/incoming': () => json([]),
     });
     renderWithApp(<LabHomePage />, {user: labUser});
 
@@ -113,6 +120,7 @@ describe('LabHomePage', () => {
       'Back to the clinic',
       'From the hospital',
       'Awaiting surgery details',
+      'Consults for the lab',
     ]);
     expect(await screen.findByText(/^Nothing reported in the last 7 days/)).toBeInTheDocument();
   });
