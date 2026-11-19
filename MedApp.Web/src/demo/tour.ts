@@ -106,16 +106,16 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'team-walls',
-    title: 'Other clinics: a summary only',
+    title: 'Another team’s pathway: a summary only',
     steps: [
-      `As ${STAFF.fullName}, open Priya Holloway. Patients are centre-wide: anyone can find anyone.`,
-      'Her Gynaecology pathway shows under In other clinics as one line (the clinic, its status, since when): no title, stages, notes or link.',
+      `As ${LAB.fullName} from the lab, open Tobias Lund. Patients are centre-wide: anyone can find anyone.`,
+      'His Dermatology pathway hasn’t been passed to the lab, so it shows under In other clinics as one line (the clinic, its status, since when): no title, stages, notes or link.',
       'Pathways, referrals, appointments, letters, results, consent and MDT items belong to a team. Another team’s by its link answers “not found”, and lists, counts and Insights leave it out.',
       'The admin reads every team’s, and changes nothing clinical.',
     ],
-    account: STAFF.username,
-    path: `/patients/${PATIENTS.priyaHolloway}`,
-    buttonLabel: 'Open the patient as the dermatologist',
+    account: LAB.username,
+    path: `/patients/${PATIENTS.tobiasLund}`,
+    buttonLabel: 'Open the patient as the lab',
   },
   {
     key: 'triage',
@@ -366,14 +366,14 @@ export const TOUR: TourStep[] = [
   },
   {
     key: 'assessment-only',
-    title: 'An assessment-only pathway',
+    title: 'An assessment decides the route',
     steps: [
-      'Opens Biomechanics’ Lower limb biomechanics pathway, as the admin (read only): no lab, just an assessment choice node.',
-      'Its outcomes are custom orthoses, an exercise plan, footwear advice or a referral to the hospital; Biomechanics’ clinician records one, and only its stages are added.',
+      'Opens Ilona Petrova’s Psoriasis assessment pathway, as the admin (read only): its assessment is a choice node.',
+      'Its clinician recorded Self-care is enough, so only the care plan and the review were added; the biopsy and the referrals of the other outcomes never appeared.',
     ],
     account: ADMIN.username,
-    path: `/pathways/${PATHWAYS.biomechanicsAssessment}`,
-    buttonLabel: 'Open the assessment-only pathway',
+    path: `/pathways/${PATHWAYS.followUpBooked}`,
+    buttonLabel: 'Open the psoriasis pathway',
   },
   {
     key: 'mdt',
@@ -448,7 +448,7 @@ export const TOUR: TourStep[] = [
     title: 'Every clinic’s pathways, and the clinic picker',
     steps: [
       'As the admin, Pathways lists every team’s open pathways. The clinic picker narrows it to one clinic; staff in several clinics pick among their own.',
-      'Samuel Okafor’s is on hold; Margaret Fenwick’s is overdue. Sort and filter with the bar above the list.',
+      'Samuel Okafor’s is on hold; Harriet Quill’s is overdue. Sort and filter with the bar above the list.',
     ],
     account: ADMIN.username,
     path: '/pathways',

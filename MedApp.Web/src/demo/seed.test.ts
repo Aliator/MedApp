@@ -43,6 +43,6 @@ describe('the light demo seed', () => {
     const state = seed();
     expect(state.pathways.some((p) => p.status === 'Blocked')).toBe(true);
     expect(state.pathways.some((p) => p.dueDate < today() && p.status !== 'Completed')).toBe(true);
-    expect(state.referrals.filter((r) => r.status === 'AwaitingTriage').length).toBeGreaterThanOrEqual(3);
+    expect(state.referrals.filter((r) => r.status === 'AwaitingTriage').length).toBeGreaterThanOrEqual(2);
   });
 });

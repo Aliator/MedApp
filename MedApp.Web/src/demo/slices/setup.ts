@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, CARROW, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
+import {ADMIN, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
 import {dermatologyStageId} from '../dermatology';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
@@ -49,15 +49,11 @@ export const ROLES = {
 export const CLINIC_PATTERNS = {
   /** Tom Hallworth's Tuesday morning skin clinic in Clinic room 1, 20-minute slots. */
   hallworthSkin: id(0xf3, 1),
-  /** The admin's Tuesday afternoon diabetes clinic at Northfield, Room A, 15-minute slots. */
-  adminDiabetes: id(0xf3, 2),
 } as const;
 
 export const CLINIC_SESSIONS = {
   /** Tom Hallworth's skin clinic next Tuesday (made by its pattern). */
   hallworthNextWeek: id(0xf3, 102),
-  /** The admin's diabetes clinic next Tuesday (made by its pattern). */
-  adminNextWeek: id(0xf3, 202),
   /** A one-off minor surgery session for Tom Hallworth next Thursday afternoon, in the Procedure room. */
   hallworthMinorSurgery: id(0xf3, 301),
 } as const;
@@ -304,7 +300,7 @@ function seedPractices(state: BaseState, created: string): SetupSlice['practices
     [PATIENTS.ellisVarden, PRACTICES.exampleLane],
     [PATIENTS.priyaHolloway, PRACTICES.exampleLane],
     [PATIENTS.harrietQuill, PRACTICES.exampleLane],
-    [PATIENTS.margaretFenwick, PRACTICES.harbourView],
+    [PATIENTS.tobiasLund, PRACTICES.harbourView],
     [PATIENTS.oliverMaddox, PRACTICES.harbourView],
   ];
   for (const [patientId, practiceId] of practiceOf) {
@@ -357,7 +353,6 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
   });
   const clinicPatterns: DemoClinicPattern[] = [
     pattern(CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, clock(9), clock(12), 20),
-    pattern(CLINIC_PATTERNS.adminDiabetes, CARROW.id, MORE_ROOMS.roomA, TEAMS.diabetes, clock(13, 30), clock(15, 30), 15),
   ];
   // The sessions the patterns made for this week and the next two, and a one-off session.
   const session = (
@@ -391,7 +386,6 @@ function seedClinics(): Pick<SetupSlice, 'clinicPatterns' | 'clinicSessions'> {
     const tuesday = addDays(thisMonday, week * 7 + 1);
     clinicSessions.push(
       session(101 + week, CLINIC_PATTERNS.hallworthSkin, USERS.hallworth, ROOMS.clinicRoom1, TEAMS.dermatology, tuesday, [9, 0], [12, 0], 20),
-      session(201 + week, CLINIC_PATTERNS.adminDiabetes, CARROW.id, MORE_ROOMS.roomA, TEAMS.diabetes, tuesday, [13, 30], [15, 30], 15),
     );
   }
   clinicSessions.push(
@@ -423,8 +417,8 @@ function seedActivityLog(): DemoActivityEntry[] {
   add(ago(3, 9, 4), 'ReferralViewed', STAFF.id, {patientId: PATIENTS.oliverMaddox, details: JSON.stringify({referralId: REFERRALS.dermatologyToTriage})});
   add(ago(3, 14, 10), 'PathwayViewed', USERS.hallworth, {patientId: PATIENTS.samuelOkafor, pathwayId: PATHWAYS.onHold});
   add(ago(2, 8, 40), 'SignedIn', ADMIN.id);
-  add(ago(2, 8, 45), 'PatientListed', ADMIN.id, {patientId: PATIENTS.margaretFenwick});
-  add(ago(2, 8, 46), 'PatientViewed', ADMIN.id, {patientId: PATIENTS.margaretFenwick});
+  add(ago(2, 8, 45), 'PatientListed', ADMIN.id, {patientId: PATIENTS.tobiasLund});
+  add(ago(2, 8, 46), 'PatientViewed', ADMIN.id, {patientId: PATIENTS.tobiasLund});
   add(ago(2, 11, 0), 'PatientUpdated', USERS.marsh, {patientId: PATIENTS.ellisVarden, details: JSON.stringify({fields: ['mobilePhone']})});
   add(ago(2, 16, 30), 'PatientViewed', ADMIN.id, {patientId: PATIENTS.graceAbernethy});
   add(ago(1, 9, 5), 'SignInFailed', USERS.whitlock, {details: JSON.stringify({reason: 'InvalidCredentials'})});

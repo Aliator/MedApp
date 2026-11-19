@@ -198,7 +198,7 @@ export function otherTeamPathways(patientId: string, scope: TeamScope = myScope(
     .map((p) => {
       const completed = p.status === 'Completed';
       const completedAt = [...p.statusChanges].reverse().find((c) => c.to === 'Completed')?.atUtc ?? p.lastUpdated;
-      return {teamName: teamName(p.teamId), state: completed ? 'Completed' : 'InProgress', since: ukDateOf(completed ? completedAt : p.createdAt)};
+      return {teamName: teamName(p.teamId) ?? db().teams.find((t) => t.id === p.teamId)?.name ?? null, state: completed ? 'Completed' : 'InProgress', since: ukDateOf(completed ? completedAt : p.createdAt)};
     })
     .sort((a, b) => (b.since ?? '').localeCompare(a.since ?? '') || (a.teamName ?? '').localeCompare(b.teamName ?? ''));
 }

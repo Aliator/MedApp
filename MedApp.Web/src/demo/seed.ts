@@ -1,7 +1,7 @@
 import type {Schemas} from '../api/client';
 import {chainLinks, grownLinks, grownStageOrders} from '../api/pathwayRoutes';
 import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
-import {ADMIN, CARROW, HALLWORTH, LAB, STAFF, usernameOf} from './accounts';
+import {ADMIN, LAB, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
@@ -47,7 +47,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 19;
+export const SEED_VERSION = 20;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -65,54 +65,15 @@ export const ROOM_LIST = [
 ];
 
 /**
- * The stage library: each definition's name, what it involves, whether it needs a visit, and its gates (a letter of a
- * kind sent, a consent record, the results signed off), as the full demo clinic has them.
+ * The stage library's own definition, as the full demo clinic has it: its name, what it involves, whether it needs a
+ * visit, and its gates (a letter of a kind sent, a consent record, the results signed off). Dermatology's reviewed
+ * templates share it and add the rest (`dermatology.ts`).
  */
 const LIBRARY: Record<
   keyof typeof STAGES,
   {name: string; description: string; visit: DemoStage['visitRequirement']; letter?: string; consent?: boolean; results?: boolean}
 > = {
-  firstClinicVisit: {name: 'First clinic visit', description: 'See the patient in clinic and examine them.', visit: 'Required'},
-  biopsyOrSample: {name: 'Biopsy or sample', description: 'Take a biopsy or sample for the lab.', visit: 'Required'},
-  histology: {name: 'Histology (lab)', description: 'The lab reports on the sample.', visit: 'None'},
-  resultsAndTeamReview: {
-    name: 'Results and team review',
-    description: 'Review the results, with the team if needed.',
-    visit: 'Suggested',
-    results: true,
-  },
-  followUp: {name: 'Follow-up', description: 'Check how the patient is doing.', visit: 'Suggested'},
-  dischargeLetter: {
-    name: 'Discharge letter to GP',
-    description: "Write to the patient's GP and discharge.",
-    visit: 'None',
-    letter: 'DischargeSummary',
-  },
-  gpReferral: {
-    name: 'Referral to GP',
-    description: 'Refer to the GP for medicines or ongoing care (the centre doesn’t prescribe).',
-    visit: 'None',
-    letter: 'ClinicLetter',
-  },
-  bloodAndUrineTests: {name: 'Blood and urine tests', description: 'Take blood and urine samples.', visit: 'Required'},
-  labTests: {name: 'Lab tests (lab)', description: 'The lab runs the tests.', visit: 'None', results: true},
-  clinicReview: {name: 'Clinic review', description: 'Review the results with the patient in clinic.', visit: 'Required'},
-  hospitalReferral: {
-    name: 'Referral to hospital',
-    description: 'Refer to the hospital for surgery or specialist treatment (the centre does neither).',
-    visit: 'None',
-    letter: 'ClinicLetter',
-  },
   carePlan: {name: 'Agree care plan', description: 'Agree a care plan with the patient: advice, self-care and when to come back.', visit: 'Suggested'},
-  biomechanicalAssessment: {
-    name: 'Lower limb biomechanical assessment',
-    description: 'Assess gait, posture and the feet, and agree what helps.',
-    visit: 'Required',
-  },
-  castingAndMeasurement: {name: 'Casting and measurement', description: 'Measure or cast the feet for custom orthoses.', visit: 'Required'},
-  orthosesMade: {name: 'Orthoses made', description: 'The orthoses are made to the measurements.', visit: 'None'},
-  orthosesFitted: {name: 'Orthoses fitted', description: 'Fit the orthoses and show the patient how to wear them in.', visit: 'Required'},
-  exercisePlan: {name: 'Exercise plan', description: 'Agree a home exercise plan with the patient.', visit: 'Suggested'},
 };
 
 type StageKey = keyof typeof STAGES;
@@ -138,100 +99,9 @@ const libraryDefinitions = (): DemoStageDefinition[] =>
     isArchived: false,
   }));
 
-/**
- * A template's stage: its definition, whether it's optional, and a choice node's kind and outcomes (each outcome's name
- * and the stages, by order, it leads to).
- */
-type TemplateStageSpec =
-  | StageKey
-  | {key: StageKey; optional?: boolean; choice?: 'Assessment' | 'LabResult'; outcomes?: [string, number[]][]};
-
-/** An addable branch (MC10): its stages in order, the template stages (by order) it may follow (none: any), and whether it repeats. */
-interface TemplateBranchSpec {
-  id: string;
-  name: string;
-  stages: StageKey[];
-  after: number[];
-  repeatable?: boolean;
-}
-
-/**
- * A template, as the full tree of every possibility (the owner's model, 19 Nov): its stages, its links by stage order
- * when it has routes (else a list, `chainLinks`), and its addable branches (MC10). Results and assessments are choice
- * nodes; the centre treats and prescribes nothing, so those outcomes end in a referral to the hospital or the GP.
- * Dermatology's ten are the owner's reviewed templates instead (`dermatology.ts`).
- */
-const TEMPLATE_SPECS: {
-  id: string;
-  name: string;
-  teamId: string;
-  stages: TemplateStageSpec[];
-  links?: [number, number][];
-  branches?: TemplateBranchSpec[];
-}[] = [
-  {
-    id: TEMPLATES.postMenopausalBleeding,
-    name: 'Post-menopausal bleeding pathway',
-    teamId: TEAMS.gynaecology,
-    stages: [
-      'firstClinicVisit',
-      'biopsyOrSample',
-      'histology',
-      {key: 'resultsAndTeamReview', choice: 'LabResult', outcomes: [['Benign', [5]], ['Needs hospital care', [6]]]},
-      'dischargeLetter',
-      'hospitalReferral',
-    ],
-    links: [[1, 2], [2, 3], [3, 4], [4, 5], [4, 6]],
-  },
-  {
-    id: TEMPLATES.diabetesReview,
-    name: 'Diabetes review',
-    teamId: TEAMS.diabetes,
-    stages: [
-      'bloodAndUrineTests',
-      'labTests',
-      {key: 'clinicReview', choice: 'LabResult', outcomes: [['Well controlled', [4]], ['Needs a medicine change', [7]]]},
-      'carePlan',
-      {key: 'followUp', optional: true},
-      'dischargeLetter',
-      'gpReferral',
-    ],
-    links: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [3, 7]],
-  },
-  {
-    id: TEMPLATES.lowerLimb,
-    name: 'Lower limb biomechanics',
-    teamId: TEAMS.biomechanics,
-    // Assessment only, no lab: the assessment's outcome decides the route.
-    stages: [
-      {
-        key: 'biomechanicalAssessment',
-        choice: 'Assessment',
-        outcomes: [['Custom orthoses', [2]], ['Exercise plan', [5]], ['Footwear advice', [7]], ['Refer to hospital', [8]]],
-      },
-      'castingAndMeasurement',
-      'orthosesMade',
-      'orthosesFitted',
-      'exercisePlan',
-      'followUp',
-      'dischargeLetter',
-      'hospitalReferral',
-    ],
-    links: [[1, 2], [2, 3], [3, 4], [4, 6], [1, 5], [5, 6], [6, 7], [1, 7], [1, 8]],
-  },
-];
-
-const stageSpec = (spec: TemplateStageSpec) => (typeof spec === 'string' ? {key: spec} : spec);
-
-/** The stages the lab works in every template (the relay, MC7): the rest are the template's own team's. */
-const LAB_STAGES: StageKey[] = ['histology', 'labTests'];
-
 const TEAM_NAMES: [string, string][] = [
+  // One clinic and the lab (the owner, 19 Nov).
   [TEAMS.dermatology, 'Dermatology'],
-  [TEAMS.gynaecology, 'Gynaecology'],
-  [TEAMS.urology, 'Urology'],
-  [TEAMS.diabetes, 'Diabetes'],
-  [TEAMS.biomechanics, 'Biomechanics'],
   // The lab (decision 182): a team of its own kind, serving every clinic.
   [TEAMS.lab, 'Lab'],
 ];
@@ -319,41 +189,23 @@ export function growPathway(pathway: Pick<DemoPathway, 'plan' | 'stages' | 'link
   return added;
 }
 
-/** The patients: synthetic names, dates of birth and 999-range NHS numbers (each with a valid check digit). */
-const PATIENT_SPECS: [string, string, string, string][] = [
-  [PATIENTS.ellisVarden, 'Ellis', 'Varden', '1958-03-14'],
-  [PATIENTS.priyaHolloway, 'Priya', 'Holloway', '1971-09-02'],
-  [PATIENTS.samuelOkafor, 'Samuel', 'Okafor', '1989-12-21'],
-  [PATIENTS.margaretFenwick, 'Margaret', 'Fenwick', '1952-06-30'],
-  [PATIENTS.daniyalRees, 'Daniyal', 'Rees', '1966-01-17'],
-  [PATIENTS.graceAbernethy, 'Grace', 'Abernethy', '1979-04-08'],
-  [PATIENTS.tobiasLund, 'Tobias', 'Lund', '1994-11-25'],
-  [PATIENTS.ilonaPetrova, 'Ilona', 'Petrova', '1983-07-12'],
-  [PATIENTS.oliverMaddox, 'Oliver', 'Maddox', '1961-02-03'],
-  [PATIENTS.aishaKhoury, 'Aisha', 'Khoury', '1975-10-19'],
-  [PATIENTS.ruthPenrose, 'Ruth', 'Penrose', '1956-08-27'],
-  [PATIENTS.callumAshby, 'Callum', 'Ashby', '1970-05-05'],
-  [PATIENTS.harrietQuill, 'Harriet', 'Quill', '1949-01-22'],
-  [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09'],
+/** The patients: synthetic names, dates of birth, 999-range NHS numbers (each with a valid check digit) and house numbers. */
+const PATIENT_SPECS: [string, string, string, string, string, number][] = [
+  [PATIENTS.ellisVarden, 'Ellis', 'Varden', '1958-03-14', '9991001379', 10],
+  [PATIENTS.priyaHolloway, 'Priya', 'Holloway', '1971-09-02', '9991004114', 11],
+  [PATIENTS.samuelOkafor, 'Samuel', 'Okafor', '1989-12-21', '9991006850', 12],
+  [PATIENTS.graceAbernethy, 'Grace', 'Abernethy', '1979-04-08', '9991010963', 15],
+  [PATIENTS.tobiasLund, 'Tobias', 'Lund', '1994-11-25', '9991012338', 16],
+  [PATIENTS.ilonaPetrova, 'Ilona', 'Petrova', '1983-07-12', '9991013709', 17],
+  [PATIENTS.oliverMaddox, 'Oliver', 'Maddox', '1961-02-03', '9991015078', 18],
+  [PATIENTS.aishaKhoury, 'Aisha', 'Khoury', '1975-10-19', '9991016449', 19],
+  [PATIENTS.callumAshby, 'Callum', 'Ashby', '1970-05-05', '9991020551', 21],
+  [PATIENTS.harrietQuill, 'Harriet', 'Quill', '1949-01-22', '9991022007', 22],
+  [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09', '9991023372', 23],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
-export const NHS_NUMBERS = [
-  '9991001379',
-  '9991004114',
-  '9991006850',
-  '9991008225',
-  '9991009590',
-  '9991010963',
-  '9991012338',
-  '9991013709',
-  '9991015078',
-  '9991016449',
-  '9991019189',
-  '9991020551',
-  '9991022007',
-  '9991023372',
-];
+export const NHS_NUMBERS = PATIENT_SPECS.map((spec) => spec[4]);
 
 /** A stage's ID within a seeded pathway: fixed, as everything in the seed is. */
 const stageId = (pathway: number, order: number) => `000000dc-0000-4000-8000-${(pathway * 100 + order).toString(16).padStart(12, '0')}`;
@@ -651,45 +503,7 @@ export const ownerAccess = (pathway: DemoPathway): DemoPathwayAccess => ({
 export function seed(): DemoState {
   const on = today();
   const stageDefinitions = stageDefinitionList();
-  const templates: Schemas['PathwayTemplateResponse'][] = [
-    ...dermatologyTemplates(stageDefinitions),
-    ...TEMPLATE_SPECS.map((spec) => ({
-    id: spec.id,
-    name: spec.name,
-    isArchived: false,
-    teamId: spec.teamId,
-    teamName: teamName(spec.teamId),
-    retentionClass: 'Adult',
-    pathwayCount: 0,
-    clockStopStageOrder: 1,
-    stageDefinitionIdsInOrder: spec.stages.map((s) => STAGES[stageSpec(s).key]),
-    links: spec.links?.map(([fromStageOrder, toStageOrder]) => ({fromStageOrder, toStageOrder})),
-    addableBranches: (spec.branches ?? []).map((branch) => ({
-      id: branch.id,
-      name: branch.name,
-      stages: branch.stages.map((key) => ({stageDefinitionId: STAGES[key], name: LIBRARY[key].name})),
-      attachAfterStageOrders: branch.after,
-      isRepeatable: branch.repeatable ?? false,
-    })),
-    stages: spec.stages.map((s, i) => {
-      const {key, optional, choice, outcomes} = stageSpec(s);
-      return {
-        stageOrder: i + 1,
-        stageDefinitionId: STAGES[key],
-        name: LIBRARY[key].name,
-        description: LIBRARY[key].description,
-        isArchived: false,
-        visitRequirement: LIBRARY[key].visit,
-        isOptional: optional ?? false,
-        choiceKind: choice ?? null,
-        outcomes: choice ? (outcomes ?? []).map(([name, next]) => ({name, nextStageOrders: next})) : null,
-        stopsClock: i === 0,
-        ownerTeamId: LAB_STAGES.includes(key) ? TEAMS.lab : null,
-        ownerTeamName: LAB_STAGES.includes(key) ? teamName(TEAMS.lab) : null,
-      };
-    }),
-    })),
-  ];
+  const templates: Schemas['PathwayTemplateResponse'][] = dermatologyTemplates(stageDefinitions);
   for (const template of templates) template.links ??= chainLinks(template.stages ?? []);
 
   const pathways = (
@@ -713,21 +527,6 @@ export function seed(): DemoState {
         notes: [{authorUserId: USERS.hallworth, text: 'On hold while the patient is away for a month.', daysAgo: 3}],
       },
       {
-        n: 4, id: PATHWAYS.overdue, patientId: PATIENTS.margaretFenwick, templateId: TEMPLATES.postMenopausalBleeding,
-        title: 'Post-menopausal bleeding', dueIn: -4, priority: 'Urgent', done: 0, status: 'Assigned',
-        assignee: HALLWORTH.id, createdDaysAgo: 30,
-      },
-      {
-        n: 5, id: PATHWAYS.notStarted, patientId: PATIENTS.daniyalRees, templateId: TEMPLATES.diabetesReview,
-        title: 'Annual diabetes review', dueIn: 50, priority: 'Low', done: 0, status: 'Assigned',
-        assignee: CARROW.id, createdDaysAgo: 5,
-      },
-      {
-        n: 6, id: PATHWAYS.completed, patientId: PATIENTS.graceAbernethy, templateId: TEMPLATES.diabetesReview,
-        title: 'Diabetes review after new medicine', dueIn: -10, priority: 'Medium', done: 6, outcomes: {3: 'Well controlled'}, status: 'Completed',
-        assignee: CARROW.id, createdDaysAgo: 70,
-      },
-      {
         n: 7, id: PATHWAYS.unassigned, patientId: PATIENTS.tobiasLund, templateId: TEMPLATES.changingMole,
         title: 'New lesion, right cheek', dueIn: 60, priority: 'Medium', done: 0, status: 'Unassigned', createdDaysAgo: 2,
       },
@@ -739,7 +538,7 @@ export function seed(): DemoState {
       },
       {
         n: 9, id: PATHWAYS.referredToHospital, patientId: PATIENTS.harrietQuill, templateId: TEMPLATES.suspectedSkinCancer,
-        title: 'Basal cell carcinoma, left temple', dueIn: 12, priority: 'High', done: 5, status: 'InProgress',
+        title: 'Basal cell carcinoma, left temple', dueIn: -3, priority: 'High', done: 5, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 40, outcomes: {'Dermoscopy assessment': 'Uncertain: biopsy', 'Histology result': 'Low-risk BCC'},
         results: {Histology: 'Basal cell carcinoma, nodular type (synthetic report).'},
         notes: [{authorUserId: STAFF.id, text: 'Team review: photograph, then refer to the hospital for excision.', daysAgo: 6}],
@@ -748,16 +547,6 @@ export function seed(): DemoState {
         n: 10, id: PATHWAYS.branchToChoose, patientId: PATIENTS.felixMoreton, templateId: TEMPLATES.suspectedSkinCancer,
         title: 'Suspicious lesion, right shin', dueIn: 35, priority: 'High', done: 1, started: true, status: 'InProgress',
         assignee: STAFF.id, createdDaysAgo: 6,
-      },
-      // Pathways in other clinics beside a Dermatology one, so the team walls show: Dermatology's staff see each only
-      // as a summary line ("a pathway in Gynaecology, in progress since ..."), and opening one is a 404.
-      {
-        n: 11, id: PATHWAYS.priyaGynaecology, patientId: PATIENTS.priyaHolloway, templateId: TEMPLATES.postMenopausalBleeding,
-        title: 'Post-menopausal bleeding', dueIn: 18, priority: 'High', done: 2, status: 'InProgress', createdDaysAgo: 12,
-      },
-      {
-        n: 12, id: PATHWAYS.ellisDiabetes, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.diabetesReview,
-        title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, outcomes: {3: 'Well controlled'}, status: 'Completed', createdDaysAgo: 90,
       },
       // Routes side by side (MC8, MC10): a second lesion, so Biopsy another lesion was added after the dermoscopy. Both
       // biopsies are taken, so the two Histology stages are current side by side, both the lab's.
@@ -775,11 +564,6 @@ export function seed(): DemoState {
         assignee: STAFF.id, createdDaysAgo: 21,
         results: {Histology: 'Seborrhoeic keratosis, no dysplasia (synthetic report).'},
       },
-      // Assessment only (Biomechanics): at the assessment, a choice node with four outcomes.
-      {
-        n: 15, id: PATHWAYS.biomechanicsAssessment, patientId: PATIENTS.samuelOkafor, templateId: TEMPLATES.lowerLimb,
-        title: 'Heel pain, both feet', dueIn: 45, priority: 'Low', done: 0, status: 'Unassigned', createdDaysAgo: 4,
-      },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
@@ -789,10 +573,6 @@ export function seed(): DemoState {
       'Rapidly growing lesion on the scalp, bleeds on contact.'),
     makeReferral(REFERRALS.aishaDermatology, PATIENTS.aishaKhoury, TEAMS.dermatology, 6, 'Medium',
       'Persistent rash on both hands despite emollients.'),
-    makeReferral(REFERRALS.ruthGynaecology, PATIENTS.ruthPenrose, TEAMS.gynaecology, 2, 'Urgent',
-      'Post-menopausal bleeding, first episode.'),
-    makeReferral(REFERRALS.callumDiabetes, PATIENTS.callumAshby, TEAMS.diabetes, 9, 'Low',
-      'Type 2 diabetes, review of control and medicines.'),
     makeReferral(REFERRALS.ellisAccepted, PATIENTS.ellisVarden, TEAMS.dermatology, 16, 'High',
       'Mole on the left forearm has changed shape and colour.',
       {pathwayId: PATHWAYS.biopsyToBook, daysAgo: 14, templateName: 'Suspected skin cancer'}),
@@ -849,24 +629,20 @@ export function seed(): DemoState {
     };
   };
   const appointments = [
-    appointment(APPOINTMENTS.margaretFirstVisit, PATHWAYS.overdue, 0, HALLWORTH, weekdayAhead(1), 10, 0, 45, 'Booked'),
     appointment(APPOINTMENTS.ilonaFollowUp, PATHWAYS.followUpBooked, 3, STAFF, weekdayAhead(1), 14, 0, 20, 'Booked'),
     appointment(APPOINTMENTS.ellisFirstVisit, PATHWAYS.biopsyToBook, 1, STAFF, weekdayBack(10), 9, 30, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaFirstVisit, PATHWAYS.histologyToFinish, 1, STAFF, weekdayBack(20), 9, 0, 30, 'Attended'),
     appointment(APPOINTMENTS.priyaBiopsy, PATHWAYS.histologyToFinish, 2, STAFF, weekdayBack(12), 11, 0, 30, 'Attended'),
-    appointment(APPOINTMENTS.daniyalBloods, PATHWAYS.notStarted, 0, CARROW, null, 0, 0, 15, 'Requested'),
     appointment(MORE_APPOINTMENTS.harrietFirstVisit, PATHWAYS.referredToHospital, 1, STAFF, weekdayBack(36), 10, 0, 30, 'Attended'),
     appointment(MORE_APPOINTMENTS.harrietBiopsy, PATHWAYS.referredToHospital, 2, STAFF, weekdayBack(28), 11, 30, 30, 'Attended', ROOMS.procedureRoom),
     appointment(MORE_APPOINTMENTS.harrietResults, PATHWAYS.referredToHospital, 4, STAFF, weekdayBack(0), 9, 0, 20, 'Attended'),
     appointment(MORE_APPOINTMENTS.felixFirstVisit, PATHWAYS.branchToChoose, 1, STAFF, weekdayBack(1), 14, 0, 30, 'Attended'),
-    // Gynaecology's, so Dermatology sees it on Tom Hallworth's calendar only as busy time, with no patient.
-    appointment(MORE_APPOINTMENTS.priyaGynaecologyBiopsy, PATHWAYS.priyaGynaecology, 1, HALLWORTH, weekdayAhead(1), 11, 0, 30, 'Booked', ROOMS.procedureRoom),
   ];
   // Pathways whose stage visits were attended had those stages started by the visit.
   pathway(PATHWAYS.followUpBooked).stages[3].startedAtUtc = ago(2, 9, 0);
   pathway(PATHWAYS.followUpBooked).stages[3].startedByUserId = STAFF.id;
 
-  // This week's and next week's blocks on both accounts' calendars.
+  // This week's and next week's blocks on Nadia Thornbury's calendar.
   const blocks: Schemas['CalendarBlockResponse'][] = [];
   let blockNumber = 0;
   const block = (staffUserId: string, date: string, activity: string, from: [number, number], to: [number, number], note: string | null) => {
@@ -891,9 +667,7 @@ export function seed(): DemoState {
   for (const week of [0, 7]) {
     for (let day = 0; day < 5; day++) {
       const date = thisWeek(week + day, on);
-      for (const person of [CARROW.id, STAFF.id]) block(person, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
-      block(CARROW.id, date, ACTIVITY_TYPES.admin, [17, 0], [18, 0], 'Letters and results');
-      if (day === 0 || day === 3) block(CARROW.id, date, ACTIVITY_TYPES.clinic, [9, 0], [12, 30], 'Diabetes clinic');
+      block(STAFF.id, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
       if (day === 2) block(STAFF.id, date, ACTIVITY_TYPES.triage, [9, 0], [10, 30], 'Referral triage');
       if (day === 1 || day === 3) block(STAFF.id, date, ACTIVITY_TYPES.minorSurgery, [9, 0], [12, 0], 'Minor surgery list');
       if (day === 0 || day === 4) block(STAFF.id, date, ACTIVITY_TYPES.clinic, [13, 30], [17, 0], 'Skin clinic');
@@ -920,14 +694,14 @@ export function seed(): DemoState {
     },
   ];
 
-  const patients: Schemas['PatientResponse'][] = PATIENT_SPECS.map(([id, firstName, lastName, dateOfBirth], i) => ({
+  const patients: Schemas['PatientResponse'][] = PATIENT_SPECS.map(([id, firstName, lastName, dateOfBirth, nhsNumber, house]) => ({
     id,
     firstName,
     lastName,
     dateOfBirth,
     email: `${firstName}.${lastName}@example.com`.toLowerCase(),
-    nhsNumber: NHS_NUMBERS[i],
-    addressLines: [`${10 + i} Sample Road`, 'Exampleton'],
+    nhsNumber,
+    addressLines: [`${house} Sample Road`, 'Exampleton'],
     postcode: null,
     mobilePhone: null,
     reminderChannel: 'None',
@@ -995,21 +769,10 @@ export function seed(): DemoState {
         createdAtUtc: ago(28, 9, 20),
         isRead: true,
       },
-      {
-        id: '000000e0-0000-4000-8000-000000000003',
-        userId: HALLWORTH.id,
-        kind: 'AppointmentBooked',
-        title: 'Appointment booked',
-        message: 'h.marsh booked an appointment with you.',
-        appointmentId: APPOINTMENTS.margaretFirstVisit,
-        pathwayId: PATHWAYS.overdue,
-        createdAtUtc: ago(9, 12, 0),
-        isRead: false,
-      },
       // The relay's handovers: a fixed title, and only who passed it (no patient, no stage).
       ...[
         {n: 4, userId: STAFF.id, pathwayId: PATHWAYS.backFromLab},
-        {n: 5, userId: LAB.id, pathwayId: PATHWAYS.priyaGynaecology},
+        {n: 5, userId: LAB.id, pathwayId: PATHWAYS.forkedTests},
       ].map(({n, userId, pathwayId}) => {
         const handover = pathways.find((p) => p.id === pathwayId)!.handovers.at(-1)!;
         return {

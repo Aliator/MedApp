@@ -1,4 +1,4 @@
-import {CARROW, LAB, STAFF} from '../accounts';
+import {HALLWORTH, LAB, STAFF} from '../accounts';
 import {APPOINTMENTS, MORE_APPOINTMENTS, PATHWAYS, USERS, id} from '../ids';
 import type {BaseState, DemoNotification} from '../state';
 import type {DemoHospitalRequest} from './hospitals';
@@ -185,8 +185,6 @@ export const SPECIMENS = {
   ilonaBlood: id(0xe3, 5),
   /** Ilona Petrova's skin scraping, taken this morning and not yet sent. */
   ilonaScraping: id(0xe3, 6),
-  /** Grace Abernethy's blood sample, reported long ago (her pathway is discharged). */
-  graceBlood: id(0xe3, 7),
   /** Callum Ashby's punch biopsy, reported three days ago (its result awaits Nadia Thornbury's sign-off). */
   callumBiopsy: id(0xe3, 8),
 } as const;
@@ -196,18 +194,15 @@ export const RESULTS = {
   callumBiopsy: id(0xe4, 1),
   /** Harriet Quill's biopsy report, signed off by Nadia Thornbury. */
   harrietBiopsy: id(0xe4, 2),
-  /** Grace Abernethy's blood results, signed off by the admin. */
-  graceBlood: id(0xe4, 3),
-  /** A report from the GP practice on Daniyal Rees's pathway, awaiting the admin's sign-off (an external result). */
-  daniyalExternal: id(0xe4, 4),
+  /** A report from the GP practice on Tobias Lund's pathway, awaiting Tom Hallworth's sign-off (an external result). */
+  gpReport: id(0xe4, 4),
 } as const;
 
 /** The reports' files (attachments the full version would hold; the light demo has no files). */
 const REPORT_FILES = {
   callum: id(0xe5, 1),
   harriet: id(0xe5, 2),
-  grace: id(0xe5, 3),
-  daniyal: id(0xe5, 4),
+  gpReport: id(0xe5, 4),
 } as const;
 
 /** The IDs the Read Me's tour opens. */
@@ -222,8 +217,8 @@ export const LAB_IDS = {
   specimenToSend: SPECIMENS.ilonaScraping,
   /** A specimen overdue at the lab: Samuel Okafor's skin scraping. */
   specimenOverdue: SPECIMENS.samuelScraping,
-  /** The admin's result awaiting sign-off: an external report on Daniyal Rees's pathway. */
-  adminResult: RESULTS.daniyalExternal,
+  /** Tom Hallworth's result awaiting sign-off: an external report on Tobias Lund's pathway. */
+  gpReport: RESULTS.gpReport,
 } as const;
 
 /** A specimen number as the API makes them: `MA26-000123` (the prefix, the UK year it was recorded, the sequence). */
@@ -266,7 +261,7 @@ const makeResult = (resultId: string, fields: ResultFields): DemoResult => ({
 
 /**
  * Seeds this slice, after the base seed: specimens in each of the Lab page's views (to send, expected, in the lab,
- * overdue, rejected, reported), a result awaiting each account's sign-off and two signed off. Callum Ashby's result
+ * overdue, rejected, reported), results awaiting Nadia Thornbury's and Tom Hallworth's sign-off and one signed off. Callum Ashby's result
  * awaits Nadia Thornbury, so his "Histology result" stage is held until it's signed off; Harriet Quill's
  * biopsy is reported and signed off, so nothing here holds her Refer to hospital stage. Adds the notifications they'd have
  * caused.
@@ -388,19 +383,6 @@ export function seedLab(state: BaseState): LabSlice {
     specimen(SPECIMENS.ilonaScraping, PATHWAYS.followUpBooked, 4, SPECIMEN_TYPES.skinScraping, earlierOf(ukTime(today(), 9, 15), plusMinutes(new Date().toISOString(), -30)), STAFF.id, {
       site: 'Right elbow',
     }),
-    specimen(SPECIMENS.graceBlood, PATHWAYS.completed, 1, SPECIMEN_TYPES.bloodSample, ago(59, 9, 30), CARROW.id, {
-      requestingUserId: CARROW.id,
-      status: 'Reported',
-      sentAtUtc: ago(59, 12, 0),
-      sentByUserId: CARROW.id,
-      receivedAtUtc: ago(58, 10, 0),
-      receivedByUserId: LAB.id,
-      labReference: 'CL-18822',
-      reportedAtUtc: ago(55, 15, 0),
-      reportedByUserId: LAB.id,
-      reportAttachmentId: REPORT_FILES.grace,
-      version: 4,
-    }),
     // Reported when its case's report was authorised, which finished his Histology (MC16).
     specimen(SPECIMENS.callumBiopsy, PATHWAYS.backFromLab, 3, SPECIMEN_TYPES.skinBiopsy, callumTaken, STAFF.id, {
       site: 'Back of the right hand',
@@ -442,26 +424,17 @@ export function seedLab(state: BaseState): LabSlice {
       action: 'ForMdtDiscussion',
       version: 3,
     }),
-    makeResult(RESULTS.graceBlood, {
-      ...fromSpecimen(byId(SPECIMENS.graceBlood), 'Blood sample'),
-      reportFileName: 'blood-results.pdf',
-      status: 'SignedOff',
-      signedOffAtUtc: ago(52, 11, 0),
-      signedOffByUserId: CARROW.id,
-      action: 'PatientInformed',
-      version: 2,
-    }),
-    makeResult(RESULTS.daniyalExternal, {
-      patientId: pathway(PATHWAYS.notStarted).patientId,
-      pathwayId: PATHWAYS.notStarted,
-      teamId: pathway(PATHWAYS.notStarted).teamId,
+    makeResult(RESULTS.gpReport, {
+      patientId: pathway(PATHWAYS.unassigned).patientId,
+      pathwayId: PATHWAYS.unassigned,
+      teamId: pathway(PATHWAYS.unassigned).teamId,
       source: 'ExternalReport',
-      title: 'Blood tests from the GP practice',
-      reportAttachmentId: REPORT_FILES.daniyal,
-      reportFileName: 'gp-blood-tests.pdf',
+      title: 'Lesion photographs from the GP practice',
+      reportAttachmentId: REPORT_FILES.gpReport,
+      reportFileName: 'gp-report.pdf',
       reportedAtUtc: ago(1, 11, 30),
       reportedByUserId: USERS.sandiford,
-      responsibleUserId: CARROW.id,
+      responsibleUserId: HALLWORTH.id,
     }),
   ];
 
@@ -479,12 +452,12 @@ export function seedLab(state: BaseState): LabSlice {
     },
     {
       id: id(0xe5, 102),
-      userId: CARROW.id,
+      userId: HALLWORTH.id,
       kind: 'ResultReady',
       title: 'Result ready',
       message: 'b.sandiford recorded a result from another service.',
-      pathwayId: PATHWAYS.notStarted,
-      subjectId: RESULTS.daniyalExternal,
+      pathwayId: PATHWAYS.unassigned,
+      subjectId: RESULTS.gpReport,
       createdAtUtc: ago(1, 11, 30),
       isRead: false,
     },

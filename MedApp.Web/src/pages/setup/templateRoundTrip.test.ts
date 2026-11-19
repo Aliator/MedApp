@@ -18,7 +18,7 @@ describe('the template editor', () => {
   it('saves every seeded template opened and saved unchanged exactly as it was', async () => {
     const {state} = startLightDemo(ADMIN);
     const labTeamId = state.teams.find((t) => t.kind === 'Lab')?.id ?? null;
-    expect(state.templates.length).toBeGreaterThan(10);
+    expect(state.templates.length).toBeGreaterThanOrEqual(10);
     for (const template of structuredClone(state.templates)) {
       const request = templateSaveRequest(template, startingEdit(template), labTeamId);
       const saved = await call('PATCH', `/api/pathways/patient-pathway-stage/templates/${template.id}`, request);
