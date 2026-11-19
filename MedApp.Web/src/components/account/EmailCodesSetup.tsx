@@ -115,7 +115,7 @@ export function EmailCodesSetup({username, doneLabel, onDone, onCancel, onEnable
             {onCancel && <Button label="Cancel" variant="secondary" isDisabled={send.isPending} onClick={onCancel} />}
             <Button
               type="submit"
-              label="Email me a code"
+              label="Email Me a Code"
               variant="primary"
               icon={<Icon icon={AppIcon.Email} />}
               isDisabled={password === ''}
@@ -149,7 +149,7 @@ export function EmailCodesSetup({username, doneLabel, onDone, onCancel, onEnable
           {onCancel && <Button label="Cancel" variant="secondary" isDisabled={enable.isPending} onClick={onCancel} />}
           <Button
             type="submit"
-            label="Turn on codes by email"
+            label="Turn On Codes by Email"
             variant="primary"
             icon={<Icon icon={AppIcon.TwoFactorOn} />}
             isDisabled={code.trim() === ''}

@@ -37,7 +37,7 @@ export function ChangePasswordPage() {
         ) : form.validation ? (
           <ValidationAlert errors={form.validation} fields={PASSWORD_CHANGE_FIELDS} />
         ) : (
-          isUpdated && <AlertMessage status="success" label="Password updated" message="Password updated successfully!" />
+          isUpdated && <AlertMessage status="success" label="Password updated" message="Use your new password next time you sign in." />
         )
       }>
       <FormCard onSave={submit} saveText="Update password" isProcessing={form.isPending}>

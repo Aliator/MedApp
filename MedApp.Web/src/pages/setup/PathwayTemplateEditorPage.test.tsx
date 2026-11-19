@@ -164,10 +164,10 @@ describe('PathwayTemplateEditorPage', () => {
     const {user, fetch} = renderEditor('t1', {[`PATCH ${BASE}/templates/t1`]: () => json(template)});
 
     const field = await screen.findByRole('combobox', {name: /Retention class/});
-    expect(field).toHaveTextContent('Standard (adult or child period)');
+    expect(field).toHaveTextContent('Standard (adults 8 years; children to age 25 or 26)');
     expect(screen.getByText(/A longer class applies to its existing pathways too; a shorter one doesn't shorten their records/)).toBeInTheDocument();
     await user.click(field);
-    await user.click(screen.getByRole('option', {name: 'Oncology'}));
+    await user.click(screen.getByRole('option', {name: 'Oncology (30 years)'}));
     await user.click(screen.getByRole('button', {name: 'Save'}));
     await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
 

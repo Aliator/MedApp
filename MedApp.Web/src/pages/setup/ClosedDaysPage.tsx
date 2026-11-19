@@ -271,7 +271,7 @@ export function ClosedDaysPage({search, onSearchChange}: ClosedDaysPageProps) {
       key: 'past',
       header: 'Status',
       width: pixel(110),
-      renderCell: (d) => (d.isPast ? <Token size="sm" label="Past" color="gray" /> : <Token size="sm" label="To come" color="blue" />),
+      renderCell: (d) => (d.isPast ? <Token size="sm" label="Past" color="gray" /> : <Token size="sm" label="Upcoming" color="blue" />),
     },
     {
       key: 'actions',

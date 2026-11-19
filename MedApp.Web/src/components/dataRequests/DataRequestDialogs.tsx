@@ -216,7 +216,7 @@ export function ExtendDialog({request, patient, onCancel, onDone}: DataRequestDi
       errorLabel="Due date not extended"
       onConfirm={() => change.run({months: Number(months), reason: reason.trim(), expectedVersion: request.version ?? 0})}
       onCancel={onCancel}>
-      <RadioList label="Extend by, in all" value={months} onChange={setMonths} isRequired status={fieldStatus(change.errors, 'months')}>
+      <RadioList label="Extend the due date by" value={months} onChange={setMonths} isRequired status={fieldStatus(change.errors, 'months')}>
         {choices.map((m) => (
           <RadioListItem key={m} value={String(m)} label={m === 1 ? 'One more month' : 'Two more months'} />
         ))}

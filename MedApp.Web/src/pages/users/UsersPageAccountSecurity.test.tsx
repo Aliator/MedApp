@@ -76,7 +76,7 @@ describe('UsersPage email addresses and two-factor', () => {
     await user.click(within(await rowOf('a.hartwell')).getByRole('button', {name: 'Reset two-factor'}));
     const dialog = within(openDialog()!);
     expect(dialog.getByRole('heading', {name: 'Reset Two-Factor'})).toBeInTheDocument();
-    expect(dialog.getByText(/turns off their two-factor authentication .* and signs them out everywhere/)).toBeInTheDocument();
+    expect(dialog.getByText(/recovery codes stop working, and they're signed out everywhere/)).toBeInTheDocument();
     expect(calls(fetch)).not.toContain('POST /api/auth/users/a.hartwell/reset-two-factor');
     await user.click(dialog.getByRole('button', {name: 'Reset Two-Factor'}));
 
@@ -123,7 +123,7 @@ describe('UsersPage email addresses and two-factor', () => {
     expect(dialog.getByRole('heading', {name: 'Remove Email Address'})).toBeInTheDocument();
     expect(dialog.getByText(/Remove a\.hartwell's email address \(a\.hartwell@example\.org\), and any waiting to be confirmed\?/)).toBeInTheDocument();
     expect(dialog.getByText(/Password reset links can't be sent to it any more/)).toBeInTheDocument();
-    expect(dialog.getByText(/A confirmed address is emailed to say so/)).toBeInTheDocument();
+    expect(dialog.getByText(/If the address was confirmed, we email it to say it was removed/)).toBeInTheDocument();
     expect(calls(fetch)).not.toContain('DELETE /api/auth/users/a.hartwell/email');
     await user.click(dialog.getByRole('button', {name: 'Remove Email Address'}));
 

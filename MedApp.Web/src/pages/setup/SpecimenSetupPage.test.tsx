@@ -23,8 +23,8 @@ describe('SpecimenSetupPage', () => {
   it('lists the types with their expected days and codes, and the lab tests with their times, active first', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', {name: 'Specimen Types and Lab Tests', level: 1})).toBeInTheDocument();
-    const types = within(await screen.findByRole('list', {name: 'Specimen types'}));
+    expect(await screen.findByRole('heading', {name: 'Sample Types and Lab Tests', level: 1})).toBeInTheDocument();
+    const types = within(await screen.findByRole('list', {name: 'Sample types'}));
     expect(types.getByText('Skin biopsy (punch)')).toBeInTheDocument();
     expect(types.getByText('Expected in 5 days · SNOMED CT 309066003')).toBeInTheDocument();
     expect(types.getByText('Expected in 1 day')).toBeInTheDocument();
@@ -46,21 +46,21 @@ describe('SpecimenSetupPage', () => {
     let answer = json({title: 'A specimen type with that name already exists.'}, 409);
     const {user, fetch} = renderPage({'POST /api/specimen-types': () => answer});
 
-    await user.click(await screen.findByRole('button', {name: 'Add Specimen Type'}));
+    await user.click(await screen.findByRole('button', {name: 'Add Sample Type'}));
     await waitFor(() => expect(openDialog()).not.toBeNull());
     await user.type(dialog().getByRole('textbox', {name: /Name/}), 'Blood culture');
     const days = dialog().getByRole('spinbutton', {name: /Expected turnaround/});
     await user.clear(days);
     await user.type(days, '3');
     await user.type(dialog().getByRole('textbox', {name: /SNOMED CT code/}), ' 119297000 ');
-    await user.click(dialog().getByRole('button', {name: 'Add Specimen Type'}));
+    await user.click(dialog().getByRole('button', {name: 'Add Sample Type'}));
 
     expect(await dialog().findByText('A specimen type with that name already exists.')).toBeInTheDocument();
     expect(await sent(fetch, 'POST')[0].clone().json()).toEqual({name: 'Blood culture', expectedTurnaroundDays: 3, snomedCode: '119297000'});
 
     answer = json({id: 'new', name: 'Blood culture', expectedTurnaroundDays: 3}, 201);
-    await user.click(dialog().getByRole('button', {name: 'Add Specimen Type'}));
-    await expectAnnounced('Specimen type added');
+    await user.click(dialog().getByRole('button', {name: 'Add Sample Type'}));
+    await expectAnnounced('Sample type added');
   });
 
   it('edits a type, keeping its code, and edits a lab test', async () => {
@@ -74,7 +74,7 @@ describe('SpecimenSetupPage', () => {
     await waitFor(() => expect(openDialog()).not.toBeNull());
     expect(dialog().getByRole('spinbutton', {name: /Expected turnaround/})).toHaveValue('5');
     await user.click(dialog().getByRole('button', {name: 'Save'}));
-    await expectAnnounced('Specimen type saved');
+    await expectAnnounced('Sample type saved');
     expect(await sent(fetch, 'PUT')[0].json()).toEqual({name: 'Skin biopsy (punch)', expectedTurnaroundDays: 5, snomedCode: '309066003'});
 
     await user.click(screen.getByRole('button', {name: 'Edit Full blood count'}));
@@ -143,8 +143,8 @@ describe('SpecimenSetupPage', () => {
     await user.click(screen.getByRole('button', {name: 'Delete Wound swab'}));
     await waitFor(() => expect(openDialog()).not.toBeNull());
     expect(dialog().getByText('Wound swab')).toBeInTheDocument();
-    await user.click(dialog().getByRole('button', {name: 'Delete Specimen Type'}));
-    await expectAnnounced('Specimen type deleted');
+    await user.click(dialog().getByRole('button', {name: 'Delete Sample Type'}));
+    await expectAnnounced('Sample type deleted');
 
     await user.click(screen.getByRole('button', {name: 'Archive Skin histology'}));
     expect(await screen.findByText('Synthetic archive refusal.')).toBeInTheDocument();
@@ -153,7 +153,7 @@ describe('SpecimenSetupPage', () => {
 
   it("says when the lists couldn't be loaded, or are empty", async () => {
     renderPage({'GET /api/specimen-types': () => json({}, 500), 'GET /api/lab-tests': () => json([])});
-    expect(await screen.findByText('The specimen types could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The sample types could not be loaded. Please try again.')).toBeInTheDocument();
     expect(await screen.findByText('No lab tests yet. Add the tests the lab does, such as skin histology.')).toBeInTheDocument();
   });
 
@@ -167,10 +167,10 @@ describe('SpecimenSetupPage', () => {
     );
 
     expect(await screen.findByRole('list', {name: 'Lab tests'})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Add Specimen Type'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Add Sample Type'})).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Add Lab Test'})).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Hide specimen types'}));
-    await waitFor(() => expect(screen.queryByRole('list', {name: 'Specimen types'})).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', {name: 'Hide sample types'}));
+    await waitFor(() => expect(screen.queryByRole('list', {name: 'Sample types'})).not.toBeInTheDocument());
     await user.click(screen.getByRole('button', {name: 'Hide lab tests'}));
     await waitFor(() => expect(screen.queryByRole('list', {name: 'Lab tests'})).not.toBeInTheDocument());
   });

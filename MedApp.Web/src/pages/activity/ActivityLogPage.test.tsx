@@ -51,7 +51,7 @@ describe('ActivityLogPage', () => {
     expect(within(roles).getByText('Roles changed')).toBeInTheDocument();
     const refused = screen.getByText('Account locked').closest('tr')!;
     expect(within(refused).getByText('—')).toBeInTheDocument();
-    expect(screen.getByText('23 entries')).toBeInTheDocument();
+    expect(screen.getByText('Record access, sign-ins and accounts · 23 entries')).toBeInTheDocument();
     expect(calls(fetch)).toEqual([`GET ${SEARCH}?PageSize=10&Page=1&Ascending=false`]);
   });
 
@@ -69,7 +69,7 @@ describe('ActivityLogPage', () => {
     await screen.findByText('k.ashford');
     expect(calls(fetch)[0]).toContain('Search=ashford');
     expect(calls(fetch)[0]).toContain('Actions=SignedIn&Actions=SignInFailed');
-    expect(searchBar()).toHaveTextContent(/User or address: contains\s*ashford/);
+    expect(searchBar()).toHaveTextContent(/User or IP address: contains\s*ashford/);
 
     await pickFavourite(user, 'Refused sign-ins');
     expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({patientId, action: 'SignInFailed', q: undefined, page: undefined}));
@@ -99,7 +99,7 @@ describe('ActivityLogPage', () => {
   it('says how many entries a search found', async () => {
     renderLog({q: 'ashford'}, pageOf([entries[0]], 1));
 
-    expect(await screen.findByText('1 entry found')).toBeInTheDocument();
+    expect(await screen.findByText('Record access, sign-ins and accounts · 1 entry found')).toBeInTheDocument();
   });
 
   it('says when nothing has been recorded yet', async () => {
@@ -112,7 +112,7 @@ describe('ActivityLogPage', () => {
     renderLog({}, {title: 'Server error'}, 500);
 
     expect(await findAlert('The activity log could not be loaded. Please try again.')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('0 entries')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Record access, sign-ins and accounts · 0 entries')).toBeInTheDocument());
   });
 
   it('lists file activity, and filters to it from its Files favourite', async () => {

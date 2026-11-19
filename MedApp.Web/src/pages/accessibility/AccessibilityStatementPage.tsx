@@ -21,7 +21,7 @@ const KNOWN_ISSUES: readonly string[] = [];
  */
 export function AccessibilityStatementPage() {
   return (
-    <Page title="Accessibility statement" subtitle={`Last reviewed ${STATEMENT_DATE}`}>
+    <Page title="Accessibility Statement" subtitle={`Last reviewed ${STATEMENT_DATE}`}>
       <VStack gap={6}>
         <ViewCard showFooter={false}>
           <CardSection title="Our aim">
@@ -34,7 +34,7 @@ export function AccessibilityStatementPage() {
         </ViewCard>
         <ViewCard
           footerActions={
-            <Button label="Accessibility settings" variant="secondary" icon={<Icon icon={AppIcon.Accessibility} />} href="/account" />
+            <Button label="Accessibility Settings" variant="secondary" icon={<Icon icon={AppIcon.Accessibility} />} href="/account" />
           }>
           <CardSection title="What you can change">
             <VStack gap={3}>
@@ -76,7 +76,7 @@ export function AccessibilityStatementPage() {
           <CardSection title="Reporting a problem">
             <Text type="body">
               If something in MedApp is hard to use, or doesn’t work with the way you use your computer, tell your
-              system administrator. Say which page it was on and what you were trying to do.
+              MedApp admin. Say which page it was on and what you were trying to do.
             </Text>
           </CardSection>
         </ViewCard>

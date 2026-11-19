@@ -95,7 +95,7 @@ describe('describeActivity', () => {
     expect(describe_('TwoFactorRequirementChanged', {requireTwoFactorForAdmins: true})).toBe('Required for admins');
     expect(describe_('TwoFactorRequirementChanged', {requireTwoFactorForAdmins: false})).toBe('Not required');
     expect(describe_('TwoFactorRequirementChanged', {})).toBe('');
-    expect(activityActionLabel('TwoFactorChallenged')).toBe('Code asked for');
+    expect(activityActionLabel('TwoFactorChallenged')).toBe('Code requested');
   });
 
   it('gives roles changed, added and removed', () => {

@@ -91,15 +91,15 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   SignedOutEverywhere: 'Signed out everywhere',
   AttachmentsViewed: 'Files viewed',
   AttachmentDownloaded: 'File downloaded',
-  TwoFactorChallenged: 'Code asked for',
+  TwoFactorChallenged: 'Code requested',
   TwoFactorEnabled: 'Two-factor turned on',
   TwoFactorDisabled: 'Two-factor turned off',
   TwoFactorReset: 'Two-factor reset',
   RecoveryCodesRegenerated: 'New recovery codes',
   RecoveryCodeUsed: 'Recovery code used',
-  PasswordResetRequested: 'Password reset asked for',
+  PasswordResetRequested: 'Password reset requested',
   PasswordResetByEmail: 'Password reset by email',
-  EmailChangeRequested: 'Email address change asked for',
+  EmailChangeRequested: 'Email address change requested',
   EmailConfirmed: 'Email address confirmed',
   EmailRemoved: 'Email address removed',
   TwoFactorRequirementChanged: 'Two-factor requirement changed',
@@ -111,7 +111,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   StaffDetailsChanged: 'Staff details changed',
   DataRequestPackDownloaded: 'Data request pack downloaded',
   DataRequestChanged: 'Data request changed',
-  TeamBoundaryRefused: 'Refused: another team’s',
+  TeamBoundaryRefused: 'Blocked: another team’s record',
   LabCaseViewed: 'Lab case viewed',
 };
 
@@ -251,6 +251,27 @@ const DATA_REQUEST_CHANGES: Record<string, string> = {
   Withdrawn: 'Request withdrawn',
 };
 
+/** What kind of record was asked for across a team wall (`TeamBoundaryRefused`'s `targetKind`), in words. */
+const TARGET_KINDS: Record<string, string> = {
+  Patient: 'A patient',
+  Pathway: 'A pathway',
+  Referral: 'A referral',
+  Appointment: 'An appointment',
+  Meeting: 'A meeting',
+  Consult: 'A consult',
+  ConsentRecord: 'A consent record',
+  MdtItem: 'An MDT item',
+  Letter: 'A letter',
+  Result: 'A result',
+  Specimen: 'A sample',
+  LabCase: 'A lab case',
+  HospitalRequest: 'A hospital request',
+};
+
+/** A target kind in words: one it knows, else its name split into words ("FooBar" gives "A foo bar"). */
+const targetKindWords = (kind: string) =>
+  TARGET_KINDS[kind] ?? (kind ? `A ${kind.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()}` : '');
+
 const names = (value: unknown) => (Array.isArray(value) ? value.map(String).join(', ') : '');
 
 /** A role change in words: "Nurse: renamed from Nurses; added AssignPathways; removed DeletePatients". */
@@ -335,7 +356,7 @@ export function describeActivity(entry: Pick<ActivityEntry, 'action' | 'details'
       return DATA_REQUEST_CHANGES[String(d.change)] ?? text(d.change);
     // What was asked for across a team wall (refused with a 404), by kind: the ID is in the details, never a patient's details.
     case 'TeamBoundaryRefused':
-      return text(d.targetKind);
+      return targetKindWords(text(d.targetKind));
     case 'PatientRestricted':
     case 'PatientRestrictionLifted':
     case 'PatientDisputed':

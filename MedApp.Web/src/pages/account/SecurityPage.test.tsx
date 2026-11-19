@@ -89,7 +89,7 @@ describe('SecurityPage', () => {
     await user.click(screen.getByRole('button', {name: 'Set Up Two-Factor'}));
     await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Done'}));
 
@@ -301,9 +301,9 @@ describe('SecurityPage, with codes by email', () => {
     await user.click(await screen.findByRole('radio', {name: /codes by email/i}));
     await user.click(screen.getByRole('button', {name: 'Set Up Two-Factor'}));
     await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
     await user.type(await screen.findByLabelText(/code from the email/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on codes by email'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Codes by Email'}));
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     await expectAnnounced('Codes by email turned on');
     await user.click(screen.getByRole('button', {name: 'Done'}));
@@ -336,7 +336,7 @@ describe('SecurityPage, with codes by email', () => {
     const dialog = within(openDialog()!);
     expect(dialog.getByText(/a code we email you \(or a recovery code\)/)).toBeInTheDocument();
     await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    await user.click(dialog.getByRole('button', {name: 'Email Me a Code'}));
     expect(await dialog.findByText(`We emailed a code to ${emailCodeSent.sentTo}.`, {exact: false})).toBeInTheDocument();
     expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/email/code')).toEqual({password: 'Synthetic-Passw0rd'});
     await user.type(dialog.getByLabelText(/code from the email, or a recovery code/i), '654321');
@@ -353,7 +353,7 @@ describe('SecurityPage, with codes by email', () => {
     await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
     const dialog = within(openDialog()!);
     await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    await user.click(dialog.getByRole('button', {name: 'Email Me a Code'}));
 
     expect(await dialog.findByText(tooMany)).toBeInTheDocument();
   });
@@ -365,13 +365,13 @@ describe('SecurityPage, with codes by email', () => {
 
     await user.click(await screen.findByRole('button', {name: 'Turn Off'}));
     const dialog = within(openDialog()!);
-    expect(isDisabled(dialog.getByRole('button', {name: 'Email me a code'}))).toBe(true);
+    expect(isDisabled(dialog.getByRole('button', {name: 'Email Me a Code'}))).toBe(true);
     expect(dialog.getByText(PASSWORD_FIRST)).toBeInTheDocument();
     expect(calls(fetch)).not.toContain(SEND_CODE);
 
     await user.type(dialog.getByLabelText(/your password/i), 'not-the-password');
     expect(dialog.queryByText(PASSWORD_FIRST)).not.toBeInTheDocument();
-    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    await user.click(dialog.getByRole('button', {name: 'Email Me a Code'}));
 
     expect(await dialog.findByText('That password is wrong.')).toBeInTheDocument();
     expect(dialog.getByLabelText(/your password/i)).toHaveAttribute('aria-invalid', 'true');
@@ -404,7 +404,7 @@ describe('SecurityPage, with codes by email', () => {
     const dialog = within(openDialog()!);
     expect(dialog.getByText(/a code we email you to get them/)).toBeInTheDocument();
     await user.type(dialog.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(dialog.getByRole('button', {name: 'Email me a code'}));
+    await user.click(dialog.getByRole('button', {name: 'Email Me a Code'}));
     await user.click(await dialog.findByRole('button', {name: 'Resend code'}));
     await expectAnnounced(`A new code was emailed to ${emailCodeSent.sentTo}.`);
     expect(calls(fetch).filter((c) => c === SEND_CODE)).toHaveLength(2);
@@ -424,10 +424,10 @@ describe('SecurityPage, with codes by email', () => {
     await user.click(await screen.findByRole('button', {name: 'Switch to an Authenticator App'}));
     expect(await screen.findByText(PROVE_CURRENT)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/your password/i), 'Synthetic-Passw0rd');
-    await user.click(screen.getByRole('button', {name: 'Email me a code'}));
+    await user.click(screen.getByRole('button', {name: 'Email Me a Code'}));
     await user.type(await screen.findByLabelText(/code from the email, or a recovery code/i), '654321');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
 
     expect(await screen.findByText(recoveryCodes[0])).toBeInTheDocument();
     expect(await bodyOf(fetch, 'POST', '/api/auth/me/two-factor/email/code')).toEqual({password: 'Synthetic-Passw0rd'});
@@ -450,7 +450,7 @@ describe('SecurityPage, with codes by email', () => {
     await user.type(await screen.findByLabelText(/your password/i), 'Synthetic-Passw0rd');
     await user.type(screen.getByLabelText(/code from the email, or a recovery code/i), 'ABCDE-23456');
     await user.type(screen.getByLabelText(/code from your authenticator app/i), '123456');
-    await user.click(screen.getByRole('button', {name: 'Turn on two-factor'}));
+    await user.click(screen.getByRole('button', {name: 'Turn On Two-Factor'}));
 
     expect(await screen.findByText("That code isn't right.")).toBeInTheDocument();
     expect(screen.getByLabelText(/code from the email, or a recovery code/i)).toHaveAttribute('aria-invalid', 'true');

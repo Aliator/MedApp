@@ -95,14 +95,14 @@ export function throughputSummary(weeks: readonly WeeklyThroughput[]): string {
   const thisWeek = weeks[weeks.length - 1];
   const balance =
     created === completed
-      ? 'as many discharged as created'
+      ? 'as many completed as created'
       : created > completed
-        ? `${created - completed} more created than discharged`
-        : `${completed - created} more discharged than created`;
+        ? `${created - completed} more created than completed`
+        : `${completed - created} more completed than created`;
   const parts = [
-    `Over ${plural(weeks.length, 'week')}, ${plural(created, 'pathway')} created and ${completed} discharged: ${balance}.`,
+    `Over ${plural(weeks.length, 'week')}, ${plural(created, 'pathway')} created and ${completed} completed: ${balance}.`,
   ];
-  if (thisWeek) parts.push(`This week so far: ${thisWeek.created ?? 0} created, ${thisWeek.completed ?? 0} discharged.`);
+  if (thisWeek) parts.push(`This week so far: ${thisWeek.created ?? 0} created, ${thisWeek.completed ?? 0} completed.`);
   return parts.join(' ');
 }
 

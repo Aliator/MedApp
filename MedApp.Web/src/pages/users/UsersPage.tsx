@@ -298,7 +298,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
 
   return (
     <Page
-      title="User Management"
+      title="Users"
       subtitle={subtitle}
       fill
       message={
@@ -320,7 +320,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             title="Create New User"
             message={
               created
-                ? `Account created for ${created.username}.`
+                ? `Account created for ${created.username}. They must change this temporary password when they first sign in.`
                 : canSendEmail
                   ? 'Enter a username for the new user, and their email address if you have it.'
                   : 'Enter a username for the new user.'
@@ -338,7 +338,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
             onCancel={close}>
             {created ? (
               <OneTimePassword
-                label="First password"
+                label="Temporary password"
                 password={created.password}
                 username={created.username}
                 announcement={`Account created for ${created.username}.`}
@@ -442,7 +442,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'resetTwoFactor'}
             title="Reset Two-Factor"
-            message={`Reset two-factor authentication for ${target?.username}? It turns off their two-factor authentication (their authenticator app and recovery codes stop working) and signs them out everywhere. They sign in with their password alone until they set it up again, or are asked to set it up at once if it's required for them.`}
+            message={`Reset two-factor authentication for ${target?.username}? Their authenticator app and recovery codes stop working, and they're signed out everywhere. They can then sign in with just their password. If two-factor is required for them, they'll set it up again when they next sign in.`}
             icon={AppIcon.TwoFactor}
             intent="warning"
             confirmText="Reset Two-Factor"
@@ -487,7 +487,7 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
           <ConfirmDialog
             isOpen={dialog?.kind === 'removeEmail'}
             title="Remove Email Address"
-            message={`Remove ${target?.username}'s email address${target?.email ? ` (${target.email})` : ''}, and any waiting to be confirmed? Password reset links can't be sent to it any more, so use this when the address isn't theirs or may be in the wrong hands. A confirmed address is emailed to say so. They can add one again in Account Settings.`}
+            message={`Remove ${target?.username}'s email address${target?.email ? ` (${target.email})` : ''}, and any waiting to be confirmed? Password reset links can't be sent to it any more, so use this when the address isn't theirs or may be in the wrong hands. If the address was confirmed, we email it to say it was removed. They can add one again in Account Settings.`}
             icon={AppIcon.Email}
             isDanger
             confirmText="Remove Email Address"
@@ -584,7 +584,6 @@ export function UsersPage({search, onSearchChange}: UsersPageProps) {
               favourites={[
                 {label: 'All', values: {}},
                 {label: 'Admins', values: {role: 'Admin'}},
-                {label: 'All staff (before roles)', values: {role: 'All staff (before roles)'}},
               ]}
             />
           }
