@@ -3,6 +3,7 @@ import {PINS_KEY} from '../components/navigation/pins';
 import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, REFERRALS, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
 import {CLINICAL_IDS} from './slices/clinical';
+import {HOSPITAL_IDS} from './slices/hospitals';
 import {LAB_IDS} from './slices/lab';
 import type {DemoState} from './state';
 
@@ -222,6 +223,18 @@ export const TOUR: TourStep[] = [
     account: LAB.username,
     path: '/lab',
     buttonLabel: 'Open the Lab worklist',
+  },
+  {
+    key: 'hospital-request',
+    title: 'A sample from the hospital',
+    steps: [
+      'Opens an urgent request from Riverside General (demo), typed in by the lab: the hospital’s patient number, the NHS number, the surgeon, the priority and the dates, as the request gave them. It opened a lab case of the lab’s own, with no pathway.',
+      'The patient banner sits over the request’s own numbers, so both can be checked. Wilfred Ashdown came only from the hospital: clinic staff don’t find him in Patients; the lab does.',
+      'Back in Hospital Requests, Register Request types in a new one: find the patient by NHS number, or last name and date of birth, and choose them yourself (never matched for you), or add a new patient.',
+    ],
+    account: LAB.username,
+    path: `/hospital-requests/${HOSPITAL_IDS.urgentRequest}`,
+    buttonLabel: 'Open the hospital request as the lab',
   },
   {
     key: 'fork',

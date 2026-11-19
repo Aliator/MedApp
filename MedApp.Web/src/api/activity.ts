@@ -58,6 +58,7 @@ export const ACTIVITY_ACTIONS = [
   'DataRequestPackDownloaded',
   'DataRequestChanged',
   'TeamBoundaryRefused',
+  'LabCaseViewed',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
@@ -111,6 +112,7 @@ const ACTION_LABELS: Record<ActivityAction, string> = {
   DataRequestPackDownloaded: 'Data request pack downloaded',
   DataRequestChanged: 'Data request changed',
   TeamBoundaryRefused: 'Refused: another team’s',
+  LabCaseViewed: 'Lab case viewed',
 };
 
 /** An action in words: "PatientViewed" → "Patient viewed". */
@@ -126,6 +128,7 @@ export const ACCESS_ACTIONS: ActivityAction[] = [
   'PatientListed',
   'PathwayViewed',
   'ReferralViewed',
+  'LabCaseViewed',
   'PatientExported',
   'DataRequestPackDownloaded',
   ...FILE_ACTIONS,

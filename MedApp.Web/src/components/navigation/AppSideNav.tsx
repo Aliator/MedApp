@@ -692,6 +692,29 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           },
         ]
       : []),
+    // The hospitals' requests (MC18), for the lab, who register them; a request's page counts as under it.
+    ...(can(user, 'ProcessSpecimens')
+      ? [
+          {
+            key: 'hospital-requests',
+            label: 'Hospital Requests',
+            icon: AppIcon.Hospitals,
+            href: '/hospital-requests',
+            isSelected: isAt('/hospital-requests'),
+            isHalfView: isHalfAt('/hospital-requests'),
+            row: (
+              <SideNavItem
+                label="Hospital Requests"
+                icon={AppIcon.Hospitals}
+                href="/hospital-requests"
+                isSelected={isAt('/hospital-requests')}
+                ref={halfViewRow(isHalfAt('/hospital-requests'))}
+                actions={<RowMenu label="Hospital Requests" href="/hospital-requests" />}
+              />
+            ),
+          },
+        ]
+      : []),
     // Results awaiting sign-off and signed off, for anyone who can view patients; a result's page counts as under it.
     ...(can(user, 'ViewPatients') && !isAdminAccount
       ? [
