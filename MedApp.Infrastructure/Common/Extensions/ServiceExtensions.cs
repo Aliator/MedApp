@@ -288,6 +288,7 @@ public static class ServiceExtensions
         services.AddScoped<IOperationalDataRepository, OperationalDataRepository>();
         services.AddScoped<ITeamRepository, TeamRepository>();
         services.AddScoped<IPathwayAccessRepository, PathwayAccessRepository>();
+        services.AddScoped<MedApp.Application.Consults.Repositories.IConsultRepository, ConsultRepository>();
         services.AddScoped<IPracticeRepository, PracticeRepository>();
         services.AddScoped<ILetterTemplateRepository, LetterTemplateRepository>();
         services.AddScoped<ILetterRepository, LetterRepository>();

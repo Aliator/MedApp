@@ -128,9 +128,19 @@ public sealed class PatientPathwayRepository(MedAppDbContext context, IOptions<S
         // Its MDT items go with it (their history stays in the audit log), with who was present (cascade).
         context.MdtItems.RemoveRange(await context.MdtItems.Where(i => i.PathwayId == pathway.Id).ToListAsync(ct));
 
+        // Its consults go with it too (MC25; their history stays in the audit log), and an open one's grant ends.
+        context.Consults.RemoveRange(await context.Consults.Where(c => c.PathwayId == pathway.Id).ToListAsync(ct));
+        var entries = audit.ToList();
+        // Ended when the deletion was audited (its handler's clock).
+        var endedAtUtc = entries.Count > 0 ? entries.Max(e => e.AtUtc) : DateTime.UtcNow;
+        foreach (var grant in await context.PathwayAccess
+                     .Where(a => a.PathwayId == pathway.Id && a.Reason == PathwayAccessReason.Consult && a.EndedAtUtc == null)
+                     .ToListAsync(ct))
+            grant.EndedAtUtc = endedAtUtc;
+
         // Stages and assignments cascade; the audit entries have no foreign key, so they stay.
         context.PatientPathways.Remove(pathway);
-        context.PatientPathwayAuditEntries.AddRange(audit);
+        context.PatientPathwayAuditEntries.AddRange(entries);
         await SaveChangesAsync(ct);
     }
 

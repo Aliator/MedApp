@@ -2,6 +2,7 @@ using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
 using MedApp.Domain.Activity;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Teams;
 using Microsoft.EntityFrameworkCore;
 
 namespace MedApp.Infrastructure.Data.Repositories;
@@ -170,6 +171,17 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
         foreach (var consent in consentRecords)
             consent.Patient = patient;
 
+        // Consults (MC25), with the question and the reply, and the asked teams' live grants (anonymising ends them).
+        var consults = await Tracking(context.Consults, forUpdate)
+            .Include(c => c.AskingTeam)
+            .Include(c => c.AskedTeam)
+            .Where(c => c.PatientId == patientId)
+            .OrderBy(c => c.RequestedAtUtc).ThenBy(c => c.Id)
+            .ToListAsync(ct);
+        var consultGrants = await Tracking(context.PathwayAccess, forUpdate)
+            .Where(a => a.PatientId == patientId && a.Reason == PathwayAccessReason.Consult && a.EndedAtUtc == null)
+            .ToListAsync(ct);
+
         // Data requests (subject access), with what their reviews withheld.
         var dataRequests = await Tracking(context.DataRequests, forUpdate)
             .Include(d => d.WithheldItems)
@@ -204,6 +216,8 @@ public sealed class PatientRecordRepository(MedAppDbContext context) : IPatientR
             Results = results,
             MdtItems = mdtItems,
             ConsentRecords = consentRecords,
+            Consults = consults,
+            ConsultGrants = consultGrants,
             DataRequests = dataRequests
         };
     }

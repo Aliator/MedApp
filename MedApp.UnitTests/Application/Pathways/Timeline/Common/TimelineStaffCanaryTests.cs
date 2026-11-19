@@ -258,7 +258,30 @@ public sealed class TimelineStaffCanaryTests
         return change.AuditEntries.Concat(files).Concat(branchChange.AuditEntries).Concat(relayChange.AuditEntries)
             .Concat(LetterEntriesHoldingTheCanary(pathway)).Concat(SpecimenEntriesHoldingTheCanary()).Concat(mdt)
             .Concat(ResultEntriesHoldingTheCanary())
-            .Concat(ConsentEntriesHoldingTheCanary()).ToList();
+            .Concat(ConsentEntriesHoldingTheCanary()).Concat(ConsultEntriesHoldingTheCanary()).ToList();
+    }
+
+    /// <summary>
+    /// As the consult handlers (MC25): sent, replied, closed and withdrawn, with the canary as the question, the reply
+    /// and the pathway's title, which the details never copy.
+    /// </summary>
+    private static IEnumerable<PatientPathwayAuditEntry> ConsultEntriesHoldingTheCanary()
+    {
+        var pathway = CreatePathway(Status.InProgress, title: Canary);
+        MedApp.Domain.Consults.Consult Consult() => new()
+        {
+            Id = Guid.NewGuid(), PatientId = pathway.PatientId, PathwayId = pathway.Id, AskingTeamId = Guid.NewGuid(),
+            AskedTeamId = Guid.NewGuid(), Question = Canary,
+        };
+        var replied = Consult();
+        var withdrawn = Consult();
+        var first = new MedApp.Application.Consults.Common.ConsultChange(replied, pathway, "Dermatology", "Lab", Staff, Now);
+        first.Requested();
+        first.Replied(Canary);
+        first.Closed();
+        var second = new MedApp.Application.Consults.Common.ConsultChange(withdrawn, pathway, "Dermatology", "Lab", Staff, Now);
+        second.Withdrawn();
+        return first.AuditEntries.Concat(second.AuditEntries);
     }
 
     /// <summary>

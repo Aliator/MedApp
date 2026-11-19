@@ -25,6 +25,7 @@ public sealed class WalledAreaQueriesConventionTests
         "MedApp.Application.Mdt.Queries",
         "MedApp.Application.Appointments.Queries",
         "MedApp.Application.PatientMessages.Queries.GetAppointmentMessages",
+        "MedApp.Application.Consults.Queries",
     ];
 
     private static readonly Type[] Carriers = [typeof(TeamScope), typeof(PathwayActor), typeof(CalendarActor)];

@@ -96,6 +96,8 @@ public sealed class Notification
             or NotificationKind.MdtOutcomeRecorded
             or NotificationKind.DataRequestDueSoon
             or NotificationKind.RepeatSampleRequested
+            or NotificationKind.ConsultRequested
+            or NotificationKind.ConsultReplied
         || IsMonitoring(kind)
         || IsNoteDeletion(kind);
 

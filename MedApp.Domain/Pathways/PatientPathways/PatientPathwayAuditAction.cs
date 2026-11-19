@@ -182,5 +182,22 @@ public enum PatientPathwayAuditAction
     RepeatSampleRequested = 54,
 
     /// <summary>The case was marked entered in error, freeing its samples: <c>{labCaseId, number}</c>.</summary>
-    LabCaseEnteredInError = 55
+    LabCaseEnteredInError = 55,
+
+    // 56 to 58 are the hospital report's and surgery details' (MC20).
+
+    /// <summary>
+    /// A consult was sent to another team (MC25). Consult entries (59 to 62) hold <c>{consultId, askingTeamId,
+    /// askingTeam, askedTeamId, askedTeam}</c> (the teams' admin-written names); never the question or the reply.
+    /// </summary>
+    ConsultRequested = 59,
+
+    /// <summary>The asked team replied to a consult.</summary>
+    ConsultReplied = 60,
+
+    /// <summary>The asking team closed a consult after its reply, ending the asked team's reading.</summary>
+    ConsultClosed = 61,
+
+    /// <summary>The asking team withdrew a consult before a reply, ending the asked team's reading.</summary>
+    ConsultWithdrawn = 62
 }

@@ -63,4 +63,10 @@ public sealed class Attachment
     public string? DeletedByUsername { get; set; }
 
     public bool IsDeleted => DeletedAtUtc is not null;
+
+    /// <summary>
+    /// Marked as a clinical photo (MC27): a picture on a pathway, marked only while the pathway has a valid consent to
+    /// clinical photography. Shown as any picture is (its thumbnail, or a download), never inline at full size.
+    /// </summary>
+    public bool IsClinicalPhoto { get; set; }
 }

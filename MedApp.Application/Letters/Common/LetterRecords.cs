@@ -265,7 +265,8 @@ public sealed class LetterRecords(
                     }
                     break;
 
-                case LetterRecipientKind.Other:
+                // A hospital (MC28) is typed in as someone else is: its name and address as the author gives them.
+                case LetterRecipientKind.Other or LetterRecipientKind.Hospital:
                     recipient.Name = input.Name!.Trim();
                     recipient.AddressLines = PostalAddress.Join(PostalAddress.Split(input.AddressLines?.Replace("\r\n", "\n")));
                     recipient.Postcode = UkPostcodes.Normalise(input.Postcode);

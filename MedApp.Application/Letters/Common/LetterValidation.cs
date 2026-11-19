@@ -70,17 +70,16 @@ public static class LetterValidation
                 .When(r => r.Kind == nameof(LetterRecipientKind.GpPractice))
                 .WithMessage("Choose the GP practice from the directory.");
 
+            // Someone else, or a hospital (MC28), is typed in: a name and an address.
             recipient.RuleFor(r => r.Name)
-                .Must(name => !string.IsNullOrWhiteSpace(name))
-                .When(r => r.Kind == nameof(LetterRecipientKind.Other))
-                .WithMessage("Name is required for another recipient.")
+                .Must((r, name) => !IsTypedIn(r.Kind) || !string.IsNullOrWhiteSpace(name))
+                .WithMessage((r, _) => $"Name is required for {TypedInWho(r.Kind)}.")
                 .Must(name => name is null || name.Trim().Length <= LetterRecipient.MaxNameLength)
                 .WithMessage($"Name must not exceed {LetterRecipient.MaxNameLength} characters.");
 
             recipient.RuleFor(r => r.AddressLines)
-                .Must(lines => !string.IsNullOrWhiteSpace(lines))
-                .When(r => r.Kind == nameof(LetterRecipientKind.Other))
-                .WithMessage("Address is required for another recipient.");
+                .Must((r, lines) => !IsTypedIn(r.Kind) || !string.IsNullOrWhiteSpace(lines))
+                .WithMessage((r, _) => $"Address is required for {TypedInWho(r.Kind)}.");
 
             recipient.RuleFor(r => (IReadOnlyList<string>?)Lines(r.AddressLines))
                 .AddressLines()
@@ -102,6 +101,14 @@ public static class LetterValidation
                 .OverridePropertyName("Name");
         });
     }
+
+    /// <summary>Whether a recipient of this kind is typed in by the author: someone else, or a hospital (MC28).</summary>
+    private static bool IsTypedIn(string? kind) =>
+        kind is nameof(LetterRecipientKind.Other) or nameof(LetterRecipientKind.Hospital);
+
+    /// <summary>"another recipient", "a hospital": who a typed-in recipient is, for messages.</summary>
+    private static string TypedInWho(string? kind) =>
+        kind == nameof(LetterRecipientKind.Hospital) ? "a hospital" : "another recipient";
 
     private static IReadOnlyList<string> Lines(string? text) =>
         string.IsNullOrEmpty(text) ? [] : text.Replace("\r\n", "\n").Split('\n');

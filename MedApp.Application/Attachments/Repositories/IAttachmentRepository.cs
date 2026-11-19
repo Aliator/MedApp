@@ -24,6 +24,12 @@ public interface IAttachmentRepository
     /// <summary>Saves changes to attachments loaded with <see cref="GetForUpdateAsync"/>, with the audit entry recording them.</summary>
     Task SaveAsync(PatientPathwayAuditEntry audit, CancellationToken ct);
 
+    /// <summary>
+    /// Saves changes to attachments loaded with <see cref="GetForUpdateAsync"/> that no audit entry records: marking a
+    /// clinical photo (MC27), which has no audit action of its own.
+    /// </summary>
+    Task SaveAsync(CancellationToken ct);
+
     /// <summary>Records an audit entry that changes nothing else (a download).</summary>
     Task AddAuditAsync(PatientPathwayAuditEntry audit, CancellationToken ct);
 

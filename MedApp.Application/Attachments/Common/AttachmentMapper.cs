@@ -33,6 +33,8 @@ public static class AttachmentMapper
             IsDeleted = attachment.IsDeleted,
             DeletedAtUtc = attachment.DeletedAtUtc,
             DeletedByUsername = attachment.DeletedByUsername,
+            IsClinicalPhoto = attachment.IsClinicalPhoto,
+            CanMarkClinicalPhoto = canAttachFiles && Consent.Common.ClinicalPhotography.CanBeClinicalPhoto(attachment),
         };
     }
 

@@ -197,5 +197,17 @@ public enum NotificationKind
     MonitoredLabCaseAtRisk = 47,
 
     /// <summary>A service alert (MC19): lab cases past their due date ("Lab cases overdue").</summary>
-    MonitoredLabCaseOverdue = 48
+    MonitoredLabCaseOverdue = 48,
+
+    /// <summary>
+    /// Another team sent your team a consult (MC25), to the asked team's members who work pathways. A fixed title
+    /// ("Consult requested"); the message names who sent it and their team, never the question or the patient.
+    /// </summary>
+    ConsultRequested = 49,
+
+    /// <summary>
+    /// The asked team replied to your team's consult, to whoever sent it and the pathway's assignees. A fixed title
+    /// ("Consult replied"); the message names who replied and their team, never the reply or the patient.
+    /// </summary>
+    ConsultReplied = 50
 }

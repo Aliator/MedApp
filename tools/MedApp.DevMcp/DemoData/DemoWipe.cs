@@ -66,6 +66,7 @@ public static class DemoWipe
                 await db.ClinicPatterns.ExecuteDeleteAsync(cancellationToken);
                 // MDT items (who was present cascades) before the meetings, pathways and teams they name.
                 await db.MdtItems.ExecuteDeleteAsync(cancellationToken);
+                await db.Consults.ExecuteDeleteAsync(cancellationToken);
                 await db.MeetingAttendees.ExecuteDeleteAsync(cancellationToken);
                 await db.Meetings.ExecuteDeleteAsync(cancellationToken);
                 await db.CalendarBlockExceptions.ExecuteDeleteAsync(cancellationToken);

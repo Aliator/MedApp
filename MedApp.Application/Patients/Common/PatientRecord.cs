@@ -107,6 +107,15 @@ public sealed record PatientRecord
     /// </summary>
     public required IReadOnlyList<ConsentRecord> ConsentRecords { get; init; }
 
+    /// <summary>
+    /// The patient's consults (MC25), oldest sent first, with both teams. Their history is in <see cref="PathwayHistory"/>.
+    /// The export has no field for them yet (the web's contract): anonymisation covers them.
+    /// </summary>
+    public IReadOnlyList<Domain.Consults.Consult> Consults { get; init; } = [];
+
+    /// <summary>The live consult grants on the patient's pathways (the asked teams' reading), ended when anonymised.</summary>
+    public IReadOnlyList<Domain.Teams.PathwayAccess> ConsultGrants { get; init; } = [];
+
     /// <summary>The patient's data requests (subject access), in any status, oldest received first, with what was withheld.</summary>
     public IReadOnlyList<Domain.DataRequests.DataRequest> DataRequests { get; init; } = [];
 }

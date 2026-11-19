@@ -11,5 +11,10 @@ public enum LetterKind
     ReferralResponse = 2,
     InformationRequest = 3,
     AppointmentLetter = 4,
-    Other = 5
+    Other = 5,
+
+    // 6 is the lab's report letter (MC20).
+
+    /// <summary>A referral on to the hospital (MC28): what a stage needing a referral letter to hospital waits for.</summary>
+    OnwardReferral = 7
 }

@@ -114,6 +114,24 @@ public sealed class LetterHandlersTests : LetterHandlerTestBase
     }
 
     [Test]
+    public async Task Recipients_AHospital_IsTypedInAsSomeoneElseIs()
+    {
+        var records = Fixture.Create<LetterRecords>();
+        var record = new LetterRecord(OnPathway(), Patient, Pathway, null);
+
+        var recipients = await records.RecipientsAsync(
+            record,
+            [new LetterRecipientInput(LetterRecipientKind.Hospital, null, " Example General Hospital ", "1 Example Way\r\nExampleton", "zz9 9zz", null)],
+            _cts.Token);
+
+        recipients.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            Kind = LetterRecipientKind.Hospital, PracticeId = (Guid?)null, Name = "Example General Hospital",
+            AddressLines = "1 Example Way\nExampleton", Postcode = "ZZ9 9ZZ", Email = (string?)null,
+        });
+    }
+
+    [Test]
     public async Task Create_ArchivedTemplate_IsAConflict()
     {
         var template = CreateTemplate(isArchived: true);
