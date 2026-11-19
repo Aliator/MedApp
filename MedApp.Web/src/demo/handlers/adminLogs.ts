@@ -103,6 +103,13 @@ export function auditEntries(): AuditEntry[] {
           details: JSON.stringify({noteId: n.id, version: n.version, deletionReason: n.deleted.reason}),
         });
     }
+    // A branch added on new information (MC10): which, after which stage and the stages it added; never the reason.
+    for (const a of p.branchAdditions ?? [])
+      add(`branch:${a.id}`, 'BranchAdded', a.addedAtUtc, a.addedByUserId, {
+        stageId: a.afterStageId,
+        stageName: p.stages.find((s) => s.id === a.afterStageId)?.name ?? null,
+        details: JSON.stringify({templateBranchId: a.templateBranchId, branch: a.name, afterStageId: a.afterStageId, stageIds: a.stageIds}),
+      });
     for (const [i, c] of p.statusChanges.entries())
       add(`status:${i}`, 'StatusChanged', c.atUtc, c.userId, {details: JSON.stringify({from: c.from, to: c.to})});
   }

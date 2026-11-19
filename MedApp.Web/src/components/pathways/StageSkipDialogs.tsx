@@ -22,7 +22,7 @@ import {AppIcon} from '../shared/icons';
 type Send<T> = (input: T, fail: (error: unknown) => void) => void;
 
 /** What went wrong with a dialog's change: a 400's messages on its fields, or the API's words for anything else. */
-function useDialogProblem(fields: readonly string[], fallback: string) {
+export function useDialogProblem(fields: readonly string[], fallback: string) {
   const [problem, setProblem] = useState<string | null>(null);
   const [errors, setErrors] = useState<ValidationErrors | null>(null);
   const fail = (error: unknown) => {

@@ -51,6 +51,7 @@ export const AUDIT_ACTIONS = [
   'MdtOutcomeRecorded',
   'MdtDeferred',
   'MdtWithdrawn',
+  'BranchAdded',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -91,6 +92,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   MdtOutcomeRecorded: 'MDT outcome recorded',
   MdtDeferred: 'MDT item moved',
   MdtWithdrawn: 'Withdrawn from MDT',
+  BranchAdded: 'Branch added',
 };
 
 /** The actions about attached files, for the log's Files look-up. */
@@ -219,6 +221,13 @@ export function describeAuditDetails(entry: Pick<AuditEntry, 'action' | 'details
       return [text(d.branch) ? `Chose ${text(d.branch)}` : null, skipped.length > 0 ? `skipped ${skipped.join(', ')}` : null]
         .filter(Boolean)
         .join('; ');
+    }
+    // A template's branch added on new information (MC10): which, and how many stages; the reason is on the pathway.
+    case 'BranchAdded': {
+      const count = Array.isArray(d.stageIds) ? d.stageIds.length : 0;
+      return [text(d.branch) ? `Added ${text(d.branch)}` : null, count > 0 ? `${count} ${count === 1 ? 'stage' : 'stages'}` : null]
+        .filter(Boolean)
+        .join(': ');
     }
     // A skipped stage to run again: how it had been skipped, and why it's reinstated.
     case 'StageReinstated': {

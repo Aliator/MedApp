@@ -12130,6 +12130,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pathways/patient-pathways/{id}/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AddPathwayBranchRequest"];
+                    "text/json": components["schemas"]["AddPathwayBranchRequest"];
+                    "application/*+json": components["schemas"]["AddPathwayBranchRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PatientPathwayResponse"];
+                        "application/json": components["schemas"]["PatientPathwayResponse"];
+                        "text/json": components["schemas"]["PatientPathwayResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pathways/patient-pathways/{id}/stages/{stageId}/skip": {
         parameters: {
             query?: never;
@@ -20107,6 +20185,13 @@ export interface components {
             bodySkeleton?: string | null;
             closing?: string | null;
         };
+        AddPathwayBranchRequest: {
+            /** Format: uuid */
+            templateBranchId?: string;
+            /** Format: uuid */
+            afterStageId?: string;
+            reason?: string | null;
+        };
         CreatePathwayTemplateRequest: {
             name?: string | null;
             /** Format: uuid */
@@ -20116,6 +20201,8 @@ export interface components {
             /** Format: int32 */
             clockStopStageOrder?: number | null;
             stageOptions?: components["schemas"]["PathwayTemplateStageOptionsRequest"][] | null;
+            links?: components["schemas"]["PathwayTemplateLinkRequest"][] | null;
+            addableBranches?: components["schemas"]["PathwayTemplateBranchRequest"][] | null;
         };
         CreatePatientPathwayRequest: {
             /** Format: uuid */
@@ -21534,6 +21621,34 @@ export interface components {
             /** Format: int32 */
             clockStopStageOrder?: number | null;
             links?: components["schemas"]["PathwayTemplateLinkResponse"][] | null;
+            addableBranches?: components["schemas"]["PathwayTemplateBranchResponse"][] | null;
+        };
+        PathwayTemplateBranchRequest: {
+            /** Format: uuid */
+            id?: string | null;
+            name?: string | null;
+            stageDefinitionIds?: string[] | null;
+            attachAfterStageOrders?: number[] | null;
+            isRepeatable?: boolean;
+        };
+        PathwayTemplateBranchResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            stages?: components["schemas"]["PathwayTemplateBranchStageResponse"][] | null;
+            attachAfterStageOrders?: number[] | null;
+            isRepeatable?: boolean;
+        };
+        PathwayTemplateBranchStageResponse: {
+            /** Format: uuid */
+            stageDefinitionId?: string;
+            name?: string | null;
+        };
+        PathwayTemplateLinkRequest: {
+            /** Format: int32 */
+            fromStageOrder?: number;
+            /** Format: int32 */
+            toStageOrder?: number;
         };
         PathwayTemplateLinkResponse: {
             /** Format: int32 */
@@ -21673,6 +21788,30 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        PatientPathwayAddableBranchResponse: {
+            /** Format: uuid */
+            templateBranchId?: string;
+            name?: string | null;
+            stageNames?: string[] | null;
+            afterStageIds?: string[] | null;
+            isRepeatable?: boolean;
+            /** Format: int32 */
+            timesAdded?: number;
+        };
+        PatientPathwayBranchAdditionResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            templateBranchId?: string;
+            name?: string | null;
+            /** Format: uuid */
+            afterStageId?: string;
+            stageIds?: string[] | null;
+            reason?: string | null;
+            addedByUsername?: string | null;
+            /** Format: date-time */
+            addedAtUtc?: string;
+        };
         PatientPathwayBranchResponse: {
             name?: string | null;
             stageNames?: string[] | null;
@@ -21750,6 +21889,9 @@ export interface components {
             assignments?: components["schemas"]["PatientPathwayAssignmentResponse"][] | null;
             notes?: string | null;
             noteList?: components["schemas"]["PatientPathwayNoteResponse"][] | null;
+            canAddBranch?: boolean;
+            addableBranches?: components["schemas"]["PatientPathwayAddableBranchResponse"][] | null;
+            branchAdditions?: components["schemas"]["PatientPathwayBranchAdditionResponse"][] | null;
         };
         PatientPathwayStageDefinitionResponse: {
             /** Format: uuid */
@@ -21790,6 +21932,8 @@ export interface components {
             choosesBranch?: boolean;
             branch?: string | null;
             predecessorIds?: string[] | null;
+            /** Format: uuid */
+            branchAdditionId?: string | null;
             branches?: components["schemas"]["PatientPathwayBranchResponse"][] | null;
             needsBranchChoice?: boolean;
             state?: string | null;
@@ -23103,6 +23247,8 @@ export interface components {
             /** Format: int32 */
             clockStopStageOrder?: number | null;
             stageOptions?: components["schemas"]["PathwayTemplateStageOptionsRequest"][] | null;
+            links?: components["schemas"]["PathwayTemplateLinkRequest"][] | null;
+            addableBranches?: components["schemas"]["PathwayTemplateBranchRequest"][] | null;
         };
         UpdatePatientPathwayRequest: {
             title?: string | null;

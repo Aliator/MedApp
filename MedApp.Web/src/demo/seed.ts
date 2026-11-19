@@ -14,6 +14,7 @@ import {
   SITES,
   TEAMS,
   STAGES,
+  TEMPLATE_BRANCHES,
   TEMPLATES,
   USERS,
 } from './ids';
@@ -41,7 +42,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 6;
+export const SEED_VERSION = 7;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -116,13 +117,36 @@ export const stageDefinitionList = (): DemoStageDefinition[] =>
 /** A template's stage: its definition, and whether it's optional, a branch point or in a branch. */
 type TemplateStageSpec = StageKey | {key: StageKey; optional?: boolean; choosesBranch?: boolean; branch?: string};
 
-/** A template: its stages in order, and its links by stage order when it has routes side by side (else its list's, `chainLinks`). */
-const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: TemplateStageSpec[]; links?: [number, number][]}[] = [
+/** An addable branch (MC10): its stages in order, the template stages (by order) it may follow (none: any), and whether it repeats. */
+interface TemplateBranchSpec {
+  id: string;
+  name: string;
+  stages: StageKey[];
+  after: number[];
+  repeatable?: boolean;
+}
+
+/**
+ * A template: its stages in order, its links by stage order when it has routes side by side (else its list's,
+ * `chainLinks`), and its addable branches (MC10).
+ */
+const TEMPLATE_SPECS: {
+  id: string;
+  name: string;
+  teamId: string;
+  stages: TemplateStageSpec[];
+  links?: [number, number][];
+  branches?: TemplateBranchSpec[];
+}[] = [
   {
     id: TEMPLATES.skinLesion,
     name: 'Skin lesion pathway',
     teamId: TEAMS.dermatology,
     stages: ['firstClinicVisit', 'biopsyOrSample', 'histology', 'resultsAndTeamReview', 'treatment', 'followUp', 'dischargeLetter'],
+    branches: [
+      {id: TEMPLATE_BRANCHES.melanomaRoute, name: 'Melanoma route', stages: ['excision', 'followUp'], after: [3, 4]},
+      {id: TEMPLATE_BRANCHES.repeatBiopsy, name: 'Repeat biopsy', stages: ['biopsyOrSample', 'histology'], after: [], repeatable: true},
+    ],
   },
   {
     id: TEMPLATES.inflammatorySkin,
@@ -445,6 +469,13 @@ export function seed(): DemoState {
     clockStopStageOrder: 1,
     stageDefinitionIdsInOrder: spec.stages.map((s) => STAGES[stageSpec(s).key]),
     links: spec.links?.map(([fromStageOrder, toStageOrder]) => ({fromStageOrder, toStageOrder})),
+    addableBranches: (spec.branches ?? []).map((branch) => ({
+      id: branch.id,
+      name: branch.name,
+      stages: branch.stages.map((key) => ({stageDefinitionId: STAGES[key], name: LIBRARY[key].name})),
+      attachAfterStageOrders: branch.after,
+      isRepeatable: branch.repeatable ?? false,
+    })),
     stages: spec.stages.map((s, i) => {
       const {key, optional, choosesBranch, branch} = stageSpec(s);
       return {
