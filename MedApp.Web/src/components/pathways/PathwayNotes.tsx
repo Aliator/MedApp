@@ -24,6 +24,7 @@ import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {PatientBanner} from '../patients/PatientBanner';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {ClampedRichText} from '../shared/ClampedRichText';
 import {RichText} from '../shared/RichText';
 import {NoteDeletionReasonFields, reasonFieldsComplete} from './NoteDeletionReasonFields';
 import {NoteDeletionRequestDialog} from './NoteDeletionRequestDialog';
@@ -262,7 +263,7 @@ export function PathwayNotes({pathway}: PathwayNotesProps) {
                     )}
                   </HStack>
                 }
-                description={<RichText>{note.text ?? ''}</RichText>}
+                description={<ClampedRichText>{note.text ?? ''}</ClampedRichText>}
                 endContent={
                   (note.canEdit || note.canDelete || note.canRequestDeletion) && (
                     <HStack gap={1} vAlign="center">
