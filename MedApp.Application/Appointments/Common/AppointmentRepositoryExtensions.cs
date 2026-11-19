@@ -1,6 +1,7 @@
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Patients.Common;
 using MedApp.Domain.Appointments;
 using Microsoft.AspNetCore.Identity;
@@ -32,6 +33,37 @@ public static class AppointmentRepositoryExtensions
     {
         var appointment = await repository.GetForUpdateAsync(id, ct)
                           ?? throw new NotFoundException($"Appointment '{id}' was not found.");
+        PatientRules.EnsureCanPause(appointment.Patient);
+        return appointment;
+    }
+
+    /// <summary>
+    /// The appointment, tracked, for a change by the viewer: behind their team wall a 404 (recorded), seen but another
+    /// team's a 409 (<see cref="AppointmentWalls"/>), then a 409 if its patient's record is restricted or anonymised.
+    /// Every change a team makes to an appointment loads it here, or, to cancel it or withdraw it as entered in error,
+    /// through <see cref="GetForCancelOrThrowAsync(IAppointmentRepository, Guid, ITeamBoundary, TeamScope, CancellationToken)"/>.
+    /// </summary>
+    public static async Task<Appointment> GetForUpdateOrThrowAsync(
+        this IAppointmentRepository repository, Guid id, ITeamBoundary boundary, TeamScope scope, CancellationToken ct)
+    {
+        var appointment = await repository.GetForUpdateAsync(id, ct)
+                          ?? throw new NotFoundException(AppointmentWalls.NotFoundMessage(id));
+        await boundary.EnsureCanChangeAsync(appointment, scope, ct);
+        PatientRules.EnsureCanChange(appointment.Patient);
+        return appointment;
+    }
+
+    /// <summary>
+    /// The appointment, tracked, to cancel it: the team walls as
+    /// <see cref="GetForUpdateOrThrowAsync(IAppointmentRepository, Guid, ITeamBoundary, TeamScope, CancellationToken)"/>,
+    /// then allowed while its patient's record is restricted (a 409 if it's anonymised).
+    /// </summary>
+    public static async Task<Appointment> GetForCancelOrThrowAsync(
+        this IAppointmentRepository repository, Guid id, ITeamBoundary boundary, TeamScope scope, CancellationToken ct)
+    {
+        var appointment = await repository.GetForUpdateAsync(id, ct)
+                          ?? throw new NotFoundException(AppointmentWalls.NotFoundMessage(id));
+        await boundary.EnsureCanChangeAsync(appointment, scope, ct);
         PatientRules.EnsureCanPause(appointment.Patient);
         return appointment;
     }

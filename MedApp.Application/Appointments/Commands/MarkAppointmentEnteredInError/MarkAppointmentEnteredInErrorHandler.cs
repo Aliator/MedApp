@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Pathways.Common;
@@ -19,6 +20,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     IPermissionHolders permissionHolders,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<MarkAppointmentEnteredInErrorCommand, EnteredInErrorResponse>
 {
@@ -29,7 +31,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
     {
         // Allowed while the record is restricted (correcting a wrong entry is rectification, as cancelling is a pause);
         // refused once it's anonymised.
-        var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, cancellationToken);
+        var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, boundary, request.Actor.Teams, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
         if (!request.CanCorrectRecords && appointment.BookedByUserId != request.Actor.UserId && appointment.IsRecordedAfterEvent)
@@ -74,7 +76,7 @@ public sealed class MarkAppointmentEnteredInErrorHandler(
 
         return new EnteredInErrorResponse
         {
-            Appointment = await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken),
+            Appointment = await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken, request.Actor.Teams),
             VisitRequestedAgain = stage.Requested is not null,
             StageMessage = stage.Message
         };

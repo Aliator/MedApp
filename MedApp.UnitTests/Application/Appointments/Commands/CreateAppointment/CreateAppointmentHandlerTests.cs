@@ -49,6 +49,7 @@ public sealed class CreateAppointmentHandlerTests : AppointmentHandlerTestBase
     private PatientPathway GivenPathway(PatientPathwayStatus status = PatientPathwayStatus.Assigned, Patient? patient = null)
     {
         var pathway = PathwaysTestConstants.CreatePathway(status, patient: patient ?? _patient, title: PathwayTitle);
+        pathway.TeamId = PathwaysTestConstants.TeamId;
         pathway.StageAt(1).Name = StageName;
         _pathways.Setup(p => p.GetByIdAsync(pathway.Id, It.IsAny<CancellationToken>())).ReturnsAsync(pathway);
         return pathway;

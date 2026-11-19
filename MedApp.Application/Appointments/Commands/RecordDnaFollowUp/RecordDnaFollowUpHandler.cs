@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
@@ -16,6 +17,7 @@ namespace MedApp.Application.Appointments.Commands.RecordDnaFollowUp;
 public sealed class RecordDnaFollowUpHandler(
     IAppointmentRepository repository,
     IIdentityReadService identityReadService,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<RecordDnaFollowUpCommand, AppointmentResponse>
 {
@@ -23,7 +25,7 @@ public sealed class RecordDnaFollowUpHandler(
 
     public async Task<AppointmentResponse> Handle(RecordDnaFollowUpCommand request, CancellationToken cancellationToken)
     {
-        var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, cancellationToken);
+        var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, boundary, request.Actor.Teams, cancellationToken);
         if (!AppointmentWorkflow.CanRecordDnaFollowUp(appointment))
             throw new ConflictException(NotMissedMessage);
 
@@ -37,6 +39,6 @@ public sealed class RecordDnaFollowUpHandler(
         if (change.HasChanges)
             await repository.SaveAsync(change.Events, cancellationToken);
 
-        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 }

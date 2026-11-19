@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Appointments.Responses;
@@ -24,10 +25,11 @@ public static class AppointmentMapper
         Appointment appointment,
         IIdentityReadService identity,
         DateTime nowUtc,
-        CancellationToken ct)
+        CancellationToken ct,
+        TeamScope? viewer = null)
     {
         var usernames = await identity.GetUsernamesByIdAsync(UserIds(appointment), ct);
-        return ToResponse(appointment, usernames, nowUtc);
+        return ToResponse(appointment, usernames, nowUtc, viewer);
     }
 
     /// <summary>Appointments' responses, looking up every username they show at once.</summary>
@@ -35,25 +37,30 @@ public static class AppointmentMapper
         IEnumerable<Appointment> appointments,
         IIdentityReadService identity,
         DateTime nowUtc,
-        CancellationToken ct)
+        CancellationToken ct,
+        TeamScope? viewer = null)
     {
         var list = appointments.ToList();
         var usernames = await identity.GetUsernamesByIdAsync(list.SelectMany(UserIds).Distinct(), ct);
-        return list.Select(a => ToResponse(a, usernames, nowUtc)).ToList();
+        return list.Select(a => ToResponse(a, usernames, nowUtc, viewer)).ToList();
     }
 
     /// <summary>
     /// An appointment's response, with its patient, pathway and stage (when loaded) and the usernames given.
     /// What can be done with it is worked out at <paramref name="nowUtc"/>: nothing but cancelling while its patient's
-    /// record is restricted, and nothing at all once it's anonymised (<see cref="PatientRules"/>).
+    /// record is restricted, and nothing at all once it's anonymised (<see cref="PatientRules"/>); and only by its own
+    /// team (the team walls, MC5: <paramref name="viewer"/>'s; admins and other teams that see it only read it). No viewer
+    /// is the system's view.
     /// </summary>
     public static AppointmentResponse ToResponse(
         Appointment appointment,
         IReadOnlyDictionary<Guid, string> usernames,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        TeamScope? viewer = null)
     {
-        var canChange = PatientRules.CanChange(appointment.Patient);
-        var canPause = !PatientRules.IsAnonymised(appointment.Patient);
+        var ownTeam = viewer is null || TeamAccess.CanChangeTeam(appointment.TeamId, viewer);
+        var canChange = ownTeam && PatientRules.CanChange(appointment.Patient);
+        var canPause = ownTeam && !PatientRules.IsAnonymised(appointment.Patient);
         return new AppointmentResponse
         {
             Id = appointment.Id,

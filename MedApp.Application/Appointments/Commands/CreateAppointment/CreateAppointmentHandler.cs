@@ -5,6 +5,8 @@ using MedApp.Application.Calendar.Repositories;
 using MedApp.Application.Clinics.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
+using MedApp.Application.Teams.Repositories;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.Patients.Common;
 using MedApp.Application.Patients.Repositories;
@@ -13,6 +15,7 @@ using MedApp.Application.Pathways.Repositories;
 using MedApp.Contracts.Appointments.Responses;
 using MedApp.Domain.Appointments;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Teams;
 using MediatR;
 
 namespace MedApp.Application.Appointments.Commands.CreateAppointment;
@@ -26,6 +29,8 @@ public sealed class CreateAppointmentHandler(
     IClinicRepository clinicRepository,
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
+    ITeamBoundary boundary,
+    ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<CreateAppointmentCommand, AppointmentResponse>
 {
@@ -42,7 +47,10 @@ public sealed class CreateAppointmentHandler(
         if (request.PathwayId is { } pathwayId)
         {
             pathway = await pathwayRepository.GetByIdAsync(pathwayId, cancellationToken)
-                        ?? throw new NotFoundException($"Pathway '{pathwayId}' was not found.");
+                        ?? throw new NotFoundException(PathwayRepositoryExtensions.NotFoundMessage(pathwayId));
+            // Only the pathway's own team books its visits: behind the wall a 404 (recorded), another team's a 409.
+            await boundary.EnsureCanChangePathwayAsync(
+                pathway, request.Actor.Teams, PathwayRepositoryExtensions.NotFoundMessage(pathwayId), cancellationToken);
 
             if (pathway.PatientId != patient.Id)
                 throw new ConflictException("That pathway is for another patient.");
@@ -61,12 +69,22 @@ public sealed class CreateAppointmentHandler(
             }
         }
 
+        // Its team: the pathway's, else the booker's, else the clinician's (the team walls). The clinician must be in it.
+        var staffUsername = request.IsBooking
+            ? await identityReadService.GetUsernameOrThrowAsync(request.StaffUserId!.Value, cancellationToken)
+            : null;
+        var teamId = await AppointmentWalls.TeamForAsync(
+            pathway?.TeamId, request.Actor.Teams, request.StaffUserId, calendarRepository, cancellationToken);
+        if (staffUsername is not null && teamId is { } team)
+            await AppointmentWalls.EnsureStaffInTeamAsync(
+                team, request.StaffUserId!.Value, staffUsername, calendarRepository, teams, cancellationToken);
+
         var now = timeProvider.GetUtcNow().UtcDateTime;
         Appointment appointment;
 
         try
         {
-            appointment = await AddAsync(request, pathway, stage, now, cancellationToken);
+            appointment = await AddAsync(request, pathway, stage, teamId ?? Team.GeneralId, staffUsername, now, cancellationToken);
         }
         catch (StageHasOpenAppointmentException e)
         {
@@ -77,7 +95,7 @@ public sealed class CreateAppointmentHandler(
 
         // Read back with its patient, pathway and stage, for the response.
         var saved = await repository.GetByIdAsync(appointment.Id, cancellationToken) ?? appointment;
-        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(saved, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 
     /// <summary>Adds the appointment: booked (under the member of staff's calendar lock) or Requested.</summary>
@@ -85,6 +103,8 @@ public sealed class CreateAppointmentHandler(
         CreateAppointmentCommand request,
         PatientPathway? pathway,
         PatientPathwayStage? stage,
+        Guid teamId,
+        string? staffUsername,
         DateTime now,
         CancellationToken cancellationToken)
     {
@@ -93,7 +113,6 @@ public sealed class CreateAppointmentHandler(
         if (request.IsBooking)
         {
             var staffUserId = request.StaffUserId!.Value;
-            var staffUsername = await identityReadService.GetUsernameOrThrowAsync(staffUserId, cancellationToken);
             var start = UkTime.Utc(request.StartUtc!.Value);
             var end = UkTime.Utc(request.EndUtc!.Value);
 
@@ -109,9 +128,9 @@ public sealed class CreateAppointmentHandler(
                 if (CalendarClashes.Find(data, start, end, ignoreSessionId: place.ClinicSessionId) is { } clash)
                     throw new ConflictException(clash);
 
-                var booked = New(request, pathway, now);
+                var booked = New(request, teamId, now);
                 var change = new AppointmentChange(booked, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
-                change.Book(staffUserId, staffUsername, start, end, place);
+                change.Book(staffUserId, staffUsername!, start, end, place);
                 await repository.AddAsync(booked, change.Events, ct);
                 return booked;
             }, cancellationToken);
@@ -122,7 +141,7 @@ public sealed class CreateAppointmentHandler(
         }
         else
         {
-            appointment = New(request, pathway, now);
+            appointment = New(request, teamId, now);
             var change = new AppointmentChange(appointment, request.Actor, now, pathwayTitle: pathway?.Title, stageName: stage?.Name);
             change.Request();
             await repository.AddAsync(appointment, change.Events, cancellationToken);
@@ -139,14 +158,14 @@ public sealed class CreateAppointmentHandler(
     }
 
     /// <summary>
-    /// A new appointment. Its team (the team walls) is its pathway's, else the booker's (MC5 lets them choose, and checks
-    /// the clinician is in it), else General.
+    /// A new appointment, in <paramref name="teamId"/> (<see cref="AppointmentWalls.TeamForAsync"/>: its pathway's, else
+    /// the booker's, else the clinician's, else General).
     /// </summary>
-    private static Appointment New(CreateAppointmentCommand request, PatientPathway? pathway, DateTime nowUtc) => new()
+    private static Appointment New(CreateAppointmentCommand request, Guid teamId, DateTime nowUtc) => new()
     {
         Id = Guid.NewGuid(),
         PatientId = request.PatientId,
-        TeamId = pathway?.TeamId ?? request.Actor.Teams.DefaultTeamId ?? MedApp.Domain.Teams.Team.GeneralId,
+        TeamId = teamId,
         PathwayId = request.PathwayId,
         StageId = request.StageId,
         Status = AppointmentStatus.Requested,

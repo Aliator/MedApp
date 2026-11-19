@@ -117,7 +117,7 @@ public sealed class AppointmentsControllerTests
 
     [Test]
     public async Task GetAppointmentById_ReturnsIt() =>
-        ExpectSentAndOk(new GetAppointmentByIdQuery(RecordId), await Controller.GetAppointmentById(RecordId, _cts.Token));
+        ExpectSentAndOk(new GetAppointmentByIdQuery(RecordId, Actor.Scope), await Controller.GetAppointmentById(RecordId, _cts.Token));
 
     [Test]
     public async Task SearchAppointments_SendsEveryFilter()
@@ -130,7 +130,7 @@ public sealed class AppointmentsControllerTests
 
         _mediator.Request.Should().BeOfType<SearchAppointmentsQuery>().Which.Should().BeEquivalentTo(new SearchAppointmentsQuery(
             request.Page, request.PageSize, request.Sort, request.Ascending, request.PatientId, request.PathwayId, request.StageId,
-            request.StaffUserId, request.Statuses, request.From, request.To, request.Search, request.View));
+            request.StaffUserId, request.Statuses, request.From, request.To, request.Search, request.View, request.TeamId, Actor.Scope));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
@@ -142,7 +142,8 @@ public sealed class AppointmentsControllerTests
 
         await Controller.SearchAppointments(new SearchAppointmentsRequest(), _cts.Token);
 
-        _mediator.Request.Should().Be(new SearchAppointmentsQuery(1, 10, null, true, null, null, null, null, null, null, null, null));
+        _mediator.Request.Should().Be(new SearchAppointmentsQuery(1, 10, null, true, null, null, null, null, null, null, null, null,
+            Scope: Actor.Scope));
     }
 
     [Test]
@@ -189,7 +190,7 @@ public sealed class AppointmentsControllerTests
 
         var result = await Controller.GetAppointmentMessages(RecordId, _cts.Token);
 
-        _mediator.Request.Should().Be(new GetAppointmentMessagesQuery(RecordId));
+        _mediator.Request.Should().Be(new GetAppointmentMessagesQuery(RecordId, Actor.Scope));
         _mediator.Tokens.Single().Should().Be(_cts.Token);
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(messages);
     }

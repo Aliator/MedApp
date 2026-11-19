@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Contracts.Appointments.Responses;
 using MediatR;
 
@@ -10,12 +11,13 @@ namespace MedApp.Application.Appointments.Commands.UpdateAppointmentNotes;
 public sealed class UpdateAppointmentNotesHandler(
     IAppointmentRepository repository,
     IIdentityReadService identityReadService,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<UpdateAppointmentNotesCommand, AppointmentResponse>
 {
     public async Task<AppointmentResponse> Handle(UpdateAppointmentNotesCommand request, CancellationToken cancellationToken)
     {
-        var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, cancellationToken);
+        var appointment = await repository.GetForUpdateOrThrowAsync(request.AppointmentId, boundary, request.Actor.Teams, cancellationToken);
 
         if (!AppointmentWorkflow.CanEditNotes(appointment))
             throw new ConflictException("A cancelled appointment's notes can't be changed.");
@@ -29,6 +31,6 @@ public sealed class UpdateAppointmentNotesHandler(
         if (change.HasChanges)
             await repository.SaveAsync(change.Events, cancellationToken);
 
-        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 }

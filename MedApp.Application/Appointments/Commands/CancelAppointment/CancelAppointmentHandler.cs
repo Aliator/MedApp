@@ -2,6 +2,7 @@ using MedApp.Application.Appointments.Common;
 using MedApp.Application.Appointments.Repositories;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Notifications.Common;
 using MedApp.Application.PatientMessages.Common;
 using MedApp.Contracts.Appointments.Responses;
@@ -16,13 +17,14 @@ public sealed class CancelAppointmentHandler(
     IIdentityReadService identityReadService,
     INotificationSender notificationSender,
     IPatientMessageOutbox patientMessages,
+    ITeamBoundary boundary,
     TimeProvider timeProvider)
     : IRequestHandler<CancelAppointmentCommand, AppointmentResponse>
 {
     public async Task<AppointmentResponse> Handle(CancelAppointmentCommand request, CancellationToken cancellationToken)
     {
         // Cancelling stays allowed while the patient's record is restricted, so care can be paused safely.
-        var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, cancellationToken);
+        var appointment = await repository.GetForCancelOrThrowAsync(request.AppointmentId, boundary, request.Actor.Teams, cancellationToken);
 
         if (!AppointmentWorkflow.CanCancel(appointment))
             throw new ConflictException(
@@ -46,6 +48,6 @@ public sealed class CancelAppointmentHandler(
                      appointment, previousStatus, request.Actor, now))
             await notificationSender.SendAsync(notification, cancellationToken);
 
-        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken);
+        return await AppointmentMapper.ToResponseAsync(appointment, identityReadService, now, cancellationToken, request.Actor.Teams);
     }
 }
