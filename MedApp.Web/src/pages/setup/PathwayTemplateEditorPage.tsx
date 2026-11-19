@@ -124,13 +124,17 @@ function templateRows(template: PathwayTemplate | null): StageRow[] {
       isOptional: stage?.isOptional ?? false,
       choosesBranch: stage?.choosesBranch ?? false,
       branch: stage?.branch ?? '',
+      // Stage 1 allows only the lab as another owner (the relay, MC7).
+      byLab: Boolean(stage?.ownerTeamId),
     });
   });
 }
 
 /** A stage's options in a few words, for the confirmation ("optional", "branch point", "Benign"); empty when plain. */
 function optionWords(stage: StageRow): string {
-  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim()].filter(Boolean);
+  const words = [stage.isOptional && 'optional', stage.choosesBranch && 'branch point', stage.branch.trim(), stage.byLab && 'the lab’s'].filter(
+    Boolean,
+  );
   return words.length > 0 ? ` (${words.join(', ')})` : '';
 }
 
@@ -232,7 +236,16 @@ function TemplateEditor({
     setStages((current) => current.map((s) => (s.key === key ? {...s, ...options} : s)));
   // What the API would refuse in the stages' options, said on each stage before saving (the API's check is the last word).
   const optionProblems = stageOptionProblems(stages);
-  const stageOptions = stageOptionsToSend(stages);
+  // The relay (MC7): a stage can be the lab's, unless the template is the lab's own. A template that had one sends
+  // every stage's options, so one cleared is cleared.
+  const labTeamId = teams.find((t) => t.kind === 'Lab')?.id ?? null;
+  const canBeLabs = labTeamId !== null && teamId !== labTeamId;
+  const hadLabStages = (template?.stages ?? []).some((s) => s.ownerTeamId);
+  const stageOptions = stageOptionsToSend(
+    stages.map((s) => ({...s, byLab: canBeLabs && s.byLab})),
+    labTeamId,
+    hadLabStages,
+  );
 
   const submit = () =>
     save.mutate(
@@ -340,6 +353,7 @@ function TemplateEditor({
                   stage={stage}
                   description={stageDescription(definition?.description, {code: definition?.snomedCode, term: definition?.snomedTerm})}
                   canBeInBranch={afterBranchPoint}
+                  canBeLabs={canBeLabs}
                   problem={optionProblems.get(i)}
                   isDisabled={save.isPending}
                   onChange={(options) => change(stage.key, options)}
@@ -514,6 +528,8 @@ interface StageOptionFieldsProps {
   description: ReactNode;
   /** It comes after a branch point, so it can be put in a branch. */
   canBeInBranch: boolean;
+  /** The template isn't the lab's, so a stage can be the lab's to work (the relay). */
+  canBeLabs?: boolean;
   /** What the API would refuse in its options, if anything. */
   problem?: string;
   isDisabled: boolean;
@@ -526,7 +542,7 @@ interface StageOptionFieldsProps {
  * for a stage after a branch point, the Branch it's in (left empty, it always runs). Any problem the API would refuse
  * shows under them. Plain stages show just the two boxes, unticked.
  */
-function StageOptionFields({stage, description, canBeInBranch, problem, isDisabled, onChange}: StageOptionFieldsProps) {
+function StageOptionFields({stage, description, canBeInBranch, canBeLabs = false, problem, isDisabled, onChange}: StageOptionFieldsProps) {
   // The branch field stays while it has a name, so one left after its branch point moved can still be cleared.
   const hasBranchField = (canBeInBranch && !stage.choosesBranch) || stage.branch !== '';
   return (
@@ -547,6 +563,15 @@ function StageOptionFields({stage, description, canBeInBranch, problem, isDisabl
           onChange={(choosesBranch) => onChange({choosesBranch})}
           isDisabled={isDisabled}
         />
+        {canBeLabs && (
+          <CheckboxInput
+            label="The lab’s stage"
+            size="sm"
+            value={stage.byLab ?? false}
+            onChange={(byLab) => onChange({byLab})}
+            isDisabled={isDisabled}
+          />
+        )}
         {hasBranchField && (
           <TextInput
             label="Branch"

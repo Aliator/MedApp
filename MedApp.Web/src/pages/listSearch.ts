@@ -160,6 +160,14 @@ export const TASK_SORTS = {Pathway: 'title', Due: 'dueDate', Priority: 'priority
 export type TaskSortColumn = keyof typeof TASK_SORTS;
 
 export const TASK_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'] as const;
+
+/**
+ * My Worklist's team views (the relay, MC7), by URL name: the team's pathways rather than those assigned to me. Our
+ * turn (a current stage my team works), New for us (handed to us, not picked up), Awaiting the lab (ours, at a lab
+ * stage) and Back from the lab (ours, handed back, not picked up). The API's names for them.
+ */
+export const TASK_VIEWS = {ourTurn: 'OurTurn', newForUs: 'NewForUs', awaitingLab: 'AwaitingLab', backFromLab: 'BackFromLab'} as const;
+export type TaskView = keyof typeof TASK_VIEWS;
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
 /**
@@ -175,6 +183,8 @@ export interface TasksSearch {
   template?: string;
   patient?: string;
   progress?: 'started' | 'any';
+  /** A team view (`TASK_VIEWS`): the team's pathways in it, whoever they're assigned to, instead of mine. */
+  view?: TaskView;
   /** A choice: one, a comma list, or `!` and a comma list (see `parseChoice`). */
   status?: string;
   priority?: string;
@@ -199,6 +209,7 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
     template: text(raw.template),
     patient: text(raw.patient),
     progress: oneOf(raw.progress, ['started', 'any'] as const),
+    view: oneOf(raw.view, Object.keys(TASK_VIEWS) as TaskView[]),
     status: parseChoice(raw.status, OPEN_PATHWAY_STATUSES),
     priority: parseChoice(raw.priority, TASK_PRIORITIES),
     team: parseIdChoice(raw.team),
@@ -213,7 +224,18 @@ export function parseTasksSearch(saved: Record<string, unknown>): TasksSearch {
 /** Filters beyond the progress (which always applies, Not started by default). */
 export const hasTaskFilters = (s: TasksSearch) =>
   Boolean(
-    s.title || s.template || s.patient || s.status || s.priority || s.team || s.stage || s.overdue || s.breached || s.dueFrom || s.dueTo,
+    s.title ||
+      s.template ||
+      s.patient ||
+      s.view ||
+      s.status ||
+      s.priority ||
+      s.team ||
+      s.stage ||
+      s.overdue ||
+      s.breached ||
+      s.dueFrom ||
+      s.dueTo,
   );
 
 // Pathways --------------------------------------------------------------------------------------------

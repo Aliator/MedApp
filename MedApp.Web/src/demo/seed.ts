@@ -1,6 +1,6 @@
 import type {Schemas} from '../api/client';
 import {dayOfWeek, nextWeekday} from '../utils/calendarSlots';
-import {ADMIN, STAFF} from './accounts';
+import {ADMIN, LAB, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
@@ -30,7 +30,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -147,6 +147,9 @@ const TEMPLATE_SPECS: {id: string; name: string; teamId: string; stages: Templat
 
 const stageSpec = (spec: TemplateStageSpec) => (typeof spec === 'string' ? {key: spec} : spec);
 
+/** The stages the lab works in every template (the relay, MC7): the rest are the template's own team's. */
+const LAB_STAGES: StageKey[] = ['histology', 'labTests'];
+
 const TEAM_NAMES: [string, string][] = [
   [TEAMS.dermatology, 'Dermatology'],
   [TEAMS.gynaecology, 'Gynaecology'],
@@ -192,6 +195,11 @@ export function templateStages(
       skippedByUserId: null,
       skipReason: null,
       skipDetail: null,
+      ownerTeamId: stage.ownerTeamId ?? null,
+      reachedAtUtc: null,
+      handedOverFromTeamId: null,
+      pickedUpAtUtc: null,
+      pickedUpByUserId: null,
     };
   });
 }
@@ -265,20 +273,37 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
   const doer = spec.assignee ?? ADMIN.id;
   // Finished stages are spread between the pathway's start and a couple of days ago.
   const step = Math.max(1, Math.floor((spec.createdDaysAgo - 2) / Math.max(1, spec.done)));
+  const handovers: DemoPathway['handovers'] = [];
   const stages = templateStages(template, definitions).map((stage, i): DemoStage => {
     const finishedDaysAgo = spec.createdDaysAgo - step * (i + 1);
     const isDone = i < spec.done;
     const isStarted = isDone || (i === spec.done && spec.started === true);
+    // The lab's stages are worked by the lab's member of staff (the relay).
+    const worker = stage.ownerTeamId === TEAMS.lab ? LAB.id : doer;
     return {
       ...stage,
       id: stageId(spec.n, i + 1),
       notes: isDone ? 'Done as planned.' : null,
       // A finished stage was started a day before it finished; the current one just after the one before it finished.
       startedAtUtc: isStarted ? (isDone ? ago(Math.max(1, finishedDaysAgo + 1), 9, 30) : ago(Math.max(1, finishedDaysAgo + step), 15, 30)) : null,
-      startedByUserId: isStarted ? doer : null,
+      startedByUserId: isStarted ? worker : null,
       completedAtUtc: isDone ? ago(Math.max(1, finishedDaysAgo), 15, 0) : null,
-      completedByUserId: isDone ? doer : null,
+      completedByUserId: isDone ? worker : null,
     };
+  });
+  // Each stage reached (finished, or the current one) was reached when the one before it finished; one whose team
+  // differs from the stage before's was handed over then, and picked up when it was started.
+  stages.forEach((stage, i) => {
+    if (i > spec.done) return;
+    const before = stages[i - 1];
+    stage.reachedAtUtc = before ? before.completedAtUtc : created;
+    const from = before ? (before.ownerTeamId ?? template.teamId!) : template.teamId!;
+    const to = stage.ownerTeamId ?? template.teamId!;
+    if (from === to || !stage.reachedAtUtc) return;
+    stage.handedOverFromTeamId = from;
+    stage.pickedUpAtUtc = stage.startedAtUtc;
+    stage.pickedUpByUserId = stage.startedByUserId;
+    handovers.push({stageId: stage.id, fromTeamId: from, toTeamId: to, atUtc: stage.reachedAtUtc, byUserId: before?.completedByUserId ?? doer});
   });
   return {
     id: spec.id,
@@ -295,6 +320,7 @@ function makePathway(spec: PathwaySpec, templates: Schemas['PathwayTemplateRespo
     createdAt: created,
     lastUpdated: ago(1, 16, 0),
     stages,
+    handovers,
     assignments: spec.assignee ? [{userId: spec.assignee, assignedByUserId: ADMIN.id, assignedAtUtc: ago(spec.createdDaysAgo, 9, 20)}] : [],
     notes: (spec.notes ?? []).map((note, i) => ({
       id: `000000dd-0000-4000-8000-${(spec.n * 100 + i + 1).toString(16).padStart(12, '0')}`,
@@ -425,6 +451,8 @@ export function seed(): DemoState {
         choosesBranch: choosesBranch ?? false,
         branch: branch ?? null,
         stopsClock: i === 0,
+        ownerTeamId: LAB_STAGES.includes(key) ? TEAMS.lab : null,
+        ownerTeamName: LAB_STAGES.includes(key) ? teamName(TEAMS.lab) : null,
       };
     }),
   }));
@@ -487,11 +515,18 @@ export function seed(): DemoState {
       // as a summary line ("a pathway in Gynaecology, in progress since ..."), and opening one is a 404.
       {
         n: 11, id: PATHWAYS.priyaGynaecology, patientId: PATIENTS.priyaHolloway, templateId: TEMPLATES.postMenopausalBleeding,
-        title: 'Post-menopausal bleeding', dueIn: 18, priority: 'High', done: 1, status: 'InProgress', createdDaysAgo: 12,
+        title: 'Post-menopausal bleeding', dueIn: 18, priority: 'High', done: 2, status: 'InProgress', createdDaysAgo: 12,
       },
       {
         n: 12, id: PATHWAYS.ellisDiabetes, patientId: PATIENTS.ellisVarden, templateId: TEMPLATES.diabetesReview,
         title: 'Diabetes review', dueIn: -20, priority: 'Low', done: 6, status: 'Completed', createdDaysAgo: 90,
+      },
+      // Back from the lab (the relay): the lab finished Histology, so Results and team review is Dermatology's again,
+      // not picked up yet.
+      {
+        n: 13, id: PATHWAYS.backFromLab, patientId: PATIENTS.callumAshby, templateId: TEMPLATES.skinLesion,
+        title: 'Scaly patch, back of the right hand', dueIn: 24, priority: 'Medium', done: 3, status: 'InProgress',
+        assignee: STAFF.id, createdDaysAgo: 21,
       },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
@@ -717,20 +752,41 @@ export function seed(): DemoState {
         createdAtUtc: ago(9, 12, 0),
         isRead: false,
       },
+      // The relay's handovers: a fixed title, and only who passed it (no patient, no stage).
+      ...[
+        {n: 4, userId: STAFF.id, pathwayId: PATHWAYS.backFromLab},
+        {n: 5, userId: LAB.id, pathwayId: PATHWAYS.priyaGynaecology},
+      ].map(({n, userId, pathwayId}) => {
+        const handover = pathways.find((p) => p.id === pathwayId)!.handovers.at(-1)!;
+        return {
+          id: `000000e0-0000-4000-8000-00000000000${n}`,
+          userId,
+          kind: 'PathwayHandedOver',
+          title: 'Pathway handed over',
+          message: `${usernameOf(handover.byUserId)} passed a pathway to your team.`,
+          pathwayId,
+          createdAtUtc: handover.atUtc,
+          isRead: false,
+        };
+      }),
     ],
     notepads: {},
     settings: {},
   };
   // Each area's slice seeds after the base, reading (or adding to) its records.
   const state: DemoState = {...base, ...seedLab(base), ...seedClinical(base), ...seedSetup(base)};
-  // The team walls' grants: each pathway's own team, and the lab on every pathway with a sample passed to it.
+  // The team walls' grants: each pathway's own team, and the lab on every pathway with a sample passed to it or a
+  // stage of its reached (the relay), from whichever came first.
+  const labSince = (p: DemoPathway) =>
+    [
+      ...state.specimens.filter((s) => s.pathwayId === p.id).map((s) => s.takenAtUtc),
+      ...p.stages.filter((s) => s.ownerTeamId === TEAMS.lab && s.reachedAtUtc).map((s) => s.reachedAtUtc!),
+    ].sort()[0];
   state.pathwayAccess = [
     ...pathways.map((p) => ownerAccess(p)),
-    ...[...new Set(state.specimens.map((s) => s.pathwayId))].map((pathwayId) => {
-      const p = pathways.find((x) => x.id === pathwayId)!;
-      const first = state.specimens.filter((s) => s.pathwayId === pathwayId).sort((a, b) => a.takenAtUtc.localeCompare(b.takenAtUtc))[0];
-      return {pathwayId, patientId: p.patientId, teamId: TEAMS.lab, reason: 'StageOwner' as const, startedAtUtc: first.takenAtUtc, endedAtUtc: null};
-    }),
+    ...pathways
+      .filter((p) => p.teamId !== TEAMS.lab && labSince(p))
+      .map((p) => ({pathwayId: p.id, patientId: p.patientId, teamId: TEAMS.lab, reason: 'StageOwner' as const, startedAtUtc: labSince(p), endedAtUtc: null})),
   ];
   return state;
 }

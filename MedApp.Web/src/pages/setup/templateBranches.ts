@@ -10,6 +10,8 @@ export interface StageOptionsInput {
   isOptional: boolean;
   choosesBranch: boolean;
   branch: string;
+  /** The lab works it (the relay, MC7): its owner is the lab team, not the template's own. */
+  byLab?: boolean;
 }
 
 export const PLAIN_STAGE: StageOptionsInput = {isOptional: false, choosesBranch: false, branch: ''};
@@ -61,10 +63,21 @@ export function branchesAfter(rows: readonly StageOptionsInput[], index: number)
 }
 
 /**
- * What a save sends as `stageOptions`: one for each stage, in order, when any stage has an option; nothing when every
- * stage is plain, so a template without branches saves exactly as before (the API reads none as all plain).
+ * What a save sends as `stageOptions`: one for each stage, in order, when any stage has an option or is the lab's
+ * (`labTeamId` its owner), or `always` (a template that had a lab's stage, so a cleared one is cleared); nothing when
+ * every stage is plain, so a template without branches saves exactly as before (the API reads none as all plain).
  */
-export function stageOptionsToSend(rows: readonly StageOptionsInput[]): TemplateStageOptions[] | undefined {
-  if (!rows.some(hasOptions)) return undefined;
-  return rows.map((r) => ({isOptional: r.isOptional, choosesBranch: r.choosesBranch, branch: branchName(r) || null}));
+export function stageOptionsToSend(
+  rows: readonly StageOptionsInput[],
+  labTeamId?: string | null,
+  always = false,
+): TemplateStageOptions[] | undefined {
+  const isLabs = (r: StageOptionsInput) => Boolean(r.byLab && labTeamId);
+  if (!always && !rows.some((r) => hasOptions(r) || isLabs(r))) return undefined;
+  return rows.map((r) => ({
+    isOptional: r.isOptional,
+    choosesBranch: r.choosesBranch,
+    branch: branchName(r) || null,
+    ...(isLabs(r) ? {ownerTeamId: labTeamId} : {}),
+  }));
 }

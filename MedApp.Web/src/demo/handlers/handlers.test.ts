@@ -1,5 +1,5 @@
 import {call, startLightDemo} from '../../test/lightDemo';
-import {ADMIN, STAFF} from '../accounts';
+import {ADMIN, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
 import {db} from '../store';
 
@@ -26,7 +26,8 @@ describe('the light demo handlers', () => {
   });
 
   it('finishes the current stage, and moves on to the next', async () => {
-    startLightDemo(STAFF);
+    // Histology is the lab's stage (the relay), so the lab finishes it.
+    startLightDemo(LAB);
     const before = (await call('GET', `/api/pathways/patient-pathways/${PATHWAYS.histologyToFinish}`)).body;
     const current = before.stages.find(isCurrent);
     expect(current.name).toBe('Histology (lab)');

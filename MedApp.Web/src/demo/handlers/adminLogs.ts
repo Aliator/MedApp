@@ -4,6 +4,7 @@ import {invalid, notFound, on, refuse} from '../api/http';
 import {newId} from '../ids';
 import type {DemoActivityEntry, DemoMonitoringRule} from '../slices/setup';
 import {db} from '../store';
+import {teamName} from '../seed';
 import {nowUtc, ukDateOf} from '../time';
 import {contains, list, me, paged, patientName, requirePermission} from './common';
 
@@ -93,6 +94,19 @@ export function auditEntries(): AuditEntry[] {
         details: JSON.stringify({skipReason: s.skipReason}),
       });
     }
+    // The relay (MC7): each handover by IDs and team names (`{stageId, fromTeamId, from, toTeamId, to}`), and each
+    // pick-up; never free text.
+    for (const [i, h] of p.handovers.entries()) {
+      const s = p.stages.find((x) => x.id === h.stageId);
+      add(`handover:${i}`, 'StageHandedOver', h.atUtc, h.byUserId, {
+        stageId: h.stageId,
+        stageName: s?.name ?? null,
+        details: JSON.stringify({stageId: h.stageId, fromTeamId: h.fromTeamId, from: teamName(h.fromTeamId), toTeamId: h.toTeamId, to: teamName(h.toTeamId)}),
+      });
+    }
+    for (const s of p.stages)
+      if (s.handedOverFromTeamId && s.pickedUpAtUtc)
+        add(`${s.id}:pickedUp`, 'StagePickedUp', s.pickedUpAtUtc, s.pickedUpByUserId, {stageId: s.id, stageName: s.name});
     // A note by its ID and version only: never its text.
     for (const n of p.notes) {
       add(`${n.id}:added`, 'NoteAdded', n.createdAtUtc, n.authorUserId, {details: JSON.stringify({noteId: n.id, version: 1})});

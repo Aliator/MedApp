@@ -177,6 +177,7 @@ This builds on `docs/centre-phase2-plan.md` and `docs/centre-phases-3-5-plan.md`
 - **Governance:** H-67, H-68 controls built.
 - **Tests:** `PathwayChangeHandOverTests`, the worklist SQL, `PathwayCommandsMonitoringTests`, template validators.
 - **Light demo:** "Histology (lab)" and "Lab tests (lab)" stages owned by the lab in the seed's templates; handover and pick up in `handlers/pathways.ts`; the worklist views for `n.thornbury` and `r.aldous`.
+- **Built in the demo first (19 Nov 2026), decisions:** the owner team no longer works the lab's stages (the lab does, and adds notes while it has one); starting or finishing a handed-over stage also picks it up; the template editor's owner is a "The lab's stage" box (Stage 1 has only two owners); the views are My Worklist's `view` filter (`Team view`), replacing "assigned to me" while chosen; stage responses carry `ownerTeamId` (null = the pathway's team), `isWithAnotherTeam`, `reachedAtUtc`, `handedOverFromTeamName`, `pickedUp*`, `canPickUp`; summaries `currentStageTeamName`, `awaitingPickUp`. Not in the demo yet: the `HandoverNotPickedUp` alert, handovers on the timeline, reinstating or unlocking as a handover.
 
 **MC8. Tree pathways: the model** (XL). After MC4. ∥ MC7 (both touch `PathwayChange`: rebase carefully).
 - **Scope:**
