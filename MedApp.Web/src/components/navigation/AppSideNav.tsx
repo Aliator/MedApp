@@ -100,7 +100,7 @@ function AlwaysShownButtons({children}: {children: ReactNode}) {
   return <ActiveRowsContext.Provider value={() => true}>{children}</ActiveRowsContext.Provider>;
 }
 
-/** The half-view part of a row's menu: open its page beside this one, or on either side while a half view is open. */
+/** The half-view part of a row's menu: open its page in a half view, on the left or the right. */
 function useHalfViewItems(href: string): DropdownMenuItemData[] {
   const halfViews = useHalfViews();
   const router = useRouter();
@@ -130,12 +130,21 @@ function useHalfViewItems(href: string): DropdownMenuItemData[] {
     ];
   }
 
+  // With none open, either side straight away (the owner, 19 November 2026): on the left, the current page moves to
+  // the right (as Ctrl-click does); on the right, it opens beside the current page (as Shift-click does).
   const isOpen = href === pathname;
   return [
     {
-      id: 'half',
-      label: 'Open in half view',
-      icon: AppIcon.HalfView,
+      id: 'left',
+      label: 'Open in half view on the left',
+      icon: AppIcon.OpenLeft,
+      isDisabled: isOpen,
+      onClick: () => halfViews.openOnLeft(href),
+    },
+    {
+      id: 'right',
+      label: 'Open in half view on the right',
+      icon: AppIcon.OpenRight,
       isDisabled: isOpen,
       onClick: () => halfViews.open(href),
     },

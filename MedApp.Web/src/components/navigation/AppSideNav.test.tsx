@@ -697,8 +697,26 @@ describe('AppSideNav folded, and its menus', () => {
     fireEvent.click(button);
     await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
     const menu = document.querySelector<HTMLElement>(`[aria-labelledby="${CSS.escape(button.id)}"]`)!;
-    await user.click(within(menu).getByRole('menuitem', {name: /^Open in half view/, hidden: true}));
+    await user.click(within(menu).getByRole('menuitem', {name: /^Open in half view on the right/, hidden: true}));
     expect(halfViews.open).toHaveBeenCalledWith('/tasks');
+  });
+
+  it('offers either side straight away with no half view open: the left moves this page to the right', async () => {
+    const halfViews = {open: vi.fn(), openPath: null, openFull: vi.fn(), openOnLeft: vi.fn(), showOnLeft: vi.fn(), close: vi.fn()};
+    const {user} = renderWithApp(
+      <HalfViewsContext.Provider value={halfViews}>
+        <AppSideNav />
+      </HalfViewsContext.Provider>,
+      {user: staffUser},
+    );
+
+    const right = await rowMenuItem(user, 'My Worklist', 'Open in half view on the right');
+    const items = within(right.closest<HTMLElement>('[role="menu"]')!).getAllByRole('menuitem', {hidden: true});
+    expect(items.map((item) => item.textContent)).toEqual(['Open in half view on the left', 'Open in half view on the right']);
+    await user.click(items[0]);
+
+    expect(halfViews.openOnLeft).toHaveBeenCalledWith('/tasks');
+    expect(halfViews.open).not.toHaveBeenCalled();
   });
 
   it('pins a menu that the pointer resting opened, when its button is pressed', async () => {
@@ -857,7 +875,7 @@ describe('AppSideNav folded, and its menus', () => {
       {user: staffUser},
     );
 
-    const item = await rowMenuItem(user, 'My Worklist', 'Open in half view');
+    const item = await rowMenuItem(user, 'My Worklist', 'Open in half view on the right');
     const panel = item.closest<HTMLElement>('[popover]') ?? item.closest<HTMLElement>('[role="menu"]')!;
 
     // Out from the nav's edge by the row's inset (8), and level with the row.
@@ -885,7 +903,7 @@ describe('AppSideNav folded, and its menus', () => {
         </HalfViewsContext.Provider>,
         {user: staffUser},
       );
-      await rowMenuItem(user, 'My Worklist', 'Open in half view');
+      await rowMenuItem(user, 'My Worklist', 'Open in half view on the right');
       const button = screen.getByRole('button', {name: 'My Worklist options'});
       await waitFor(() => expect(document.querySelector('[data-nav-bridge]')).not.toBeNull());
 
@@ -947,7 +965,7 @@ describe('AppSideNav folded, and its menus', () => {
         </HalfViewsContext.Provider>,
         {user: staffUser},
       );
-      await rowMenuItem(user, 'My Worklist', 'Open in half view');
+      await rowMenuItem(user, 'My Worklist', 'Open in half view on the right');
       const strip = () => document.querySelector<HTMLElement>('[data-nav-bridge="/tasks"]');
       // First measured mid-animation: 228 to 324 (24px into the menu at 300).
       await waitFor(() => expect(strip()?.style.width).toBe('96px'));
@@ -977,7 +995,7 @@ describe('AppSideNav folded, and its menus', () => {
       </HalfViewsContext.Provider>,
       {user: staffUser},
     );
-    await rowMenuItem(user, 'My Worklist', 'Open in half view');
+    await rowMenuItem(user, 'My Worklist', 'Open in half view on the right');
     const button = screen.getByRole('button', {name: 'My Worklist options'});
 
     const bridge = await waitFor(() => {
@@ -1179,7 +1197,7 @@ describe('AppSideNav notepad', () => {
     const {user, halfViews, items} = await notepadMenuItems(null);
 
     // Just its label: no Shift-click hint beside it.
-    expect(items.map((item) => item.textContent)).toEqual(['Open in half view']);
+    expect(items.map((item) => item.textContent)).toEqual(['Open in half view on the right']);
     await user.click(items[0]);
 
     expect(halfViews.open).toHaveBeenCalledWith('/notepad');
