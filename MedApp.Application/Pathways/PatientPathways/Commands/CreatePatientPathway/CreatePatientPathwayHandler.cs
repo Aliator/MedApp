@@ -17,6 +17,8 @@ public sealed class CreatePatientPathwayHandler(
     IPatientRepository patientRepository,
     IPatientPathwayStagesRepository stagesRepository,
     IPathwayMonitor pathwayMonitor,
+    IPathwayHandovers handovers,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<CreatePatientPathwayCommand, PatientPathwayResponse>
 {
@@ -42,22 +44,32 @@ public sealed class CreatePatientPathwayHandler(
                 [new FluentValidation.Results.ValidationFailure("TemplateId", TeamWalls.TemplateNotYours(template.Name))]);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        // Its addable branches' stages are copied from their definitions into its plan (MC10).
+        var branchDefinitions = (await stagesRepository.GetStageDefinitionsByIdAsync(
+                template.AddableBranches.SelectMany(b => b.StageDefinitionIds).Distinct().ToList(), cancellationToken))
+            .ToDictionary(d => d.Id);
         var pathway = PathwayCreation.FromTemplate(
             template,
             patient.Id,
             request.Title,
             request.DueDate,
             PathwayEnums.Parse<PatientPathwayPriority>(request.Priority),
-            now);
+            now,
+            branchDefinitions);
 
-        var change = new PathwayChange(pathway, request.Actor, now);
+        // Teams are named in a handover's entry and the response (MC7).
+        var teamNames = (await teams.GetAllAsync(includeArchived: true, cancellationToken)).ToDictionary(t => t.Id, t => t.Name);
+        var change = new PathwayChange(pathway, request.Actor, now) { TeamNames = teamNames };
         PathwayCreation.Record(change, template.Name, request.DueDate, request.Notes);
 
         await repository.AddAsync(change, cancellationToken);
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
+        await handovers.NotifyAsync(change, cancellationToken);
 
         // The creator's own note, if any, is the only one, so the actor is the only username it names.
         var usernames = new Dictionary<Guid, string> { [request.Actor.UserId] = request.Actor.Username };
-        return PathwayMapper.ToResponse(pathway, usernames, now, patient: patient, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return PathwayMapper.ToResponse(
+            pathway, usernames, now, patient: patient, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions,
+            viewerScope: request.Actor.Teams, teamNames: teamNames);
     }
 }

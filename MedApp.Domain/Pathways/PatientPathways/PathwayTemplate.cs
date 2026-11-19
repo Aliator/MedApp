@@ -30,4 +30,13 @@ public sealed class PathwayTemplate
     public RetentionClass RetentionClass { get; set; }
 
     public List<PathwayTemplateMap> Maps { get; set; } = [];
+
+    /// <summary>
+    /// How its stages follow each other (MC8), by order: a chain for a template written as a list. Stored as JSON;
+    /// replaced, never changed in place.
+    /// </summary>
+    public List<PathwayTemplateLink> Links { get; set; } = [];
+
+    /// <summary>The branches staff may add to its pathways part-way (MC10), in the template's order. Stored as JSON.</summary>
+    public List<PathwayTemplateBranch> AddableBranches { get; set; } = [];
 }

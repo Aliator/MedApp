@@ -40,7 +40,8 @@ public sealed partial class PathwayReplay
     private readonly PatientPathway _pathway;
     private readonly string _templateName;
     private readonly DateOnly _dueDate;
-    private readonly List<PatientPathwayStage> _stages;
+    /// <summary>The pathway's stage at a template place (by the spec's index), or null where it hasn't grown (MC10b).</summary>
+    private PatientPathwayStage? StageAt(int index) => _pathway.Stages.FirstOrDefault(s => s.TemplateStageOrder == index + 1);
 
     private readonly List<PatientPathwayAuditEntry> _audit = [];
     private readonly List<PatientPathwayNoteVersion> _noteVersions = [];
@@ -95,7 +96,6 @@ public sealed partial class PathwayReplay
             : plan.PlannedDueDate;
         // A copy of the template's stages, made as CreatePatientPathwayHandler (or AcceptReferralHandler) makes it.
         _pathway = PathwayCreation.FromTemplate(template, plan.Patient.Id, plan.Kind.Title, _dueDate, plan.ChosenPriority, plan.CreatedUtc);
-        _stages = _pathway.Stages.OrderBy(s => s.StageOrder).ToList();
         ApplyStageRulesOfTheTime();
     }
 
@@ -175,7 +175,7 @@ public sealed partial class PathwayReplay
             Assign(assigner, assignAt.AddMinutes(_random.Next(2, 9)), second);
 
         var reached = assignAt;
-        for (var index = 0; index < _stages.Count; index++)
+        for (var index = 0; index < _plan.Spec.Stages.Length; index++)
         {
             var outcome = RunStage(index, ref reached);
             if (outcome == StageOutcome.Stopped)
@@ -294,10 +294,8 @@ public sealed partial class PathwayReplay
     private StageOutcome RunStage(int index, ref DateTime reached)
     {
         var spec = _plan.Spec.Stages[index];
-        var stage = _stages[index];
-
-        // A stage of a branch the clinician didn't choose was skipped with it: nothing to do.
-        if (!PathwayWorkflow.IsToDo(stage))
+        // A stage of an outcome the clinician didn't record never appears (MC10b): nothing to do.
+        if (StageAt(index) is not { } stage || !PathwayWorkflow.IsToDo(stage))
             return StageOutcome.Finished;
 
         // The patient asked to wait: the clock is paused (and maybe resumed) before the stage is started.
@@ -396,8 +394,8 @@ public sealed partial class PathwayReplay
         }
 
         // Counting only the stages that run (not those of a branch not chosen, nor skipped).
-        var occurrence = Enumerable.Range(0, index + 1).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && !_stages[i].IsSkipped);
-        var occurrences = Enumerable.Range(0, _stages.Count).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && !_stages[i].IsSkipped);
+        var occurrence = Enumerable.Range(0, index + 1).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && StageAt(i) is { IsSkipped: false });
+        var occurrences = Enumerable.Range(0, _plan.Spec.Stages.Length).Count(i => _plan.Spec.Stages[i].Definition == spec.Definition && StageAt(i) is { IsSkipped: false });
         var context = _plan.NoteContext(occurrence, occurrences);
 
         var hasVisit = !bypass && stage.VisitRequirement != VisitRequirement.None && spec.VisitMinutes > 0
@@ -604,8 +602,8 @@ public sealed partial class PathwayReplay
     {
         Change(worker, at, change =>
         {
-            var next = StageFinishing.NextStage(_pathway, stage);
-            var appointments = _appointments.Where(a => a.StageId == stage.Id || (next is not null && a.StageId == next.Id)).ToList();
+            var touched = StageFinishing.StagesTouchedByFinish(_pathway, stage);
+            var appointments = _appointments.Where(a => a.StageId is { } id && touched.Contains(id)).ToList();
 
             if (PathwayWorkflow.WhyStageNeedsVisit(stage, appointments.Where(a => a.StageId == stage.Id).ToList()) is { } needsVisit && reason is null)
                 throw new InvalidOperationException($"Seeding went wrong: {needsVisit}");
@@ -621,14 +619,7 @@ public sealed partial class PathwayReplay
             if (gate is not null)
                 throw new InvalidOperationException($"Seeding went wrong: {gate}");
 
-            var branch = BranchFor(stage);
-            if (branch is not null)
-            {
-                var touched = StageFinishing.StagesTouchedByFinish(_pathway, stage, branch);
-                appointments = _appointments.Where(a => a.StageId is { } id && touched.Contains(id)).ToList();
-            }
-
-            if (StageFinishing.Finish(change, stage, appointments, reason, branch) is { Requirement: VisitRequirement.Required })
+            if (StageFinishing.Finish(change, stage, appointments, reason, OutcomeFor(stage)) is { Requirement: VisitRequirement.Required })
                 Bypasses++;
         });
     }
@@ -646,7 +637,7 @@ public sealed partial class PathwayReplay
         // The app never cancels a booked appointment itself: the coordinator does, once the patient's been told.
         foreach (var booked in _appointments.Where(a => a.Status == AppointmentStatus.Booked && a.StartUtc > at).ToList())
         {
-            var stage = _stages.FirstOrDefault(s => s.Id == booked.StageId);
+            var stage = _pathway.Stages.FirstOrDefault(s => s.Id == booked.StageId);
             CancelAppointment(booked, stage, _world.Coordinator, at.AddMinutes(_random.Next(10, 90)), NoteBuilder.PathwayCancelledAppointmentReason);
         }
     }

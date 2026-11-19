@@ -59,6 +59,7 @@ public static class ServiceExtensions
         services.TryAddSingleton<IAccountAttemptLimiter, UnlimitedAccountAttempts>();
         // Tells admins about pathway changes that match their monitoring rules.
         services.AddScoped<IPathwayMonitor, PathwayMonitor>();
+        services.AddScoped<MedApp.Application.Pathways.Common.IPathwayHandovers, MedApp.Application.Pathways.Common.PathwayHandovers>();
         // The activity log (the host provides IActivityContext, the request's actor), and its and the retention
         // schedule's settings, which the host binds to its configuration.
         services.AddScoped<IActivityLog, ActivityLog>();

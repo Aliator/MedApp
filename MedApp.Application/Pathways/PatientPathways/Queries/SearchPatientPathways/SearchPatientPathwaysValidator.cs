@@ -57,6 +57,15 @@ public sealed class SearchPatientPathwaysValidator : AbstractValidator<SearchPat
             .Must(ids => ids is null || ids.Count <= PathwaySearch.MaxIdsPerFilter)
             .WithMessage($"Choose at most {PathwaySearch.MaxIdsPerFilter} stages.");
 
+        RuleFor(x => x.View)
+            .Must(view => view is null || PathwaySearch.Views.Contains(view, StringComparer.OrdinalIgnoreCase))
+            .WithMessage(PathwaySearch.ViewMessage);
+
+        // The clinic picker (MC6): one of the viewer's own teams, unless they see every team (another is a 400).
+        RuleFor(x => x.TeamId)
+            .Must((query, teamId) => teamId is not { } id || query.Teams.SeesAllTeams || query.Teams.IsMember(id))
+            .WithMessage(PathwaySearch.TeamNotYoursMessage);
+
         RuleFor(x => x.DueTo)
             .GreaterThanOrEqualTo(x => x.DueFrom!.Value)
             .When(x => x.DueFrom.HasValue && x.DueTo.HasValue)

@@ -13,8 +13,8 @@ public sealed class FinishPathwayStageValidator : AbstractValidator<FinishPathwa
             .MaximumLength(500)
             .WithMessage("Reason must not exceed 500 characters.");
 
-        RuleFor(x => x.Branch)
+        RuleFor(x => x.Outcome)
             .MaximumLength(Domain.Pathways.PatientPathways.PathwayBranchLimits.MaxBranchLength)
-            .WithMessage($"Branch must not exceed {Domain.Pathways.PatientPathways.PathwayBranchLimits.MaxBranchLength} characters.");
+            .WithMessage($"Outcome must not exceed {Domain.Pathways.PatientPathways.PathwayBranchLimits.MaxBranchLength} characters.");
     }
 }

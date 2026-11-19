@@ -8,7 +8,9 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Up
 /// are. Pathways already created from it keep their stages, their clock-stop stage and their team.
 /// <paramref name="ClockStopStageOrder"/> goes with the stage list (positions mean nothing without it): the position
 /// of the stage that stops the waiting-time clock, or null for none.
-/// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
+/// Each stage may have options (<paramref name="StageOptions"/>: optional, a choice node and its outcomes, its owner
+/// team; null for plain stages), the template routes (<paramref name="Links"/>, MC8) and addable branches
+/// (<paramref name="AddableBranches"/>, MC10).
 /// <paramref name="RetentionClass"/> (a <c>RetentionClass</c> by name) changes the template's class and, unlike its
 /// other fields, raises the class of the pathways already made from it when the new one is longer (never lowers it).
 /// </summary>
@@ -19,5 +21,7 @@ public sealed record UpdatePathwayTemplateCommand(
     IReadOnlyList<Guid>? StageDefinitionIdsInOrder,
     int? ClockStopStageOrder = null,
     IReadOnlyList<TemplateStageOptions>? StageOptions = null,
-    string? RetentionClass = null)
+    string? RetentionClass = null,
+    IReadOnlyList<Domain.Pathways.PatientPathways.PathwayTemplateLink>? Links = null,
+    IReadOnlyList<TemplateBranchInput>? AddableBranches = null)
     : IRequest<PathwayTemplateResponse>;

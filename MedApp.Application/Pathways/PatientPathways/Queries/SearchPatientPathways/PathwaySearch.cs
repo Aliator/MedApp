@@ -1,3 +1,4 @@
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -21,6 +22,25 @@ public static class PathwaySearch
 
     public static readonly IReadOnlyList<string> SortColumns =
         [SortByDueDate, SortByPriority, SortByStatus, SortByTitle, SortByPatient, SortByLastUpdated, SortByDaysWaited];
+
+    /// <summary>A current stage my team works (MC7).</summary>
+    public const string ViewOurTurn = "OurTurn";
+
+    /// <summary>That, handed to my team and not picked up yet.</summary>
+    public const string ViewNewForUs = "NewForUs";
+
+    /// <summary>My team's pathway, with a current stage the lab's.</summary>
+    public const string ViewAwaitingLab = "AwaitingLab";
+
+    /// <summary>My team's pathway, with a current stage handed back from the lab and not picked up yet.</summary>
+    public const string ViewBackFromLab = "BackFromLab";
+
+    /// <summary>The team worklist views (My Worklist's Team view), as the light demo has them.</summary>
+    public static readonly IReadOnlyList<string> Views = [ViewOurTurn, ViewNewForUs, ViewAwaitingLab, ViewBackFromLab];
+
+    public const string ViewMessage = "Choose OurTurn, NewForUs, AwaitingLab or BackFromLab.";
+
+    public const string TeamNotYoursMessage = "Choose one of your own teams, or all of them.";
 
     /// <summary>The most IDs a list filter (teams, stages) may name, so a URL can't make a huge query.</summary>
     public const int MaxIdsPerFilter = 100;
@@ -66,6 +86,12 @@ public static class PathwaySearch
 
         if (query.StageDefinitionIds is { Count: > 0 } stageDefinitionIds)
             pathways = pathways.AtStage(stageDefinitionIds);
+
+        if (query.TeamId is { } pickedTeam)
+            pathways = pathways.Where(p => p.TeamId == pickedTeam);
+
+        if (Views.FirstOrDefault(v => string.Equals(v, query.View, StringComparison.OrdinalIgnoreCase)) is { } view)
+            pathways = pathways.InView(view, query.Teams, query.LabTeamId);
 
         var statuses = (query.Statuses ?? [])
             .Select(s => PathwayEnums.TryParse<PatientPathwayStatus>(s, out var status) ? status : (PatientPathwayStatus?)null)
@@ -145,23 +171,78 @@ public static class PathwaySearch
     }
 
     /// <summary>
-    /// The stage reached: pathways whose current stage (the first one by order neither finished nor skipped, as
-    /// <see cref="PathwayWorkflow.CurrentStage"/> has it) comes from any of these stage definitions, so "Waiting for
-    /// histology" is the Histology definition. Only pathways not yet closed: a discharged, cancelled or archived one has
-    /// stopped wherever it was, so it isn't waiting at a stage. On hold counts, since it still sits at that stage.
+    /// The stage reached: pathways one of whose current stages (MC8: still to do, with nothing before it still to do, as
+    /// <see cref="PathwayWorkflow.CurrentStages"/> has it, through the stage links in SQL; a pathway without links is a
+    /// chain) comes from any of these stage definitions, so "Waiting for histology" is the Histology definition. Only
+    /// pathways not yet closed: a discharged, cancelled or archived one has stopped wherever it was, so it isn't waiting
+    /// at a stage. On hold counts, since it still sits at that stage.
     /// </summary>
     public static IQueryable<PatientPathway> AtStage(this IQueryable<PatientPathway> pathways, IEnumerable<Guid> stageDefinitionIds)
     {
-        // Nullable, to compare with the current stage's definition, which a pathway with every stage finished hasn't got.
-        var ids = stageDefinitionIds.Distinct().Select(id => (Guid?)id).ToList();
+        var ids = stageDefinitionIds.Distinct().ToList();
         var closed = PathwayWorkflow.ClosedStatuses.ToList();
         return pathways.Where(p =>
             !closed.Contains(p.Status)
-            && ids.Contains(p.Stages
-                .Where(s => !s.IsCompleted && s.SkippedAtUtc == null)
-                .OrderBy(s => s.StageOrder)
-                .Select(s => (Guid?)s.StageDefinitionId)
-                .FirstOrDefault()));
+            && p.Stages.Any(s =>
+                ids.Contains(s.StageDefinitionId)
+                && !s.IsCompleted && s.SkippedAtUtc == null
+                && (p.Links.Any()
+                    ? !p.Links.Any(l => l.ToStageId == s.Id
+                                        && p.Stages.Any(t => t.Id == l.FromStageId && !t.IsCompleted && t.SkippedAtUtc == null))
+                    : !p.Stages.Any(t => t.StageOrder < s.StageOrder && !t.IsCompleted && t.SkippedAtUtc == null))));
+    }
+
+    /// <summary>
+    /// A team worklist view (MC7, the relay), for the viewer's teams, among open pathways (not on hold, whose stages
+    /// aren't being worked): <see cref="ViewOurTurn"/>, <see cref="ViewNewForUs"/>, <see cref="ViewAwaitingLab"/> or
+    /// <see cref="ViewBackFromLab"/>. A current stage is as in <see cref="AtStage"/>; a stage's team is its owner, else
+    /// the pathway's own. <paramref name="labTeamId"/> is the lab's (none: the lab views are empty).
+    /// </summary>
+    public static IQueryable<PatientPathway> InView(
+        this IQueryable<PatientPathway> pathways, string view, TeamScope scope, Guid? labTeamId)
+    {
+        var mine = scope.TeamIds.ToList();
+        var lab = labTeamId ?? Guid.Empty;
+        var open = PathwayWorkflow.OpenStatuses.ToList();
+        pathways = pathways.Where(p => open.Contains(p.Status));
+
+        return view switch
+        {
+            ViewOurTurn => pathways.Where(p => p.Stages.Any(s =>
+                !s.IsCompleted && s.SkippedAtUtc == null
+                && mine.Contains(s.OwnerTeamId ?? p.TeamId)
+                && (p.Links.Any()
+                    ? !p.Links.Any(l => l.ToStageId == s.Id
+                                        && p.Stages.Any(t => t.Id == l.FromStageId && !t.IsCompleted && t.SkippedAtUtc == null))
+                    : !p.Stages.Any(t => t.StageOrder < s.StageOrder && !t.IsCompleted && t.SkippedAtUtc == null)))),
+            ViewNewForUs => pathways.Where(p => p.Stages.Any(s =>
+                !s.IsCompleted && s.SkippedAtUtc == null
+                && mine.Contains(s.OwnerTeamId ?? p.TeamId)
+                && s.HandedOverFromTeamId != null && s.PickedUpAtUtc == null
+                && (p.Links.Any()
+                    ? !p.Links.Any(l => l.ToStageId == s.Id
+                                        && p.Stages.Any(t => t.Id == l.FromStageId && !t.IsCompleted && t.SkippedAtUtc == null))
+                    : !p.Stages.Any(t => t.StageOrder < s.StageOrder && !t.IsCompleted && t.SkippedAtUtc == null)))),
+            ViewAwaitingLab => pathways.Where(p =>
+                mine.Contains(p.TeamId) && p.TeamId != lab
+                && p.Stages.Any(s =>
+                    !s.IsCompleted && s.SkippedAtUtc == null
+                    && s.OwnerTeamId == lab
+                    && (p.Links.Any()
+                    ? !p.Links.Any(l => l.ToStageId == s.Id
+                                        && p.Stages.Any(t => t.Id == l.FromStageId && !t.IsCompleted && t.SkippedAtUtc == null))
+                    : !p.Stages.Any(t => t.StageOrder < s.StageOrder && !t.IsCompleted && t.SkippedAtUtc == null)))),
+            ViewBackFromLab => pathways.Where(p =>
+                mine.Contains(p.TeamId)
+                && p.Stages.Any(s =>
+                    !s.IsCompleted && s.SkippedAtUtc == null
+                    && s.HandedOverFromTeamId == lab && s.PickedUpAtUtc == null
+                    && (p.Links.Any()
+                    ? !p.Links.Any(l => l.ToStageId == s.Id
+                                        && p.Stages.Any(t => t.Id == l.FromStageId && !t.IsCompleted && t.SkippedAtUtc == null))
+                    : !p.Stages.Any(t => t.StageOrder < s.StageOrder && !t.IsCompleted && t.SkippedAtUtc == null)))),
+            _ => pathways
+        };
     }
 
     /// <summary>

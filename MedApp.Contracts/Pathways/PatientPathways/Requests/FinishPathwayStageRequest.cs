@@ -14,8 +14,8 @@ public sealed class FinishPathwayStageRequest
     public string? Reason { get; set; }
 
     /// <summary>
-    /// A branch point's branch, chosen by the clinician (one of the stage's <c>branches</c>): required the first time
-    /// a branch point is finished, and refused for any other stage or finish. The other branches' stages are skipped.
+    /// A choice node's outcome, recorded by the clinician (one of the stage's <c>outcomes</c>): required the first time a
+    /// choice node is finished, and refused for any other stage or finish. That outcome's stages are added.
     /// </summary>
-    public string? Branch { get; set; }
+    public string? Outcome { get; set; }
 }

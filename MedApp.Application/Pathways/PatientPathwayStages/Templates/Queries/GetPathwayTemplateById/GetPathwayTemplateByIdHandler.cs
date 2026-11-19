@@ -16,6 +16,9 @@ public sealed class GetPathwayTemplateByIdHandler(IPatientPathwayStagesRepositor
                        ?? throw new NotFoundException($"Template '{request.TemplateId}' was not found.");
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
-        return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id));
+        // Its addable branches' stages are named from the library (MC10).
+        var definitions = (await repository.GetStageDefinitionsByIdAsync(
+            PathwayTemplateMapper.BranchDefinitionIds([template]), cancellationToken)).ToDictionary(d => d.Id);
+        return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);
     }
 }

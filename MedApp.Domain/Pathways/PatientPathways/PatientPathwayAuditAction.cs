@@ -110,8 +110,9 @@ public enum PatientPathwayAuditAction
     StageSkipped = 35,
 
     /// <summary>
-    /// Finishing a branch point chose one of its branches (<c>branch</c>); the other branches' stages after it were
-    /// skipped (<c>skippedStageIds</c>, <c>skippedStages</c>). Written on the branch point, after its StageFinished.
+    /// A choice node's outcome was recorded (MC10b): <c>{outcome, stageIds}</c>, the stages it added. Written on the choice
+    /// node, after its StageFinished. Before choice nodes, a branch point's <c>branch</c>, with the other branches'
+    /// stages skipped (<c>skippedStageIds</c>, <c>skippedStages</c>).
     /// </summary>
     BranchChosen = 36,
 
@@ -142,5 +143,22 @@ public enum PatientPathwayAuditAction
     ConsentWithdrawn = 43,
 
     /// <summary>A consent record was marked entered in error (the detail only on the record).</summary>
-    ConsentEnteredInError = 44
+    ConsentEnteredInError = 44,
+
+    // 45 and 46 are reserved by the earlier plan.
+
+    /// <summary>
+    /// A stage another team works became current, handing the pathway over (MC7, the relay): <c>{stageId, fromTeamId,
+    /// from, toTeamId, to}</c> (the teams' admin-written names). Written on the stage reached.
+    /// </summary>
+    StageHandedOver = 47,
+
+    /// <summary>A handed-over stage was picked up by its team (Pick Up, or starting or finishing it).</summary>
+    StagePickedUp = 48,
+
+    /// <summary>
+    /// A template's addable branch was added (MC10): <c>{templateBranchId, branch, afterStageId, stageIds}</c>; never
+    /// the reason, which is kept on the branch addition.
+    /// </summary>
+    BranchAdded = 49
 }

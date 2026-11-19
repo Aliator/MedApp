@@ -18,6 +18,7 @@ public sealed class SearchPatientPathwaysHandler(
     IPatientPathwayRepository repository,
     IIdentityReadService identityReadService,
     IActivityLog activityLog,
+    MedApp.Application.Teams.Repositories.ITeamRepository teams,
     TimeProvider timeProvider)
     : IRequestHandler<SearchPatientPathwaysQuery, PagedResponse<PatientPathwaySummaryResponse>>
 {
@@ -26,6 +27,10 @@ public sealed class SearchPatientPathwaysHandler(
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        // The lab views (MC7) need the lab's ID.
+        if (request.View is not null && request.LabTeamId is null)
+            request = request with { LabTeamId = (await teams.GetLabAsync(cancellationToken))?.Id };
+
         var result = await repository.SearchAsync(request, request.Teams, now, cancellationToken);
         var items = await PathwayMapper.ToSummariesAsync(result.Items, identityReadService, now, cancellationToken);
 

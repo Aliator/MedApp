@@ -1,4 +1,5 @@
-﻿using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,11 +20,17 @@ public sealed class PathwayTemplateMapConfiguration : IEntityTypeConfiguration<P
         builder.Property(x => x.IsOptional)
             .HasDefaultValue(false);
 
-        builder.Property(x => x.ChoosesBranch)
-            .HasDefaultValue(false);
+        // A choice node's kind by number (StageChoiceKind), and its outcomes as JSON (MC10b).
+        builder.Property(x => x.Outcomes)
+            .HasJsonConversion()
+            .HasDefaultValueSql("N'[]'");
 
-        builder.Property(x => x.Branch)
-            .HasMaxLength(PathwayBranchLimits.MaxBranchLength);
+        // The relay (MC7): the team that works the stage, null for the template's own. Teams in use are archived,
+        // never deleted.
+        builder.HasOne(x => x.OwnerTeam)
+            .WithMany()
+            .HasForeignKey(x => x.OwnerTeamId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         // At most one per template (the handlers check it).
         builder.Property(x => x.StopsClock)

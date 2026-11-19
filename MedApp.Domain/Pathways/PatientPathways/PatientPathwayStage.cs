@@ -47,11 +47,45 @@ public sealed class PatientPathwayStage
     /// <summary>Copied from the template: whether staff may skip it, with a reason, when it's current.</summary>
     public bool IsOptional { get; set; }
 
-    /// <summary>Copied from the template: whether finishing it chooses one of the branches that follow.</summary>
-    public bool ChoosesBranch { get; set; }
+    /// <summary>
+    /// Its place in the template it was copied from (the plan's order), or null for a stage added with a branch (MC10).
+    /// </summary>
+    public int? TemplateStageOrder { get; set; }
 
-    /// <summary>Copied from the template: the branch it belongs to, or null for a stage that always runs.</summary>
-    public string? Branch { get; set; }
+    /// <summary>Copied from the template: a choice node's kind (MC10b), or null for a plain stage.</summary>
+    public StageChoiceKind? ChoiceKind { get; set; }
+
+    /// <summary>
+    /// A choice node's recorded outcome (one of the template's admin-written names), recorded by the clinician as it's
+    /// first finished; null until then, and for a plain stage. Never chosen or suggested by MedApp.
+    /// </summary>
+    public string? Outcome { get; set; }
+
+    /// <summary>
+    /// The results the lab entered on its own stage (free text, from its lab case's authorised report: MC16), with who
+    /// and when: shown on the pathway as a note is, never in the audit log, replaced when the record is anonymised.
+    /// </summary>
+    public string? ResultText { get; set; }
+    public Guid? ResultEnteredByUserId { get; set; }
+    public DateTime? ResultEnteredAtUtc { get; set; }
+
+    /// <summary>The addable branch (MC10) that added it, or null for a stage from the template.</summary>
+    public Guid? BranchAdditionId { get; set; }
+
+    /// <summary>The team that works it (MC7, the relay): null for the pathway's own team, or the lab. Copied from the template.</summary>
+    public Guid? OwnerTeamId { get; set; }
+    public Teams.Team? OwnerTeam { get; set; }
+
+    /// <summary>When it first became current (was reached), or null while it hasn't.</summary>
+    public DateTime? ReachedAtUtc { get; set; }
+
+    /// <summary>The team that handed it over (the finished stage's), when it isn't the stage's own; else null.</summary>
+    public Guid? HandedOverFromTeamId { get; set; }
+    public Teams.Team? HandedOverFromTeam { get; set; }
+
+    /// <summary>When a handed-over stage was picked up by its team, and by whom (Pick Up, or starting or finishing it).</summary>
+    public DateTime? PickedUpAtUtc { get; set; }
+    public Guid? PickedUpByUserId { get; set; }
 
     /// <summary>
     /// When it was skipped (an optional stage skipped by hand, or another branch chosen), and by whom; null while it

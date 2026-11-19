@@ -105,9 +105,9 @@ public static class TimelineMapper
                 response.Reason = isAdmin ? Text(details, "detail") : null;
                 break;
 
-            // The branch and the stages skipped are names the template's author wrote: everyone sees them.
+            // The outcome (or, before choice nodes, the branch) and the stages skipped are names the template's author wrote: everyone sees them.
             case BranchChosen:
-                response.Branch = Text(details, "branch");
+                response.Branch = Text(details, "outcome") ?? Text(details, "branch");
                 response.SkippedStageNames = details.TryGetValue("skippedStages", out var skippedStages)
                                              && skippedStages.ValueKind == JsonValueKind.Array
                     ? skippedStages.EnumerateArray()

@@ -6,7 +6,9 @@ namespace MedApp.Application.Pathways.PatientPathwayStages.Templates.Commands.Cr
 /// <summary>
 /// Creates a template in a team: an ordered list of stages, in which a stage may appear more than once, and
 /// optionally the position (from 1) of the stage whose finishing stops a referral's waiting-time clock.
-/// Each stage may have options (<paramref name="StageOptions"/>: optional, branch point, branch; null for plain stages).
+/// Each stage may have options (<paramref name="StageOptions"/>: optional, a choice node and its outcomes, its owner
+/// team; null for plain stages), the template routes (<paramref name="Links"/>, MC8) and addable branches
+/// (<paramref name="AddableBranches"/>, MC10).
 /// <paramref name="RetentionClass"/> is a <c>RetentionClass</c> by name (null for Standard).
 /// </summary>
 public sealed record CreatePathwayTemplateCommand(
@@ -15,5 +17,7 @@ public sealed record CreatePathwayTemplateCommand(
     IReadOnlyList<Guid> StageDefinitionIdsInOrder,
     int? ClockStopStageOrder = null,
     IReadOnlyList<TemplateStageOptions>? StageOptions = null,
-    string? RetentionClass = null)
+    string? RetentionClass = null,
+    IReadOnlyList<Domain.Pathways.PatientPathways.PathwayTemplateLink>? Links = null,
+    IReadOnlyList<TemplateBranchInput>? AddableBranches = null)
     : IRequest<PathwayTemplateResponse>;

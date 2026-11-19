@@ -70,4 +70,14 @@ public sealed class SearchPatientPathwaysRequest
 
     /// <summary>True: only pathways where work has begun on a stage. False: only those where none has. Unset: both.</summary>
     public bool? Started { get; set; }
+
+    /// <summary>
+    /// A team worklist view (MC7, the relay): <c>OurTurn</c> (a current stage my team works), <c>NewForUs</c> (that,
+    /// handed to us and not picked up), <c>AwaitingLab</c> (my team's, with a current stage the lab's) or
+    /// <c>BackFromLab</c> (my team's, a current stage handed back from the lab and not picked up).
+    /// </summary>
+    public string? View { get; set; }
+
+    /// <summary>The clinic picker (MC6): only this team's pathways; one of the viewer's own, unless they see every team.</summary>
+    public Guid? TeamId { get; set; }
 }

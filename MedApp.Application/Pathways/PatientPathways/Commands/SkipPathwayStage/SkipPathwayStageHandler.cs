@@ -18,6 +18,7 @@ public sealed class SkipPathwayStageHandler(
     IAppointmentRepository appointmentRepository,
     IIdentityReadService identityReadService,
     IPathwayMonitor pathwayMonitor,
+    IPathwayHandovers handovers,
     TimeProvider timeProvider)
     : IRequestHandler<SkipPathwayStageCommand, PatientPathwayResponse>
 {
@@ -25,8 +26,9 @@ public sealed class SkipPathwayStageHandler(
 
     public async Task<PatientPathwayResponse> Handle(SkipPathwayStageCommand request, CancellationToken cancellationToken)
     {
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
-        var stage = pathway.GetStageOrThrow(request.StageId);
+        // The team that works the stage (the relay: the lab's stages are the lab's) works it.
+        var (pathway, stage) = await repository.GetForStageWorkOrThrowAsync(
+            request.PathwayId, request.StageId, boundary, request.Actor.Teams, cancellationToken);
 
         if (PathwayWorkflow.WhySkipNotAllowed(pathway, stage, request.CanFinishWithoutVisit) is { } reason)
             throw new ConflictException(reason);
@@ -38,18 +40,18 @@ public sealed class SkipPathwayStageHandler(
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var change = new PathwayChange(pathway, request.Actor, now);
 
-        // The skipped stage's appointments (its Requested ones are cancelled), and the next stage's (it becomes current
-        // and may need its visit asked for).
-        var next = StageFinishing.NextStage(pathway, stage);
+        // The skipped stage's appointments (its Requested ones are cancelled), and those of the stages still to do (any
+        // may become current, on any route, and need its visit asked for).
         var appointments = await appointmentRepository.GetForStagesForUpdateAsync(
-            next is null ? [stage.Id] : [stage.Id, next.Id], cancellationToken);
+            StageFinishing.StagesTouchedByFinish(pathway, stage).ToList(), cancellationToken);
 
         StageSkipReasons.TryParseChosen(request.Reason, out var skipReason);
         StageFinishing.Skip(change, stage, skipReason, request.Detail, appointments);
 
         await repository.SaveAsync(change, cancellationToken);
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
+        await handovers.NotifyAsync(change, cancellationToken);
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams);
     }
 }

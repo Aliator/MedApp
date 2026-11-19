@@ -51,6 +51,6 @@ public sealed class ChangePatientPathwayStatusHandler(
         await repository.SaveAsync(change, cancellationToken);
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams);
     }
 }

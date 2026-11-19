@@ -1,4 +1,4 @@
-﻿namespace MedApp.Domain.Pathways.PatientPathways;
+namespace MedApp.Domain.Pathways.PatientPathways;
 
 /// <summary>
 /// One position in a template's stage list. Keyed by template and position, so the same stage definition can
@@ -18,16 +18,21 @@ public sealed class PathwayTemplateMap
     public bool IsOptional { get; set; }
 
     /// <summary>
-    /// Whether this stage is a branch point: finishing it asks the clinician to choose one of the branches that follow
-    /// (up to the next branch point), and the other branches' stages are skipped. Copied onto each pathway's stage.
+    /// A choice node's kind (MC10b), or null for a plain stage: finishing it records the clinician's outcome, one of
+    /// <see cref="Outcomes"/>, and only that outcome's stages follow. Copied into each pathway's plan.
     /// </summary>
-    public bool ChoosesBranch { get; set; }
+    public StageChoiceKind? ChoiceKind { get; set; }
+
+    /// <summary>A choice node's outcomes, in the template's order (empty for a plain stage). Stored as JSON.</summary>
+    public List<PathwayTemplateOutcome> Outcomes { get; set; } = [];
 
     /// <summary>
-    /// The branch this stage belongs to (an admin-written name, e.g. "Treatment"), or null for a stage that always runs.
-    /// Only after a branch point. Copied onto each pathway's stage.
+    /// The team that works this stage (MC7, the relay): null for the template's own team, or the lab. Copied onto each
+    /// pathway's stage; reaching it hands the pathway over.
     /// </summary>
-    public string? Branch { get; set; }
+    public Guid? OwnerTeamId { get; set; }
+    public Teams.Team? OwnerTeam { get; set; }
+
     /// <summary>
     /// Finishing this stage stops the waiting-time clock of a pathway accepted from a referral (at most one per
     /// template, chosen by admins). Copied onto each new pathway's stage, so changing it affects only new pathways.

@@ -1,3 +1,4 @@
+using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Pathways.PatientPathwayStages.Templates.Responses;
 using MedApp.Domain.Pathways.PatientPathways;
 
@@ -7,12 +8,15 @@ public static class PathwayTemplateMapper
 {
     /// <summary>
     /// A template's response. Stage names come from <paramref name="definitions"/> when given (for a template just
-    /// built, whose maps have no definitions loaded), otherwise from each map's definition.
+    /// built, whose maps have no definitions loaded, and for its addable branches' stages, which are kept by ID),
+    /// otherwise from each map's definition. Owners are named from <paramref name="teamNames"/>, else the team loaded with
+    /// each map. A template without links (one written as a list before routes) shows its chain.
     /// </summary>
     public static PathwayTemplateResponse ToResponse(
         PathwayTemplate template,
         int pathwayCount,
-        IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>? definitions = null)
+        IReadOnlyDictionary<Guid, PatientPathwayStageDefinition>? definitions = null,
+        IReadOnlyDictionary<Guid, string>? teamNames = null)
     {
         var maps = template.Maps.OrderBy(m => m.StageOrder).ToList();
 
@@ -39,42 +43,46 @@ public static class PathwayTemplateMapper
                         SnomedTerm = definition?.SnomedTerm,
                         IsArchived = definition?.IsArchived ?? false,
                         VisitRequirement = (definition?.VisitRequirement ?? VisitRequirement.None).ToString(),
-                        StopsClock = m.StopsClock,
                         IsOptional = m.IsOptional,
-                        ChoosesBranch = m.ChoosesBranch,
-                        Branch = m.Branch
+                        ChoiceKind = m.ChoiceKind?.ToString(),
+                        Outcomes = m.ChoiceKind is null
+                            ? null
+                            : m.Outcomes
+                                .Select(o => new PathwayTemplateOutcomeResponse { Name = o.Name, NextStageOrders = o.NextStageOrders.ToList() })
+                                .ToList(),
+                        StopsClock = m.StopsClock,
+                        OwnerTeamId = m.OwnerTeamId,
+                        OwnerTeamName = m.OwnerTeamId is { } owner
+                            ? teamNames?.GetValueOrDefault(owner) ?? m.OwnerTeam?.Name
+                            : null
                     };
                 })
                 .ToList(),
             StageDefinitionIdsInOrder = maps.Select(m => m.StageDefinitionId).ToList(),
-            ClockStopStageOrder = maps.FirstOrDefault(m => m.StopsClock)?.StageOrder
+            ClockStopStageOrder = maps.FirstOrDefault(m => m.StopsClock)?.StageOrder,
+            Links = (template.Links.Count > 0 ? template.Links : PathwayGraph.ChainLinks(maps.Count))
+                .Select(l => new PathwayTemplateLinkResponse { FromStageOrder = l.FromStageOrder, ToStageOrder = l.ToStageOrder })
+                .ToList(),
+            AddableBranches = template.AddableBranches
+                .Select(b => new PathwayTemplateBranchResponse
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Stages = b.StageDefinitionIds
+                        .Select(id => new PathwayTemplateBranchStageResponse
+                        {
+                            StageDefinitionId = id,
+                            Name = definitions?.GetValueOrDefault(id)?.Name ?? string.Empty
+                        })
+                        .ToList(),
+                    AttachAfterStageOrders = b.AttachAfterStageOrders.ToList(),
+                    IsRepeatable = b.IsRepeatable
+                })
+                .ToList()
         };
     }
 
-    /// <summary>
-    /// A stage list as template rows, numbered from 1 in the order given (repeats allowed), the one at
-    /// <paramref name="clockStopStageOrder"/> (if any) stopping the waiting-time clock, each with its options (plain
-    /// stages when <paramref name="options"/> is null; validators check the counts match).
-    /// </summary>
-    public static List<PathwayTemplateMap> ToMaps(
-        Guid templateId,
-        IEnumerable<Guid> stageDefinitionIdsInOrder,
-        int? clockStopStageOrder = null,
-        IReadOnlyList<TemplateStageOptions>? options = null) =>
-        stageDefinitionIdsInOrder
-            .Select((id, index) =>
-            {
-                var option = options is not null && index < options.Count ? options[index] : TemplateStageOptions.Plain;
-                return new PathwayTemplateMap
-                {
-                    TemplateId = templateId,
-                    StageDefinitionId = id,
-                    StageOrder = index + 1,
-                    StopsClock = clockStopStageOrder == index + 1,
-                    IsOptional = option.IsOptional,
-                    ChoosesBranch = option.ChoosesBranch,
-                    Branch = option.BranchName
-                };
-            })
-            .ToList();
+    /// <summary>The stage definitions a template's addable branches name, for their stages' names.</summary>
+    public static IReadOnlyList<Guid> BranchDefinitionIds(IEnumerable<PathwayTemplate> templates) =>
+        templates.SelectMany(t => t.AddableBranches).SelectMany(b => b.StageDefinitionIds).Distinct().ToList();
 }

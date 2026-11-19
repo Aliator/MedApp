@@ -6,6 +6,7 @@ using MedApp.Application.Pathways.Common;
 using MedApp.Application.Pathways.PatientPathways.Queries.SearchPatientPathways;
 using MedApp.Application.Pathways.Repositories;
 using MedApp.Domain.Pathways.PatientPathways;
+using MedApp.Domain.Teams;
 using MedApp.Application.Referrals.Common;
 using MedApp.Infrastructure.Data.Configurations.Appointments;
 using MedApp.Infrastructure.Data.Configurations.Referrals;
@@ -31,7 +32,7 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     public async Task AddAsync(PathwayChange change, CancellationToken ct)
     {
         context.PatientPathways.Add(change.Pathway);
-        AddChange(change);
+        await AddChangeAsync(change, ct);
         await SaveChangesAsync(ct, ConflictMessage(change));
     }
 
@@ -72,7 +73,7 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
 
     public async Task SaveAsync(PathwayChange change, CancellationToken ct)
     {
-        AddChange(change);
+        await AddChangeAsync(change, ct);
         await SaveChangesAsync(ct, ConflictMessage(change));
     }
 
@@ -159,11 +160,29 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     }
 
     /// <summary>
-    /// Adds a change's audit entries, the appointments it asked for, the history entries it wrote, and the notes it added
-    /// with their versions (and the versions of those it edited).
+    /// Adds a change's audit entries, the appointments it asked for, the history entries it wrote, the notes it added
+    /// with their versions (and the versions of those it edited), the stages, links and branches it added (MC8 to
+    /// MC10b), and its grants: a team's stage owner grant only once (MC7: a team handed a pathway again keeps the grant
+    /// it has; a consult's, which ends, doesn't count).
     /// </summary>
-    private void AddChange(PathwayChange change)
+    private async Task AddChangeAsync(PathwayChange change, CancellationToken ct)
     {
+        // The stages it added first: their keys are set, so they're added, not taken for existing rows.
+        context.PatientPathwayStages.AddRange(change.NewStages.Where(s => context.Entry(s).State != EntityState.Added));
+        context.PatientPathwayStageLinks.AddRange(change.NewLinks.Where(l => context.Entry(l).State != EntityState.Added));
+        context.PathwayBranchAdditions.AddRange(change.NewBranchAdditions);
+        var grants = new List<PathwayAccess>();
+        foreach (var grant in change.NewGrants)
+        {
+            if (grant.Reason == PathwayAccessReason.StageOwner
+                && (grants.Any(g => g.TeamId == grant.TeamId && g.Reason == PathwayAccessReason.StageOwner)
+                    || await context.PathwayAccess.AnyAsync(a => a.PathwayId == grant.PathwayId && a.TeamId == grant.TeamId
+                                                                && a.Reason != PathwayAccessReason.Consult, ct)))
+                continue;
+
+            grants.Add(grant);
+        }
+
         context.PatientPathwayAuditEntries.AddRange(change.AuditEntries);
         context.Appointments.AddRange(change.NewAppointments);
         context.AppointmentEvents.AddRange(change.AppointmentEvents);
@@ -171,7 +190,7 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
         context.PatientPathwayNoteVersions.AddRange(change.NoteVersions);
         context.ReferralEvents.AddRange(change.ReferralEvents);
         context.ReferralClockPauses.AddRange(change.NewPauses);
-        context.PathwayAccess.AddRange(change.NewGrants);
+        context.PathwayAccess.AddRange(grants);
     }
 
     /// <summary>
@@ -200,6 +219,10 @@ public sealed class PatientPathwayRepository(MedAppDbContext context) : IPatient
     private static IQueryable<PatientPathway> WithDetails(IQueryable<PatientPathway> pathways) =>
         pathways
             .Include(x => x.Patient)
+            .Include(x => x.Team)
             .Include(x => x.Assignments)
-            .Include(x => x.Stages.OrderBy(s => s.StageOrder));
+            .Include(x => x.Stages.OrderBy(s => s.StageOrder)).ThenInclude(s => s.OwnerTeam)
+            .Include(x => x.Stages.OrderBy(s => s.StageOrder)).ThenInclude(s => s.HandedOverFromTeam)
+            .Include(x => x.Links)
+            .Include(x => x.BranchAdditions);
 }
