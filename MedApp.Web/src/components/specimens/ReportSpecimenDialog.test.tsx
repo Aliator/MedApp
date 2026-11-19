@@ -16,7 +16,7 @@ function renderDialog() {
 }
 
 describe('ReportSpecimenDialog', () => {
-  it('attaches the report from the version shown, showing its progress, with the patient and specimen shown', async () => {
+  it('attaches the report from the version shown, showing its progress, with the patient and sample shown', async () => {
     withAnnouncements();
     const sent = stubXhr();
     const {user, onClose} = renderDialog();
@@ -53,8 +53,8 @@ describe('ReportSpecimenDialog', () => {
     await user.upload(fileInput(), file('report.pdf'));
     await user.click(dialog().getByRole('button', {name: 'Attach Report'}));
     await waitFor(() => expect(sent).toHaveLength(1));
-    sent[0].respond(409, {title: 'Someone else changed this specimen while you had it open.'});
-    expect(await dialog().findByText('Someone else changed this specimen while you had it open.')).toBeInTheDocument();
+    sent[0].respond(409, {title: 'Someone else changed this sample while you had it open.'});
+    expect(await dialog().findByText('Someone else changed this sample while you had it open.')).toBeInTheDocument();
   });
 
   it('stops sending when asked, staying open', async () => {

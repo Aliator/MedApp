@@ -39,10 +39,10 @@ function renderSection(items = [testSummary(), testSummary({id: OLDER, number: '
 }
 
 describe('PathwaySpecimens', () => {
-  it("lists the pathway's specimens by the stage that took them, oldest first, each opening its page", async () => {
+  it("lists the pathway's samples by the stage that took them, oldest first, each opening its page", async () => {
     const {fetch} = renderSection([testSummary({isOverdueAtLab: true}), testSummary({id: OLDER, number: 'MA26-000100', status: 'RejectedByLab', takenAtUtc: '2026-10-30T09:00:00Z'})]);
 
-    const list = within(await screen.findByRole('list', {name: 'Specimens taken at Biopsy'}));
+    const list = within(await screen.findByRole('list', {name: 'Samples taken at Biopsy'}));
     const links = list.getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual(['MA26-000100', 'MA26-000123']);
     expect(links[1]).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}`);
@@ -60,31 +60,31 @@ describe('PathwaySpecimens', () => {
     const {user} = renderSection([]);
 
     expect(await screen.findByText('None taken yet.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Record Specimen'}));
+    await user.click(screen.getByRole('button', {name: 'Record Sample'}));
     const dialog = within(await waitFor(() => openDialog()!));
     expect(dialog.getByText('Biopsy')).toBeInTheDocument();
     await user.click(dialog.getByRole('combobox', {name: /Specimen type/}));
     await user.click(await screen.findByRole('option', {name: 'Skin biopsy (punch)'}));
     await waitFor(() => expect(dialog.getByRole('combobox', {name: /Requesting clinician/})).toHaveTextContent('test-nurse'));
-    await user.click(dialog.getByRole('button', {name: 'Record Specimen'}));
+    await user.click(dialog.getByRole('button', {name: 'Record Sample'}));
 
-    expect(await screen.findByText('Specimen MA26-000124 recorded')).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'Open the specimen'})).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}`);
+    expect(await screen.findByText('Sample MA26-000124 recorded')).toBeInTheDocument();
+    expect(screen.getByRole('link', {name: 'Open the sample'})).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}`);
     expect(screen.getByRole('link', {name: 'Print its label'})).toHaveAttribute('href', `/specimens/${SPECIMEN_ID}/print?sheet=label`);
     await user.click(screen.getByRole('button', {name: /Dismiss/}));
-    expect(screen.queryByText('Specimen MA26-000124 recorded')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sample MA26-000124 recorded')).not.toBeInTheDocument();
   });
 
-  it("offers Record Specimen only to holders of RecordSpecimens, and says when there are none", async () => {
+  it("offers Record Sample only to holders of RecordSpecimens, and says when there are none", async () => {
     renderSection([], staffUser);
     expect(await screen.findByText('None taken yet.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Record Specimen'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Sample'})).not.toBeInTheDocument();
   });
 
-  it("says when the specimens couldn't be loaded", async () => {
+  it("says when the samples couldn't be loaded", async () => {
     mockApi({'GET /api/specimens/search': () => json({}, 500)});
     renderWithApp(<PathwaySpecimens pathway={pathway} />, {user: nurseUser});
-    expect(await screen.findByText('The specimens could not be loaded. Please try again.')).toBeInTheDocument();
+    expect(await screen.findByText('The samples could not be loaded. Please try again.')).toBeInTheDocument();
   });
 
   it('groups by stage in the pathway\'s order, leaving out stages with none that can\'t take one', () => {

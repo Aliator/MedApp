@@ -8,6 +8,19 @@ describe('parseLabSearch', () => {
     expect(parseLabSearch({sort: 'time', asc: 'true'})).toEqual({sort: 'time', asc: true});
   });
 
+  it("reads the samples database's filters (MC14), whatever their case", () => {
+    const clinic = 'D1000000-0000-0000-0000-000000000001';
+    expect(parseLabSearch({source: 'hospital', clinic, test: clinic, status: 'received', due: 'overdue', sort: 'Due'})).toEqual({
+      source: 'Hospital',
+      clinic: clinic.toLowerCase(),
+      test: clinic.toLowerCase(),
+      status: 'Received',
+      due: 'Overdue',
+      sort: 'due',
+    });
+    expect(parseLabSearch({source: 'Lab', clinic: 'derm', status: 'Open', due: 'soon'})).toEqual({});
+  });
+
   it('drops anything that is not valid', () => {
     expect(parseLabSearch({view: 'Everything', lab: 'northgate', page: '1'})).toEqual({});
     expect(parseLabSearch({page: 'two', lab: 42, sort: 'lab', asc: 'maybe'})).toEqual({});
@@ -15,10 +28,9 @@ describe('parseLabSearch', () => {
 });
 
 describe('labViewOf', () => {
-  it("opens on Expected for the lab's staff and To send for everyone else, unless the address says", () => {
-    expect(labViewOf({}, true)).toBe('Expected');
-    expect(labViewOf({}, false)).toBe('ToSend');
-    expect(labViewOf({view: 'Reported'}, false)).toBe('Reported');
+  it('opens on To receive for everyone (MC14), unless the address says', () => {
+    expect(labViewOf({})).toBe('ToReceive');
+    expect(labViewOf({view: 'Reported'})).toBe('Reported');
   });
 });
 

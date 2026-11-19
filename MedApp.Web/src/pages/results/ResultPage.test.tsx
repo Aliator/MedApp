@@ -25,7 +25,7 @@ describe('ResultPage', () => {
     expect(await screen.findByRole('heading', {name: 'Skin biopsy (punch) report', level: 1})).toBeInTheDocument();
     expect(screen.getByRole('region', {name: 'Patient: Ahmed, Freya'})).toBeInTheDocument();
     expect(screen.getAllByText('Awaiting sign-off').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', {name: 'Specimen MA26-000123'})).toHaveAttribute('href', `/specimens/${RESULT_SPECIMEN_ID}`);
+    expect(screen.getByRole('link', {name: 'Sample MA26-000123'})).toHaveAttribute('href', `/specimens/${RESULT_SPECIMEN_ID}`);
     expect(screen.getByRole('link', {name: 'Skin lesion review'})).toHaveAttribute('href', `/pathways/${RESULT_PATHWAY_ID}`);
     expect(screen.getByText('4 Nov 2026, 10:00 by test-lab')).toBeInTheDocument();
     expect(screen.getByText('3 days')).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('ResultPage', () => {
     expect(screen.getByText('Synthetic: wrong patient.')).toBeInTheDocument();
   });
 
-  it('shows a thumbnail for a picture, and an external report has no specimen', async () => {
+  it('shows a thumbnail for a picture, and an external report has no sample', async () => {
     renderPage(testResult({reportHasThumbnail: true, specimenId: null, specimenNumber: null, specimenTypeName: null, source: 'ExternalReport', pathwayId: null, pathwayTitle: null}));
 
     expect(await screen.findByText('Not on a pathway')).toBeInTheDocument();

@@ -50,7 +50,7 @@ function cachedClient() {
 const isInvalidated = (queryClient: QueryClient, key: readonly unknown[]) => queryClient.getQueryState(key)?.isInvalidated;
 const bodyOf = (fetch: ReturnType<typeof mockApi>, index = 0) => (fetch.mock.calls[index][0] as Request).json();
 
-describe('specimen words', () => {
+describe('sample words', () => {
   it('names statuses, rejection reasons and views', () => {
     expect(specimenStatusLabel('RejectedByLab')).toBe('Rejected by the lab');
     expect(specimenStatusLabel('EnteredInError')).toBe('Entered in error');
@@ -59,13 +59,13 @@ describe('specimen words', () => {
     expect(rejectionReasonLabel('InsufficientSample')).toBe('Insufficient sample');
     expect(rejectionReasonLabel('WrongContainer')).toBe('Wrong container');
     expect(rejectionReasonLabel(undefined)).toBe('');
-    expect(SPECIMEN_VIEWS.map(specimenViewLabel)).toEqual(['To send', 'Expected', 'In the lab', 'Overdue', 'Rejected and lost', 'Reported']);
+    expect(SPECIMEN_VIEWS.map(specimenViewLabel)).toEqual(['To receive', 'To send', 'Expected', 'In the lab', 'Overdue', 'Rejected and lost', 'Reported']);
     expect(specimenPrintHref(SPECIMEN_ID, 'request')).toBe(`/specimens/${SPECIMEN_ID}/print?sheet=request`);
   });
 });
 
-describe('specimen queries', () => {
-  it('fetches one specimen, a view of them and a pathway\'s, leaving empty filters out', async () => {
+describe('sample queries', () => {
+  it('fetches one sample, a view of them and a pathway\'s, leaving empty filters out', async () => {
     const fetch = mockApi({
       [`GET /api/specimens/${SPECIMEN_ID}`]: () => json(testSpecimen()),
       'GET /api/specimens/search': () => json(pageOf([testSummary()])),
@@ -92,8 +92,8 @@ describe('specimen queries', () => {
   });
 });
 
-describe('specimen changes', () => {
-  it('records a specimen at a stage, sending blanks as none and now as nothing, then refreshes the lists', async () => {
+describe('sample changes', () => {
+  it('records a sample at a stage, sending blanks as none and now as nothing, then refreshes the lists', async () => {
     const recorded = testSpecimen({id: '00000051-0000-0000-0000-0000000000ff'});
     const fetch = mockApi({[`POST /api/pathways/${SPECIMEN_PATHWAY_ID}/specimens`]: () => json(recorded, 201)});
     const {queryClient, wrapper} = cachedClient();
@@ -115,6 +115,7 @@ describe('specimen changes', () => {
       site: null,
       requestNotes: 'Urgent please',
       requestingUserId: DOCTOR_USER_ID,
+      labTestId: null,
       takenAtUtc: null,
     });
     expect(queryClient.getQueryData(specimenKeys.one(recorded.id!))).toEqual(recorded);
@@ -160,6 +161,7 @@ describe('specimen changes', () => {
       site: 'Left forearm',
       requestNotes: null,
       requestingUserId: DOCTOR_USER_ID,
+      labTestId: null,
       takenAtUtc: '2026-11-02T09:00:00Z',
       expectedVersion: 3,
     });
@@ -171,8 +173,8 @@ describe('specimen changes', () => {
     expect(queryClient.getQueryData(specimenKeys.one(SPECIMEN_ID))).toEqual(sent);
   });
 
-  it('reads the specimen again after a 409', async () => {
-    mockApi({[`POST /api/specimens/${SPECIMEN_ID}/sent`]: () => json({title: 'Someone else changed this specimen.'}, 409)});
+  it('reads the sample again after a 409', async () => {
+    mockApi({[`POST /api/specimens/${SPECIMEN_ID}/sent`]: () => json({title: 'Someone else changed this sample.'}, 409)});
     const {queryClient, wrapper} = cachedClient();
     const {result} = renderHook(() => useSpecimenActions(SPECIMEN_ID), {wrapper});
 
@@ -205,7 +207,7 @@ describe('specimen changes', () => {
     await waitFor(() => expect(isInvalidated(queryClient, ['attachments', {patientId: 'p'}])).toBe(true));
   });
 
-  it('finds a specimen by its number, in the body, and keeps it for its page', async () => {
+  it('finds a sample by its number, in the body, and keeps it for its page', async () => {
     const fetch = mockApi({'POST /api/specimens/find': () => json(testSpecimen())});
     const {queryClient, wrapper} = cachedClient();
     queryClient.removeQueries({queryKey: specimenKeys.one(SPECIMEN_ID)});
@@ -219,8 +221,8 @@ describe('specimen changes', () => {
   });
 });
 
-describe('specimen setup changes', () => {
-  it('adds and changes types, then refreshes the lists and the specimens', async () => {
+describe('sample setup changes', () => {
+  it('adds and changes types, then refreshes the lists and the samples', async () => {
     const fetch = mockApi({
       'POST /api/specimen-types': () => json(SPECIMEN_TYPES[0], 201),
       [`PUT /api/specimen-types/${BIOPSY_TYPE_ID}`]: () => json(SPECIMEN_TYPES[0]),

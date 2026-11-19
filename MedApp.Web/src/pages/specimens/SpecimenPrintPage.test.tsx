@@ -9,14 +9,14 @@ function renderPage(sheet: 'label' | 'request', answer: () => Response = () => j
 }
 
 describe('SpecimenPrintPage', () => {
-  it('prints a label: the number as text and QR code, and who and what it is, reading the specimen once', async () => {
+  it('prints a label: the number as text and QR code, and who and what it is, reading the sample once', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     const {user, fetch} = renderPage('label');
 
-    expect(await screen.findByRole('heading', {name: 'Specimen Label', level: 1})).toBeInTheDocument();
-    const label = within(await screen.findByLabelText('Label for specimen MA26-000123'));
+    expect(await screen.findByRole('heading', {name: 'Sample Label', level: 1})).toBeInTheDocument();
+    const label = within(await screen.findByLabelText('Label for sample MA26-000123'));
     expect(label.getByText('MA26-000123')).toBeInTheDocument();
-    expect(label.getByRole('img', {name: 'QR code of specimen number MA26-000123'})).toBeInTheDocument();
+    expect(label.getByRole('img', {name: 'QR code of sample number MA26-000123'})).toBeInTheDocument();
     expect(label.getByText('AHMED, Freya')).toBeInTheDocument();
     expect(label.getByText('Born 1 December 1976')).toBeInTheDocument();
     expect(label.getByText('NHS No. 999 000 0026')).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('SpecimenPrintPage', () => {
     renderPage('request');
 
     expect(await screen.findByRole('heading', {name: 'Request Sheet', level: 1})).toBeInTheDocument();
-    const sheet = within(await screen.findByLabelText('Request sheet for specimen MA26-000123'));
+    const sheet = within(await screen.findByLabelText('Request sheet for sample MA26-000123'));
     expect(sheet.getByRole('heading', {name: 'Request for the lab'})).toBeInTheDocument();
     expect(sheet.getByText('MA26-000123')).toBeInTheDocument();
     expect(sheet.getByText('Left forearm')).toBeInTheDocument();
@@ -44,9 +44,9 @@ describe('SpecimenPrintPage', () => {
     expect(sheet.getByText('dr.synthetic')).toBeInTheDocument();
   });
 
-  it('says when the specimen is not found', async () => {
+  it('says when the sample is not found', async () => {
     renderPage('label', () => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Specimen not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await screen.findByText('Sample not found. It may have been deleted.')).toBeInTheDocument();
   });
 
   it("prints the patient's name family name first, in capitals", () => {

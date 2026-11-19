@@ -93,13 +93,13 @@ describe('TakeOverResultDialog', () => {
 });
 
 describe('ResultEnteredInErrorDialog', () => {
-  it('says the file is deleted and the specimen goes back to the lab, and needs what was wrong', async () => {
+  it('says the file is deleted and the sample goes back to the lab, and needs what was wrong', async () => {
     const onClose = vi.fn();
     const fetch = mockApi({[`POST /api/results/${RESULT_ID}/entered-in-error`]: () => json(testResult({status: 'EnteredInError'}))});
     const {user} = renderWithApp(<ResultEnteredInErrorDialog result={testResult()} onClose={onClose} />, {user: seniorClinicianUser});
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
-    expect(dialog().getByText(/Its file will be deleted, and specimen MA26-000123 goes back to the lab to be reported again/)).toBeInTheDocument();
+    expect(dialog().getByText(/Its file will be deleted, and sample MA26-000123 goes back to the lab to be reported again/)).toBeInTheDocument();
     expect(isDisabled(dialog().getByRole('button', {name: 'Mark Entered in Error'}))).toBe(true);
     await user.type(dialog().getByRole('textbox', {name: /^What was wrong/}), 'Synthetic: wrong patient');
     await user.click(dialog().getByRole('button', {name: 'Mark Entered in Error'}));

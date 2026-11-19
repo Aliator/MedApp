@@ -58,7 +58,7 @@ describe('PathwayPage', () => {
     expect(screen.getByText('999 000 0026')).toBeInTheDocument();
   });
 
-  it('lists the specimens its stages took, with Record Specimen on a stage that can take one', async () => {
+  it('lists the samples its stages took, with Record Sample on a stage that can take one', async () => {
     const withSpecimens = {
       ...pathway,
       stages: [pathway.stages[0], {...pathway.stages[1], canRecordSpecimen: true}],
@@ -76,7 +76,7 @@ describe('PathwayPage', () => {
 
     expect(await screen.findByRole('link', {name: 'MA26-000123'})).toHaveAttribute('href', '/specimens/sp-1');
     expect(screen.getByRole('heading', {name: 'Consultation', level: 3})).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Record Specimen'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Record Sample'})).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET /api/specimens/search?View=All&PathwayId=${id}&PageSize=100`);
   });
 

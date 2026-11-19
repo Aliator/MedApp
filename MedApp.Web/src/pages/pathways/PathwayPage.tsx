@@ -1024,7 +1024,7 @@ export function PathwayView({id, isNarrow}: PathwayViewProps) {
   function specimensSection(pathway: Pathway): FoldingSection {
     return {
       key: 'specimens',
-      title: 'Specimens',
+      title: 'Samples',
       isOpen: open.specimens,
       onToggle: () => toggle('specimens'),
       children: (

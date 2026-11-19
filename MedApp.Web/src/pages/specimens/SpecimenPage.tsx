@@ -13,6 +13,7 @@ import {attachmentContentUrl, attachmentsQuery} from '../../api/attachments';
 import {ApiError} from '../../api/errors';
 import {
   rejectionReasonLabel,
+  sampleSourceName,
   specimenPrintHref,
   specimenQuery,
   specimenStatusLabel,
@@ -28,7 +29,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {ReportSpecimenDialog} from '../../components/specimens/ReportSpecimenDialog';
-import {OverdueAtLabToken, SpecimenStatusToken} from '../../components/specimens/SpecimenCells';
+import {OverdueAtLabToken, SampleSourceToken, SpecimenStatusToken} from '../../components/specimens/SpecimenCells';
 import {SpecimenDetailsDialog} from '../../components/specimens/SpecimenDetailsDialog';
 import {SpecimenStepDialog, type SpecimenStep} from '../../components/specimens/SpecimenStepDialog';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
@@ -132,23 +133,23 @@ export function SpecimenPage({id}: {id: string}) {
 
   return (
     <Page
-      title={specimen ? `Specimen ${specimen.number}` : 'Specimen'}
+      title={specimen ? `Sample ${specimen.number}` : 'Sample'}
       subtitle={specimen?.specimenTypeName ?? undefined}
-      backHref={specimen ? `/pathways/${specimen.pathwayId}` : '/lab/samples'}
-      backLabel={specimen ? 'Back to pathway' : 'Back to the lab'}
+      backHref={specimen?.pathwayId ? `/pathways/${specimen.pathwayId}` : '/lab/samples'}
+      backLabel={specimen?.pathwayId ? 'Back to pathway' : 'Back to samples'}
       isLoading={isPending}
-      loadingMessage="Loading specimen..."
+      loadingMessage="Loading sample..."
       fill={specimen !== undefined}
       banner={specimen?.patient && <PatientBanner patient={specimen.patient} />}
       message={
         isMissing ? (
-          <AlertMessage message="Specimen not found. It may have been deleted." />
+          <AlertMessage message="Sample not found. It may have been deleted." />
         ) : error ? (
-          <AlertMessage message="The specimen could not be loaded. Please try again." />
+          <AlertMessage message="The sample could not be loaded. Please try again." />
         ) : specimen?.patientFlags && hasPatientFlags(specimen.patientFlags) ? (
           <PatientFlagBanners patient={specimen.patientFlags} />
         ) : (
-          specimen?.readOnlyReason && <SummaryAlert status="info" label="Read-only specimen" message={specimen.readOnlyReason} />
+          specimen?.readOnlyReason && <SummaryAlert status="info" label="Read-only sample" message={specimen.readOnlyReason} />
         )
       }
       actions={specimen && <Actions specimen={specimen} offered={offered} onOpen={setDialog} />}
@@ -272,13 +273,30 @@ function SpecimenDetails({specimen}: {specimen: Specimen}) {
         <MetadataListItem label="Expected by">
           {`${formatDateTime(specimen.expectedByUtc ?? '')} (${specimen.expectedTurnaroundDays} ${specimen.expectedTurnaroundDays === 1 ? 'day' : 'days'})`}
         </MetadataListItem>
-        <MetadataListItem label="Type">{shown(specimen.specimenTypeName)}</MetadataListItem>
-        <MetadataListItem label="Requesting clinician">{shown(specimen.requestingUsername)}</MetadataListItem>
-        <MetadataListItem label="Site">{shown(specimen.site)}</MetadataListItem>
-        <MetadataListItem label="Pathway">
-          <Link href={`/pathways/${specimen.pathwayId}`}>{specimen.pathwayTitle}</Link>
+        <MetadataListItem label="From">
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <SampleSourceToken source={specimen.source} />
+            <Text type="body">{shown(sampleSourceName(specimen))}</Text>
+          </HStack>
         </MetadataListItem>
-        <MetadataListItem label="Stage">{shown(specimen.stageName)}</MetadataListItem>
+        <MetadataListItem label="Test">{shown(specimen.labTestName)}</MetadataListItem>
+        <MetadataListItem label="Type">{shown(specimen.specimenTypeName)}</MetadataListItem>
+        <MetadataListItem label={specimen.source === 'Hospital' ? 'Registered by' : 'Requesting clinician'}>{shown(specimen.requestingUsername)}</MetadataListItem>
+        <MetadataListItem label="Site">{shown(specimen.site)}</MetadataListItem>
+        {specimen.pathwayId ? (
+          <>
+            <MetadataListItem label="Pathway">
+              <Link href={`/pathways/${specimen.pathwayId}`}>{specimen.pathwayTitle}</Link>
+            </MetadataListItem>
+            <MetadataListItem label="Stage">{shown(specimen.stageName)}</MetadataListItem>
+          </>
+        ) : (
+          specimen.hospitalRequestId && (
+            <MetadataListItem label="Hospital request">
+              <Link href={`/hospital-requests/${specimen.hospitalRequestId}`}>Open the request</Link>
+            </MetadataListItem>
+          )
+        )}
       </MetadataList>
       <VStack gap={1} hAlign="stretch">
         <Text type="body" weight="semibold">
@@ -354,7 +372,7 @@ function SpecimenReport({specimen}: {specimen: Specimen}) {
   if (!reportId)
     return (
       <Text type="body" color="secondary">
-        {specimen.isOpen ? 'No report yet.' : 'No report: the specimen was closed without one.'}
+        {specimen.isOpen ? 'No report yet.' : 'No report: the sample was closed without one.'}
       </Text>
     );
   const file = files.data?.items?.find((attachment) => attachment.id === reportId);
@@ -377,7 +395,7 @@ function OtherSpecimens({specimen}: {specimen: Specimen}) {
   if (others.length === 0)
     return (
       <Text type="body" color="secondary">
-        No other specimens were taken at this stage.
+        {specimen.stageId ? 'No other samples were taken at this stage.' : 'A hospital sample has no pathway stage.'}
       </Text>
     );
   return (
