@@ -70,7 +70,10 @@ public sealed class SearchResultsRequest
     /// </summary>
     public string? View { get; set; }
 
-    /// <summary>Only results on pathways of this team.</summary>
+    /// <summary>
+    /// The clinic picker: only results of this team (the result's own, its pathway's). One of the caller's teams, unless
+    /// they see every team (admins); another is a 400. Left out, all the caller may see.
+    /// </summary>
     public Guid? TeamId { get; set; }
 
     public Guid? PathwayId { get; set; }

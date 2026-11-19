@@ -1,4 +1,5 @@
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Results.Queries.SearchResults;
 using MedApp.Domain.Attachments;
 using MedApp.Domain.Pathways.PatientPathways;
@@ -36,12 +37,15 @@ public interface IResultRepository
     /// <summary>A pathway's results awaiting sign-off (awaiting or seen), oldest reported first: the stage gates.</summary>
     Task<IReadOnlyList<Result>> GetAwaitingForPathwayAsync(Guid pathwayId, CancellationToken ct);
 
-    /// <summary>A page of results (see <see cref="ResultSearch"/>), with their patients, pathways and specimens.</summary>
+    /// <summary>
+    /// A page of results (see <see cref="ResultSearch"/>), of those the query's viewer may see (its <c>Scope</c>), with
+    /// their patients, pathways and specimens.
+    /// </summary>
     Task<PagedResult<Result>> SearchAsync(
         SearchResultsQuery query, IReadOnlyCollection<Guid> signOffHolders, CancellationToken ct);
 
-    /// <summary>How many results await this user's sign-off.</summary>
-    Task<int> CountAwaitingForAsync(Guid userId, CancellationToken ct);
+    /// <summary>How many results await this user's sign-off, of those their teams may see (<paramref name="scope"/>).</summary>
+    Task<int> CountAwaitingForAsync(Guid userId, TeamScope scope, CancellationToken ct);
 
     /// <summary>Whether a file is the report of a result not entered in error (it can't then be deleted on its own).</summary>
     Task<bool> IsReportAsync(Guid attachmentId, CancellationToken ct);

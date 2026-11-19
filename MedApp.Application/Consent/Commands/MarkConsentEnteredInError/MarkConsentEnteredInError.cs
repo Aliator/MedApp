@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Common;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -28,16 +29,20 @@ public sealed class MarkConsentEnteredInErrorValidator : AbstractValidator<MarkC
 /// it less than 24 hours ago, or holds CorrectRecords; 409 if it already is, if the record is anonymised, or if it's
 /// changed since the caller's version (allowed while restricted, as a correction). Its scan is soft-deleted in the same
 /// save, with an <c>AttachmentDeleted</c> entry (decision 71).
+/// <para>Only the pathway's own team changes its consent: another team's is a 404 (behind the viewer's wall,
+/// recorded) or a 409 (seen, as an admin or the lab do: <see cref="ConsentRecords.GetForChangeOrThrowAsync"/>).</para>
 /// </summary>
 public sealed class MarkConsentEnteredInErrorHandler(
     IConsentRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     TimeProvider timeProvider)
     : IRequestHandler<MarkConsentEnteredInErrorCommand, ConsentRecordResponse>
 {
     public async Task<ConsentRecordResponse> Handle(MarkConsentEnteredInErrorCommand request, CancellationToken cancellationToken)
     {
-        var record = await repository.GetForUpdateOrThrowAsync(request.ConsentRecordId, cancellationToken);
+        var record = await repository.GetForChangeOrThrowAsync(
+            request.ConsentRecordId, boundary, request.Actor.Teams, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (!ConsentWorkflow.MayMarkEnteredInError(record, request.Actor, now))
             throw new ForbiddenException(ConsentWorkflow.EnteredInErrorNotAllowedMessage);

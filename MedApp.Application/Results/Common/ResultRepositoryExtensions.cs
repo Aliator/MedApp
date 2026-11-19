@@ -1,5 +1,6 @@
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Repositories;
 using MedApp.Contracts.Results.Responses;
@@ -47,6 +48,19 @@ public static class ResultRepositoryExtensions
             throw new FluentValidation.ValidationException(
                 [new FluentValidation.Results.ValidationFailure(field, ResultWorkflow.ResponsibleNotClinicianMessage)]);
     }
+
+    /// <summary>What a refusal across a team wall records as <c>targetKind</c> for a result.</summary>
+    public const string TeamWallTarget = "Result";
+
+    /// <summary>
+    /// The team walls at one result (the light demo's <c>findResult</c>): seen when it's the viewer's team's, or on a
+    /// pathway they see in full (owner, stage owner, consult, MDT), or they see every team; otherwise a 404 with the words
+    /// of a missing one, recorded. Returns why they see it (the activity log's <c>access</c>).
+    /// </summary>
+    public static Task<TeamAccessKind> EnsureResultVisibleAsync(
+        this ITeamBoundary boundary, Result result, TeamScope scope, CancellationToken ct) =>
+        boundary.EnsureRecordVisibleAsync(
+            TeamWallTarget, result.Id, result.TeamId, result.PathwayId, scope, NotFound(result.Id).Message, ct);
 
     public static NotFoundException NotFound(Guid id) => new($"Result '{id}' was not found.");
 }

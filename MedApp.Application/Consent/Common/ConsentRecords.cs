@@ -2,6 +2,7 @@ using FluentValidation;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Consent.Repositories;
 using MedApp.Application.Pathways.Common;
 using MedApp.Contracts.Consent;
@@ -14,8 +15,29 @@ namespace MedApp.Application.Consent.Common;
 /// <summary>Shared steps of the consent handlers: loading, the scan's checks, the response, and validation rules.</summary>
 public static class ConsentRecords
 {
+    /// <summary>What a refusal across a team wall records as <c>targetKind</c> for a consent record.</summary>
+    public const string TeamWallTarget = "ConsentRecord";
+
+    /// <summary>The 404's words for a consent record that doesn't exist, and for one behind the viewer's wall (the same).</summary>
+    public static string NotFoundMessage(Guid id) => $"Consent record '{id}' was not found.";
+
     public static async Task<ConsentRecord> GetForUpdateOrThrowAsync(this IConsentRepository repository, Guid id, CancellationToken ct) =>
-        await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException($"Consent record '{id}' was not found.");
+        await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException(NotFoundMessage(id));
+
+    /// <summary>
+    /// A record to change, tracked, with the team walls (the light demo's <c>findRecord</c>): behind the viewer's wall
+    /// (not their team's, nor on a pathway they see) a 404 with the words of a missing one, recorded; seen but its
+    /// pathway another team's, a 409 (<see cref="TeamWalls.NotYourTeams"/>). Only the pathway's own team changes its
+    /// consent: admins and the lab read it.
+    /// </summary>
+    public static async Task<ConsentRecord> GetForChangeOrThrowAsync(
+        this IConsentRepository repository, Guid id, ITeamBoundary boundary, TeamScope scope, CancellationToken ct)
+    {
+        var record = await repository.GetForUpdateOrThrowAsync(id, ct);
+        await boundary.EnsureRecordVisibleAsync(TeamWallTarget, record.Id, record.TeamId, record.PathwayId, scope, NotFoundMessage(id), ct);
+        await boundary.EnsureCanChangePathwayAsync(record.Pathway, scope, NotFoundMessage(id), ct);
+        return record;
+    }
 
     public static async Task<ConsentRecordResponse> ToResponseAsync(
         ConsentRecord record,

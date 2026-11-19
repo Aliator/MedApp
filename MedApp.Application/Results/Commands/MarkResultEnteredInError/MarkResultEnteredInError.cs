@@ -2,6 +2,7 @@ using FluentValidation;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Pathways.Common;
 using MedApp.Application.Results.Common;
 using MedApp.Application.Results.Repositories;
@@ -32,8 +33,13 @@ public sealed class MarkResultEnteredInErrorValidator : AbstractValidator<MarkRe
 /// file is soft-deleted (with an <c>AttachmentDeleted</c> entry, decision 71); a specimen's goes back to Received, so the
 /// lab can attach the right report. All in one save.
 /// </summary>
+/// <remarks>
+/// The team walls (the light demo's <c>findResult</c>): a result behind the viewer's wall is a 404, recorded; any
+/// team that sees it (its own, or one its pathway was passed to, such as the lab) may act on it, by its permissions.
+/// </remarks>
 public sealed class MarkResultEnteredInErrorHandler(
     IResultRepository repository,
+    ITeamBoundary boundary,
     IIdentityReadService identity,
     IPermissionHolders permissionHolders,
     TimeProvider timeProvider)
@@ -42,6 +48,8 @@ public sealed class MarkResultEnteredInErrorHandler(
     public async Task<ResultResponse> Handle(MarkResultEnteredInErrorCommand request, CancellationToken cancellationToken)
     {
         var result = await repository.GetForUpdateOrThrowAsync(request.ResultId, cancellationToken);
+        // Behind the viewer's team wall: a 404, as for one that isn't there (recorded).
+        await boundary.EnsureResultVisibleAsync(result, request.Actor.Teams, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (!ResultWorkflow.MayMarkEnteredInError(result, request.Actor, now))
             throw new ForbiddenException(ResultWorkflow.EnteredInErrorNotAllowedMessage);
