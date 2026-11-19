@@ -12,6 +12,7 @@ import {meetingLabel} from '../../components/mdt/MdtDialogs';
 import {MdtItemList} from '../../components/mdt/MdtItemList';
 import {Page} from '../../components/pages/Page';
 import {AlertMessage} from '../../components/shared/AlertMessage';
+import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
 import {PanelCard} from '../../components/views/PanelCard';
 import type {MdtSearch} from './mdtSearch';
@@ -37,7 +38,8 @@ export interface MdtPageProps {
  * The MDT page (`/mdt`, decision 143): choose a team and one of its MDTs (both in the address); the meeting's
  * list in the order items were listed, each with the patient banner (hazard H-58), the question, a link to the
  * pathway (with its files), and once discussed the outcome as written and who was present; and below, items whose
- * meeting was cancelled, to list again. Print prints the list. Opening the list records that each patient on it was
+ * meeting was cancelled, to list again. Another team's MDT shows only the cases its attendees may read, and why
+ * (MC26). Print prints the list. Opening the list records that each patient on it was
  * listed (the API does). A meeting's title and notes never name patients: the list is separate.
  */
 export function MdtPage({search, onSearchChange}: MdtPageProps) {
@@ -53,7 +55,13 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
       title="MDT"
       subtitle="Multidisciplinary team meetings: the pathways listed, and the team's outcomes as recorded."
       fill
-      message={meetings.isError ? <AlertMessage message={problemMessage(meetings.error, 'The MDTs could not be loaded.')} /> : undefined}
+      message={
+        meetings.isError ? (
+          <AlertMessage message={problemMessage(meetings.error, 'The MDTs could not be loaded.')} />
+        ) : (
+          list.data?.readOnlyReason && <SummaryAlert status="info" label="Another team’s MDT" message={list.data.readOnlyReason} />
+        )
+      }
       actions={<Button label="Print" variant="secondary" icon={<Icon icon={AppIcon.Print} />} onClick={() => window.print()} isDisabled={!list.data} />}>
       <VStack gap={4} height="100%">
         <HStack gap={2} vAlign="end" wrap="wrap">
@@ -89,7 +97,9 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
                 isLoadingMeetings={meetings.isLoading}
                 showsPatient
                 linksPathway
-                emptyText="Nobody is listed for this MDT yet. List a pathway from its page."
+                emptyText={
+                  list.data.readOnlyReason ? 'No cases on this MDT for you to see.' : 'Nobody is listed for this MDT yet. List a pathway from its page.'
+                }
               />
             )}
           </PanelCard>
