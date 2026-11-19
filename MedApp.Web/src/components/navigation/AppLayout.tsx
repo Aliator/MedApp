@@ -1,4 +1,5 @@
 import {AppShell} from '@astryxdesign/core/AppShell';
+import {Center} from '@astryxdesign/core/Center';
 import {Divider} from '@astryxdesign/core/Divider';
 import {HStack, StackItem} from '@astryxdesign/core/Stack';
 import {useSideNavRenderMode} from '@astryxdesign/core/SideNav';
@@ -13,7 +14,15 @@ import {SaveShortcutProvider} from '../forms/SaveShortcut';
 import {NOTEPAD_PATH, NOTEPAD_WIDTH, NotepadProvider, useNotepad, useNotepadDocked} from '../notepad/NotepadContext';
 import {NotepadPane} from '../notepad/NotepadPane';
 import {NotepadSheet} from '../notepad/NotepadSheet';
-import {HalfPane, HalfViewContext, HalfViewsContext, InHalfPaneContext, type HalfView} from '../pages/halfView';
+import {
+  DialogRegionContext,
+  HalfPane,
+  HalfViewContext,
+  HalfViewsContext,
+  InHalfPaneContext,
+  type DialogRegion,
+  type HalfView,
+} from '../pages/halfView';
 import {AppSideNav} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 import {PermissionMissingWatcher} from './PermissionMissingWatcher';
@@ -199,22 +208,39 @@ function MainLayout() {
   const otherHalf: HalfView = {isHalf: true, side: 'right', onClose: () => close(false)};
   const isNotepadDocked = useNotepadDocked();
 
+  // Where dialogs go: over the region of the page that opened them while something is beside it (a half of a half
+  // view, or the page beside the docked notepad), so the rest stays usable (`DialogFrame`, `RegionDialog`).
+  const [dialogHost, setDialogHost] = useState<HTMLElement | null>(null);
+  const [pageArea, setPageArea] = useState<HTMLElement | null>(null);
+  const [leftArea, setLeftArea] = useState<HTMLElement | null>(null);
+  const [rightArea, setRightArea] = useState<HTMLElement | null>(null);
+  const pageRegion = useMemo<DialogRegion>(
+    () => ({element: pageArea, host: dialogHost, isBeside: isNotepadDocked}),
+    [pageArea, dialogHost, isNotepadDocked],
+  );
+  const leftRegion = useMemo<DialogRegion>(() => ({element: leftArea, host: dialogHost, isBeside: true}), [leftArea, dialogHost]);
+  const rightRegion = useMemo<DialogRegion>(() => ({element: rightArea, host: dialogHost, isBeside: true}), [rightArea, dialogHost]);
+
   const pages = half ? (
     // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
     // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
     // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
     // fits its half exactly (it would otherwise reach out over the shell's padding, and overflow its half).
     <HStack gap={0} height="100%" data-half-views="">
-      <StackItem size="fill" isScrollable aria-label="Left half" style={HALF}>
+      <StackItem ref={setLeftArea} size="fill" isScrollable aria-label="Left half" style={HALF}>
         <HalfViewContext.Provider value={mainHalf}>
-          <Outlet />
+          <DialogRegionContext.Provider value={leftRegion}>
+            <Outlet />
+          </DialogRegionContext.Provider>
         </HalfViewContext.Provider>
       </StackItem>
       <Divider orientation="vertical" style={DIVIDER} />
-      <StackItem size="fill" isScrollable aria-label="Right half" style={HALF}>
+      <StackItem ref={setRightArea} size="fill" isScrollable aria-label="Right half" style={HALF}>
         <HalfViewContext.Provider value={otherHalf}>
-          {/* Should it ever be built again, it opens where it had got to, not where it started. */}
-          <HalfPane key={half.key} path={halfPath ?? half.path} onPathChange={trackHalf} />
+          <DialogRegionContext.Provider value={rightRegion}>
+            {/* Should it ever be built again, it opens where it had got to, not where it started. */}
+            <HalfPane key={half.key} path={halfPath ?? half.path} onPathChange={trackHalf} />
+          </DialogRegionContext.Provider>
         </HalfViewContext.Provider>
       </StackItem>
     </HStack>
@@ -270,8 +296,13 @@ function MainLayout() {
             height="100%"
             data-notepad-docked={isNotepadDocked ? '' : undefined}
             style={isNotepadDocked ? undefined : CONTENTS}>
-            <StackItem size="fill" isScrollable aria-label="Page" style={!isNotepadDocked ? CONTENTS : half ? FILL : HALF}>
-              {pages}
+            <StackItem
+              ref={setPageArea}
+              size="fill"
+              isScrollable
+              aria-label="Page"
+              style={!isNotepadDocked ? CONTENTS : half ? FILL : HALF}>
+              <DialogRegionContext.Provider value={pageRegion}>{pages}</DialogRegionContext.Provider>
             </StackItem>
             {isNotepadDocked && (
               <>
@@ -283,6 +314,10 @@ function MainLayout() {
             )}
           </HStack>
         </AppShell>
+        {/* Where dialogs over one region are rendered (above the page and its sticky header); no part of the layout. */}
+        <Center ref={setDialogHost} style={CONTENTS} data-dialog-host="">
+          {null}
+        </Center>
         {/* On a narrow window, the notepad is a full-screen sheet instead. */}
         <NotepadSheet />
       </HalfViewsContext.Provider>
