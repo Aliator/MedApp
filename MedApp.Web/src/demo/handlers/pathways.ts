@@ -32,10 +32,12 @@ import {
   insightsTeams,
   isPickedTeam,
   labTeamId,
+  mdtReadOnly,
   myScope,
   notYourTeams,
   pickedTeam,
   readsThroughConsult,
+  readsThroughMdt,
   refuseAcrossWall,
   stageTeamOf,
   type TeamScope,
@@ -348,7 +350,14 @@ export function pathwayResponse(pathway: DemoPathway): Schemas['PatientPathwayRe
     canAddNotes: notes && !['Cancelled', 'Archived'].includes(pathway.status),
     canChangeAssignments: can('AssignPathways') && mine && isOpen(pathway),
     canBeDeleted: can('DeletePathways') && mine && ['Cancelled', 'Archived'].includes(pathway.status),
-    readOnlyReason: mine || worksCurrent || scope.seesAllTeams ? null : readsThroughConsult(pathway, scope) ? consultReadOnly(pathway) : notYourTeams(pathway),
+    readOnlyReason:
+      mine || worksCurrent || scope.seesAllTeams
+        ? null
+        : readsThroughConsult(pathway, scope)
+          ? consultReadOnly(pathway)
+          : readsThroughMdt(pathway, scope)
+            ? mdtReadOnly(pathway)
+            : notYourTeams(pathway),
     patientFlags: NO_FLAGS,
     stages: inOrder(pathway).map((stage) => ({
       id: stage.id,

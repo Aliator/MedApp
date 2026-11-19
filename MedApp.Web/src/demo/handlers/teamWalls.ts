@@ -2,6 +2,7 @@ import type {Schemas} from '../../api/client';
 import type {DemoPerson} from '../accounts';
 import {invalid, notFound, problem, refuse} from '../api/http';
 import {teamName} from '../seed';
+import type {DemoMdtItem} from '../slices/clinical';
 import type {DemoAppointment, DemoPathway, DemoStage} from '../state';
 import {db} from '../store';
 import {nowUtc, ukDateOf} from '../time';
@@ -14,7 +15,8 @@ import {me, teamIdsOf} from './common';
  * - **Patients** are centre-wide: anyone can find any patient.
  * - **A pathway** is seen in full by admins (`ViewAllTeams`, read only), and by a team with a live grant
  *   (`pathwayAccess`): its own team (`Owner`), and the lab once a sample is passed to it (`StageOwner`, kept after
- *   hand-back). A lab member invited to an MDT reads the pathways listed on it (`hasMdtGrant`, MC21), read only.
+ *   hand-back). An MDT's attendee from any team reads the pathways listed on it (`mdtGrantedItems`, MC21, MC26),
+ *   read only, and only those.
  *   A team asked a consult (MC25) reads it, read only, while the consult is open (a `Consult` grant, `consultReadOnly`).
  *   Anyone else sees it only as a summary line on the patient (`otherTeamPathways`).
  * - **Its records** (appointments, letters, results, consent, specimens, MDT items) follow it; one without a
@@ -54,22 +56,35 @@ export function canSeePathway(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope
 }
 
 /**
- * An MDT grant (MC21; `PathwayAccessReason.Mdt`, decision 185, Q12): a lab member among an MDT's attendees reads each
- * pathway listed on it, read only, while its item is listed or deferred, and at least to the meeting's end; it ends
- * when the item is discussed or withdrawn. Worked out from the items here (the API keeps it as a `PathwayAccess` row by
- * user). MC26 widens it to every team's attendees.
+ * An MDT grant (MC21, MC26; `PathwayAccessReason.Mdt`, decision 201): each attendee of an MDT, from whichever team,
+ * reads each pathway listed on it, read only, by user: from listing until the item is discussed or withdrawn, and at
+ * least to the meeting's end. Only the listed cases: nothing else of the patient's or the MDT's team's. Worked out
+ * from the items here, so it follows the item's current MDT (a deferral moves it to the new MDT's attendees) and the
+ * meeting's attendees as they are now; the API keeps a `PathwayAccess` row per item and attendee, written in the
+ * same save as the `MdtChange` (and the meeting's attendee change) that causes it.
  */
-export function hasMdtGrant(pathwayId: string, scope: TeamScope): boolean {
-  const lab = labTeamId();
-  if (!lab || !scope.teamIds.includes(lab)) return false;
+export function mdtGrantedItems(pathwayId: string, scope: TeamScope): DemoMdtItem[] {
   const now = nowUtc();
-  return db().mdtItems.some((item) => {
+  return db().mdtItems.filter((item) => {
     if (item.pathwayId !== pathwayId || !item.meetingId) return false;
     const meeting = db().meetings.find((m) => m.id === item.meetingId);
     if (!meeting?.isMdt || !(meeting.attendees ?? []).some((a) => a.userId === scope.userId)) return false;
     return item.status === 'Listed' || item.status === 'Deferred' || (meeting.endUtc ?? '') > now;
   });
 }
+
+/** Whether the viewer reads a pathway through an MDT they attend (`mdtGrantedItems`). */
+export const hasMdtGrant = (pathwayId: string, scope: TeamScope) => mdtGrantedItems(pathwayId, scope).length > 0;
+
+/** Whether the viewer reads a pathway only as an MDT's attendee: no grant for their teams, and not an admin. */
+export const readsThroughMdt = (pathway: Pick<DemoPathway, 'id'>, scope: TeamScope = myScope()) =>
+  !scope.seesAllTeams &&
+  !db().pathwayAccess.some((a) => a.pathwayId === pathway.id && a.endedAtUtc === null && scope.teamIds.includes(a.teamId)) &&
+  hasMdtGrant(pathway.id, scope);
+
+/** Why an MDT's attendee from another team reads a pathway but can't change it. */
+export const mdtReadOnly = (pathway: Pick<DemoPathway, 'teamId'>) =>
+  `This pathway is listed on ${teamName(pathway.teamId) ?? 'another team'}’s MDT, which you attend: you can read it, read only, until it’s discussed or withdrawn, and at least until the meeting ends.`;
 
 /** Whether the viewer's teams read a pathway only through an open consult asked of them (MC25), not as its owner or a stage's. */
 export function readsThroughConsult(pathway: Pick<DemoPathway, 'id'>, scope: TeamScope = myScope()): boolean {

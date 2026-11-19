@@ -7,7 +7,7 @@ import {db} from '../store';
 import {daysFrom, nowUtc, ukTime} from '../time';
 import {can, me, pathwayPatient, requirePermission} from './common';
 import {findPathway, pathwayToChange} from './pathways';
-import {canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord} from './teamWalls';
+import {canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord, type TeamScope} from './teamWalls';
 
 /**
  * The MDT list (`api/mdt`), simplified from the API's `MdtRules`: pathways listed for a team's MDT (a calendar
@@ -18,6 +18,8 @@ import {canChangeRecord, canSeeRecord, ensureCanChangeRecord, myScope, seeRecord
  * MC21: an item's presenter, one of its meeting's attendees (a lab member may attend any MDT, and reads the pathways
  * listed on it: `hasMdtGrant`); each item shows the lab's samples and reports on its pathway. Only the item's own team
  * lists, moves, withdraws or chooses the presenter; attendees from elsewhere only read.
+ * MC26: an attendee from any team reads the cases listed on the MDTs they attend, and only those (`mdtGrantedItems`):
+ * the list and counts show them only what they may see, with why (`readOnlyReason`).
  */
 
 type Meeting = Schemas['MeetingResponse'];
@@ -83,7 +85,7 @@ function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
     canWithdraw: can('WorkPathways') && ours && open,
     canDefer: can('WorkPathways') && ours && open,
     canRecordOutcome: can('RecordMdtOutcomes') && open && meeting !== undefined && (meeting.startUtc ?? '') <= nowUtc(),
-    readOnlyReason: null,
+    readOnlyReason: ours || myScope().seesAllTeams ? null : attendeeReadOnly(item),
     presenterUserId: item.presenterUserId ?? null,
     presenterUsername: usernameOf(item.presenterUserId),
     canChoosePresenter: can('WorkPathways') && ours && open && meeting !== undefined,
@@ -91,9 +93,29 @@ function itemResponse(item: DemoMdtItem): Schemas['MdtItemResponse'] {
   };
 }
 
-/** An MDT with its counts and attendees (`MdtMeetingResponse`). */
+/** Why an MDT's attendee from another team (MC26) reads an item but can't change it. */
+const attendeeReadOnly = (item: DemoMdtItem) =>
+  `${teamName(item.teamId) || 'Another team'}’s case: you attend its MDT, so you read it until it’s discussed or withdrawn. Only its team changes it.`;
+
+/** Whether the viewer sees an MDT's whole list: its team's members and admins (attendees from elsewhere see the cases listed only while their grant lasts). */
+const seesWholeList = (meeting: Meeting, scope: TeamScope) => scope.seesAllTeams || scope.teamIds.includes(meeting.teamId ?? '');
+
+/**
+ * Why the viewer sees only part of an MDT's list, or none of it (MC26): an attendee from another team reads the cases
+ * listed, read only, while their grant lasts; anyone else from another team sees none.
+ */
+function listReadOnlyReason(meeting: Meeting, scope: TeamScope): string | null {
+  if (seesWholeList(meeting, scope)) return null;
+  const team = teamName(meeting.teamId) || 'another team';
+  return (meeting.attendees ?? []).some((a) => a.userId === scope.userId)
+    ? `This is ${team}’s MDT, which you attend: you read the cases listed on it, read only, until each is discussed or withdrawn, and at least until the meeting ends.`
+    : `This is ${team}’s MDT and you aren’t invited: only its team and its attendees see the cases listed on it.`;
+}
+
+/** An MDT with its counts (of the items the viewer may see) and attendees (`MdtMeetingResponse`). */
 function meetingResponse(meeting: Meeting): Schemas['MdtMeetingResponse'] {
-  const items = db().mdtItems.filter((i) => meetingOf(i)?.id === meeting.id);
+  const scope = myScope();
+  const items = db().mdtItems.filter((i) => meetingOf(i)?.id === meeting.id && canSeeRecord(i, scope));
   return {
     id: meeting.id,
     title: meeting.title,
@@ -161,6 +183,7 @@ export function registerMdt() {
     const scope = myScope();
     return {
       meeting: meetingResponse(meeting),
+      readOnlyReason: listReadOnlyReason(meeting, scope),
       items: db()
         .mdtItems.filter((i) => meetingOf(i)?.id === meeting.id && canSeeRecord(i, scope))
         .sort(byListed)

@@ -407,8 +407,8 @@ export const TOUR: TourStep[] = [
     key: 'mdt-pathology',
     title: 'Pathology at the MDT',
     steps: [
-      `As ${LAB.fullName} from the lab, this morning’s skin MDT: the lab was invited, so it reads the cases listed on it, read only, until each is discussed or withdrawn.`,
-      'Harriet Quill’s case names him as its presenter, with her biopsy and a link to its report. Only Dermatology chooses the presenter, moves or withdraws an item.',
+      `As ${LAB.fullName} from the lab, this morning’s skin MDT: he was invited, so he reads the cases listed on it, and only those, read only, until each is discussed or withdrawn (and at least until the meeting ends). Anyone from another team works the same way; someone not invited sees none of the list.`,
+      'Ellis Varden’s case was never passed to the lab: he reads it only as an attendee, and loses it once it’s discussed. Harriet Quill’s names him as its presenter, with her biopsy and a link to its report. Only Dermatology chooses the presenter, moves or withdraws an item.',
     ],
     account: LAB.username,
     path: `/mdt?meeting=${CLINICAL_IDS.mdtToday}`,
