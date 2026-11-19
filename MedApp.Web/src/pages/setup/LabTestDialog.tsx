@@ -144,7 +144,7 @@ export function LabTestDialog({isOpen, test, isProcessing, problem, onSave, onCa
           <StackItem size="fill">
             <TextInput
               label="SNOMED CT code"
-              description="The procedure's concept ID, optional."
+              isOptional
               value={snomedCode}
               onChange={setSnomedCode}
               autoComplete="off"
