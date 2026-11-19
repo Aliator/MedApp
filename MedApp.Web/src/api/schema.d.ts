@@ -26006,6 +26006,7 @@ export interface components {
         };
         MdtMeetingListResponse: {
             meeting?: components["schemas"]["MdtMeetingResponse"];
+            readOnlyReason?: string | null;
             items?: components["schemas"]["MdtItemResponse"][] | null;
         };
         MdtMeetingResponse: {

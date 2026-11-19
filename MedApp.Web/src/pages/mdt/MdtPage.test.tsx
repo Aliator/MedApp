@@ -42,6 +42,20 @@ describe('MdtPage', () => {
     expect(print).toHaveBeenCalled();
     print.mockRestore();
   });
+
+  it("says why another team's MDT shows only the cases its attendees may read (MC26)", async () => {
+    const reason = 'This is Dermatology’s MDT and you aren’t invited: only its team and its attendees see the cases listed on it.';
+    mockApi({
+      'GET /api/teams': () => json([]),
+      'GET /api/mdt/meetings': () => json([mdtMeeting()]),
+      [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), readOnlyReason: reason, items: []}),
+      'GET /api/mdt/awaiting-meeting': () => json([]),
+    });
+    renderWithApp(<MdtPage search={{meeting: mdtMeeting().id}} onSearchChange={vi.fn()} />, {user: staffUser});
+
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getByText('No cases on this MDT for you to see.')).toBeInTheDocument();
+  });
 });
 
 describe('shownMeeting', () => {

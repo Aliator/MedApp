@@ -1,7 +1,8 @@
 import {call, startLightDemo} from '../../test/lightDemo';
 import {addOtherClinic, OTHER_CLINIC} from '../../test/otherClinic';
 import {ADMIN, LAB, personByUsername, STAFF} from '../accounts';
-import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from '../ids';
+import {id, MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEAMS, USERS} from '../ids';
+import type {DemoState} from '../state';
 import {ukDateOf} from '../time';
 import {db} from '../store';
 
@@ -138,6 +139,79 @@ describe('the team walls in the light demo', () => {
     const refused = await call('GET', `/api/patients/search?TeamId=${TEAMS.lab}`);
     expect(refused.status).toBe(400);
     expect(refused.body.errors.teamId).toBeDefined();
+  });
+});
+
+describe('cross-clinic MDTs in the light demo (MC26)', () => {
+  const MEETING = id(0xd8, 0x7e);
+  const ITEM = id(0xe9, 0x7e);
+
+  /** The other clinic's MDT, ahead, with n.thornbury (Dermatology) invited, and its pathway listed on it. */
+  function addOtherClinicMdt(state: DemoState, endUtc = new Date(Date.now() + 3 * 86400_000).toISOString()) {
+    addOtherClinic(state);
+    const startUtc = new Date(Date.parse(endUtc) - 3600_000).toISOString();
+    state.meetings.push({
+      id: MEETING,
+      title: 'Other clinic MDT',
+      date: endUtc.slice(0, 10),
+      startUtc,
+      endUtc,
+      organiserUserId: USERS.hallworth,
+      organiserUsername: 't.hallworth',
+      attendees: [{userId: STAFF.id, username: STAFF.username, reply: 'Accepted', repliedAtUtc: null}],
+      isMdt: true,
+      teamId: OTHER_CLINIC.teamId,
+    });
+    state.mdtItems.push({
+      id: ITEM,
+      patientId: PATIENTS.priyaHolloway,
+      pathwayId: OTHER,
+      teamId: OTHER_CLINIC.teamId,
+      meetingId: MEETING,
+      meetingStartUtc: startUtc,
+      question: 'Agree the plan.',
+      status: 'Listed',
+      listedByUserId: USERS.hallworth,
+      listedAtUtc: new Date().toISOString(),
+      outcome: null,
+      outcomeByUserId: null,
+      outcomeAtUtc: null,
+      presentUserIds: [],
+      withdrawnByUserId: null,
+      withdrawnAtUtc: null,
+      presenterUserId: null,
+      version: 1,
+    });
+  }
+
+  it("lets an attendee from another clinic read the listed case only, read only, until it's withdrawn and the meeting has ended", async () => {
+    addOtherClinicMdt(startLightDemo(STAFF).state);
+    const list = (await call('GET', `/api/mdt/meetings/${MEETING}/items`)).body;
+    expect(list.readOnlyReason).toMatch(/which you attend/);
+    expect(list.items).toEqual([expect.objectContaining({id: ITEM, canWithdraw: false, canDefer: false, canChoosePresenter: false})]);
+    expect(list.items[0].readOnlyReason).toMatch(/^Other clinic \(test\)’s case/);
+    const pathway = await call('GET', `${PATHWAY}/${OTHER}`);
+    expect(pathway.status).toBe(200);
+    expect(pathway.body).toMatchObject({canEditDetails: false, canAddNotes: false, canWorkOnStages: false});
+    expect(pathway.body.readOnlyReason).toMatch(/MDT, which you attend/);
+    expect((await call('POST', `/api/mdt/items/${ITEM}/withdraw`, {expectedVersion: 1})).status).toBe(409);
+    expect((await call('POST', `${PATHWAY}/${OTHER}/notes`, {text: 'x'})).status).toBe(409);
+    // Withdrawn, the grant lasts until the meeting ends; then it's gone.
+    const item = db().mdtItems.find((i) => i.id === ITEM)!;
+    item.status = 'Withdrawn';
+    expect((await call('GET', `${PATHWAY}/${OTHER}`)).status).toBe(200);
+    db().meetings.find((m) => m.id === MEETING)!.endUtc = new Date(Date.now() - 60_000).toISOString();
+    expect((await call('GET', `${PATHWAY}/${OTHER}`)).status).toBe(404);
+  });
+
+  it('shows someone from another team who is not invited none of the list, and no counts', async () => {
+    addOtherClinicMdt(startLightDemo(personByUsername('b.sandiford')!).state);
+    const list = (await call('GET', `/api/mdt/meetings/${MEETING}/items`)).body;
+    expect(list.items).toEqual([]);
+    expect(list.readOnlyReason).toMatch(/you aren’t invited/);
+    expect(list.meeting).toMatchObject({itemCount: 0, openItemCount: 0});
+    expect((await call('GET', `${PATHWAY}/${OTHER}`)).status).toBe(404);
+    expect((await call('GET', `/api/mdt/pathways/${OTHER}/items`)).status).toBe(404);
   });
 });
 
