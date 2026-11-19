@@ -365,12 +365,12 @@ describe('PathwayTemplateEditorPage', () => {
       const {user} = renderEditor();
       const addable = within(await screen.findByRole('list', {name: 'Stages to add'}));
       for (const name of ['Consultation', 'Scan']) await user.click(addable.getByRole('button', {name: `Add ${name}`}));
-      expect(row(0).queryByRole('textbox', {name: 'Outcome'})).not.toBeInTheDocument();
+      expect(row(0).queryByRole('textbox', {name: /Outcome/})).not.toBeInTheDocument();
       await user.click(row(1).getByRole('checkbox', {name: 'Optional'}));
       expect(row(1).getByText("The last stage can't be optional.")).toBeInTheDocument();
     });
 
-    it('opens a template with a choice node in the route editor, each stage after it naming its outcome, and saves them', async () => {
+    it('opens a template with a choice node in the route editor, listing its outcomes, several to one stage, and saves them', async () => {
       const stage = (stageOrder: number, stageDefinitionId: string, more: Record<string, unknown> = {}) => ({
         stageOrder,
         stageDefinitionId,
@@ -405,13 +405,23 @@ describe('PathwayTemplateEditorPage', () => {
 
       await screen.findByRole('list', {name: 'Stages in order'});
       expect(screen.queryByRole('button', {name: 'Draw Routes'})).not.toBeInTheDocument();
-      expect(row(1).getByRole('textbox', {name: 'Outcome'})).toHaveValue('Benign');
-      expect(row(2).getByRole('textbox', {name: 'Outcome'})).toHaveValue('Malignant');
+      expect(row(0).getByRole('textbox', {name: 'Outcome 1'})).toHaveValue('Benign');
+      expect(row(0).getByRole('textbox', {name: 'Outcome 2'})).toHaveValue('Malignant');
+      expect(row(1).queryByRole('textbox', {name: /Outcome/})).not.toBeInTheDocument();
 
-      // An outcome left unnamed is what a save would be refused for.
-      await user.clear(row(2).getByRole('textbox', {name: 'Outcome'}));
+      // An outcome left unnamed is what a save would be refused for, on the stage only it leads to.
+      await user.clear(row(0).getByRole('textbox', {name: 'Outcome 2'}));
       expect(row(2).getByText(/Name the outcome that leads to this stage/)).toBeInTheDocument();
-      await user.type(row(2).getByRole('textbox', {name: 'Outcome'}), 'Melanoma');
+      await user.type(row(0).getByRole('textbox', {name: 'Outcome 2'}), 'Melanoma');
+
+      // Another outcome leading to the same stage, and one ending the route.
+      await user.click(row(0).getByRole('button', {name: 'Add Outcome'}));
+      await user.type(row(0).getByRole('textbox', {name: 'Outcome 3'}), 'Uncertain');
+      await user.click(row(0).getByRole('combobox', {name: /Outcome 3 leads to/}));
+      await user.click(screen.getByRole('option', {name: '3. Scan'}));
+      await user.keyboard('{Escape}');
+      await user.click(row(0).getByRole('button', {name: 'Add Outcome'}));
+      await user.type(row(0).getByRole('textbox', {name: 'Outcome 4'}), 'Discharge');
 
       await user.click(screen.getByRole('button', {name: 'Save'}));
       await user.click(within(openDialog()!).getByRole('button', {name: 'Confirm Save'}));
@@ -423,6 +433,8 @@ describe('PathwayTemplateEditorPage', () => {
         outcomes: [
           {name: 'Benign', nextStageOrders: [2]},
           {name: 'Melanoma', nextStageOrders: [3]},
+          {name: 'Uncertain', nextStageOrders: [3]},
+          {name: 'Discharge', nextStageOrders: []},
         ],
       });
       expect(body.links).toEqual([
