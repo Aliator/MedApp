@@ -4,6 +4,7 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
+import {useClipboard} from '@astryxdesign/core/hooks';
 import {useNavigate} from '@tanstack/react-router';
 import {useContext, useEffect, useRef, useState} from 'react';
 import {useCurrentUser} from '../auth/auth';
@@ -35,6 +36,30 @@ export function whyStepCantOpen(step: TourStep): string | null {
   if (id && RECORDS[kind] && !RECORDS[kind](id))
     return 'That record isn’t in your copy of the demo any more. Reset (in the banner at the top of the Read Me) brings it back.';
   return step.whyNot?.(db()) ?? null;
+}
+
+/** A step's sample text, as plain selectable lines, with a button that copies them all (one per line). */
+function SampleText({lines}: {lines: string[]}) {
+  const {copy, isCopied} = useClipboard({announce: 'Copied'});
+  return (
+    <VStack gap={2}>
+      <VStack gap={1}>
+        {lines.map((line) => (
+          <Text key={line} type="body">
+            {line}
+          </Text>
+        ))}
+      </VStack>
+      <HStack>
+        <Button
+          label={isCopied ? 'Copied' : 'Copy the Notes'}
+          variant="secondary"
+          icon={<Icon icon={isCopied ? AppIcon.Check : AppIcon.Copy} />}
+          onClick={() => void copy(lines.join('\n'))}
+        />
+      </HStack>
+    </VStack>
+  );
 }
 
 /**
@@ -197,6 +222,7 @@ export function ReadMePage() {
                       <ListItem key={line} label={<Text type="body">{line}</Text>} />
                     ))}
                   </List>
+                  {step.sampleText && <SampleText lines={step.sampleText} />}
                   {notes[step.key] && <AlertMessage status="info" message={notes[step.key]} />}
                   <HStack>
                     <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />

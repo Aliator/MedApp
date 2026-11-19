@@ -2,7 +2,8 @@ import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
 import {ADMIN, CARROW, PEOPLE, STAFF, type DemoMembership} from '../accounts';
-import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, STAGES, TEMPLATES, USERS} from '../ids';
+import {dermatologyStageId} from '../dermatology';
+import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
 import {daysFrom, today, ukTime} from '../time';
@@ -83,7 +84,7 @@ export const CLOSED_DAYS = {
 
 /** The admin's monitoring rules. */
 export const MONITORING_RULES = {
-  /** Anyone finishing Histology on a High or Urgent skin lesion pathway. */
+  /** Anyone finishing Histology on a High or Urgent suspected skin cancer pathway. */
   urgentHistology: id(0xf7, 1),
   /** Tom Hallworth putting a pathway on hold (switched off). */
   hallworthOnHold: id(0xf7, 2),
@@ -426,7 +427,7 @@ function seedActivityLog(): DemoActivityEntry[] {
   add(ago(1, 9, 6), 'SignedIn', USERS.whitlock);
   add(ago(1, 10, 15), 'TeamMembershipChanged', ADMIN.id, {targetUsername: 't.hallworth', details: JSON.stringify({from: [], to: ['Dermatology']})});
   add(ago(1, 15, 20), 'PatientViewed', STAFF.id, {patientId: PATIENTS.harrietQuill});
-  add(ago(1, 15, 22), 'PathwayViewed', STAFF.id, {patientId: PATIENTS.harrietQuill, pathwayId: PATHWAYS.consentToRecord});
+  add(ago(1, 15, 22), 'PathwayViewed', STAFF.id, {patientId: PATIENTS.harrietQuill, pathwayId: PATHWAYS.referredToHospital});
   add(ago(0, 8, 30), 'SignedIn', STAFF.id);
   add(ago(0, 8, 35), 'PatientListed', STAFF.id, {patientId: PATIENTS.priyaHolloway});
   add(ago(0, 8, 36), 'PathwayViewed', STAFF.id, {patientId: PATIENTS.priyaHolloway, pathwayId: PATHWAYS.histologyToFinish});
@@ -584,8 +585,8 @@ export function seedSetup(state: BaseState): SetupSlice {
         subjectUserId: null,
         event: 'StageFinished',
         minimumPriority: 'High',
-        templateId: TEMPLATES.skinLesion,
-        stageDefinitionId: STAGES.histology,
+        templateId: TEMPLATES.suspectedSkinCancer,
+        stageDefinitionId: dermatologyStageId(state.stageDefinitions, 'Histology'),
         isEnabled: true,
         createdAtUtc: ago(20),
         updatedAtUtc: ago(20),

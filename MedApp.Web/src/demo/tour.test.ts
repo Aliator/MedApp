@@ -4,8 +4,10 @@ import {createAppRouter} from '../router';
 import {accountTypeOfPerson, ADMIN, DEMO_ACCOUNTS, LAB, STAFF} from './accounts';
 import {appSettings} from '../app/settingsStore';
 import {PINS_KEY} from '../components/navigation/pins';
-import {PATHWAYS, PATIENTS, REFERRALS} from './ids';
+import {PATHWAYS, PATIENTS, REFERRALS, TEAMS} from './ids';
 import {seed} from './seed';
+import {CONSENT} from './slices/clinical';
+import type {DemoState} from './state';
 import {db} from './store';
 import {TOUR} from './tour';
 
@@ -29,6 +31,12 @@ const COLLECTIONS = {
   letters: 'letters',
   'hospital-requests': 'hospitalRequests',
 } as const;
+
+/** Ellis Varden's consent to his biopsy, recorded again (the tour's consent step). */
+function validConsent(state: DemoState) {
+  const withdrawn = state.consentRecords.find((c) => c.id === CONSENT.ellisWithdrawn)!;
+  state.consentRecords.push({...withdrawn, id: 'ellis-again', status: 'Valid', withdrawnOn: null, consentFormId: CONSENT.adultForm});
+}
 
 describe('the Read Me tour', () => {
   const links = TOUR.flatMap((step) => (step.path ? [step.path] : []));
@@ -63,9 +71,11 @@ describe('the Read Me tour', () => {
     for (const key of ['sign-off', 'consent', 'branch', 'mdt']) expect(byKey(key).whyNot!(state), key).toBeNull();
 
     state.referrals.find((r) => r.id === REFERRALS.dermatologyToTriage)!.status = 'Accepted';
-    state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)!.stages[2].completedAtUtc = '2026-11-18T10:00:00.000Z';
-    state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Biopsy or sample', status: 'Booked', teamId: null});
+    state.pathways.find((p) => p.id === PATHWAYS.histologyToFinish)!.stages.find((s) => s.name === 'Histology')!.completedAtUtc = '2026-11-18T10:00:00.000Z';
+    state.appointments.push({pathwayId: PATHWAYS.biopsyToBook, stageName: 'Take biopsy', status: 'Booked', teamId: null});
+    validConsent(state);
     expect(byKey('triage').whyNot!(state)).toMatch(/already/);
+    expect(byKey('consent').whyNot!(state)).toMatch(/already/);
     expect(byKey('finish-stage').whyNot!(state)).toMatch(/already/);
     expect(byKey('book').whyNot!(state)).toMatch(/already/);
   });
@@ -99,7 +109,7 @@ describe('the Read Me tour', () => {
     expect(LAB.permissions).toContain('ProcessSpecimens');
     // The admin's steps are what an admin does: reading every team's list is one (the team walls).
     for (const step of TOUR.filter((s) => s.account === ADMIN.username))
-      expect(['account-types', 'draw-routes', 'assessment-only', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
+      expect(['account-types', 'draw-routes', 'dermatology-templates', 'assessment-only', 'meeting', 'insights', 'on-hold-overdue', 'lab-tests']).toContain(step.key);
     expect(byKey('team-walls').account).toBe(STAFF.username);
   });
 
@@ -114,12 +124,30 @@ describe('the Read Me tour', () => {
     startLightDemo(STAFF);
     const path = `/api/pathways/patient-pathways/${PATHWAYS.biopsyToBook}`;
     const biopsy = (await call('GET', path)).body.stages.find((s: {isCurrent: boolean}) => s.isCurrent);
-    expect(biopsy.name).toBe('Biopsy or sample');
-    expect((await call('POST', `${path}/stages/${biopsy.id}/finish`, {withoutVisit: true, reason: 'Done in clinic'})).status).toBe(200);
+    expect(biopsy.name).toBe('Take biopsy');
+    // Refused until his consent is recorded again (the tour's step before).
+    expect(TOUR.findIndex((step) => step.key === 'consent')).toBe(TOUR.findIndex((step) => step.key === 'relay-hand-over') - 1);
+    const finish = () => call('POST', `${path}/stages/${biopsy.id}/finish`, {withoutVisit: true, reason: 'Done in clinic'});
+    expect((await finish()).status).toBe(409);
+    validConsent(db());
+    expect((await finish()).status).toBe(200);
     expect(handOver.whyNot!(db())).toMatch(/already/);
     db().user = LAB.username;
     const newForLab = (await call('GET', '/api/pathways/patient-pathways/search?View=NewForUs')).body.items;
     expect(newForLab.map((p: {id: string}) => p.id)).toContain(PATHWAYS.biopsyToBook);
+  });
+
+  it('has the notepad step copy sample notes into a Dermatology pathway in progress that she can add notes to', async () => {
+    const step = TOUR.find((s) => s.key === 'notepad')!;
+    expect(step).toMatchObject({opensNotepad: true, isNumbered: true});
+    expect(step.path).toBeUndefined();
+    expect(step.sampleText!.length).toBeGreaterThan(0);
+    expect(step.steps.join(' ')).toMatch(/Add Note to Pathway/);
+    const pathway = seed().pathways.find((p) => p.id === PATHWAYS.followUpBooked)!;
+    expect(step.steps.join(' ')).toContain(pathway.title);
+    expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.ilonaPetrova});
+    startLightDemo(STAFF);
+    expect((await call('GET', `/api/pathways/patient-pathways/${pathway.id}`)).body.canAddNotes).toBe(true);
   });
 
   it('opens a patient to pin, and says when they are pinned already', () => {
