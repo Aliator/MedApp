@@ -90,7 +90,7 @@ export function HospitalRequestPage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage label="Hospital request not found" message="Hospital request not found. It may have been deleted, or it's another team's." />
+          <AlertMessage label="Hospital request not found" message="It may have been deleted, or it's another team's." />
         ) : error ? (
           <AlertMessage label="Hospital request not loaded" />
         ) : request?.nhsNumbersDiffer ? (

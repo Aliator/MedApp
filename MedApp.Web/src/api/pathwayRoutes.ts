@@ -227,7 +227,7 @@ export const OUTCOME_TOO_LONG_MESSAGE = `An outcome's name must not exceed ${MAX
  * What's wrong with a template's routes (`TemplateGraphRules`, MC9 and choice nodes), by each stage's 0-based index:
  * one start (only the first stage has nothing before it), links only forward (so no cycles, and every stage is reached
  * from the first), and a choice node (never optional, never an end) with at least two named outcomes, every stage
- * straight after it led to by one of them. Routes may end anywhere else (a referral, a discharge). The last stage
+ * straight after it led to by one of them. Routes may end anywhere else (a referral, the end of care). The last stage
  * can't be optional. The API's check is the last word.
  */
 export function templateGraphProblems(stages: readonly GraphStage[], links: readonly OrderLink[]): Map<number, string> {
@@ -261,7 +261,7 @@ export function templateGraphProblems(stages: readonly GraphStage[], links: read
     }
     for (const next of [...after].sort((a, b) => a - b))
       if (!outcomes.some((o) => named(o) && (o.nextStageOrders ?? []).includes(next))) say(next - 1, UNNAMED_OUTCOME_MESSAGE);
-    // An outcome may end the route (a discharge, or a referral recorded there), as the reviewed templates' do.
+    // An outcome may end the route (the end of care, or a referral recorded there), as the reviewed templates' do.
     if (outcomes.filter(named).length < 2) say(i, NO_OUTCOMES_MESSAGE);
   });
   return problems;

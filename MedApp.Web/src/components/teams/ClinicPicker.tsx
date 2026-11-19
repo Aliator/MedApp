@@ -10,7 +10,7 @@ import {NO_STATUS_LINE} from '../forms/fieldSpace';
 
 /**
  * The clinic picker (MC6, `docs/multi-clinic-plan.md`): a select at the top of the grid pages narrowing the list to
- * one team, or "All clinics". Offered to admins (`ViewAllTeams`: every team) and to staff in more than one team (their
+ * one team, or "All teams". Offered to admins (`ViewAllTeams`: every team) and to staff in more than one team (their
  * own only; the API refuses another with a 400). Kept in the URL (`clinic`: a team's ID, or `all`) and remembered per
  * page with the account (`medapp.clinicPicker.<page>`), so the page opens on the last one chosen when its URL doesn't say.
  */
@@ -62,7 +62,7 @@ export interface ClinicPickerState {
 
 /**
  * The clinic picker for one page: what it's narrowed to, and the select. Choosing remembers it for the page and
- * calls `onChange` with the URL's new `clinic` (undefined for all clinics, which the page then opens on).
+ * calls `onChange` with the URL's new `clinic` (undefined for all teams, which the page then opens on).
  */
 export function useClinicPicker(page: ClinicPickerPage, urlClinic: string | undefined, onChange: (clinic: string | undefined) => void): ClinicPickerState {
   const user = useCurrentUser();
@@ -76,7 +76,7 @@ export function useClinicPicker(page: ClinicPickerPage, urlClinic: string | unde
   const choices = seesAll
     ? (teams.data ?? []).map((t) => ({value: t.id?.toLowerCase() ?? '', label: t.isArchived ? `${t.name} (archived)` : (t.name ?? '')}))
     : [...(user.teams ?? [])].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({value: t.id.toLowerCase(), label: t.name}));
-  const teamName = teamId ? (choices.find((c) => c.value === teamId)?.label ?? 'one clinic') : undefined;
+  const teamName = teamId ? (choices.find((c) => c.value === teamId)?.label ?? 'one team') : undefined;
 
   const choose = (value: string) => {
     const clinic = value === ALL_CLINICS ? undefined : value;
@@ -86,9 +86,9 @@ export function useClinicPicker(page: ClinicPickerPage, urlClinic: string | unde
 
   const picker = isShown ? (
     <AnchoredSelector
-      label="Clinic"
+      label="Team"
       isLabelHidden
-      options={[{value: ALL_CLINICS, label: 'All clinics'}, ...choices]}
+      options={[{value: ALL_CLINICS, label: 'All teams'}, ...choices]}
       value={teamId ?? ALL_CLINICS}
       onChange={choose}
       width={220}

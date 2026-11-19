@@ -71,7 +71,7 @@ export function LabCasePage({id}: {id: string}) {
       // No banner: the patient is at the top of Details, which never folds and comes first (as on the pathway page).
       message={
         isMissing ? (
-          <AlertMessage label="Lab case not found" message="Lab case not found. It may have been deleted, or it's another team's." />
+          <AlertMessage label="Lab case not found" message="It may have been deleted, or it's another team's." />
         ) : error ? (
           <AlertMessage label="Lab case not loaded" />
         ) : labCase?.patientFlags && hasPatientFlags(labCase.patientFlags) ? (

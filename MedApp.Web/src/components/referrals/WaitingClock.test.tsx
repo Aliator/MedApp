@@ -20,7 +20,7 @@ describe('WaitingClock', () => {
   it('shows a running clock as its day of the target, with no flags', async () => {
     renderWithApp(<WaitCell clock={running} />, {user: staffUser});
     expect(await screen.findByText('Day 84 of 126')).toBeInTheDocument();
-    expect(screen.queryByText('Breached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Wait breached')).not.toBeInTheDocument();
     expect(reviewWords(running)).toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe('WaitingClock', () => {
     renderWithApp(<WaitCell clock={clock} />, {user: staffUser});
     expect(await screen.findByText('Day 130 of 126')).toBeInTheDocument();
     expect(screen.getByText('Review 10 Nov 2026')).toBeInTheDocument();
-    expect(screen.getByText('Breached')).toBeInTheDocument();
+    expect(screen.getByText('Wait breached')).toBeInTheDocument();
     expect(screen.getByText('Paused')).toBeInTheDocument();
     expect(screen.getByText('Review overdue')).toBeInTheDocument();
     expect(document.querySelectorAll('svg').length).toBeGreaterThanOrEqual(3);

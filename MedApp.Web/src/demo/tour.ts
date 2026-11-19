@@ -75,7 +75,7 @@ export const TOUR: TourStep[] = [
       'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
       'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
       'With two pages open, the side nav folds to its icons: open it from the side with the expand button (Expand sidebar) at the bottom of the icon rail.',
-      'This folding is a setting in Account Settings, on by default: the button below opens it on the left, beside this Read Me.',
+      'This folding is a setting in Account Settings (Shrink the side nav when two pages are open), on by default: the button below opens it on the left, beside this Read Me.',
     ],
     isNumbered: true,
     path: '/account',
@@ -160,7 +160,7 @@ export const TOUR: TourStep[] = [
     title: 'The relay, 3: back to Dermatology, book the appointment',
     steps: [
       `As ${STAFF.fullName}, Leah Corrin’s pathway is back from the lab, with the results on Testing. The bell has it too.`,
-      'Results appointment needs a visit: choose Book Visit on it, pick who and a free time, and book it.',
+      'Results appointment needs a visit: choose Book Appointment on it, pick who and a free time, and book it.',
     ],
     account: STAFF.username,
     path: `/pathways/${PATHWAYS.relay}`,
@@ -180,7 +180,7 @@ export const TOUR: TourStep[] = [
     title: 'Team calendars: find a time for a meeting',
     steps: [
       'As the admin, this opens Dermatology’s team calendar: everyone in the team side by side. Anyone can look at any team’s, picked in Team.',
-      `Choose New, then New meeting. Give it a title, and in Who add one person: ${STAFF.username} (${STAFF.fullName}).`,
+      `Choose New, then New Meeting. Give it a title, and in Who add one person: ${STAFF.username} (${STAFF.fullName}).`,
       'Pick the first suggested time.',
       'Now add the rest of the team to Who: b.sandiford and t.hallworth. The dialog says not everyone is free then: Bea Sandiford is at an outreach clinic.',
       `The suggested times now fit everyone (Tom Hallworth works Tuesday to Thursday). Pick another one, and save. The next step shows it on ${STAFF.fullName}’s calendar.`,
@@ -236,7 +236,7 @@ export const TOUR: TourStep[] = [
     part: 'around',
     title: 'Accessibility settings',
     steps: [
-      'Text size, high contrast, reduced motion, an easy-to-read font and more, in Account Settings.',
+      'Text size, High contrast, Reduce motion, Easy-to-read font and more, in Account Settings.',
       'They apply at once, and the full version keeps them with your account.',
     ],
     path: '/account',

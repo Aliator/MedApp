@@ -10,7 +10,7 @@ const pathway: Pathway = {
   stages: [
     {id: 's1', stageOrder: 1, name: 'Biopsy'},
     {id: 's2', stageOrder: 2, name: 'Histology'},
-    {id: 's3', stageOrder: 3, name: 'Discharge'},
+    {id: 's3', stageOrder: 3, name: 'Final letter'},
   ],
   addableBranches: [
     {templateBranchId: 'b1', name: 'Melanoma route', stageNames: ['Excision', 'Follow-up'], afterStageIds: ['s2']},

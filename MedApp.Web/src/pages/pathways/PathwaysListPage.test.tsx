@@ -124,7 +124,7 @@ describe('PathwaysListPage', () => {
 
     const table = within(await screen.findByRole('table'));
     expect(await table.findByText('Day 130 of 126')).toBeInTheDocument();
-    expect(table.getByText('Breached')).toBeInTheDocument();
+    expect(table.getByText('Wait breached')).toBeInTheDocument();
     expect(table.getByText('No clock')).toBeInTheDocument();
     expect(searchCalls(fetch)).toEqual([`${SEARCH}?PageSize=10&Page=1&Sort=daysWaited&Ascending=false&BreachedOnly=true`]);
     expect(await screen.findByRole('tab', {name: 'Breached', selected: true})).toBeInTheDocument();

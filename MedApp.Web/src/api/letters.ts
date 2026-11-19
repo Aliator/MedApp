@@ -54,7 +54,7 @@ export const LETTER_KINDS = ['ClinicLetter', 'DischargeSummary', 'ReferralRespon
 export const REFERRAL_LETTER_KINDS: readonly string[] = ['ReferralResponse', 'InformationRequest'];
 
 /**
- * What a stage that needs a letter says: "Needs a discharge summary, approved and sent, before it can be finished."
+ * What a stage that needs a letter says: "Needs an end of care letter, approved and sent, before it can be finished."
  * Nothing for a stage that needs none.
  */
 export function needsLetterWords(kind: string | null | undefined): string | null {

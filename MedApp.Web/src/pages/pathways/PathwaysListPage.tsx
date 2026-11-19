@@ -114,7 +114,7 @@ export interface PathwaysListPageProps {
 
 /**
  * Pathways: every pathway, or one patient's, a page at a time from the API. Sortable, with a power search
- * across the top; the page, sort and filters live in the URL. Discharged, cancelled and archived ones are hidden unless asked for.
+ * across the top; the page, sort and filters live in the URL. Completed, cancelled and archived ones are hidden unless asked for.
  * The Wait column is the referral's waiting-time clock ("Day 84 of 126", Breached, Paused), sortable by days waited;
  * a pathway created directly has none. Breached only is a filter, like Overdue only.
  */

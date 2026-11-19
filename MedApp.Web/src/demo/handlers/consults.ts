@@ -200,7 +200,7 @@ export function registerConsults() {
     const pathway = findPathway(body.pathwayId!);
     if (!canChangePathway(pathway))
       return problem(409, `This pathway is ${teamName(pathway.teamId)}’s: only its own team asks another team about it.`);
-    if (CLOSED_PATHWAY.includes(pathway.status)) return problem(409, "A discharged, cancelled or archived pathway can't have a consult asked.");
+    if (CLOSED_PATHWAY.includes(pathway.status)) return problem(409, "A completed, cancelled or archived pathway can't have a consult sent.");
     ensureRecordCanChange(pathway.patientId);
     const team = db().teams.find((t) => t.id === body.askedTeamId);
     if (!team || team.isArchived) return invalid({askedTeamId: ['Choose a team that’s in use.']});

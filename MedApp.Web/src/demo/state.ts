@@ -148,7 +148,7 @@ export interface DemoPathway {
   notes: DemoNote[];
   /** Each handover between teams (the relay), for the audit log: by IDs and team names, never free text. */
   handovers: {stageId: string; fromTeamId: string; toTeamId: string; atUtc: string; byUserId: string}[];
-  /** Changes of status (put on hold, taken off it, discharged), for the timeline. */
+  /** Changes of status (put on hold, taken off it, completed), for the timeline. */
   statusChanges: {atUtc: string; userId: string; from: DemoPathway['status']; to: DemoPathway['status']}[];
 }
 

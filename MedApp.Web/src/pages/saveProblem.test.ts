@@ -11,7 +11,7 @@ describe('saveProblem', () => {
   it.each([
     [401, 'Your session has ended. Please sign in again.'],
     [403, 'You do not have permission to change patients.'],
-    [404, 'Patient not found. It may have been deleted.'],
+    [404, "It can't be found: someone else may have deleted the patient."],
     [500, 'A server error occurred. Please try again later.'],
     [503, 'A server error occurred. Please try again later.'],
   ])('explains a %i', (status, message) => {
@@ -37,14 +37,14 @@ describe('saveProblem', () => {
     // A permission the person's roles don't grant: the API names it.
     const missing = new ApiError(403, undefined, "Your roles don't allow this. It needs the permission to: See Insights.", 'permission_missing');
     expect(saveProblem(missing, 'save', 'pathway').message).toBe(missing.title);
-    expect(saveProblem(new ApiError(404), 'save', 'pathway').message).toBe('Pathway not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(404), 'save', 'pathway').message).toBe("It can't be found: someone else may have deleted the pathway.");
     expect(saveProblem(new ApiError(418), 'add', 'pathway').message).toBe(
       'An unexpected error occurred while adding the pathway.',
     );
   });
 
   it('names stages and templates, and archiving and restoring', () => {
-    expect(saveProblem(new ApiError(404), 'archive', 'stage').message).toBe('Stage not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(404), 'archive', 'stage').message).toBe("It can't be found: someone else may have deleted the stage.");
     expect(saveProblem(new ApiError(418), 'archive', 'template').message).toBe('An unexpected error occurred while archiving the template.');
     expect(saveProblem(new ApiError(418), 'restore', 'stage').message).toBe(
       'An unexpected error occurred while restoring the stage.',
@@ -54,7 +54,7 @@ describe('saveProblem', () => {
   it('names teams, in the plural too', () => {
     expect(saveProblem(new ApiError(403), 'save', 'team').message).toBe('You do not have permission to change teams.');
     expect(saveProblem(new ApiError(403), 'save', 'working hours').message).toBe('You do not have permission to change working hours.');
-    expect(saveProblem(new ApiError(404), 'archive', 'team').message).toBe('Team not found. It may have been deleted.');
+    expect(saveProblem(new ApiError(404), 'archive', 'team').message).toBe("It can't be found: someone else may have deleted the team.");
   });
 
   it('shows the reason the API gives for a conflict', () => {

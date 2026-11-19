@@ -26,7 +26,7 @@ describe('pathway routes', () => {
 });
 
 describe('choice nodes: a pathway grows (the owner’s model)', () => {
-  // 1 Visit, 2 Biopsy, 3 Histology, 4 Result (lab result: Benign → 5, BCC → 7, Melanoma → 8), 5 Care plan, 6 Discharge,
+  // 1 Visit, 2 Biopsy, 3 Histology, 4 Result (lab result: Benign → 5, BCC → 7, Melanoma → 8), 5 Care plan, 6 Final letter,
   // 7 Photographs, 8 Referral (shared by BCC and Melanoma).
   const stages = [
     {stageOrder: 1},
@@ -87,11 +87,11 @@ describe('route depths and graph rules (MC9)', () => {
     const problems = templateGraphProblems([choice, plain, plain, plain], links([[1, 2], [1, 3], [2, 4]]));
     expect(problems.get(2)).toBe(UNNAMED_OUTCOME_MESSAGE);
     expect(problems.get(0)).toBe(NO_OUTCOMES_MESSAGE);
-    // An outcome that ends the route counts: a discharge recorded at the choice node.
-    const ending = {...choice, outcomes: [...choice.outcomes, {name: 'Discharge', nextStageOrders: []}]};
+    // An outcome that ends the route counts: care completed, recorded at the choice node.
+    const ending = {...choice, outcomes: [...choice.outcomes, {name: 'Care completed', nextStageOrders: []}]};
     expect(templateGraphProblems([ending, plain, plain], links([[1, 2], [2, 3]])).size).toBe(0);
     expect(templateGraphProblems([plain, plain, plain], links([[1, 3]])).get(1)).toBe(NO_PREDECESSOR_MESSAGE);
-    // Routes may end anywhere: a referral, a discharge.
+    // Routes may end anywhere: a referral, the end of care.
     expect(templateGraphProblems([plain, plain, plain], links([[1, 2], [1, 3]])).size).toBe(0);
   });
 });

@@ -104,11 +104,11 @@ describe('PathwayPage', () => {
     const fetch = mockApi({
       [`GET /api/pathways/patient-pathways/${id}`]: () => json(needsLetter),
       'GET /api/letters/search': () =>
-        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Discharge', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
+        json({items: [{id: 'l1', kind: 'DischargeSummary', templateName: 'Final letter', status: 'Draft', authorUsername: 'k.ashford', lastUpdated: '2026-11-17T10:00:00Z'}], totalCount: 1}),
     });
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await screen.findByRole('link', {name: 'End of care letter: Discharge'})).toHaveAttribute('href', '/letters/l1');
+    expect(await screen.findByRole('link', {name: 'End of care letter: Final letter'})).toHaveAttribute('href', '/letters/l1');
     expect(screen.getAllByText('Needs an end of care letter, approved and sent, before it can be finished.').length).toBeGreaterThan(0);
     expect(calls(fetch)).toContain(`GET /api/letters/search?PathwayId=${id}&PageSize=20`);
   });
@@ -192,7 +192,7 @@ describe('PathwayPage', () => {
     });
     const {user} = renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    expect(await findAlert(/Restricted record: .* can be put on hold or cancelled, with a reason/)).toHaveTextContent('Reason: Synthetic accuracy check');
+    expect(await findAlert(/Restricted record: .* You can still put a pathway on hold or cancel it/)).toHaveTextContent('Reason: Synthetic accuracy check');
     expect(within(await openAlertDetails(user, 'Disputed record')).getByText("What's disputed: Synthetic allergy")).toBeInTheDocument();
     // The patient's banner says it all: the bare reason isn't repeated.
     expect(screen.queryByText('Restricted.')).not.toBeInTheDocument();
@@ -296,7 +296,7 @@ describe('PathwayPage', () => {
     mockApi({[`GET /api/pathways/patient-pathways/${id}`]: () => json({title: 'Not found'}, 404)});
     renderWithApp(<PathwayPage id={id} />, {user: staffUser});
 
-    await findAlert('Pathway not found. It may have been deleted.');
+    await findAlert('It may have been deleted.');
   });
 
   it('says when the pathway cannot be loaded', async () => {
@@ -584,7 +584,7 @@ describe('PathwayPage: working on it', () => {
 
     const heading = await screen.findByRole('heading', {name: 'Referral and wait'});
     expect(screen.getByText('Day 30 of 28')).toBeInTheDocument();
-    expect(screen.getByText('Breached')).toBeInTheDocument();
+    expect(screen.getByText('Wait breached')).toBeInTheDocument();
     expect(screen.getByRole('button', {name: 'Pause Clock'})).toBeInTheDocument();
     await user.click(heading);
     await waitFor(() => expect(screen.queryByText('Day 30 of 28')).not.toBeInTheDocument());
@@ -871,7 +871,7 @@ describe('PathwayPage: visits and appointments', () => {
 
     const list = within(await screen.findByRole('list', {name: 'Appointments'}));
     expect(list.getByRole('link', {name: 'Mon 23 Nov 2026, 10:00 to 10:30 with test-user'})).toHaveAttribute('href', '/calendar?appointment=booked');
-    expect(list.getByText('Requires appointment')).toBeInTheDocument();
+    expect(list.getByText('To be booked')).toBeInTheDocument();
     expect(calls(fetch)).toContain(`GET ${APPOINTMENTS}?PathwayId=${id}&PageSize=100`);
   });
 
@@ -898,22 +898,22 @@ describe('PathwayPage: visits and appointments', () => {
     const {user} = renderVisit(visiting(), [requested]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    expect(visit.getByText('Requires appointment')).toBeInTheDocument();
+    expect(visit.getByText('To be booked')).toBeInTheDocument();
     expect(screen.getAllByText('Needs an attended visit first').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', {name: 'Finish Stage'})).toHaveAttribute('aria-disabled', 'true');
 
-    await user.click(visit.getByRole('button', {name: 'Book Visit'}));
-    expect(within(openDialog()!).getByText('Book Visit')).toBeInTheDocument();
+    await user.click(visit.getByRole('button', {name: 'Book Appointment'}));
+    expect(within(openDialog()!).getByText('Book Appointment')).toBeInTheDocument();
   });
 
   it('records a past visit from the stage, for this patient, pathway and stage, which it shows', async () => {
     const {user} = renderVisit(visiting(), [{...requested, notes: 'Needs an interpreter.'}]);
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    await user.click(visit.getByRole('button', {name: 'Record Past Visit'}));
+    await user.click(visit.getByRole('button', {name: 'Record Past Appointment'}));
 
     const dialog = within(openDialog()!);
-    expect(dialog.getByRole('heading', {name: 'Record Past Visit'})).toBeInTheDocument();
+    expect(dialog.getByRole('heading', {name: 'Record Past Appointment'})).toBeInTheDocument();
     expect(dialog.getByText(/: Procedure$/)).toBeInTheDocument();
     // The patient and what it's for are fixed, so there's no picker.
     expect(dialog.queryByRole('combobox', {name: /Patient/})).not.toBeInTheDocument();
@@ -980,7 +980,7 @@ describe('PathwayPage: visits and appointments', () => {
     });
 
     const visit = within(await screen.findByRole('group', {name: 'Visit'}));
-    await user.click(visit.getByRole('button', {name: 'Attended'}));
+    await user.click(visit.getByRole('button', {name: 'Mark Attended'}));
 
     await waitFor(() => expect(calls(fetch)).toContain('POST /api/appointments/booked/outcome'));
     expect(await bodyOf(fetch, 'POST /api/appointments/booked/outcome')).toEqual({outcome: 'Attended'});
@@ -1173,7 +1173,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
     choiceKind: 'LabResult',
     needsOutcome: true,
     outcomes: [
-      {name: 'Benign', stageNames: ['Discharge letter']},
+      {name: 'Benign', stageNames: ['Final letter']},
       {name: 'Malignant', stageNames: ['Referral to hospital', 'Letter to GP']},
     ],
   };
@@ -1235,7 +1235,7 @@ describe('PathwayPage: skipping stages, choice nodes and lab results', () => {
     expect(calls(fetch)).not.toContain(`POST ${PATH}/stages/s2/finish`);
 
     await user.click(dialog.getByRole('radio', {name: /Benign/}));
-    expect(dialog.getByText('These stages will be added: Discharge letter.')).toBeInTheDocument();
+    expect(dialog.getByText('These stages will be added: Final letter.')).toBeInTheDocument();
     await user.click(finish);
 
     await waitFor(() => expect(calls(fetch)).toContain(`POST ${PATH}/stages/s2/finish`));

@@ -7,7 +7,7 @@ const BASE = '/api/letter-templates';
 
 const templates = [
   {id: 'l1', name: 'Skin clinic letter', kind: 'ClinicLetter', teamId: 'sp1', teamName: 'Dermatology', isArchived: false, version: 3},
-  {id: 'l2', name: 'Discharge', kind: 'DischargeSummary', teamId: null, teamName: null, isArchived: false, version: 1},
+  {id: 'l2', name: 'Final letter', kind: 'DischargeSummary', teamId: null, teamName: null, isArchived: false, version: 1},
   {id: 'l3', name: 'Acne follow-up', kind: 'AppointmentLetter', teamId: 'sp1', teamName: 'Dermatology', isArchived: false, version: 2},
   {id: 'l4', name: 'Old referral reply', kind: 'ReferralResponse', teamId: 'sp2', teamName: 'Urology', isArchived: true, version: 5},
 ];
@@ -32,19 +32,19 @@ describe('LetterTemplatesPage', () => {
   it("lists the active ones, every team's first, then by team and name, reading archived ones too", async () => {
     const {fetch} = renderPage();
 
-    const discharge = await rowOf('Discharge');
+    const finalLetter = await rowOf('Final letter');
     const names = screen
       .getAllByRole('row')
       .slice(1)
       .map((r) => within(r).getAllByRole('cell')[0].textContent);
     expect(names).toEqual([
-      'DischargeEnd of care letter · All teams',
+      'Final letterEnd of care letter · All teams',
       'Acne follow-upAppointment letter · Dermatology',
       'Skin clinic letterClinic letter · Dermatology',
     ]);
-    expect(within(discharge).getByText('All teams')).toBeInTheDocument();
-    expect(within(discharge).getByText('Active')).toBeInTheDocument();
-    expect(within(discharge).getByRole('link', {name: 'Edit letter template'})).toHaveAttribute('href', '/admin/letter-templates/l2');
+    expect(within(finalLetter).getByText('All teams')).toBeInTheDocument();
+    expect(within(finalLetter).getByText('Active')).toBeInTheDocument();
+    expect(within(finalLetter).getByRole('link', {name: 'Edit letter template'})).toHaveAttribute('href', '/admin/letter-templates/l2');
     expect(screen.queryByText('Old referral reply')).not.toBeInTheDocument();
     expect(screen.getByText('3 active letter templates')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Add Letter Template'})).toHaveAttribute('href', '/admin/letter-templates/new');
@@ -114,7 +114,7 @@ describe('LetterTemplatesPage', () => {
       },
     );
 
-    const row = within(await rowOf('Discharge'));
+    const row = within(await rowOf('Final letter'));
     expect(row.queryByRole('button', {name: 'Archive letter template'})).not.toBeInTheDocument();
     // An archived one no letter has used can be restored or deleted.
     expect(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Restore letter template'})).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('LetterTemplatesPage', () => {
     dialog = within(openDialog()!);
     await user.click(dialog.getByRole('button', {name: 'Delete Letter Template'}));
     await waitFor(() => expect(openDialog()).toBeNull());
-    await expectAnnounced('Discharge deleted');
+    await expectAnnounced('Final letter deleted');
     expect(calls(fetch)).toContain(`DELETE ${BASE}/l2`);
 
     await user.click(within(await rowOf('Old referral reply')).getByRole('button', {name: 'Delete letter template'}));

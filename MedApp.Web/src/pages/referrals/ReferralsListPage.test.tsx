@@ -92,7 +92,7 @@ describe('ReferralsListPage', () => {
     );
     const table = within(await screen.findByRole('table'));
     expect(await table.findByText('Day 130 of 126')).toBeInTheDocument();
-    expect(table.getByText('Breached')).toBeInTheDocument();
+    expect(table.getByText('Wait breached')).toBeInTheDocument();
     expect(table.getByText('No clock')).toBeInTheDocument();
     // Only the referral without a clock says how long ago it was received.
     expect(table.getAllByText('12 days ago')).toHaveLength(1);

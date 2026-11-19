@@ -35,7 +35,7 @@ describe('ReferralList', () => {
 
     const list = await screen.findByRole('list', {name: 'Referrals'});
     expect(within(list).getByText('Received 2 Nov 2026 (day 130 of 126) from Synthetic Street Surgery')).toBeInTheDocument();
-    expect(within(list).getByText('Breached')).toBeInTheDocument();
+    expect(within(list).getByText('Wait breached')).toBeInTheDocument();
     expect(within(list).getByText('Paused')).toBeInTheDocument();
   });
 });

@@ -74,7 +74,7 @@ export function testLetter(fields: Partial<Letter> = {}): Letter {
     pathwayTitle: 'Skin check',
     referralId: null,
     kind: 'DischargeSummary',
-    templateName: 'Dermatology discharge',
+    templateName: 'Dermatology end of care',
     status: 'Draft',
     isReturned: false,
     authorUserId: LETTER_AUTHOR_ID,

@@ -62,7 +62,7 @@ export const pathwayAppointmentsQuery = (pathwayId: string) => appointmentsQuery
 /** A patient's appointments, every status, by start (Requested ones last): the patient page's list. */
 export const patientAppointmentsQuery = (patientId: string) => appointmentsQuery({PatientId: patientId, PageSize: LISTED_APPOINTMENTS});
 
-/** The statuses still to happen (Requires appointment, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
+/** The statuses still to happen (To be booked, or booked): a stage can have one at a time, and they freeze when a record is restricted. */
 export const OPEN_APPOINTMENT_STATUSES: AppointmentStatus[] = ['Requested', 'Booked'];
 
 /** How many of a patient's appointments are open (Requested or Booked): one row of a search, for its total. */
@@ -92,7 +92,7 @@ export function useRefreshAppointments() {
   };
 }
 
-/** A new appointment: with a member of staff and a time it's Booked; with none of them, Requested (Requires appointment). */
+/** A new appointment: with a member of staff and a time it's Booked; with none of them, Requested (To be booked). */
 export type NewAppointment = Schemas['CreateAppointmentRequest'];
 
 export function useCreateAppointment() {
@@ -192,11 +192,11 @@ export function useAppointmentActions() {
   };
 }
 
-/** A status in words: "Requires appointment", "Booked", "Attended", "Did not attend", "Cancelled", "Entered in error". */
+/** A status in words: "To be booked", "Booked", "Attended", "Did not attend", "Cancelled", "Entered in error". */
 export function appointmentStatusLabel(status: string | null | undefined): string {
   switch (status) {
     case 'Requested':
-      return 'Requires appointment';
+      return 'To be booked';
     case 'DidNotAttend':
       return 'Did not attend';
     case 'EnteredInError':

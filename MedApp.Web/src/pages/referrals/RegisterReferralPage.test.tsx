@@ -149,7 +149,7 @@ describe('RegisterReferralPage', () => {
     unmount();
 
     renderPage(REFERRAL_PATIENT_ID, {[PATIENT]: () => json({title: 'Not found'}, 404)});
-    expect(await findAlert('Patient not found. They may have been deleted. Find them again.')).toBeInTheDocument();
+    expect(await findAlert('They may have been deleted. Find them again.')).toBeInTheDocument();
     expect(screen.getByRole('combobox', {name: /Patient/})).toBeInTheDocument();
   });
 

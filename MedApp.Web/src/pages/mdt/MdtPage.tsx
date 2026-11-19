@@ -84,7 +84,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
           <PanelCard title={meeting ? meetingLabel(meeting) : 'No MDT chosen'}>
             {!meeting ? (
               <Text type="body" color="secondary">
-                {meetings.isLoading ? 'Loading...' : 'No MDTs in the last 60 days or the next 180. Whoever arranges meetings marks one as a team’s MDT.'}
+                {meetings.isLoading ? 'Loading...' : 'No MDTs in the last 60 days or the next 180. Whoever arranges a meeting ticks This is an MDT meeting.'}
               </Text>
             ) : list.isError ? (
               <AlertMessage label="List not loaded" message={problemMessage(list.error, 'The list could not be loaded.')} />

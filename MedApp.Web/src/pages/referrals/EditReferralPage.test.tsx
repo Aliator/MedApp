@@ -103,7 +103,7 @@ describe('EditReferralPage', () => {
 
   it('says when it is missing or could not be loaded, and cancels back to it', async () => {
     const {unmount} = renderPage(() => json({title: 'Not found'}, 404));
-    expect(await findAlert('Referral not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await findAlert('It may have been deleted.')).toBeInTheDocument();
     unmount();
 
     const failed = renderPage(() => json({title: 'Down'}, 500));

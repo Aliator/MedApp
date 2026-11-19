@@ -572,7 +572,7 @@ describe('PatientExportPage', () => {
       notifications: [{kind: 'AppointmentBooked', username: 'k.ashford', title: 'Booked', message: 'Synthetic', createdAtUtc: '2026-09-12T09:00:00Z', appointmentId: 'deleted'}],
     });
 
-    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
+    expect(await screen.findByText('To be booked')).toBeInTheDocument();
     expect(screen.getByText(/^A deleted pathway, requested .* automatically$/)).toBeInTheDocument();
     expect(screen.getByText(/^Not for a pathway, requested .* by k\.ashford, booked .*, outcome recorded .* by k\.ashford$/)).toBeInTheDocument();
     expect(screen.getByText('Not for a pathway')).toBeInTheDocument();
@@ -915,7 +915,7 @@ describe('PatientExportPage', () => {
 
   it('says when the patient is not found, or the export failed', async () => {
     renderExport({title: 'Not found'}, 404);
-    expect(await findAlert('Patient not found. They may have been deleted.')).toBeInTheDocument();
+    expect(await findAlert('They may have been deleted.')).toBeInTheDocument();
   });
 
   it('says when the export could not be made', async () => {
@@ -1026,7 +1026,7 @@ describe('appointment history in words', () => {
   });
 
   it('describes an appointment by its status and time', () => {
-    expect(describeExportedAppointment({status: 'Requested'})).toBe('Requires appointment');
+    expect(describeExportedAppointment({status: 'Requested'})).toBe('To be booked');
     expect(describeExportedAppointment({status: 'DidNotAttend', startUtc: '2026-09-21T09:00:00Z', endUtc: '2026-09-21T09:30:00Z'})).toBe(
       'Did not attend: Mon 21 Sept 2026, 10:00 to 10:30',
     );

@@ -66,7 +66,7 @@ describe('ResultsPage', () => {
     expect(await screen.findByText(/results? in Cardiology$/)).toBeInTheDocument();
     expect(calls(fetch).some((c) => c.includes(`TeamId=${CARDIOLOGY_ID}`))).toBe(true);
     // Only admins and staff in more than one team get the clinic picker.
-    expect(screen.queryByRole('combobox', {name: /Clinic/})).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', {name: /^Team/})).not.toBeInTheDocument();
     await pickFavourite(user, 'Needs a clinician');
     expect(onSearchChange).toHaveBeenLastCalledWith({
       view: 'NeedsClinician',
@@ -81,7 +81,7 @@ describe('ResultsPage', () => {
   it('gives an admin the clinic picker, which replaces a linked team', async () => {
     const {user, onSearchChange} = renderPage({team: CARDIOLOGY_ID, page: 2}, adminUser);
 
-    await user.click(await screen.findByRole('combobox', {name: /Clinic/}));
+    await user.click(await screen.findByRole('combobox', {name: /^Team/}));
     expect(screen.getByRole('option', {name: 'Old clinic (archived)'})).toBeInTheDocument();
     await user.click(screen.getByRole('option', {name: 'Cardiology'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({clinic: CARDIOLOGY_ID, team: undefined, page: undefined});

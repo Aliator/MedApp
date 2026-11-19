@@ -258,7 +258,7 @@ export const AppIcon = {
   StatusChange: remix(RiArrowLeftRightLine),
   Calendar: remix(RiCalendarLine),
   // Staff calendars and appointments
-  /** The Requires Appointment list (Requested appointments), and the Requires appointment status. */
+  /** The Requires Appointment list (Requested appointments), and the To be booked status. */
   RequiresAppointment: remix(RiCalendarTodoLine),
   AppointmentBooked: remix(RiCalendarCheckLine),
   AppointmentDidNotAttend: remix(RiCalendarCloseLine),

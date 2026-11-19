@@ -32,7 +32,7 @@ const biopsy = stage({
   choiceKind: 'LabResult',
   needsOutcome: true,
   outcomes: [
-    {name: 'Benign', stageNames: ['Discharge letter']},
+    {name: 'Benign', stageNames: ['Final letter']},
     {name: 'Malignant', stageNames: ['Referral to hospital', 'Letter to GP']},
   ],
 });
@@ -123,6 +123,6 @@ describe('OutcomeChoice', () => {
     expect(screen.queryByText(/will be added/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('radio', {name: /Benign/}));
-    expect(screen.getByText('These stages will be added: Discharge letter.')).toBeInTheDocument();
+    expect(screen.getByText('These stages will be added: Final letter.')).toBeInTheDocument();
   });
 });

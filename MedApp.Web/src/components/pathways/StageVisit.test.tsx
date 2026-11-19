@@ -93,9 +93,9 @@ describe('StageVisit', () => {
   it('books a visit that requires an appointment, saying why it matters for a required one', async () => {
     const {user, onBook} = renderVisit([requested]);
 
-    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
+    expect(await screen.findByText('To be booked')).toBeInTheDocument();
     expect(screen.getByText(/the stage can't be finished until then/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Book Visit'}));
+    await user.click(screen.getByRole('button', {name: 'Book Appointment'}));
 
     expect(onBook).toHaveBeenCalledWith(requested);
   });
@@ -103,16 +103,16 @@ describe('StageVisit', () => {
   it("says where the visit stands, with nothing to book, for someone who can't book", async () => {
     renderVisit([requested], {canBook: false, onRecordPast: vi.fn()});
 
-    expect(await screen.findByText('Requires appointment')).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Book Visit'})).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
+    expect(await screen.findByText('To be booked')).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Book Appointment'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Past Appointment'})).not.toBeInTheDocument();
   });
 
   it('books a new one when there is none, for a suggested visit', async () => {
     const {user, onBook} = renderVisit([cancelled], {stage: {...stage, visitRequirement: 'Suggested'}});
 
     expect(await screen.findByText('Book it, if the patient needs one.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', {name: 'Book Visit'}));
+    await user.click(screen.getByRole('button', {name: 'Book Appointment'}));
 
     expect(onBook).toHaveBeenCalledWith(undefined);
   });
@@ -124,7 +124,7 @@ describe('StageVisit', () => {
       'href',
       '/calendar?appointment=booked',
     );
-    expect(screen.queryByRole('button', {name: 'Attended'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Mark Attended'})).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', {name: 'Reschedule'}));
 
     expect(onReschedule).toHaveBeenCalledWith(booked);
@@ -134,7 +134,7 @@ describe('StageVisit', () => {
     const started = {...booked, canRecordOutcome: true};
     const {user, onOutcome} = renderVisit([started]);
 
-    await user.click(await screen.findByRole('button', {name: 'Attended'}));
+    await user.click(await screen.findByRole('button', {name: 'Mark Attended'}));
     await user.click(screen.getByRole('button', {name: 'Did Not Attend'}));
 
     expect(onOutcome).toHaveBeenNthCalledWith(1, started, 'Attended');
@@ -163,29 +163,29 @@ describe('StageVisit', () => {
   it('records a past visit while nothing is booked, but not once it is booked or attended, nor without a handler', async () => {
     const onRecordPast = vi.fn();
     const first = renderVisit([requested], {onRecordPast});
-    await first.user.click(await screen.findByRole('button', {name: 'Record Past Visit'}));
+    await first.user.click(await screen.findByRole('button', {name: 'Record Past Appointment'}));
     expect(onRecordPast).toHaveBeenCalledTimes(1);
     first.unmount();
 
     const missedOne = renderVisit([missed('m', '2026-11-19')], {onRecordPast});
-    expect(await screen.findByRole('button', {name: 'Record Past Visit'})).toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Record Past Appointment'})).toBeInTheDocument();
     missedOne.unmount();
 
     for (const appointments of [[booked], [attended]]) {
       const shown = renderVisit(appointments, {onRecordPast});
       expect(await screen.findByRole('group', {name: 'Visit'})).toBeInTheDocument();
-      expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', {name: 'Record Past Appointment'})).not.toBeInTheDocument();
       shown.unmount();
     }
 
     renderVisit([]);
-    expect(await screen.findByRole('button', {name: 'Book Visit'})).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: 'Record Past Visit'})).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', {name: 'Book Appointment'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Record Past Appointment'})).not.toBeInTheDocument();
   });
 
   it('waits while something is being saved', async () => {
     renderVisit([requested], {isBusy: true});
 
-    expect(await screen.findByRole('button', {name: 'Book Visit'})).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('button', {name: 'Book Appointment'})).toHaveAttribute('aria-disabled', 'true');
   });
 });

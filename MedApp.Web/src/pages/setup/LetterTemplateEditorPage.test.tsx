@@ -105,7 +105,7 @@ describe('LetterTemplateEditorPage', () => {
     withAnnouncements();
     const {user, fetch, router} = renderEditor(undefined, {[`POST ${BASE}`]: () => json({...template, id: 'l9'}, 201)});
 
-    await user.type(await screen.findByRole('textbox', {name: /Name/}), ' Discharge letter ');
+    await user.type(await screen.findByRole('textbox', {name: /Name/}), ' Final letter ');
     await choose(user, /Kind/, 'End of care letter');
     await user.click(screen.getByRole('combobox', {name: /Team/}));
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', 'Dermatology', 'Urology']);
@@ -117,7 +117,7 @@ describe('LetterTemplateEditorPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/letter-templates/l9'));
     expect(await sent(fetch, 'POST')[0].json()).toEqual({
-      name: 'Discharge letter',
+      name: 'Final letter',
       kind: 'DischargeSummary',
       teamId: 'sp2',
       letterhead: 'Example Clinic',

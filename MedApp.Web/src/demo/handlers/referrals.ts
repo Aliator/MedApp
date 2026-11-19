@@ -16,7 +16,7 @@ import {canSeeRecord, ensureCanChangeRecord, isPickedTeam, myScope, pickedTeam, 
  * Referrals, triage and the waiting-time clock, a simplified copy of the API's `ReferralWorkflow` and `WaitingClock`.
  * The clock runs from the day received (plus any pauses) against the team's target for the priority (the
  * triager's, once accepted), and stops for good when the template's clock-stop stage is finished, the pathway is
- * discharged or cancelled, or the referral is closed without a pathway. Pauses are patient-initiated, only once
+ * completed or cancelled, or the referral is closed without a pathway. Pauses are patient-initiated, only once
  * accepted, and move the pathway's target date. Nothing is scored, suggested or ordered by clinical content; the
  * history holds no free text. Simplified: no letters or files, and the clock's stop isn't written to the history.
  */

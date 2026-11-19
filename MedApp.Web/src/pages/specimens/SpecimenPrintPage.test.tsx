@@ -46,7 +46,7 @@ describe('SpecimenPrintPage', () => {
 
   it('says when the sample is not found', async () => {
     renderPage('label', () => json({title: 'Not found'}, 404));
-    expect(await screen.findByText('Sample not found. It may have been deleted.')).toBeInTheDocument();
+    expect(await screen.findByText('It may have been deleted.')).toBeInTheDocument();
   });
 
   it("prints the patient's name family name first, in capitals", () => {

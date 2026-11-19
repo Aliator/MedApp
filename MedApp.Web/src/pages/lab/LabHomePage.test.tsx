@@ -111,7 +111,7 @@ describe('LabHomePage', () => {
     expect(await screen.findByText('New for the lab not loaded')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', {level: 2}).map((h) => h.textContent)).toEqual([
       'New for the lab',
-      'Our turn',
+      'With my team',
       'On its way',
       'In progress',
       'To report',

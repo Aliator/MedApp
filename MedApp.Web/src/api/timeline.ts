@@ -424,7 +424,7 @@ function recipientWords(kind: string | null | undefined): string {
 }
 
 /**
- * A letter's entry in words: "Discharge summary started", "... submitted for approval" (to whom), "... returned to its
+ * A letter's entry in words: "End of care letter started", "... submitted for approval" (to whom), "... returned to its
  * author", "... approved", "... sent to the GP practice" (how) or "... couldn't be sent to ..." (a secure email the
  * mail server refused), and "... withdrawn". With the template it was written from. A return comment or a withdrawal
  * reason (`reason`) comes only to admins; the letter's text never comes at all.

@@ -53,7 +53,7 @@ const RESTRICTED_TAKE =
 const RESTRICTED_EDIT =
   "This patient's record is restricted: the sample can still go on to the lab and be reported, but its details can't be changed.";
 const EIE_NOT_ALLOWED =
-  'Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask an admin.';
+  'Only whoever recorded this sample can mark it entered in error, within 24 hours of recording it. After that, ask someone who can correct records.';
 const MAX_NAME = 100;
 
 const typeOf = (specimen: DemoSpecimen) => db().specimenTypes.find((t) => t.id === specimen.specimenTypeId);
@@ -105,7 +105,7 @@ export function canSeeSample(specimen: DemoSpecimen, scope: TeamScope = myScope(
   return specimen.source === 'Clinic' && canSeeRecord(specimen, scope);
 }
 
-const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Completed: 'discharged', Cancelled: 'cancelled', Archived: 'archived'};
+const PATHWAY_STATUS_WORDS: Record<string, string> = {Blocked: 'on hold', Completed: 'completed', Cancelled: 'cancelled', Archived: 'archived'};
 
 /** `SpecimenWorkflow.WhyCantTake`: the stage must be editable (the current one, or one unlocked) and the pathway open. */
 function whyCantTake(pathway: DemoPathway, stage: DemoStage): string | null {
