@@ -9,7 +9,7 @@ The plan to make MedApp fit a referral-led community specialist centre (outpatie
 **Phase 1: done.**
 - **The vocabulary:** pathways, pathway templates and the screen-only labels, in `docs/glossary.md`. `tools/rename-procedures-to-pathways.py` brings a branch from before the rename across.
 - **One seeding script:** `tools/seed-demo-data.sh` (and `.ps1`) wipes the local database and replays the demo clinic; it's the only way demo data gets in, kind's demo data included.
-- **The new demo clinic:** 18 months of a referral-led outpatient centre (dermatology, gynaecology, urology, diabetes, biomechanics), described in `docs/demo-data.md`.
+- **The demo clinic:** the light demo's (Dermatology and the lab), replayed through the app's handlers, described in `docs/demo-data.md`.
 
 **Phase 2: the front door.**
 - **Referrals and triage:** a referral record (the referring GP practice, when it arrived, the letter, the specialty asked for), an inbox of new referrals, and a clinician's triage decision (accept, reject or redirect, with a reason). Accepting creates the pathway: the clinician decides, the app records.

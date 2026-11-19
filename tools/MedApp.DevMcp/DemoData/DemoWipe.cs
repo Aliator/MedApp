@@ -54,8 +54,11 @@ public static class DemoWipe
                 // (foreign keys), so they go first.
                 await db.Results.ExecuteDeleteAsync(cancellationToken);
                 await db.Specimens.ExecuteDeleteAsync(cancellationToken);
-                // Lab cases (their steps cascade) after the results and samples that name them, then the tests.
+                // Lab cases (their steps and surgery details cascade) after the results and samples that name them, then
+                // the hospitals' requests (which hold their patients, tests and types), the hospitals, the tests and types.
                 await db.LabCases.ExecuteDeleteAsync(cancellationToken);
+                await db.HospitalRequests.ExecuteDeleteAsync(cancellationToken);
+                await db.Hospitals.ExecuteDeleteAsync(cancellationToken);
                 await db.LabTests.ExecuteDeleteAsync(cancellationToken);
                 await db.SpecimenTypes.ExecuteDeleteAsync(cancellationToken);
                 await db.AppointmentEvents.ExecuteDeleteAsync(cancellationToken);
@@ -92,6 +95,12 @@ public static class DemoWipe
                 await db.DayTemplates.ExecuteDeleteAsync(cancellationToken);
                 var seededActivityTypes = CalendarActivityTypeConfiguration.Seeded.Select(t => t.Id).ToList();
                 await db.CalendarActivityTypes.Where(t => !seededActivityTypes.Contains(t.Id)).ExecuteDeleteAsync(cancellationToken);
+                // The seeded ones back as the migration made them (the demo archives and recolours some).
+                foreach (var type in CalendarActivityTypeConfiguration.Seeded)
+                    await db.CalendarActivityTypes.Where(t => t.Id == type.Id).ExecuteUpdateAsync(u => u
+                        .SetProperty(t => t.Name, type.Name)
+                        .SetProperty(t => t.Colour, type.Colour)
+                        .SetProperty(t => t.IsArchived, false), cancellationToken);
                 // Attached files' records (no foreign keys) go with their patients. Their bytes stay in Azurite,
                 // unreferenced, so the pre-reset snapshot still finds them if it's restored.
                 await db.Attachments.ExecuteDeleteAsync(cancellationToken);
@@ -132,6 +141,7 @@ public static class DemoWipe
                 await db.Notifications.ExecuteDeleteAsync(cancellationToken);
                 // Settings and sign-in challenges have no foreign key to their account: those of accounts going, go.
                 await db.UserSettings.Where(s => !kept.Contains(s.UserId)).ExecuteDeleteAsync(cancellationToken);
+                await db.Notepads.Where(n => !kept.Contains(n.UserId)).ExecuteDeleteAsync(cancellationToken);
                 await db.SignInChallenges.Where(c => !kept.Contains(c.UserId)).ExecuteDeleteAsync(cancellationToken);
                 // The admins' sign-in rules go back to a new database's: no row, so every rule is off (SecuritySettings).
                 // Kept, a rule such as "require two-factor for admins" would hold admin (who has none) at sign-in.

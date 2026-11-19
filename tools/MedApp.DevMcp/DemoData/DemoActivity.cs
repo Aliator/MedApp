@@ -1,44 +1,27 @@
-using MediatR;
 using MedApp.Application.Activity.Common;
-using MedApp.Application.Authentication.Sessions.Commands.Login;
-using MedApp.Application.Authentication.Sessions.Commands.LoginTwoFactor;
-using MedApp.Application.Calendar.Common;
-using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Patients.Commands.UpdatePatient;
 using MedApp.Application.Patients.Queries.SearchPatients;
-using MedApp.Application.Pathways.Common;
 using MedApp.Domain.Activity;
-using MedApp.Domain.Appointments;
-using MedApp.Domain.Referrals;
-using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
+using static MedApp.DevMcp.DemoData.DemoPatients;
 
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// The activity log over the last 60 days, in its own format, written with the app's writer (<see cref="IActivityLog"/>,
-/// at the seed's clock): sign-ins and sign-outs on working days, a few refused, the views of patients and pathways
-/// by the people working on them (once per view window, <see cref="ActivityOptions.ViewWindowMinutes"/>, as the app
-/// records them), the referrals they registered and triaged (<c>ReferralViewed</c>, with the referral's ID), the
-/// patients each list showed (the referral inbox among them), and searches by their filter names
-/// (<see cref="PatientSearch.FiltersUsed"/>) and counts, never the terms. A patient is seen only while they're on the
-/// system: from their registration, and not after they were anonymised. Today's sign-ins go through the app's own
-/// sign-in command instead, so they come with live sessions; so does the locked account's run of wrong passwords.
+/// The activity log's sign-ins, views and searches, as the light demo's setup slice has them (<c>seedActivityLog</c>):
+/// who signed in, and who viewed, listed or changed which patient's record, written with the app's writer
+/// (<see cref="IActivityLog"/>, at the seed's clock), never what was seen. The changes the story made through the app's
+/// commands are in the log already, written by those commands; the one change here (a mobile number) goes through its
+/// command too. Everyone starts signed out: no sessions.
 /// <para>
 /// The sign-in and search entries' shapes (<see cref="SignInEntries"/>, <see cref="RefusedSignIn"/>,
-/// <see cref="SearchDetails"/>) are the ones the commands write: <c>DemoActivityParityTests</c> runs the real commands
-/// and checks they still are.
+/// <see cref="SearchDetails"/>, <see cref="ReferralViewDetails"/>) are the ones the commands write:
+/// <c>DemoActivityParityTests</c> runs the real commands and checks they still are.
 /// </para>
 /// </summary>
 public static class DemoActivity
 {
-    private const string Browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
-
-    /// <summary>The earliest anyone signs in: half an hour before the working day.</summary>
-    private static readonly TimeOnly EarliestSignIn = new(7, 30);
-
     /// <summary>
     /// What one sign-in writes, in order, by the account signing in: <c>LoginHandler</c>'s entry; or, for an account
     /// with two-factor, its challenge, then <c>LoginTwoFactorHandler</c>'s entry for an authenticator code.
@@ -68,7 +51,7 @@ public static class DemoActivity
     [
         Search(lastName: "-"),
         Search(firstName: "-", lastName: "-"),
-        Search(nhsNumber: DemoPatients.SyntheticNhsNumber(0)),
+        Search(nhsNumber: All[0].NhsNumber),
         Search(lastName: "-", from: new DateOnly(1950, 1, 1), to: new DateOnly(1960, 12, 31)),
         Search(email: "-"),
     ];
@@ -77,249 +60,57 @@ public static class DemoActivity
         string? firstName = null, string? lastName = null, string? email = null, DateOnly? from = null, DateOnly? to = null, string? nhsNumber = null) =>
         new(1, 10, null, true, firstName, lastName, email, from, to, nhsNumber);
 
-    public static async Task<int> CreateAsync(
-        SeedServices services, DemoWorld world, IReadOnlyList<PatientSeed> patients, CancellationToken ct)
+    /// <summary>Writes the log's sign-ins and views, and the booking coordinator's change to a mobile number. Returns how many entries it wrote.</summary>
+    public static async Task<int> CreateAsync(DemoSeed seed)
     {
+        var t = seed.Timeline;
+        var (admin, nadia, tom, jo, hannah) = (DemoPeople.Admin, DemoPeople.Thornbury, DemoPeople.Hallworth, DemoPeople.Whitlock, DemoPeople.Marsh);
         var entries = new List<ActivityEntry>();
-        await using (var scope = services.Scope())
+
+        // A mobile number added to Ellis Varden's record (synthetic: Ofcom's drama range), through the patient command.
+        await seed.Send(t.Ago(2, 11, 0), hannah, new UpdatePatientCommand(seed.Patients[EllisVarden], null, null, null, null, MobilePhone: "07700 900123"),
+            "update Ellis Varden's mobile number");
+
+        await using (var scope = seed.Services.Scope())
         {
             var log = scope.ServiceProvider.GetRequiredService<IActivityLog>();
-            var minutes = scope.ServiceProvider.GetRequiredService<IOptions<ActivityOptions>>().Value.ViewWindowMinutes;
-            Build(services, log, world, patients, TimeSpan.FromMinutes(Math.Max(0, minutes)), entries);
-        }
-
-        for (var i = 0; i < entries.Count; i += 4000)
-        {
-            var chunk = entries.Skip(i).Take(4000).ToList();
-            await services.Run(async sp =>
+            void Add(DateTime at, ActivityAction action, DemoPerson by, string? patient = null, object? details = null, string? pathway = null)
             {
-                var db = sp.GetRequiredService<MedAppDbContext>();
-                db.ChangeTracker.AutoDetectChangesEnabled = false;
-                db.ActivityEntries.AddRange(chunk);
-                await db.SaveChangesAsync(ct);
-            });
-        }
-
-        return entries.Count;
-    }
-
-    private static void Build(
-        SeedServices services, IActivityLog log, DemoWorld world, IReadOnlyList<PatientSeed> patients, TimeSpan viewWindow, List<ActivityEntry> entries)
-    {
-        var random = world.Random;
-        var timeline = world.Timeline;
-        var lastView = new Dictionary<(Guid, ActivityAction, Guid, Guid?), DateTime>();
-        var active = patients.Where(p => p.Role is PatientRole.Active or PatientRole.Waiting or PatientRole.ReferredOnly).ToList();
-        var byId = patients.ToDictionary(p => p.Id);
-        var openPatients = world.Pathways.Where(p => PathwayWorkflow.IsOpen(p.Status)).Select(p => p.PatientId).Distinct().ToList();
-        var dueForReview = patients.Where(p => p.Role == PatientRole.ImportedDue).Select(p => p.Id).ToList();
-        var touchesByDay = world.Touches
-            .Where(t => t.AtUtc >= timeline.ActivityFromUtc && t.AtUtc < timeline.NowUtc)
-            .ToLookup(t => (t.UserId, UkTime.DateOf(t.AtUtc)));
-        var appointmentsByDay = world.Appointments
-            .Where(a => a.StartUtc is { } s && s >= timeline.ActivityFromUtc && a.Status is AppointmentStatus.Booked or AppointmentStatus.Attended or AppointmentStatus.DidNotAttend)
-            .ToLookup(a => (a.StaffUserId!.Value, UkTime.DateOf(a.StartUtc!.Value)));
-
-        void Add(DateTime at, ActivityAction action, StaffMember? by, Guid? patientId = null, object? details = null, Guid? pathwayId = null, ActivityActor? actor = null)
-        {
-            if (at >= timeline.NowUtc)
-                return;
-            services.Clock.UtcNow = at;
-            entries.Add(log.Entry(action, patientId, details, pathwayId: pathwayId, actor: actor ?? by!.ActivityActor));
-        }
-
-        // A view, unless the same person saw the same thing within the view window (ActivityLog.RecordViewsAsync, and
-        // RecordViewAsync for a referral, keyed by its ID); and only of a patient on the system then (registered, and not
-        // yet anonymised).
-        void View(DateTime at, ActivityAction action, StaffMember by, Guid patientId, Guid? pathwayId = null, Guid? referralId = null)
-        {
-            if (!byId[patientId].IsOnSystemAt(at))
-                return;
-            var key = (by.Id, action, patientId, pathwayId ?? referralId);
-            if (lastView.TryGetValue(key, out var last) && at - last < viewWindow && at >= last)
-                return;
-            lastView[key] = at;
-            Add(at, action, by, patientId, referralId is { } id ? ReferralViewDetails(id) : null, pathwayId: pathwayId);
-        }
-
-        // The referral inbox (awaiting triage, longest wait first), as each person opens it: the coordinator sees every
-        // team's, a triager their own teams'.
-        var teamNames = world.Teams.ToDictionary(s => s.Key, s => s.Value.Name);
-        IEnumerable<Guid> Inbox(StaffMember member, DateTime at)
-        {
-            var mine = DemoTeams.For(member.Kind);
-            return world.Referrals
-                .Where(r => r.RegisteredAtUtc <= at && (r.DecidedAtUtc is null || r.DecidedAtUtc > at)
-                            && (member.Kind == StaffKind.BookingCoordinator || mine.Contains(teamNames[r.TeamId])))
-                .OrderBy(r => r.ReceivedOn).Take(25).Select(r => r.PatientId);
-        }
-
-        var first = UkTime.DateOf(timeline.ActivityFromUtc);
-        for (var date = first; date <= timeline.Today; date = date.AddDays(1))
-        {
-            if (!DemoClosedDays.IsWorkingDay(date))
-                continue;
-            var isToday = date == timeline.Today;
-
-            foreach (var member in world.Staff)
-            {
-                var dayStart = DemoTimeline.At(date, 8, 0);
-                if (!member.WorksAt(dayStart) || member.Kind == StaffKind.NewStarter || world.Calendars.IsOnLeave(member.Id, date))
-                    continue;
-
-                var touches = touchesByDay[(member.Id, date)].OrderBy(t => t.AtUtc).ToList();
-                var signIn = touches.Count > 0
-                    ? touches[0].AtUtc.AddMinutes(-random.Next(3, 25))
-                    : dayStart.AddMinutes(random.Next(-10, 70));
-                if (UkTime.TimeOf(signIn) < EarliestSignIn)
-                    signIn = DemoTimeline.At(date, 7, 30).AddMinutes(random.Next(0, 20));
-
-                // Today's sign-ins are made by the sign-in command itself (SignInTodayAsync), with their sessions.
-                if (!isToday)
-                {
-                    if (random.NextDouble() < 0.02)
-                        Add(signIn.AddMinutes(-1), RefusedSignIn.Action, member, details: RefusedSignIn.Details);
-
-                    // The two-factor account's code is typed about 25 seconds after its password.
-                    var steps = SignInEntries(member.Username == DemoStaff.TwoFactorUsername && signIn >= timeline.TwoFactorEnabledUtc);
-                    for (var step = 0; step < steps.Count; step++)
-                        Add(signIn.AddSeconds(-25 * (steps.Count - 1 - step)), steps[step].Action, member, details: steps[step].Details);
-                }
-
-                // The day's diary (the calendar lists its appointments' patients), and the pathway list.
-                var diary = appointmentsByDay[(member.Id, date)].ToList();
-                foreach (var appointment in diary)
-                    View(signIn.AddMinutes(2), ActivityAction.PatientListed, member, appointment.PatientId);
-
-                if (member.Kind is not (StaffKind.ServiceManager or StaffKind.BookingCoordinator) && openPatients.Count > 0)
-                    foreach (var patientId in openPatients.OrderBy(_ => random.Next()).Take(random.Next(4, 11)))
-                        View(signIn.AddMinutes(4), ActivityAction.PatientListed, member, patientId);
-
-                // The coordinator and the triagers look at the referral inbox first thing.
-                if (member.Kind == StaffKind.BookingCoordinator || world.Teams.Values.Any(s => DemoReferrals.CanTriage(member, s.Name, signIn)))
-                    foreach (var patientId in Inbox(member, signIn.AddMinutes(3)))
-                        View(signIn.AddMinutes(3), ActivityAction.PatientListed, member, patientId);
-
-                // Searches: by filter names and the count found, never what was typed.
-                var searches = member.Kind == StaffKind.BookingCoordinator ? random.Next(2, 6) : random.Next(0, 2);
-                for (var s = 0; s < searches; s++)
-                {
-                    var at = signIn.AddMinutes(random.Next(10, 480));
-                    var query = Searches[random.Next(Searches.Count)];
-                    var registered = active.Where(p => p.IsOnSystemAt(at)).ToList();
-                    var found = Math.Min(query.NhsNumber is not null ? 1 : random.Next(1, 7), registered.Count);
-                    Add(at, ActivityAction.PatientsSearched, member, details: SearchDetails(PatientSearch.FiltersUsed(query), found));
-                    foreach (var patient in registered.OrderBy(_ => random.Next()).Take(found))
-                        View(at, ActivityAction.PatientListed, member, patient.Id);
-                }
-
-                // Every change they made, they made from the record: the patient's page, then the pathway's.
-                foreach (var touch in touches)
-                {
-                    // A referral's page, which opens once it's registered, and shows the triage decision once made.
-                    if (touch.ReferralId is { } referralId)
-                    {
-                        View(touch.AtUtc.AddSeconds(random.Next(5, 90)), ActivityAction.ReferralViewed, member, touch.PatientId, referralId: referralId);
-                        continue;
-                    }
-
-                    View(touch.AtUtc.AddMinutes(-random.Next(2, 6)), ActivityAction.PatientViewed, member, touch.PatientId);
-                    if (touch.PathwayId is { } pathwayId)
-                        View(touch.AtUtc.AddSeconds(-random.Next(20, 110)), ActivityAction.PathwayViewed, member, touch.PatientId, pathwayId);
-                }
-
-                // Admins look over the retention review now and then.
-                if (member.Kind == StaffKind.ClinicalLead && date.DayOfWeek == DayOfWeek.Monday)
-                    foreach (var patientId in dueForReview)
-                        View(signIn.AddMinutes(30), ActivityAction.PatientListed, member, patientId);
-
-                if (isToday)
-                    continue;
-
-                var lastAt = touches.Count > 0 ? touches[^1].AtUtc : signIn.AddHours(6);
-                var signOut = lastAt.AddMinutes(random.Next(5, 70));
-                if (signOut.Date == lastAt.Date && random.NextDouble() < 0.75)
-                    Add(signOut, ActivityAction.SignedOut, member);
+                if (at >= t.NowUtc)
+                    return;
+                seed.Services.Clock.UtcNow = at;
+                entries.Add(log.Entry(action, patient is null ? null : seed.Patients[patient], details,
+                    pathwayId: pathway is null ? null : seed.Stories[pathway].Id, actor: by.ActivityActor));
             }
-        }
 
-        // A few sign-ins refused for a name no account has (a typo): by no account, with the name typed.
-        foreach (var (typo, daysAgo) in new[] { ("b.sandifrod", 9), ("h.mash", 23), ("admn", 41) })
-        {
-            var at = DemoTimeline.WorkingMoment(timeline.NowUtc.AddDays(-daysAgo), 8, 12);
-            Add(at, RefusedSignIn.Action, null, details: RefusedSignIn.Details, actor: new ActivityActor(null, typo, "192.0.2.40"));
-        }
-    }
-
-    /// <summary>
-    /// Today, on a working day from 07:30: staff who've worked today sign in through the app's own command (a session
-    /// each, and its activity entry), the two-factor account through both steps. Whatever the day, the healthcare
-    /// assistant then gets locked out after a run of wrong passwords (they can come on any day), and stays locked
-    /// until tomorrow evening, so the Users page offers Unlock.
-    /// </summary>
-    public static async Task<object> SignInTodayAsync(SeedServices services, DemoWorld world, CancellationToken ct)
-    {
-        var timeline = world.Timeline;
-        var now = timeline.NowUtc;
-        var signedIn = new List<string>();
-        if (DemoClosedDays.IsWorkingDay(timeline.Today))
-        {
-            var touchesToday = world.Touches
-                .Where(t => t.AtUtc < now && UkTime.DateOf(t.AtUtc) == timeline.Today)
-                .ToLookup(t => t.UserId);
-
-            foreach (var member in world.Staff.Where(s => s.WorksAt(now) && s.Kind != StaffKind.NewStarter && !world.Calendars.IsOnLeave(s.Id, timeline.Today)))
+            void SignIn(DateTime at, DemoPerson by)
             {
-                var first = touchesToday[member.Id].Select(t => t.AtUtc).DefaultIfEmpty(DemoTimeline.At(timeline.Today, 8, 10)).Min();
-                var at = first.AddMinutes(-world.Random.Next(4, 20));
-                if (at >= now)
-                    at = now.AddMinutes(-world.Random.Next(5, 30));
-                // Nobody signs in before the working day starts, as in the history: in the small hours, nobody has yet.
-                if (UkTime.DateOf(at) != timeline.Today || UkTime.TimeOf(at) < EarliestSignIn)
-                    continue;
-
-                services.At(at, member.ActivityActor);
-                var outcome = await services.Run(sp => sp.GetRequiredService<IMediator>().Send(
-                    new LoginCommand(member.Username, member.Password!, member.IpAddress, Browser), ct));
-                if (outcome.Challenge is { } challenge)
-                {
-                    var code = Totp.Compute(Base32.Decode(member.TwoFactorKey!.Replace(" ", string.Empty)), Totp.TimeStep(services.Clock.GetUtcNow()));
-                    services.At(at.AddSeconds(20), member.ActivityActor);
-                    await services.Run(sp => sp.GetRequiredService<IMediator>().Send(
-                        new LoginTwoFactorCommand(challenge, code, null, member.IpAddress, Browser), ct));
-                }
-
-                signedIn.Add(member.Username);
+                foreach (var (action, details) in SignInEntries(twoFactor: false))
+                    Add(at, action, by, details: details);
             }
+
+            SignIn(t.Ago(2, 11, 25), nadia);
+            Add(t.Ago(2, 11, 30), ActivityAction.PatientViewed, nadia, OliverMaddox);
+            Add(t.Ago(2, 11, 32), ActivityAction.ReferralViewed, nadia, OliverMaddox, ReferralViewDetails(seed.Tour["referralToTriage"]));
+            Add(t.Ago(3, 14, 5), ActivityAction.PathwayViewed, tom, SamuelOkafor, pathway: SamuelOkafor);
+            SignIn(t.Ago(2, 8, 40), admin);
+            Add(t.Ago(2, 8, 45), ActivityAction.PatientListed, admin, TobiasLund);
+            Add(t.Ago(2, 8, 46), ActivityAction.PatientViewed, admin, TobiasLund);
+            Add(t.Ago(2, 16, 30), ActivityAction.PatientViewed, admin, GraceAbernethy);
+            Add(t.Ago(1, 9, 5), RefusedSignIn.Action, jo, details: RefusedSignIn.Details);
+            SignIn(t.Ago(1, 9, 6), jo);
+            Add(t.Ago(1, 15, 20), ActivityAction.PatientViewed, nadia, HarrietQuill);
+            Add(t.Ago(1, 15, 22), ActivityAction.PathwayViewed, nadia, HarrietQuill, pathway: HarrietQuill);
+            SignIn(t.Ago(0, 8, 30), nadia);
+            Add(t.Ago(0, 8, 35), ActivityAction.PatientListed, nadia, PriyaHolloway);
+            Add(t.Ago(0, 8, 36), ActivityAction.PathwayViewed, nadia, PriyaHolloway, pathway: PriyaHolloway);
         }
 
-        // The locked account: five wrong passwords in a few minutes (the app's own refusals and lockout), then the
-        // lockout stretched to tomorrow evening, as five minutes would pass before anyone opened the Users page.
-        var locked = DemoStaff.Get(world.Staff, DemoStaff.LockedUsername);
-        for (var i = 0; i < 6; i++)
+        await seed.Db(async db =>
         {
-            services.At(now.AddMinutes(-20 + 2 * i), locked.ActivityActor);
-            try
-            {
-                await services.Run(sp => sp.GetRequiredService<IMediator>().Send(
-                    new LoginCommand(locked.Username, "wrong-password-" + i, "198.51.100.23", Browser), ct));
-            }
-            catch (Exception e) when (e is InvalidCredentialsException or AccountLockedOutException)
-            {
-                // Refused and recorded, as at the sign-in page.
-            }
-        }
-
-        var lockedUntil = new DateTimeOffset(DemoTimeline.At(timeline.Today.AddDays(1), 18, 0));
-        await services.Run(async sp =>
-        {
-            var users = sp.GetRequiredService<UserManager<ApplicationUser>>();
-            var user = await users.FindByIdAsync(locked.Id.ToString())
-                       ?? throw new InvalidOperationException($"{locked.Username} wasn't found.");
-            user.LockoutEnd = lockedUntil;
-            Guards.Check(await users.UpdateAsync(user), $"Lock {locked.Username} out");
+            db.ActivityEntries.AddRange(entries);
+            await db.SaveChangesAsync(seed.Ct);
         });
-
-        return new { signedIn, lockedOut = locked.Username, lockedUntil };
+        return entries.Count;
     }
 }
