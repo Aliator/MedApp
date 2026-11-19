@@ -1,181 +1,114 @@
-using MedApp.Domain.Teams;
-using System.Security.Cryptography;
-using MedApp.Application.Attachments.Common;
-using MedApp.Application.Pathways.Common;
-using MedApp.Application.Results.Common;
-using MedApp.Application.Specimens.Common;
-using MedApp.Domain.Attachments;
-using MedApp.Domain.Consent;
-using MedApp.Domain.Mdt;
-using MedApp.Domain.Pathways.PatientPathways;
-using MedApp.Domain.Results;
-using MedApp.Domain.Specimens;
-using MedApp.Infrastructure.Data;
-using MedApp.Infrastructure.Data.Configurations.Specimens;
+using MedApp.Application.Hospitals.Requests;
+using MedApp.Application.Lab.Cases.Commands;
+using MedApp.Contracts.Hospitals.Requests;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using static MedApp.DevMcp.DemoData.DemoReplay;
 
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// Saves what the replays took to the lab and the MDT (<see cref="PathwayReplay"/>): specimens, the reports' file
-/// records, results, consent records and MDT items, after the pathways they belong to; restarts the specimen number
-/// sequence after the numbers used; and adds the one result that needs a clinician (the leaver's, never signed off).
-/// The reports' bytes go to the attachment store with the other files (<see cref="UploadReportsAsync"/>), when it answers.
+/// The hospital's work in the lab (the light demo's <c>slices/hospitals.ts</c> and <c>labCases.ts</c>, MC18 to MC20):
+/// requests from the nearby hospital, typed in by the lab's pathologist, each opening a lab case of its own with no
+/// pathway. Two of its patients are linked to the centre only by these (hidden from other staff's search); Samuel
+/// Okafor, a centre patient too, is matched to his record. Two earlier biopsies were reported and sent back; one of
+/// them is closed since the hospital's surgery details came.
 /// </summary>
 public static class DemoLab
 {
+    private const string SurgeonA = "Ms A. Example";
+    private const string Report = "Skin, punch biopsy: squamous cell carcinoma, well differentiated.";
+
+    public static async Task CreateAsync(DemoSeed seed)
+    {
+        var t = seed.Timeline;
+
+        // Wilfred Ashdown's diagnostic biopsy (MC20): reported and sent back ten days ago, then closed when the
+        // hospital's surgery details came.
+        var wilfredBiopsy = await RegisterAsync(seed, 16, null, DemoPatients.WilfredAshdown, "RG-204817", SurgeonA, "Urgent", true, null);
+        var wilfredId = await seed.Db(db => db.HospitalRequests.Where(r => r.Id == wilfredBiopsy).Select(r => r.PatientId).SingleAsync(seed.Ct));
+        await ReportAsync(seed, wilfredBiopsy, t.Ago(10, 11, 0));
+        await AddSurgeryDetailsAsync(seed, wilfredBiopsy, t.Ago(2, 9, 0), "Wide local excision", "Completed; the excision sent to the lab.", null);
+
+        // Samuel Okafor's earlier biopsy (MC20): reported and sent twelve days ago, awaiting the hospital's surgery details.
+        var samuel = seed.Patients[DemoPatients.SamuelOkafor];
+        var samuelBiopsy = await RegisterAsync(seed, 18, samuel, null, "RG-118953", SurgeonA, "Routine", false, null);
+        await ReportAsync(seed, samuelBiopsy, t.Ago(12, 11, 0));
+        seed.Tour["labCaseAwaitingSurgeryDetails"] = await CaseOfRequestAsync(seed, samuelBiopsy);
+
+        // Samuel Okafor's excision: received nine days ago, so past the lab's 7 (breached, MC19), away for a second opinion.
+        var samuelExcision = await RegisterAsync(seed, 9, samuel, null, "RG-118953", SurgeonA, "Routine", false, t.DaysFrom(6));
+        await WorkCaseAsync(seed, await CaseOfRequestAsync(seed, samuelExcision), t.Ago(9, 9, 35), t.HoursAgo(5),
+        [
+            .. DemoReplay.Histology,
+            new LabWork(Choice: "NeedsMoreWork", Outcome: "SecondOpinion"),
+            LabWork.TestStep("Sent for a second opinion", "Regional dermatopathology service (synthetic)"),
+        ]);
+
+        // Wilfred Ashdown's excision: urgent, on a cancer pathway, the report needed in 3 days (sooner than the lab's 7:
+        // its clock is the hospital's, MC19); its surgery details came with it; worked up to "Needs more work?".
+        var wilfredExcision = await RegisterAsync(seed, 2, wilfredId, null, "RG-204817", SurgeonA, "Urgent", true, t.DaysFrom(3));
+        var excisionCase = await CaseOfRequestAsync(seed, wilfredExcision);
+        seed.Tour["hospitalRequest"] = wilfredExcision;
+        seed.Tour["labCaseAtChoice"] = excisionCase;
+        await AddSurgeryDetailsAsync(seed, wilfredExcision, t.Ago(2, 9, 45), "Wide local excision, left forearm", null, "Suture marks 12 o’clock.");
+        await WorkCaseAsync(seed, excisionCase, t.Ago(2, 9, 50), t.HoursAgo(3), DemoReplay.Histology);
+
+        // Maya Thistlewood's biopsy: routine, no date given, just received.
+        var maya = await RegisterAsync(seed, 1, null, DemoPatients.MayaThistlewood, "RG-311402", "Mr B. Sample", "Routine", false, null);
+        seed.Tour["labCaseJustReceived"] = await CaseOfRequestAsync(seed, maya);
+    }
+
     /// <summary>
-    /// A report from another service that the leaver recorded as a result the week before they left, on a patient's
-    /// record (no pathway), and never signed off: it shows as needing a clinician, as their account is deleted.
+    /// The lab types in a hospital request, received <paramref name="daysAgo"/> days ago: written the afternoon before,
+    /// the sample collected that morning. Its case opens with it, the sample received.
     /// </summary>
-    public static void AddLeaversResult(DemoWorld world, IReadOnlyList<PatientSeed> patients)
+    private static async Task<Guid> RegisterAsync(
+        DemoSeed seed, int daysAgo, Guid? patientId, DemoPatient? newPatient, string hospitalNumber, string surgeon, string priority, bool cancer, DateOnly? neededBy)
     {
-        var leaver = world.Staff.Single(s => s.Kind == StaffKind.Leaver);
-        var at = DemoTimeline.WorkingMoment(leaver.LeftUtc!.Value.AddDays(-9), 11, 20);
-        var patient = world.Pathways
-            .Where(p => p.Assignments.Any(a => a.UserId == leaver.Id) && PathwayWorkflow.IsClosed(p.Status) && p.CreatedAt < at)
-            .Select(p => patients.FirstOrDefault(x => x.Id == p.PatientId))
-            .FirstOrDefault(p => p is { Restricted: false, AnonymisedUtc: null });
-        if (patient is null)
-            return;
-
-        var bytes = SyntheticFiles.Pdf("Ultrasound report from another service (synthetic)",
-            ["SYNTHETIC: not a real result.", "Scanned report received by post.", "No values: a demonstration file."]);
-        var report = new Attachment
-        {
-            Id = Guid.NewGuid(),
-            PatientId = patient.Id,
-            TeamId = Team.GeneralId,
-            FileName = "Ultrasound report (other service).pdf",
-            ContentType = "application/pdf",
-            SizeBytes = bytes.Length,
-            Sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)),
-            ScanStatus = AttachmentScanStatus.NotScanned,
-            UploadedByUserId = leaver.Id,
-            UploadedByUsername = leaver.Username,
-            UploadedAtUtc = at,
-        };
-        var result = new Result
-        {
-            Id = Guid.NewGuid(),
-            PatientId = patient.Id,
-            TeamId = Team.GeneralId,
-            Source = ResultSource.ExternalReport,
-            Title = "Ultrasound report from another service",
-            ReportAttachmentId = report.Id,
-            ReportedAtUtc = at.AddMinutes(1),
-            ReportedByUserId = leaver.Id,
-            ResponsibleUserId = leaver.Id,
-        };
-        var change = new ResultChange(result, null, leaver.Actor, at.AddMinutes(1));
-        change.Record(leaver.Username);
-
-        world.Attachments.Add(report);
-        world.FileBytes[report.Id] = bytes;
-        world.Audit.Add(AttachmentAudit.Entry(report, new AttachmentTarget(patient.Id, null, null), leaver.Actor,
-            PatientPathwayAuditAction.AttachmentAdded, at));
-        world.Audit.AddRange(change.AuditEntries);
-        world.Results.Add(result);
-        world.Touches.Add(new Touch(leaver.Id, at, patient.Id, null));
-    }
-
-    /// <summary>Saves the lab's, the MDT's and consent's records, after the pathways (their foreign keys).</summary>
-    public static async Task SaveAsync(SeedServices services, DemoWorld world, CancellationToken ct)
-    {
-        // The navigations the rules used in memory would be inserted again: the foreign keys are enough.
-        foreach (var specimen in world.Specimens)
-        {
-            specimen.SpecimenType = null!;
-            specimen.Patient = null!;
-            specimen.Pathway = null;
-        }
-
-        foreach (var result in world.Results)
-        {
-            result.Patient = null!;
-            result.Pathway = null;
-            result.Specimen = null;
-        }
-
-        foreach (var item in world.MdtItems)
-        {
-            item.Pathway = null!;
-            item.Team = null!;
-            item.Meeting = null;
-            item.Patient = null!;
-        }
-
-        await Batch(world.Attachments, (db, items) => db.Attachments.AddRange(items), 2000);
-        await Batch(world.Specimens, (db, items) => db.Specimens.AddRange(items), 1000);
-        await Batch(world.Results, (db, items) => db.Results.AddRange(items), 1000);
-        await Batch(world.ConsentRecords, (db, items) => db.ConsentRecords.AddRange(items), 1000);
-        await Batch(world.MdtItems, (db, items) => db.MdtItems.AddRange(items), 1000);
-
-        // The sequence hands out numbers after the ones the story used, so a specimen recorded now gets a new one.
-        // A sequence's restart value can't be a parameter: the SQL is built from a number and a constant name only.
-        var sql = string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"ALTER SEQUENCE [{SpecimenConfiguration.NumberSequence}] RESTART WITH {world.NextSpecimenNumber}");
-        await services.Run(sp => sp.GetRequiredService<MedAppDbContext>().Database.ExecuteSqlRawAsync(sql, ct));
-
-        async Task Batch<T>(IReadOnlyList<T> all, Action<MedAppDbContext, IEnumerable<T>> add, int size)
-        {
-            for (var i = 0; i < all.Count; i += size)
+        var t = seed.Timeline;
+        var lab = DemoPeople.Aldous;
+        var request = await seed.Send(t.Ago(daysAgo, 9, 30), lab, new RegisterHospitalRequestCommand(
+            seed.Hospitals[DemoSetup.Riverside],
+            patientId,
+            newPatient is null ? null : new HospitalPatientRequest
             {
-                var chunk = all.Skip(i).Take(size).ToList();
-                await services.Run(async sp =>
-                {
-                    var db = sp.GetRequiredService<MedAppDbContext>();
-                    db.ChangeTracker.AutoDetectChangesEnabled = false;
-                    add(db, chunk);
-                    await db.SaveChangesAsync(ct);
-                });
-            }
-        }
+                FirstName = newPatient.FirstName,
+                LastName = newPatient.LastName,
+                DateOfBirth = newPatient.DateOfBirth,
+                NhsNumber = newPatient.NhsNumber,
+            },
+            hospitalNumber,
+            newPatient?.NhsNumber ?? DemoPatients.All.Single(p => p.Name == DemoPatients.SamuelOkafor).NhsNumber,
+            surgeon,
+            priority,
+            cancer,
+            t.Ago(daysAgo + 1, 16, 0),
+            neededBy,
+            t.Ago(daysAgo + 1, 11, 15),
+            seed.SpecimenTypes[DemoSetup.SkinBiopsy],
+            seed.LabTests[DemoSetup.SkinHistology],
+            lab.Actor), "register a hospital request");
+        return request.Id;
     }
 
-    /// <summary>Stores the reports' bytes (the files MedApp made or took in during the story) where the app reads them.</summary>
-    public static async Task<int> UploadReportsAsync(SeedServices services, DemoWorld world, CancellationToken ct)
-    {
-        await using var scope = services.Scope();
-        var store = scope.ServiceProvider.GetRequiredService<IFileStore>();
-        foreach (var attachment in world.Attachments)
-        {
-            await using var content = new MemoryStream(world.FileBytes[attachment.Id], writable: false);
-            await store.SaveAsync(AttachmentStorageKeys.File(attachment.Id), content, attachment.ContentType, ct);
-        }
+    private static async Task<Guid> CaseOfRequestAsync(DemoSeed seed, Guid requestId) =>
+        await seed.Db(db => db.HospitalRequests.Where(r => r.Id == requestId).Select(r => r.LabCaseId).SingleAsync(seed.Ct));
 
-        return world.Attachments.Count;
+    /// <summary>Works the case through histology, then authorises its report, which goes back to the hospital (MC20).</summary>
+    private static async Task ReportAsync(DemoSeed seed, Guid requestId, DateTime reportedAt)
+    {
+        var labCase = await CaseOfRequestAsync(seed, requestId);
+        var receivedAt = await seed.Db(db => db.LabCases.Where(c => c.Id == labCase).Select(c => c.ReceivedAtUtc).SingleAsync(seed.Ct)) ?? reportedAt.AddDays(-5);
+        await WorkCaseAsync(seed, labCase, receivedAt, reportedAt.AddMinutes(-30), [.. DemoReplay.Histology, LabWork.NoMoreWork]);
+        await AuthoriseAsync(seed, labCase, reportedAt, Report);
     }
 
-    /// <summary>Counts, for the summary.</summary>
-    public static object Summarise(DemoWorld world)
+    /// <summary>What the hospital sent after its request, typed in by the lab (free text, as written).</summary>
+    private static async Task AddSurgeryDetailsAsync(DemoSeed seed, Guid requestId, DateTime at, string procedure, string? outcome, string? detail)
     {
-        var now = world.Timeline.NowUtc;
-        return new
-        {
-            from = world.Timeline.LabAndLettersFromUtc,
-            specimens = world.Specimens.Count,
-            specimensByStatus = world.Specimens.GroupBy(s => s.Status).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
-            specimensOverdueAtLab = world.Specimens.Count(s => SpecimenWorkflow.IsOpen(s.Status)
-                && s.TakenAtUtc.AddDays(world.SpecimenSetup.Types.Single(t => t.Id == s.SpecimenTypeId).ExpectedTurnaroundDays) < now),
-            results = world.Results.Count,
-            resultsByStatus = world.Results.GroupBy(r => r.Status).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
-            resultsAwaitingOverTwoWeeks = world.Results.Count(r => r.IsAwaitingSignOff && r.ReportedAtUtc < now.AddDays(-14)),
-            signedOffActions = world.Results.Where(r => r.Action is not null).GroupBy(r => r.Action!.Value).OrderBy(g => g.Key)
-                .ToDictionary(g => g.Key.ToString(), g => g.Count()),
-            consentRecords = world.ConsentRecords.Count,
-            consentWithdrawn = world.ConsentRecords.Count(c => c.Status == ConsentStatus.Withdrawn),
-            mdtItems = world.MdtItems.Count,
-            mdtItemsByStatus = world.MdtItems.GroupBy(i => i.Status).OrderBy(g => g.Key).ToDictionary(g => g.Key.ToString(), g => g.Count()),
-            mdtMeetings = world.MdtMeetings.Count,
-            branchesChosen = world.Pathways.SelectMany(p => p.Stages).Count(s => s.ChoiceKind is not null && s.Outcome is not null),
-            stagesSkippedByBranch = world.Pathways.SelectMany(p => p.Stages).Count(s => s.SkipReason == StageSkipReason.BranchNotChosen),
-            stagesSkippedDeclined = world.Pathways.SelectMany(p => p.Stages).Count(s => s.SkipReason == StageSkipReason.PatientDeclined),
-            stagesReinstated = world.Audit.Count(a => a.Action == PatientPathwayAuditAction.StageReinstated),
-            didNotAttendDecided = world.Appointments.Count(a => a.DnaFollowUp is not null),
-            didNotAttendAwaitingDecision = world.Appointments.Count(a => a.Status == Domain.Appointments.AppointmentStatus.DidNotAttend
-                && a.DnaFollowUp is null && a.EndUtc >= world.Timeline.LabAndLettersFromUtc),
-        };
+        var labCase = await CaseOfRequestAsync(seed, requestId);
+        var version = await seed.Db(db => db.LabCases.Where(c => c.Id == labCase).Select(c => c.Version).SingleAsync(seed.Ct));
+        await seed.Send(at, DemoPeople.Aldous, new AddSurgeryDetailsCommand(labCase, seed.Timeline.DaysFrom(-3), procedure, outcome, false, detail, version,
+            DemoPeople.Aldous.Actor), "add the hospital's surgery details");
     }
 }

@@ -1,12 +1,11 @@
 using MedApp.Application.Calendar.Common;
-using MedApp.Application.Pathways.Insights.Common;
 
 namespace MedApp.DevMcp.DemoData;
 
 /// <summary>
-/// The moments in the centre's story, all relative to "now", so the data always looks current: when the app started
-/// being used, when people joined and left, when the skin lesion pathway was redesigned, and the windows notifications
-/// and the activity log cover.
+/// The moments in the demo's story, all relative to "now" as the light demo's are (<c>MedApp.Web/src/demo/time.ts</c>):
+/// a UK time on a day so many days ago, the open days either side of today, and this week's days. Visits keep to
+/// weekdays (and off the closed days the seed adds), and what happens "today" is kept in the past.
 /// </summary>
 public sealed class DemoTimeline
 {
@@ -14,32 +13,8 @@ public sealed class DemoTimeline
     {
         NowUtc = DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc);
         Today = UkTime.DateOf(NowUtc);
-        ThisMonday = InsightsPeriod.MondayOf(Today);
-
-        // Today's diary is today's; on a weekend or a bank holiday (when nobody's booked) it's the next working day.
-        var diaryDay = Today;
-        while (!DemoClosedDays.IsWorkingDay(diaryDay))
-            diaryDay = diaryDay.AddDays(1);
-        DiaryDay = diaryDay;
-
-        AppStartUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.HistoryWeeks), 9, 0);
-        SkinLesionRedesignedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.SkinLesionRedesignedWeeksAgo), 8, 30);
-        BiomechanicsStartedUtc = At(ThisMonday.AddDays(-7 * VolumeCurves.BiomechanicsStartedWeeksAgo), 8, 30);
-        LeaverLeftUtc = At(ThisMonday.AddDays(-7 * 16 + 4), 17, 0);
-        ManagerMadeAdminUtc = WorkingMoment(NowUtc.AddDays(-49), 10, 15);
-        TwoFactorEnabledUtc = WorkingMoment(NowUtc.AddDays(-42), 9, 40);
-        PasswordResetUtc = WorkingMoment(NowUtc.AddDays(-21), 8, 50);
-        NotificationsTurnedOffUtc = WorkingMoment(NowUtc.AddDays(-45), 16, 20);
-        MonitoringRulesUtc = WorkingMoment(NowUtc.AddDays(-63), 11, 0);
-        LocumRoleCreatedUtc = WorkingMoment(NowUtc.AddDays(-56), 11, 30);
-        RolesRefinedUtc = WorkingMoment(NowUtc.AddDays(-28), 14, 0);
-        NewServiceAddedUtc = WorkingMoment(NowUtc.AddDays(-24), 10, 30);
-        LabAndLettersFromUtc = WorkingMoment(NowUtc.AddDays(-70), 8, 30);
-        NotificationsFromUtc = NowUtc.AddDays(-30);
-        ActivityFromUtc = NowUtc.AddDays(-60);
-
-        var thisWeek = At(ThisMonday, 9, 30);
-        NewStarterCreatedUtc = thisWeek < NowUtc.AddHours(-1) ? thisWeek : WorkingMoment(NowUtc.AddDays(-3), 9, 30);
+        ThisMonday = Today.AddDays(-(((int)Today.DayOfWeek + 6) % 7));
+        ClosedDays = [NextDate(12, 25), NextDate(12, 26), NextDate(1, 1)];
     }
 
     public DateTime NowUtc { get; }
@@ -47,99 +22,90 @@ public sealed class DemoTimeline
     /// <summary>Today, UK time.</summary>
     public DateOnly Today { get; }
 
+    /// <summary>This week's Monday (UK).</summary>
     public DateOnly ThisMonday { get; }
 
-    /// <summary>The day whose diary the demo fills: today, or Monday when today is a weekend.</summary>
-    public DateOnly DiaryDay { get; }
+    /// <summary>The bank holidays the centre closes on (the next of each), as the light demo's setup has them.</summary>
+    public IReadOnlyList<DateOnly> ClosedDays { get; }
 
-    /// <summary>When the centre started using MedApp: about 18 months ago. Older records were imported.</summary>
-    public DateTime AppStartUtc { get; }
-
-    /// <summary>When the redesigned skin lesion pathway replaced the 2024 one, which was archived then.</summary>
-    public DateTime SkinLesionRedesignedUtc { get; }
-
-    /// <summary>When the biomechanics service started; its podiatrist joined the week before.</summary>
-    public DateTime BiomechanicsStartedUtc { get; }
-
-    /// <summary>The leaver's last day, when their account was deleted.</summary>
-    public DateTime LeaverLeftUtc { get; }
-
-    public DateTime ManagerMadeAdminUtc { get; }
-
-    public DateTime TwoFactorEnabledUtc { get; }
-
-    public DateTime PasswordResetUtc { get; }
-
-    public DateTime NotificationsTurnedOffUtc { get; }
-
-    public DateTime MonitoringRulesUtc { get; }
-
-    /// <summary>The lead made a role for locums covering clinics (archived at <see cref="RolesRefinedUtc"/>).</summary>
-    public DateTime LocumRoleCreatedUtc { get; }
-
-    /// <summary>The lead gave the visiting consultants a role of their own, and archived the locums' role.</summary>
-    public DateTime RolesRefinedUtc { get; }
-
-    public DateTime NewStarterCreatedUtc { get; }
-
-    /// <summary>When the lead added the new service (Respiratory), whose referrals nobody can triage yet.</summary>
-    public DateTime NewServiceAddedUtc { get; }
-
-    /// <summary>
-    /// When the centre started tracking specimens, results, consent, letters and the MDT list in MedApp (Phases 3 to 5),
-    /// ten weeks ago: specimens are taken on stages started from then, and pathways created from then carry the stage
-    /// rules that came with them (a lab stage waits for results, the biopsy needs consent, the discharge letter stage
-    /// needs a discharge summary). Older records were done on paper, with reports attached as files.
-    /// </summary>
-    public DateTime LabAndLettersFromUtc { get; }
-
-    /// <summary>Notifications are made for what happened from here on (30 days).</summary>
-    public DateTime NotificationsFromUtc { get; }
-
-    /// <summary>The activity log's sign-ins, views and searches start here (60 days).</summary>
-    public DateTime ActivityFromUtc { get; }
-
-    /// <summary>When an account was made: everyone a few weeks before the centre started, except later joiners.</summary>
-    public DateTime AccountCreatedUtc(StaffKind kind) => kind switch
+    /// <summary>The next <paramref name="month"/>-<paramref name="day"/> that's today or later.</summary>
+    public DateOnly NextDate(int month, int day)
     {
-        StaffKind.NewStarter => NewStarterCreatedUtc,
-        StaffKind.Podiatrist => BiomechanicsStartedUtc.AddDays(-7),
-        StaffKind.Leaver => AppStartUtc.AddDays(-25),
-        _ => AppStartUtc.AddDays(-21).AddMinutes(10 * (int)kind),
-    };
+        var thisYear = new DateOnly(Today.Year, month, day);
+        return thisYear >= Today ? thisYear : thisYear.AddYears(1);
+    }
 
     /// <summary>A UK clock time on a UK date, in UTC.</summary>
-    public static DateTime At(DateOnly date, int hour, int minute) => UkTime.ToUtc(date, new TimeOnly(hour, minute));
+    public static DateTime At(DateOnly date, int hour, int minute = 0) => UkTime.ToUtc(date, new TimeOnly(hour, minute));
+
+    /// <summary>Today plus <paramref name="days"/> (negative: before).</summary>
+    public DateOnly DaysFrom(int days) => Today.AddDays(days);
+
+    /// <summary>A moment <paramref name="days"/> before today at a UK time of day (the light demo's <c>ago</c>).</summary>
+    public DateTime Ago(int days, int hour = 10, int minute = 0) => At(Today.AddDays(-days), hour, minute);
+
+    /// <summary>Whether the centre is open on a date: a weekday, and not one of its closed days.</summary>
+    public bool IsOpen(DateOnly date) => WorkingHours.IsWorkingDay(date) && !ClosedDays.Contains(date);
+
+    /// <summary>The <paramref name="n"/>-th open day after today (1 is the next one), so a booking is always ahead.</summary>
+    public DateOnly OpenDayAhead(int n)
+    {
+        var date = Today;
+        for (var i = 0; i < n; i++)
+        {
+            date = date.AddDays(1);
+            while (!IsOpen(date))
+                date = date.AddDays(1);
+        }
+
+        return date;
+    }
+
+    /// <summary>The first <paramref name="count"/> open days from today (today, if it's one).</summary>
+    public IReadOnlyList<DateOnly> OpenDaysFromToday(int count)
+    {
+        var days = new List<DateOnly>();
+        for (var date = Today; days.Count < count; date = date.AddDays(1))
+            if (IsOpen(date))
+                days.Add(date);
+        return days;
+    }
+
+    /// <summary>About <paramref name="n"/> days ago, moved back to a weekday (clinics don't run at weekends).</summary>
+    public DateOnly WeekdayBack(int n)
+    {
+        var date = Today.AddDays(-n);
+        while (!WorkingHours.IsWorkingDay(date))
+            date = date.AddDays(-1);
+        return date;
+    }
+
+    /// <summary>The latest day on or before <paramref name="date"/> that's one of <paramref name="days"/>.</summary>
+    public static DateOnly OnOrBefore(DateOnly date, params DayOfWeek[] days)
+    {
+        while (!days.Contains(date.DayOfWeek))
+            date = date.AddDays(-1);
+        return date;
+    }
 
     /// <summary>
-    /// The weekday on or after a moment's date (UK), at a clock time: when someone did something. Bank holidays count,
-    /// as nothing stops someone signing in then, and moving "three days ago" past one could put it after now; only what
-    /// goes on a calendar keeps off them (<see cref="DemoClosedDays"/>).
+    /// The latest weekday whose <paramref name="hour"/>:<paramref name="minute"/> plus <paramref name="minutes"/> is in the
+    /// past (today's, once it's over; else the last weekday's): a visit "this morning" that has happened.
     /// </summary>
-    public static DateTime WorkingMoment(DateTime utc, int hour, int minute)
+    public DateTime LastPast(int hour, int minute, int minutes)
     {
-        var date = UkTime.DateOf(utc);
-        while (!WorkingHours.IsWorkingDay(date))
-            date = date.AddDays(1);
+        var date = Today;
+        while (!WorkingHours.IsWorkingDay(date) || At(date, hour, minute).AddMinutes(minutes) > NowUtc.AddMinutes(-10))
+            date = date.AddDays(-1);
         return At(date, hour, minute);
     }
 
-    /// <summary>
-    /// The moment, or the next one in working hours (08:00 to 18:00 UK time, Monday to Friday) if it's outside them:
-    /// staff do things in the working day. Bank holidays count, as for <see cref="WorkingMoment"/>.
-    /// </summary>
-    public static DateTime InWorkingHours(DateTime utc, Random random)
-    {
-        var date = UkTime.DateOf(utc);
-        var time = UkTime.TimeOf(utc);
-        if (WorkingHours.IsWorkingDay(date) && time >= WorkingHours.Start && time < WorkingHours.End)
-            return utc;
+    /// <summary>This week's day <paramref name="offset"/> (0 is Monday; 7 is next Monday).</summary>
+    public DateOnly ThisWeek(int offset) => ThisMonday.AddDays(offset);
 
-        if (time >= WorkingHours.End || !WorkingHours.IsWorkingDay(date))
-            date = date.AddDays(1);
-        while (!WorkingHours.IsWorkingDay(date))
-            date = date.AddDays(1);
+    /// <summary>The moment, or a few minutes before now if it's later: what happened today stays in the past.</summary>
+    public DateTime Past(DateTime utc) => utc < NowUtc.AddMinutes(-2) ? utc : NowUtc.AddMinutes(-2);
 
-        return At(date, 8, 0).AddMinutes(random.Next(5, 150));
-    }
+    /// <summary><paramref name="hours"/> before now.</summary>
+    public DateTime HoursAgo(double hours) => NowUtc.AddHours(-hours);
 }
