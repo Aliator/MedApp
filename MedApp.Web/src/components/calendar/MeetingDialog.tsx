@@ -11,7 +11,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {TextArea} from '@astryxdesign/core/TextArea';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {ToggleButton, ToggleButtonGroup} from '@astryxdesign/core/ToggleButton';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useEffect, useRef, useState, type ReactNode, type RefObject} from 'react';
 import {
   availabilityQuery,
@@ -398,7 +398,9 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const going = attendees.filter((id) => !declined.has(id));
   const range = suggestionRange(from);
   const forWhom = {staffUserIds: going.length > 0 ? going : attendees, durationMinutes: length, exceptMeetingId: meeting?.id};
-  const suggestions = useQuery({...availabilityQuery({...forWhom, ...range}), enabled: isReady});
+  // As who's going or the length changes, the times shown stay until the new ones come (the owner, 19 November 2026:
+  // they flickered, the list swapping for a placeholder and back on every person added).
+  const suggestions = useQuery({...availabilityQuery({...forWhom, ...range}), enabled: isReady, placeholderData: keepPreviousData});
   const suggested = (suggestions.data?.suggestions ?? []).flatMap((s) => (s.startUtc && s.endUtc ? [{startUtc: s.startUtc, endUtc: s.endUtc}] : []));
 
   // Who's free on the chosen day: from the suggestions when it's in their range, otherwise asked for that day alone.
@@ -406,6 +408,7 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
   const dayQuery = useQuery({
     ...availabilityQuery({...forWhom, from: date ?? '', to: date ?? ''}),
     enabled: isReady && date !== undefined && !isDayInRange,
+    placeholderData: keepPreviousData,
   });
   const dayAvailability = isDayInRange ? suggestions : dayQuery;
   const dayFree = dayAvailability.data?.days?.find((d) => d.date === date)?.free ?? [];
