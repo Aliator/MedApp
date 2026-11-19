@@ -50,8 +50,8 @@ import {useSaveShortcut} from '../forms/SaveShortcut';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {DialogFrame} from '../modals/DialogFrame';
 import {NO_STATUS_LINE} from '../forms/fieldSpace';
-import {DialogRegionContext, useDialogRegion} from '../pages/halfView';
-import {useIsNarrowDialog, useIsNarrowWindow} from '../pages/Page';
+import {useDialogRegion} from '../pages/halfView';
+import {useIsNarrowWindow} from '../pages/Page';
 import {AlertMessage, ValidationAlert} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {MeetingReplyToken} from './CalendarTokens';
@@ -323,14 +323,12 @@ function useWidthOf(element: HTMLElement | null): number | undefined {
 /** New Meeting, or Change Meeting (`meeting`). */
 function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: MeetingFormProps) {
   const me = useCurrentUser();
-  // Full size wherever it fits (the owner, 19 November 2026): over its own half of a half view (or the page beside the
-  // notepad) when that's wide enough, else over the whole window, narrow only when even the window is.
+  // It only ever covers what it's opened over (the owner, 19 November 2026): its half of a half view (or the page
+  // beside the notepad), at full size when that's wide enough, else narrow; or, from a page on its own, the window.
   const region = useDialogRegion();
   const regionWidth = useWidthOf(region?.element ?? null);
   const isNarrowWindow = useIsNarrowWindow();
-  const isNarrowHere = useIsNarrowDialog();
-  const isOverWindow = region !== null && !isNarrowWindow && (regionWidth ?? 0) < WIDE_WIDTH + FIT_MARGIN;
-  const isNarrow = isOverWindow ? false : isNarrowHere;
+  const isNarrow = region !== null ? (regionWidth ?? 0) < WIDE_WIDTH + FIT_MARGIN : isNarrowWindow;
   const announce = useAnnounce();
   const queryClient = useQueryClient();
   const actions = useMeetingActions();
@@ -653,50 +651,47 @@ function MeetingForm({isOpen, onClose, onBack, meeting, initial, onSaved}: Meeti
     </Text>
   );
 
-  // Too wide for its region: over the whole window instead (as a dialog from a page on its own is).
   return (
-    <DialogRegionContext.Provider value={isOverWindow ? null : region}>
-      <DialogFrame
-        isOpen={isOpen}
-        title={isNew ? 'New Meeting' : 'Change Meeting'}
-        icon={<Icon icon={AppIcon.Meeting} size="lg" color="accent" />}
-        onClose={onClose}
-        width={isNarrow ? 520 : WIDE_WIDTH}
-        purpose={isSaving ? 'required' : 'form'}
-        footerStart={isOpen ? summary : undefined}
-        footer={
-          <>
-            <Button label={onBack ? 'Back' : 'Cancel'} variant="secondary" isDisabled={isSaving} onClick={onBack ?? onClose} />
-            <Button label={isNew ? 'Add Meeting' : 'Save'} variant="primary" isDisabled={!canSave} isLoading={isSaving} onClick={save} />
-          </>
-        }>
-        {isOpen && (
-          <VStack ref={content} gap={4} hAlign="stretch">
-            {problem.message && <AlertMessage label="Meeting not saved" message={problem.message} />}
-            {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
-            {isNarrow ? (
-              <VStack gap={6} hAlign="stretch">
-                {details}
-                {timesSection}
-                {extras}
-              </VStack>
-            ) : (
-              <HStack gap={6} vAlign="start">
-                <StackItem size="static">
-                  <VStack width={320}>{details}</VStack>
-                </StackItem>
-                <StackItem size="fill">
-                  <VStack gap={6} hAlign="stretch">
-                    {timesSection}
-                    {extras}
-                  </VStack>
-                </StackItem>
-              </HStack>
-            )}
-          </VStack>
-        )}
-      </DialogFrame>
-    </DialogRegionContext.Provider>
+    <DialogFrame
+      isOpen={isOpen}
+      title={isNew ? 'New Meeting' : 'Change Meeting'}
+      icon={<Icon icon={AppIcon.Meeting} size="lg" color="accent" />}
+      onClose={onClose}
+      width={isNarrow ? 520 : WIDE_WIDTH}
+      purpose={isSaving ? 'required' : 'form'}
+      footerStart={isOpen ? summary : undefined}
+      footer={
+        <>
+          <Button label={onBack ? 'Back' : 'Cancel'} variant="secondary" isDisabled={isSaving} onClick={onBack ?? onClose} />
+          <Button label={isNew ? 'Add Meeting' : 'Save'} variant="primary" isDisabled={!canSave} isLoading={isSaving} onClick={save} />
+        </>
+      }>
+      {isOpen && (
+        <VStack ref={content} gap={4} hAlign="stretch">
+          {problem.message && <AlertMessage label="Meeting not saved" message={problem.message} />}
+          {validation && <ValidationAlert errors={validation} fields={FIELDS} />}
+          {isNarrow ? (
+            <VStack gap={6} hAlign="stretch">
+              {details}
+              {timesSection}
+              {extras}
+            </VStack>
+          ) : (
+            <HStack gap={6} vAlign="start">
+              <StackItem size="static">
+                <VStack width={320}>{details}</VStack>
+              </StackItem>
+              <StackItem size="fill">
+                <VStack gap={6} hAlign="stretch">
+                  {timesSection}
+                  {extras}
+                </VStack>
+              </StackItem>
+            </HStack>
+          )}
+        </VStack>
+      )}
+    </DialogFrame>
   );
 }
 
