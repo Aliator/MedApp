@@ -982,7 +982,7 @@ function ExportContent({data}: {data: PatientExport}) {
                               ? `Meeting of ${when(item.meetingCancelledStartUtc)} cancelled`
                               : null,
                           item.presenter ? `Presented by ${item.presenter}` : null,
-                          item.withdrawnAtUtc ?`Withdrawn ${when(item.withdrawnAtUtc)} by ${item.withdrawnBy}` : null,
+                          item.withdrawnAtUtc ? `Withdrawn ${when(item.withdrawnAtUtc)} by ${item.withdrawnBy}` : null,
                         ]
                           .filter(Boolean)
                           .join(' · ')}
