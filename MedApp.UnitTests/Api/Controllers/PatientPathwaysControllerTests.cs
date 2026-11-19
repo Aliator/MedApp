@@ -1,4 +1,6 @@
-﻿using MedApp.Application.Common.Teams;
+using MedApp.Application.Pathways.PatientPathways.Commands.AddPathwayBranch;
+using MedApp.Application.Pathways.PatientPathways.Commands.PickUpPathwayStage;
+using MedApp.Application.Common.Teams;
 using AutoFixture;
 using MedApp.UnitTests.Common.Constants;
 using FluentAssertions;
@@ -126,7 +128,7 @@ public sealed class PatientPathwaysControllerTests
             request.TemplateId, request.Statuses, request.Priority, request.AssignedToUserId, request.AssignedToMe,
             request.OverdueOnly, request.DueFrom, request.DueTo, request.IncludeClosed, request.Started, UserId,
             request.Priorities, request.Title, request.TemplateName, request.PatientName, request.NobodyAssigned,
-            request.TeamIds, request.StageDefinitionIds, request.BreachedOnly, Actor.Scope));
+            request.TeamIds, request.StageDefinitionIds, request.BreachedOnly, Actor.Scope, request.View, request.TeamId));
         result.Should().BeOfType<OkObjectResult>().Which.Value.Should().Be(page);
     }
 
@@ -288,10 +290,21 @@ public sealed class PatientPathwaysControllerTests
         ExpectSentAndOk(new UnlockPathwayStageCommand(RecordId, OtherId, Actor), await Controller.UnlockPathwayStage(RecordId, OtherId, _cts.Token));
 
     [Test]
-    public async Task FinishPathwayStage_WithABranch_SendsIt() =>
+    public async Task FinishPathwayStage_WithAnOutcome_SendsIt() =>
         ExpectSentAndOk(
-            new FinishPathwayStageCommand(RecordId, OtherId, Actor, Branch: "Treatment"),
-            await Controller.FinishPathwayStage(RecordId, OtherId, new FinishPathwayStageRequest { Branch = "Treatment" }, _cts.Token));
+            new FinishPathwayStageCommand(RecordId, OtherId, Actor, Outcome: "Treatment"),
+            await Controller.FinishPathwayStage(RecordId, OtherId, new FinishPathwayStageRequest { Outcome = "Treatment" }, _cts.Token));
+
+    [Test]
+    public async Task PickUpPathwayStage_PicksItUpAsTheUser() =>
+        ExpectSentAndOk(new PickUpPathwayStageCommand(RecordId, OtherId, Actor), await Controller.PickUpPathwayStage(RecordId, OtherId, _cts.Token));
+
+    [Test]
+    public async Task AddPathwayBranch_AddsItAsTheUserWithTheReason() =>
+        ExpectSentAndOk(
+            new AddPathwayBranchCommand(RecordId, OtherId, RecordId, "Synthetic reason.", Actor),
+            await Controller.AddPathwayBranch(
+                RecordId, new AddPathwayBranchRequest { TemplateBranchId = OtherId, AfterStageId = RecordId, Reason = "Synthetic reason." }, _cts.Token));
 
     [Test]
     public async Task SkipPathwayStage_SkipsAsTheUserWithTheReason() =>

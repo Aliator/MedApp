@@ -80,6 +80,52 @@ public static class PathwayRepositoryExtensions
         return pathway;
     }
 
+    /// <summary>
+    /// The pathway, tracked, and one of its stages, for work on that stage (MC7, the relay): behind the viewer's team wall
+    /// a 404 (recorded); seen, but neither the pathway's own team nor the stage's a 409 (whose the pathway is), and the
+    /// pathway's own team on a stage another team works a 409 (whose the stage is); then a 409 if its patient's record is
+    /// restricted or anonymised. The lab works its own stages on a clinic's pathway this way.
+    /// </summary>
+    public static async Task<(PatientPathway Pathway, PatientPathwayStage Stage)> GetForStageWorkOrThrowAsync(
+        this IPatientPathwayRepository repository, Guid id, Guid stageId, ITeamBoundary boundary, TeamScope scope, CancellationToken ct)
+    {
+        var pathway = await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException(NotFoundMessage(id));
+        await boundary.EnsurePathwayVisibleAsync(pathway, scope, NotFoundMessage(id), ct);
+        var stage = pathway.GetStageOrThrow(stageId);
+        var worksStage = TeamAccess.CanWorkStage(pathway, stage, scope);
+        // Neither the pathway's team nor the stage's: a 409 naming whose the pathway is.
+        if (!worksStage)
+            await boundary.EnsureCanChangePathwayAsync(pathway, scope, NotFoundMessage(id), ct);
+        if (!worksStage)
+            throw new ConflictException(TeamWalls.StageNotYours(stage.Name, stage.OwnerTeam?.Name));
+
+        PatientRules.EnsureCanChange(pathway.Patient);
+        return (pathway, stage);
+    }
+
+    /// <summary>
+    /// The pathway, tracked, to add or edit a note: its own team's, or one whose current stage the viewer's team works
+    /// (the lab, while it has one: MC7), else a 409; behind the wall a 404 (recorded); then a 409 if its patient's record
+    /// is restricted or anonymised.
+    /// </summary>
+    public static async Task<PatientPathway> GetForNotesOrThrowAsync(
+        this IPatientPathwayRepository repository, Guid id, ITeamBoundary boundary, TeamScope scope, CancellationToken ct)
+    {
+        var pathway = await repository.GetForUpdateAsync(id, ct) ?? throw new NotFoundException(NotFoundMessage(id));
+        await boundary.EnsurePathwayVisibleAsync(pathway, scope, NotFoundMessage(id), ct);
+        // Neither its own team nor the one working its current stage: a 409 naming whose it is.
+        if (!WorksCurrentStage(pathway, scope))
+            await boundary.EnsureCanChangePathwayAsync(pathway, scope, NotFoundMessage(id), ct);
+
+        PatientRules.EnsureCanChange(pathway.Patient);
+        return pathway;
+    }
+
+    /// <summary>Whether the viewer's team works one of the pathway's current stages (the lab, while one of its stages is current).</summary>
+    public static bool WorksCurrentStage(PatientPathway pathway, TeamScope scope) =>
+        PathwayWorkflow.IsOpen(pathway.Status)
+        && PathwayWorkflow.CurrentStages(pathway).Any(s => s.OwnerTeamId is not null && TeamAccess.CanWorkStage(pathway, s, scope));
+
     /// <summary>One of the pathway's stages, or a 404.</summary>
     public static PatientPathwayStage GetStageOrThrow(this PatientPathway pathway, Guid stageId) =>
         pathway.Stages.FirstOrDefault(s => s.Id == stageId)

@@ -56,6 +56,21 @@ public sealed class PatientPathway
     public List<PatientPathwayStage> Stages { get; set; } = [];
     public List<PatientPathwayAssignment> Assignments { get; set; } = [];
 
+    /// <summary>How its stages follow each other (MC8): the template's links among the stages it has, and any added branch's.</summary>
+    public List<PatientPathwayStageLink> Links { get; set; } = [];
+
+    /// <summary>
+    /// Its template's whole tree, kept when it was made (MC10b): it grows from this as outcomes are recorded. Null for a
+    /// pathway made before plans (it has every stage already). Stored as JSON; replaced, never changed in place.
+    /// </summary>
+    public PatientPathwayPlan? Plan { get; set; }
+
+    /// <summary>The template's addable branches added to it (MC10), with their reasons.</summary>
+    public List<PathwayBranchAddition> BranchAdditions { get; set; } = [];
+
+    /// <summary>Its team (loaded with it, for its name).</summary>
+    public Teams.Team? Team { get; set; }
+
     /// <summary>Its notes (see <see cref="PatientPathwayNote"/>).</summary>
     public List<PatientPathwayNote> Notes { get; set; } = [];
 

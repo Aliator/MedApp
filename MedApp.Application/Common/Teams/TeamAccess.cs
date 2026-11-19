@@ -116,6 +116,13 @@ public static class TeamAccess
     /// </summary>
     public static bool CanChange(PatientPathway pathway, TeamScope scope) => CanChangeTeam(pathway.TeamId, scope);
 
+    /// <summary>
+    /// Whether the viewer's team works a stage (MC7, the relay): the team that owns it (the lab, for its stages), else
+    /// the pathway's own team (or it's the system). Admins work none.
+    /// </summary>
+    public static bool CanWorkStage(PatientPathway pathway, PatientPathwayStage stage, TeamScope scope) =>
+        CanChangeTeam(stage.OwnerTeamId ?? pathway.TeamId, scope);
+
     /// <summary>Whether the viewer's team owns a record of this team (or it's the system), so may change it.</summary>
     public static bool CanChangeTeam(Guid teamId, TeamScope scope) => scope.IsSystem || scope.IsMember(teamId);
 

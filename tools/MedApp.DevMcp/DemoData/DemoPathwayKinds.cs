@@ -110,6 +110,50 @@ public static class DemoPathwayKinds
     public const string MedicinesReview = "Medicines review";
     public const string BiomechanicsSession = "Biomechanics session";
 
+    /// <summary>
+    /// A branch point's outcomes (MC10b): each branch named after it, up to the next branch point, leading to that
+    /// branch's first stage, in order.
+    /// </summary>
+    public static List<PathwayTemplateOutcome> OutcomesAfter(StageSpec[] stages, int branchPoint)
+    {
+        var outcomes = new List<PathwayTemplateOutcome>();
+        for (var i = branchPoint + 1; i < stages.Length && !stages[i].ChoosesBranch; i++)
+            if (stages[i].Branch is { } branch && outcomes.All(o => o.Name != branch))
+                outcomes.Add(new PathwayTemplateOutcome(branch, [i + 1]));
+        return outcomes;
+    }
+
+    /// <summary>
+    /// A template's links (MC8), by order: a chain, except that each branch's stages follow their branch point and each
+    /// other, and a stage with no branch after branches follows each branch's last stage (a join).
+    /// </summary>
+    public static List<PathwayTemplateLink> LinksOf(StageSpec[] stages)
+    {
+        var links = new List<PathwayTemplateLink>();
+        var branchPoint = -1;
+        var lastOfBranch = new Dictionary<string, int>();
+        for (var i = 1; i < stages.Length; i++)
+        {
+            var stage = stages[i];
+            if (stage.Branch is { } branch && branchPoint >= 0)
+            {
+                links.Add(new PathwayTemplateLink(lastOfBranch.TryGetValue(branch, out var before) ? before + 1 : branchPoint + 1, i + 1));
+                lastOfBranch[branch] = i;
+                continue;
+            }
+
+            if (lastOfBranch.Count > 0)
+                links.AddRange(lastOfBranch.Values.Select(last => new PathwayTemplateLink(last + 1, i + 1)));
+            else
+                links.Add(new PathwayTemplateLink(i, i + 1));
+
+            lastOfBranch.Clear();
+            branchPoint = stage.ChoosesBranch ? i : -1;
+        }
+
+        return links;
+    }
+
     /// <summary>The skin lesion pathway's branches after its results and team review (a clinician chooses one).</summary>
     public const string BenignBranch = "Benign";
     public const string TreatmentBranch = "Treatment";

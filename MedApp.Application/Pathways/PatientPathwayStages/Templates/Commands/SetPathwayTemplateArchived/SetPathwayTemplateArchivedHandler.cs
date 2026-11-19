@@ -18,10 +18,11 @@ public sealed class SetPathwayTemplateArchivedHandler(IPatientPathwayStagesRepos
         if (template.IsArchived != request.IsArchived)
         {
             template.IsArchived = request.IsArchived;
-            await repository.UpdatePathwayTemplateAsync(template, null, null, null, cancellationToken);
+            await repository.UpdatePathwayTemplateAsync(template, null, cancellationToken);
         }
 
         var counts = await repository.GetTemplatePathwayCountsAsync([template.Id], cancellationToken);
-        return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id));
+        var definitions = await PathwayTemplateMapper.BranchDefinitionsAsync(repository, [template], cancellationToken);
+        return PathwayTemplateMapper.ToResponse(template, counts.GetValueOrDefault(template.Id), definitions);
     }
 }

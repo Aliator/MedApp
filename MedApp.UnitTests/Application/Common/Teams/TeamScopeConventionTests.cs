@@ -64,7 +64,9 @@ public sealed class TeamScopeConventionTests
         var guards = typeof(PathwayRepositoryExtensions).GetMethods()
             .Where(m => m.Name is nameof(PathwayRepositoryExtensions.GetForUpdateOrThrowAsync)
                 or nameof(PathwayRepositoryExtensions.GetForPauseOrThrowAsync)
-                or nameof(PathwayRepositoryExtensions.GetForCorrectionOrThrowAsync))
+                or nameof(PathwayRepositoryExtensions.GetForCorrectionOrThrowAsync)
+                or nameof(PathwayRepositoryExtensions.GetForStageWorkOrThrowAsync)
+                or nameof(PathwayRepositoryExtensions.GetForNotesOrThrowAsync))
             .ToList();
         var walled = guards.Where(m => m.GetParameters().Any(p => p.ParameterType == typeof(ITeamBoundary))).ToList();
         var unwalled = guards.Except(walled).ToList();

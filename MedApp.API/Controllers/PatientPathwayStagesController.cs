@@ -1,3 +1,4 @@
+using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Application.Common.Identity;
 using MedApp.API.Common.Authentication;
 using MedApp.Application.Pathways.PatientPathwayStages.Definitions.Commands.CreatePatientPathwayStageDefinition;
@@ -132,7 +133,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.StageDefinitionIdsInOrder,
             request.ClockStopStageOrder,
             ToOptions(request.StageOptions),
-            request.RetentionClass), ct);
+            request.RetentionClass,
+            ToLinks(request.Links),
+            ToBranches(request.AddableBranches)), ct);
 
         return Created($"/api/pathways/patient-pathway-stage/templates/{template.Id}", template);
     }
@@ -152,7 +155,9 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
             request.StageDefinitionIdsInOrder,
             request.ClockStopStageOrder,
             ToOptions(request.StageOptions),
-            request.RetentionClass), ct));
+            request.RetentionClass,
+            ToLinks(request.Links),
+            ToBranches(request.AddableBranches)), ct));
 
     [HttpPost("templates/{id:guid}/archive")]
     [ProducesResponseType(typeof(PathwayTemplateResponse), StatusCodes.Status200OK)]
@@ -199,5 +204,17 @@ public sealed class PatientPathwayStagesController(IMediator mediator) : Control
         Ok(await mediator.Send(new GetPathwayTemplateByIdQuery(id), ct));
 
     private static List<TemplateStageOptions>? ToOptions(IEnumerable<PathwayTemplateStageOptionsRequest>? options) =>
-        options?.Select(o => new TemplateStageOptions(o.IsOptional, o.ChoosesBranch, o.Branch)).ToList();
+        options?.Select(o => new TemplateStageOptions(
+                o.IsOptional,
+                string.IsNullOrWhiteSpace(o.ChoiceKind) ? null : o.ChoiceKind.Trim(),
+                o.Outcomes?.Select(x => new PathwayTemplateOutcome(x.Name ?? string.Empty, x.NextStageOrders ?? [])).ToList(),
+                o.OwnerTeamId))
+            .ToList();
+
+    private static List<PathwayTemplateLink>? ToLinks(IEnumerable<PathwayTemplateLinkRequest>? links) =>
+        links?.Select(l => new PathwayTemplateLink(l.FromStageOrder, l.ToStageOrder)).ToList();
+
+    private static List<TemplateBranchInput>? ToBranches(IEnumerable<PathwayTemplateBranchRequest>? branches) =>
+        branches?.Select(b => new TemplateBranchInput(b.Id, b.Name, b.StageDefinitionIds, b.AttachAfterStageOrders, b.IsRepeatable))
+            .ToList();
 }

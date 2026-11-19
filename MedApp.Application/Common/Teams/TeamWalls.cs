@@ -13,6 +13,10 @@ public static class TeamWalls
     public static string NotYourTeams(string? teamName) =>
         $"This pathway is {teamName ?? "another team"}\u2019s: your team can read it, and works on it only while one of its stages is with your team.";
 
+    /// <summary>Why the viewer's team can't work a stage another team works (MC7, the relay: a 409).</summary>
+    public static string StageNotYours(string stageName, string? teamName) =>
+        $"The '{stageName}' stage is {teamName ?? "another team"}’s to work: it comes back when they finish it.";
+
     /// <summary>Why the viewer's team can read a record with no pathway but not change it (a 409).</summary>
     public static string RecordNotYours(string what, string? teamName) =>
         $"{what} is {teamName ?? "another team"}\u2019s: your team can read it, and only its own team changes it.";

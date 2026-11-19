@@ -37,8 +37,8 @@ public sealed class BranchingPathwayTests : IntegrationTest
     }
 
     /// <summary>
-    /// Results (a branch point), Benign letter (Benign), Treatment and Follow-up (Treatment; Follow-up optional), then
-    /// Discharge, which always runs.
+    /// Results (a choice node: Benign leads to the Benign letter, Treatment to Treatment), Benign letter, Treatment and
+    /// Follow-up (optional), then Discharge, which joins both routes.
     /// </summary>
     private async Task<PathwayTemplateResponse> CreateBranchingTemplateAsync()
     {
@@ -53,11 +53,21 @@ public sealed class BranchingPathwayTests : IntegrationTest
             StageDefinitionIdsInOrder = ids,
             StageOptions =
             [
-                new() { ChoosesBranch = true },
-                new() { Branch = "Benign" },
-                new() { Branch = "Treatment" },
-                new() { Branch = "Treatment", IsOptional = true },
+                new()
+                {
+                    ChoiceKind = "Assessment",
+                    Outcomes = [new() { Name = "Benign", NextStageOrders = [2] }, new() { Name = "Treatment", NextStageOrders = [3] }]
+                },
                 new(),
+                new(),
+                new() { IsOptional = true },
+                new(),
+            ],
+            Links =
+            [
+                new() { FromStageOrder = 1, ToStageOrder = 2 }, new() { FromStageOrder = 1, ToStageOrder = 3 },
+                new() { FromStageOrder = 3, ToStageOrder = 4 }, new() { FromStageOrder = 2, ToStageOrder = 5 },
+                new() { FromStageOrder = 4, ToStageOrder = 5 }
             ],
         });
         return await response.ReadAsAsync<PathwayTemplateResponse>(HttpStatusCode.Created);
@@ -71,105 +81,95 @@ public sealed class BranchingPathwayTests : IntegrationTest
     }
 
     [Test]
-    public async Task Template_WithOptions_KeepsThemWhenAnEditLeavesThemOutAndClearsThemWhenSentPlain()
+    public async Task Template_WithAChoiceNode_KeepsItsRoutesWhenAnEditLeavesThemOut()
     {
         var template = await CreateBranchingTemplateAsync();
 
         var read = await (await _admin.GetAsync($"{TemplatesUrl}/{template.Id}")).ReadAsAsync<PathwayTemplateResponse>();
-        read.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
-            (false, true, null), (false, false, "Benign"), (false, false, "Treatment"), (true, false, "Treatment"), (false, false, null));
+        read.Stages.Select(s => (s.IsOptional, s.ChoiceKind)).Should().Equal(
+            (false, "Assessment"), (false, null), (false, null), (true, null), (false, null));
+        read.Links.Should().HaveCount(5);
 
-        // A page from before stage options sends the same stage list without them: they stay.
+        // A rename without the routes keeps them.
         var kept = await (await _admin.PatchAsJsonAsync($"{TemplatesUrl}/{template.Id}",
-                new UpdatePathwayTemplateRequest { Name = UniqueName("Renamed"), StageDefinitionIdsInOrder = read.StageDefinitionIdsInOrder }))
+                new UpdatePathwayTemplateRequest { Name = UniqueName("Renamed") }))
             .ReadAsAsync<PathwayTemplateResponse>();
-        kept.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)).Should().Equal(
-            read.Stages.Select(s => (s.IsOptional, s.ChoosesBranch, s.Branch)));
-
-        var plain = await (await _admin.PatchAsJsonAsync($"{TemplatesUrl}/{template.Id}",
-                new UpdatePathwayTemplateRequest
-                {
-                    StageDefinitionIdsInOrder = read.StageDefinitionIdsInOrder,
-                    StageOptions = [new(), new(), new(), new(), new()],
-                }))
-            .ReadAsAsync<PathwayTemplateResponse>();
-        plain.Stages.Should().AllSatisfy(s => (s.IsOptional, s.ChoosesBranch, s.Branch).Should().Be((false, false, (string?)null)));
+        kept.Links.Should().HaveCount(5);
+        kept.Stages[0].Outcomes!.Select(o => o.Name).Should().Equal("Benign", "Treatment");
     }
 
     [Test]
-    public async Task Template_BranchPointWithOneBranch_Returns400()
+    public async Task Template_AChoiceNodeWithOneOutcome_Returns400()
     {
         var first = await CreateStageDefinitionAsync(_admin);
         var second = await CreateStageDefinitionAsync(_admin);
-        var third = await CreateStageDefinitionAsync(_admin);
 
         var response = await _admin.PostAsJsonAsync(TemplatesUrl, new CreatePathwayTemplateRequest
         {
             Name = UniqueName("Branching"),
             TeamId = Team.GeneralId,
-            StageDefinitionIdsInOrder = [first.Id, second.Id, third.Id],
-            StageOptions = [new() { ChoosesBranch = true }, new() { Branch = "Benign" }, new()],
+            StageDefinitionIdsInOrder = [first.Id, second.Id],
+            StageOptions = [new() { ChoiceKind = "Assessment", Outcomes = [new() { Name = "Benign", NextStageOrders = [2] }] }, new()],
+            Links = [new() { FromStageOrder = 1, ToStageOrder = 2 }],
         });
 
         await response.ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
     }
 
     [Test]
-    public async Task FinishBranchPoint_ChoosingABranch_SkipsTheOthersAndTheFilterAndTimelineFollow()
+    public async Task FinishChoiceNode_RecordingAnOutcome_GrowsThePathwayAndTheFilterAndTimelineFollow()
     {
         var pathway = await CreateBranchingPathwayAsync();
-        var branchPoint = pathway.Stages[0];
-        branchPoint.NeedsBranchChoice.Should().BeTrue();
-        branchPoint.Branches.Select(b => (b.Name, string.Join("|", b.StageNames))).Should().Equal(
-            ("Benign", pathway.Stages[1].Name), ("Treatment", $"{pathway.Stages[2].Name}|{pathway.Stages[3].Name}"));
+        pathway.Stages.Should().ContainSingle();
+        var choice = pathway.Stages[0];
+        choice.NeedsOutcome.Should().BeTrue();
+        choice.Outcomes.Select(o => o.Name).Should().Equal("Benign", "Treatment");
 
-        // No branch is assumed: finishing without one is refused.
-        await (await FinishStageAsync(_staff.Client, pathway.Id, branchPoint.Id)).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
+        // No outcome is assumed: finishing without one is refused.
+        await (await FinishStageAsync(_staff.Client, pathway.Id, choice.Id)).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
 
-        var finished = await (await FinishStageAsync(_staff.Client, pathway.Id, branchPoint.Id,
-                new FinishPathwayStageRequest { Branch = "Treatment" }))
+        var finished = await (await FinishStageAsync(_staff.Client, pathway.Id, choice.Id,
+                new FinishPathwayStageRequest { Outcome = "Treatment" }))
             .ReadAsAsync<PatientPathwayResponse>();
 
-        finished.Stages.Select(s => s.State).Should().Equal("Completed", "Skipped", "NotStarted", "NotStarted", "NotStarted");
-        finished.Stages[1].SkipReason.Should().Be("BranchNotChosen");
-        finished.CurrentStageId.Should().Be(pathway.Stages[2].Id);
+        finished.Stages.Should().HaveCount(4);
+        finished.Stages.Select(s => s.State).Should().Equal("Completed", "NotStarted", "NotStarted", "NotStarted");
+        finished.CurrentStageId.Should().Be(finished.Stages[1].Id);
 
-        // The stage reached, in SQL, passes over the skipped stage.
-        (await SearchAsync($"StageDefinitionIds={pathway.Stages[2].StageDefinitionId}")).Items.Should().ContainSingle(p => p.Id == pathway.Id);
-        (await SearchAsync($"StageDefinitionIds={pathway.Stages[1].StageDefinitionId}")).Items.Should().NotContain(p => p.Id == pathway.Id);
+        // The stage reached, in SQL, through the stage links.
+        (await SearchAsync($"StageDefinitionIds={finished.Stages[1].StageDefinitionId}")).Items.Should().ContainSingle(p => p.Id == pathway.Id);
+        (await SearchAsync($"StageDefinitionIds={finished.Stages[3].StageDefinitionId}")).Items.Should().NotContain(p => p.Id == pathway.Id);
 
         var timeline = await (await _staff.Client.GetAsync($"/api/patients/{pathway.PatientId}/timeline?kinds=Stages"))
             .ReadAsAsync<PatientTimelinePageResponse>();
-        var chosen = timeline.Items.Single(e => e.Action == "BranchChosen");
-        chosen.Branch.Should().Be("Treatment");
-        chosen.SkippedStageNames.Should().Equal(pathway.Stages[1].Name);
+        timeline.Items.Single(e => e.Action == "BranchChosen").Branch.Should().Be("Treatment");
     }
 
     [Test]
     public async Task SkipAndReinstate_StaffSkipAnOptionalStageAndOnlyHoldersOfUnlockStagesReinstateIt()
     {
         var pathway = await CreateBranchingPathwayAsync();
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Branch = "Treatment" }))
-            .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[2].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        var followUp = pathway.Stages[3];
+        pathway = await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Outcome = "Treatment" }))
+            .ReadAsAsync<PatientPathwayResponse>();
+        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[1].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
+        var followUp = pathway.Stages[2];
 
         // Other needs a detail.
         await (await SkipAsync(_staff.Client, pathway.Id, followUp.Id, "Other", null)).ShouldHaveStatusAsync(HttpStatusCode.BadRequest);
         var skipped = await (await SkipAsync(_staff.Client, pathway.Id, followUp.Id, "PatientDeclined", "Synthetic: declined by phone."))
             .ReadAsAsync<PatientPathwayResponse>();
-        skipped.Stages[3].State.Should().Be("Skipped");
-        skipped.Stages[3].SkipDetail.Should().Be("Synthetic: declined by phone.");
-        skipped.CurrentStageId.Should().Be(pathway.Stages[4].Id);
+        skipped.Stages[2].State.Should().Be("Skipped");
+        skipped.Stages[2].SkipDetail.Should().Be("Synthetic: declined by phone.");
+        skipped.CurrentStageId.Should().Be(pathway.Stages[3].Id);
 
         // A stage that isn't optional can't be skipped.
-        await (await SkipAsync(_staff.Client, pathway.Id, pathway.Stages[4].Id, "NotNeeded", null)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
+        await (await SkipAsync(_staff.Client, pathway.Id, pathway.Stages[3].Id, "NotNeeded", null)).ShouldHaveStatusAsync(HttpStatusCode.Conflict);
 
         // Reinstating needs UnlockStages, which the built-in Admin role keeps.
         await (await ReinstateAsync(_staff.Client, pathway.Id, followUp.Id)).ShouldHaveStatusAsync(HttpStatusCode.Forbidden);
         var reinstated = await (await ReinstateAsync(_admin, pathway.Id, followUp.Id)).ReadAsAsync<PatientPathwayResponse>();
         reinstated.CurrentStageId.Should().Be(followUp.Id);
-        reinstated.Stages[3].State.Should().Be("NotStarted");
+        reinstated.Stages[2].State.Should().Be("NotStarted");
 
         // Staff see why it was skipped by name, but not the detail or why it was reinstated; admins see both.
         var staffView = await (await _staff.Client.GetAsync($"/api/patients/{pathway.PatientId}/timeline?kinds=Stages"))
@@ -183,33 +183,17 @@ public sealed class BranchingPathwayTests : IntegrationTest
     }
 
     [Test]
-    public async Task Insights_StageAfterASkippedOne_IsTimedFromTheSkipAndSkippedStagesAreLeftOut()
+    public async Task Export_AChoiceNode_ListsItsRecordedOutcome()
     {
         var pathway = await CreateBranchingPathwayAsync();
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Branch = "Benign" }))
-            .ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[1].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[4].Id)).ShouldHaveStatusAsync(HttpStatusCode.OK);
-
-        var insights = await (await _admin.GetAsync($"/api/pathways/insights?Weeks=4&TemplateId={pathway.TemplateId}"))
-            .ReadAsAsync<PathwayInsightsResponse>();
-
-        insights.StageTimes.Single().Stages.Select(s => s.StageOrder).Should().Equal(1, 2, 5);
-        insights.StageTimes.Single().Stages.Should().AllSatisfy(s => s.AverageWaitingHours.Should().BeGreaterThanOrEqualTo(0));
-    }
-
-    [Test]
-    public async Task Export_SkippedStage_ListsWhenWhoAndWhy()
-    {
-        var pathway = await CreateBranchingPathwayAsync();
-        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Branch = "Benign" }))
+        await (await FinishStageAsync(_staff.Client, pathway.Id, pathway.Stages[0].Id, new FinishPathwayStageRequest { Outcome = "Benign" }))
             .ShouldHaveStatusAsync(HttpStatusCode.OK);
 
         var export = await (await _admin.GetAsync($"/api/patients/{pathway.PatientId}/export")).ReadAsAsync<PatientExportResponse>();
 
         var stages = export.Pathways.Single().Stages;
-        stages.Where(s => s.SkipReason is not null).Select(s => (s.Order, s.SkipReason, s.SkippedBy, s.Branch)).Should().Equal(
-            (3, "BranchNotChosen", _staff.Username, "Treatment"), (4, "BranchNotChosen", _staff.Username, "Treatment"));
+        stages.Should().HaveCount(3);
+        stages.Single(s => s.Order == 1).Branch.Should().Be("Benign");
     }
 
     private static Task<HttpResponseMessage> SkipAsync(HttpClient client, Guid pathwayId, Guid stageId, string reason, string? detail) =>

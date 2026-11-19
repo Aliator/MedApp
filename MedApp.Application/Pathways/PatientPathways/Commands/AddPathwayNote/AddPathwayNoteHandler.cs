@@ -19,7 +19,8 @@ public sealed class AddPathwayNoteHandler(
     public async Task<PatientPathwayNoteResponse> Handle(AddPathwayNoteCommand request, CancellationToken cancellationToken)
     {
         // A 409 for a restricted or anonymised record, as for every change to a pathway.
-        var pathway = await repository.GetForUpdateOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
+        // Its own team, or the team working its current stage (the relay), adds and edits notes.
+        var pathway = await repository.GetForNotesOrThrowAsync(request.PathwayId, boundary, request.Actor.Teams, cancellationToken);
 
         if (PathwayWorkflow.WhyNotesCantChange(pathway) is { } reason)
             throw new ConflictException(reason);

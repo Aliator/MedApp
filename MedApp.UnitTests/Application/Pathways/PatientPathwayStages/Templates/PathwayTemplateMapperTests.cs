@@ -37,7 +37,7 @@ public sealed class PathwayTemplateMapperTests
     {
         var template = new PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName };
         var definition = CreateDefinition(ConsultationStage);
-        template.Maps = PathwayTemplateMapper.ToMaps(template.Id, [definition.Id]);
+        template.Maps = TemplateShape.ToMaps(template.Id, TeamId, [definition.Id], null, null);
 
         var response = PathwayTemplateMapper.ToResponse(template, 0, new Dictionary<Guid, PatientPathwayStageDefinition>
         {
@@ -51,7 +51,7 @@ public sealed class PathwayTemplateMapperTests
     public void ToResponse_DefinitionMissingFromTheLookupAndTheMap_ShowsABlankActiveStage()
     {
         var template = new PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName };
-        template.Maps = PathwayTemplateMapper.ToMaps(template.Id, [ConsultationDefinitionId]);
+        template.Maps = TemplateShape.ToMaps(template.Id, TeamId, [ConsultationDefinitionId], null, null);
         template.Maps[0].StageDefinition = null!;
 
         var response = PathwayTemplateMapper.ToResponse(template, 0, new Dictionary<Guid, PatientPathwayStageDefinition>());
@@ -70,7 +70,7 @@ public sealed class PathwayTemplateMapperTests
     {
         var templateId = Guid.NewGuid();
 
-        var maps = PathwayTemplateMapper.ToMaps(templateId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId]);
+        var maps = TemplateShape.ToMaps(templateId, TeamId, [ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId], null, null);
 
         maps.Select(m => m.StageOrder).Should().Equal(1, 2, 3);
         maps.Select(m => m.StageDefinitionId).Should().Equal(ConsultationDefinitionId, PathwayDefinitionId, ConsultationDefinitionId);
@@ -82,7 +82,7 @@ public sealed class PathwayTemplateMapperTests
     public void ToMaps_ClockStopStage_MarksThatPositionAndTheResponseGivesIt()
     {
         var template = new MedApp.Domain.Pathways.PatientPathways.PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName };
-        template.Maps = PathwayTemplateMapper.ToMaps(template.Id, [ConsultationDefinitionId, PathwayDefinitionId], clockStopStageOrder: 2);
+        template.Maps = TemplateShape.ToMaps(template.Id, TeamId, [ConsultationDefinitionId, PathwayDefinitionId], 2, null);
 
         template.Maps.Select(m => m.StopsClock).Should().Equal(false, true);
         var response = PathwayTemplateMapper.ToResponse(template, 0);
@@ -109,7 +109,7 @@ public sealed class PathwayTemplateMapperTests
     public void ToResponse_DefinitionMissing_HasNoVisitRequirement()
     {
         var template = new PathwayTemplate { Id = Guid.NewGuid(), Name = TemplateName };
-        template.Maps = PathwayTemplateMapper.ToMaps(template.Id, [ConsultationDefinitionId]);
+        template.Maps = TemplateShape.ToMaps(template.Id, TeamId, [ConsultationDefinitionId], null, null);
         template.Maps[0].StageDefinition = null!;
 
         var response = PathwayTemplateMapper.ToResponse(template, 0, new Dictionary<Guid, PatientPathwayStageDefinition>());
@@ -118,19 +118,56 @@ public sealed class PathwayTemplateMapperTests
     }
 
     [Test]
-    public void ToMaps_WithOptions_CopiesThemTrimmingBranchNames()
+    public void ToMaps_WithOptions_CopiesThemTheTemplatesOwnTeamAsNone()
     {
-        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId],
-            options: [new TemplateStageOptions(ChoosesBranch: true), new TemplateStageOptions(IsOptional: true, Branch: "  ")]);
+        var lab = Guid.NewGuid();
+        var maps = TemplateShape.ToMaps(Guid.NewGuid(), TeamId, [ConsultationDefinitionId, PathwayDefinitionId, PathwayDefinitionId], null,
+        [
+            new TemplateStageOptions(ChoiceKind: "assessment", Outcomes: [new PathwayTemplateOutcome(" Benign ", [3, 2, 2])]),
+            new TemplateStageOptions(IsOptional: true, OwnerTeamId: lab),
+            new TemplateStageOptions(OwnerTeamId: TeamId, Outcomes: [new PathwayTemplateOutcome("Ignored", [3])])
+        ]);
 
-        maps.Select(m => (m.IsOptional, m.ChoosesBranch, m.Branch)).Should().Equal((false, true, null), (true, false, null));
+        maps.Select(m => (m.IsOptional, m.ChoiceKind, m.OwnerTeamId)).Should().Equal(
+            (false, (StageChoiceKind?)StageChoiceKind.Assessment, (Guid?)null), (true, null, lab), (false, null, null));
+        maps[0].Outcomes.Should().ContainSingle().Which.Should().BeEquivalentTo(new PathwayTemplateOutcome("Benign", [2, 3]));
+        maps[2].Outcomes.Should().BeEmpty();
     }
 
     [Test]
     public void ToMaps_WithoutOptions_MakesPlainStages()
     {
-        var maps = PathwayTemplateMapper.ToMaps(Guid.NewGuid(), [ConsultationDefinitionId, PathwayDefinitionId]);
+        var maps = TemplateShape.ToMaps(Guid.NewGuid(), TeamId, [ConsultationDefinitionId, PathwayDefinitionId], null, null);
 
-        maps.Should().AllSatisfy(m => (m.IsOptional, m.ChoosesBranch, m.Branch).Should().Be((false, false, (string?)null)));
+        maps.Should().AllSatisfy(m => (m.IsOptional, m.ChoiceKind, m.OwnerTeamId).Should().Be((false, (StageChoiceKind?)null, (Guid?)null)));
+    }
+
+    [Test]
+    public void ToResponse_RoutesOwnersOutcomesAndBranches_AreGiven_AndAListShowsItsChain()
+    {
+        var lab = Guid.NewGuid();
+        var definition = CreateDefinition(PathwayStage);
+        var branch = new PathwayTemplateBranch(Guid.NewGuid(), "Repeat", [definition.Id], [1], true);
+        var template = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage), CreateDefinition(PathwayStage), CreateDefinition(PathwayStage));
+        template.Maps[0].ChoiceKind = StageChoiceKind.LabResult;
+        template.Maps[0].Outcomes = [new PathwayTemplateOutcome("Normal", [2]), new PathwayTemplateOutcome("Abnormal", [3])];
+        template.Maps[1].OwnerTeamId = lab;
+        template.Links = [new(1, 2), new(1, 3)];
+        template.AddableBranches = [branch];
+
+        var response = PathwayTemplateMapper.ToResponse(
+            template, 0, new Dictionary<Guid, PatientPathwayStageDefinition> { [definition.Id] = definition },
+            new Dictionary<Guid, string> { [lab] = "Lab" });
+
+        response.Stages[0].ChoiceKind.Should().Be("LabResult");
+        response.Stages[0].Outcomes!.Select(o => o.Name).Should().Equal("Normal", "Abnormal");
+        response.Stages[1].Outcomes.Should().BeNull();
+        response.Stages[1].OwnerTeamName.Should().Be("Lab");
+        response.Links.Select(l => (l.FromStageOrder, l.ToStageOrder)).Should().Equal((1, 2), (1, 3));
+        response.AddableBranches.Single().Stages.Single().Name.Should().Be(PathwayStage);
+        response.AddableBranches.Single().AttachAfterStageOrders.Should().Equal(1);
+
+        var list = CreateTemplate(TemplateName, false, CreateDefinition(ConsultationStage), CreateDefinition(PathwayStage));
+        PathwayTemplateMapper.ToResponse(list, 0).Links.Select(l => (l.FromStageOrder, l.ToStageOrder)).Should().Equal((1, 2));
     }
 }

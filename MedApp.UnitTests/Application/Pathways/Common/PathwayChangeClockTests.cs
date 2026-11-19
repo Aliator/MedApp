@@ -250,19 +250,22 @@ public sealed class PathwayChangeClockTests
     }
 
     [Test]
-    public void FinishStage_BranchNotChosenHoldsTheClockStopStage_StopsNothing()
+    public void FinishStage_TheClockStopStageOnAnOutcomeNotChosen_NeverAppearsAndStopsNothing()
     {
         var (pathway, referral) = AcceptedPathway();
         var branching = CreateBranchingPathway();
         foreach (var stage in branching.Stages)
             stage.PatientPathwayId = pathway.Id;
         pathway.Stages = branching.Stages;
-        pathway.StageAt(2).StopsClock = true;
+        pathway.Plan = branching.Plan! with
+        {
+            Stages = branching.Plan.Stages.Select(s => s.TemplateStageOrder == 2 ? s with { StopsClock = true } : s).ToList()
+        };
         var change = new PathwayChange(pathway, Staff, Now);
 
-        change.FinishStage(pathway.StageAt(1), branch: TreatmentBranch);
+        change.FinishStage(pathway.StageAt(1), outcome: TreatmentBranch);
 
-        pathway.StageAt(2).IsSkipped.Should().BeTrue();
+        pathway.Stages.Should().NotContain(s => s.StopsClock);
         WaitingClock.State(referral).Should().Be(WaitingClock.Running);
         change.ReferralEvents.Should().BeEmpty();
     }

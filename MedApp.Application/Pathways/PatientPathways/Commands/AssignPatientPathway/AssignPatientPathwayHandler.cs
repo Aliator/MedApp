@@ -1,4 +1,4 @@
-﻿using MedApp.Application.Common.Teams;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Common.Exceptions;
 using MedApp.Application.Common.Identity;
 using MedApp.Application.Monitoring.Common;
@@ -62,6 +62,6 @@ public sealed class AssignPatientPathwayHandler(
         // Then the admins watching, after the person it's about.
         await pathwayMonitor.NotifyAsync(change, cancellationToken);
 
-        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions);
+        return await PathwayMapper.ToResponseAsync(pathway, identityReadService, now, cancellationToken, viewerId: request.Actor.UserId, viewerPermissions: request.Actor.Permissions, viewerScope: request.Actor.Teams);
     }
 }

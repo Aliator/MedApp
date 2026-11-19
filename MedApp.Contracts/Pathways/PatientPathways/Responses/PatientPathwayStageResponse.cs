@@ -46,20 +46,34 @@ public sealed class PatientPathwayStageResponse
     /// <summary>Copied from the template: whether it can be skipped, with a reason, while it's current.</summary>
     public bool IsOptional { get; set; }
 
-    /// <summary>Copied from the template: whether it's a branch point (finishing it chooses one of <see cref="Branches"/>).</summary>
-    public bool ChoosesBranch { get; set; }
-
-    /// <summary>Copied from the template: the branch it belongs to, or null for a stage that always runs.</summary>
-    public string? Branch { get; set; }
+    /// <summary>Copied from the template: a choice node's kind (Assessment or LabResult), or null for a plain stage.</summary>
+    public string? ChoiceKind { get; set; }
 
     /// <summary>
-    /// A branch point's branches, in the template's order, each with its stages' names; empty for any other stage.
-    /// None is chosen or pre-selected: the clinician chooses when finishing it.
+    /// A choice node's outcomes, in the template's order, each with the stages recording it would add; empty for any
+    /// other stage. None is chosen or pre-selected: the clinician records one when finishing it.
     /// </summary>
-    public List<PatientPathwayBranchResponse> Branches { get; set; } = [];
+    public List<PatientPathwayOutcomeResponse> Outcomes { get; set; } = [];
 
-    /// <summary>Whether finishing it now asks for a branch: a branch point being finished for the first time.</summary>
-    public bool NeedsBranchChoice { get; set; }
+    /// <summary>A choice node's recorded outcome, or null until it's recorded (and for a plain stage).</summary>
+    public string? Outcome { get; set; }
+
+    /// <summary>Whether finishing it now asks for an outcome: a choice node not yet recorded.</summary>
+    public bool NeedsOutcome { get; set; }
+
+    /// <summary>The results the lab entered on its own stage (free text), or null.</summary>
+    public PatientPathwayStageResultResponse? Result { get; set; }
+
+    /// <summary>A lab stage's lab case (its open one, else its latest), for its page to link to; null until the lab has cases.</summary>
+    public Guid? LabCaseId { get; set; }
+    public string? LabCaseNumber { get; set; }
+    public string? LabCaseStatus { get; set; }
+
+    /// <summary>The stages straight before it (MC8): a join has several; the first stage none.</summary>
+    public List<Guid> PredecessorIds { get; set; } = [];
+
+    /// <summary>The added branch (MC10) it came with, or null for a stage from the template.</summary>
+    public Guid? BranchAdditionId { get; set; }
 
     /// <summary>NotStarted, InProgress, Completed or Skipped.</summary>
     public string State { get; set; } = string.Empty;
@@ -104,14 +118,40 @@ public sealed class PatientPathwayStageResponse
     public DateTime? CompletedAtUtc { get; set; }
     public Guid? CompletedByUserId { get; set; }
     public string? CompletedByUsername { get; set; }
+
+    /// <summary>The team that works it (MC7, the relay): null for the pathway's own team; the lab for its stages.</summary>
+    public Guid? OwnerTeamId { get; set; }
+    public string? OwnerTeamName { get; set; }
+
+    /// <summary>Whether it's current and with another team than the pathway's, which the viewer's team doesn't work.</summary>
+    public bool IsWithAnotherTeam { get; set; }
+
+    /// <summary>When it first became current.</summary>
+    public DateTime? ReachedAtUtc { get; set; }
+
+    /// <summary>The team that handed it over, when it came from another team's stage; else null.</summary>
+    public string? HandedOverFromTeamName { get; set; }
+
+    /// <summary>When a handed-over stage was picked up, and by whom.</summary>
+    public DateTime? PickedUpAtUtc { get; set; }
+    public Guid? PickedUpByUserId { get; set; }
+    public string? PickedUpByUsername { get; set; }
+
+    /// <summary>Whether the viewer can pick it up now: handed to their team, current, and not picked up yet.</summary>
+    public bool CanPickUp { get; set; }
 }
 
-/// <summary>One branch after a branch point: its name and its stages' names, in order.</summary>
-public sealed class PatientPathwayBranchResponse
+/// <summary>One outcome of a choice node: its name, and the names of the stages recording it would add.</summary>
+public sealed class PatientPathwayOutcomeResponse
 {
     public string Name { get; set; } = string.Empty;
     public List<string> StageNames { get; set; } = [];
+}
 
-    /// <summary>Its stages still to do (neither finished nor skipped): what choosing another branch skips.</summary>
-    public List<string> StageNamesToDo { get; set; } = [];
+/// <summary>The results the lab entered on its stage (free text), with who entered them and when.</summary>
+public sealed class PatientPathwayStageResultResponse
+{
+    public string Text { get; set; } = string.Empty;
+    public string? EnteredByUsername { get; set; }
+    public DateTime? EnteredAtUtc { get; set; }
 }

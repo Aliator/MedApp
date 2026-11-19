@@ -1,5 +1,6 @@
 ﻿using MedApp.Domain.Pathways.PatientPathways;
 using MedApp.Domain.Teams;
+using MedApp.Infrastructure.Data.Conversions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -57,7 +58,7 @@ public sealed class PatientPathwayConfiguration : IEntityTypeConfiguration<Patie
         builder.Property(x => x.TeamId)
             .HasDefaultValue(Team.GeneralId);
 
-        builder.HasOne<Team>()
+        builder.HasOne(x => x.Team)
             .WithMany()
             .HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -82,6 +83,21 @@ public sealed class PatientPathwayConfiguration : IEntityTypeConfiguration<Patie
             .WithOne(x => x.PatientPathway)
             .HasForeignKey(x => x.PatientPathwayId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Its stage links (MC8) and added branches (MC10) go with it.
+        builder.HasMany(x => x.Links)
+            .WithOne()
+            .HasForeignKey(x => x.PatientPathwayId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.BranchAdditions)
+            .WithOne()
+            .HasForeignKey(x => x.PatientPathwayId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Its template's tree (MC10b), as JSON; null for a pathway made before plans.
+        builder.Property(x => x.Plan)
+            .HasJsonConversion();
 
         builder.HasIndex(x => new { x.PatientId, x.Status });
         builder.HasIndex(x => x.DueDateUtc);

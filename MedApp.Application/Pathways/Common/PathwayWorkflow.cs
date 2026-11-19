@@ -14,16 +14,17 @@ namespace MedApp.Application.Pathways.Common;
 /// Cancelled pathways can be Archived.
 /// </para>
 /// <para>
-/// Stages are worked strictly in order. The current stage is the first one neither finished nor skipped; its notes can
-/// be edited until it's finished, which locks it. A holder of UnlockStages can unlock a finished stage to reopen just that stage, which
-/// moves an InReview or Completed pathway back to InProgress.
+/// Stages follow their links (MC8, <see cref="PathwayGraph"/>): a stage is current when it's neither finished nor skipped
+/// and nothing before it on any route is still to do, so routes side by side each have one. Its notes can be edited
+/// until it's finished, which locks it. A holder of UnlockStages can unlock a finished stage to reopen just that stage,
+/// which moves an InReview or Completed pathway back to InProgress.
 /// </para>
 /// <para>
-/// Some stages can be skipped (docs/centre-phases-3-5-plan.md, decisions 113 to 117): an optional stage, by hand with a
-/// reason, while it's current; and at a branch point, the stages of the branches the clinician didn't choose. A skipped
-/// stage counts as done for the status, has no visit, and can be reinstated by a holder of UnlockStages, when it runs
-/// again in its place. MedApp never chooses or pre-selects a branch: the clinician does (<see cref="Branches"/> lists
-/// them in the template's order).
+/// An optional stage can be skipped by hand, with a reason, while it's current (docs/centre-phases-3-5-plan.md,
+/// decisions 113 to 117). A skipped stage counts as done for the status, has no visit, and can be reinstated by a holder
+/// of UnlockStages, when it runs again in its place. A choice node (MC10b) records the clinician's outcome as it's first
+/// finished, and the pathway grows by that outcome's stages (<see cref="PathwayGrowth"/>); MedApp never chooses or
+/// pre-selects one (<see cref="WhyOutcomeInvalid"/>).
 /// </para>
 /// <para>
 /// A stage may involve a visit (<see cref="VisitRequirement"/>). When it becomes current, the app asks for an
@@ -93,11 +94,19 @@ public static partial class PathwayWorkflow
     public static bool CanWorkOnStages(PatientPathway pathway) => IsOpen(pathway.Status);
 
     /// <summary>
-    /// The stage being worked on: the first one neither finished nor skipped. Null once every stage is finished or
-    /// skipped.
+    /// The first stage being worked on (<see cref="CurrentStages"/>), for what shows only one. Null once every stage is
+    /// finished or skipped.
     /// </summary>
-    public static PatientPathwayStage? CurrentStage(PatientPathway pathway) =>
-        pathway.Stages.OrderBy(s => s.StageOrder).FirstOrDefault(IsToDo);
+    public static PatientPathwayStage? CurrentStage(PatientPathway pathway) => CurrentStages(pathway).FirstOrDefault();
+
+    /// <summary>
+    /// The stages being worked on (MC8): each still to do, with nothing before it on any route still to do
+    /// (<see cref="PathwayGraph"/>). A chain has one; routes side by side have one each.
+    /// </summary>
+    public static IReadOnlyList<PatientPathwayStage> CurrentStages(PatientPathway pathway) => PathwayGraph.CurrentStages(pathway);
+
+    /// <summary>Whether a stage is one of the current ones.</summary>
+    public static bool IsCurrent(PatientPathway pathway, PatientPathwayStage stage) => PathwayGraph.IsCurrent(pathway, stage);
 
     /// <summary>Every stage finished and locked (none reopened by an admin), or skipped.</summary>
     public static bool AllStagesFinished(PatientPathway pathway) =>
@@ -132,11 +141,14 @@ public static partial class PathwayWorkflow
         if (stage.IsSkipped)
             return $"The '{stage.Name}' stage was skipped. Someone who can unlock stages can reinstate it.";
 
-        var current = CurrentStage(pathway);
-        return current?.Id == stage.Id
+        return IsCurrent(pathway, stage)
             ? null
-            : $"Stages are worked in order: finish the '{current?.Name}' stage first.";
+            : $"Stages are worked in order: finish the '{FirstBefore(pathway, stage)}' stage first.";
     }
+
+    /// <summary>The name of the stage to finish first: the first still to do before this one, else the first current one.</summary>
+    private static string? FirstBefore(PatientPathway pathway, PatientPathwayStage stage) =>
+        (PathwayGraph.FirstToDoBefore(pathway, stage) ?? CurrentStage(pathway))?.Name;
 
     /// <summary>Whether a holder of UnlockStages can unlock a stage: it's finished and locked, and the pathway isn't blocked or closed off.</summary>
     public static bool CanUnlockStage(PatientPathway pathway, PatientPathwayStage stage) =>
@@ -171,9 +183,8 @@ public static partial class PathwayWorkflow
         if (stage.IsCompleted)
             return $"The '{stage.Name}' stage is finished, so it can't be skipped.";
 
-        var current = CurrentStage(pathway);
-        if (current?.Id != stage.Id)
-            return $"Only the current stage can be skipped: finish the '{current?.Name}' stage first.";
+        if (!IsCurrent(pathway, stage))
+            return $"Only the current stage can be skipped: finish the '{FirstBefore(pathway, stage)}' stage first.";
 
         return SkipNeedsOverride(stage) && !canFinishWithoutVisit
             ? $"The '{stage.Name}' stage needs a visit, so only someone who can finish a stage without its visit can skip it."
@@ -188,88 +199,34 @@ public static partial class PathwayWorkflow
         stage.IsSkipped && (IsOpen(pathway.Status) || pathway.Status == Completed);
 
     /// <summary>
-    /// A branch point's branches, in the template's order (by each one's first stage), each with its stages in order:
-    /// the stages with a branch name after it, up to the next branch point or the end. Empty for a stage that isn't a
-    /// branch point. Names are matched ignoring case, and shown as first written. None is ever chosen or pre-selected
-    /// here: the clinician chooses.
+    /// Why finishing a stage can't take <paramref name="outcome"/>, or null if it can (MC10b): a choice node finished for
+    /// the first time needs one of its outcomes, recorded by the clinician (none is assumed or pre-selected); any other
+    /// finish, none (a recorded outcome isn't changed by finishing the stage again). The light demo's words.
     /// </summary>
-    public static IReadOnlyList<PathwayBranch> Branches(PatientPathway pathway, PatientPathwayStage branchPoint)
+    public static string? WhyOutcomeInvalid(PatientPathway pathway, PatientPathwayStage stage, string? outcome)
     {
-        if (!branchPoint.ChoosesBranch)
-            return [];
-
-        var branches = new List<PathwayBranch>();
-        foreach (var stage in StagesAfterUntilNextBranchPoint(pathway, branchPoint))
+        var named = outcome?.Trim() ?? string.Empty;
+        if (stage.ChoiceKind is not null && stage.Outcome is null)
         {
-            if (string.IsNullOrWhiteSpace(stage.Branch))
-                continue;
-
-            var branch = branches.FirstOrDefault(b => SameBranch(b.Name, stage.Branch));
-            if (branch is null)
-                branches.Add(new PathwayBranch(stage.Branch.Trim(), [stage]));
-            else
-                branch.Stages.Add(stage);
-        }
-
-        return branches;
-    }
-
-    /// <summary>
-    /// The stages choosing <paramref name="branch"/> at a branch point skips: those of the other branches after it (up
-    /// to the next branch point) that are still to do. Stages with no branch name always run.
-    /// </summary>
-    public static IReadOnlyList<PatientPathwayStage> StagesSkippedByBranch(
-        PatientPathway pathway, PatientPathwayStage branchPoint, string? branch) =>
-        string.IsNullOrWhiteSpace(branch)
-            ? []
-            : Branches(pathway, branchPoint)
-                .Where(b => !SameBranch(b.Name, branch))
-                .SelectMany(b => b.Stages)
-                .Where(IsToDo)
-                .OrderBy(s => s.StageOrder)
-                .ToList();
-
-    /// <summary>
-    /// Why finishing a stage can't take <paramref name="branch"/>, or null if it can: a branch point finished for the
-    /// first time needs one of its branches (none is assumed); any other finish, none (a branch can be changed only by
-    /// reinstating its stages).
-    /// </summary>
-    public static string? WhyBranchChoiceInvalid(PatientPathway pathway, PatientPathwayStage stage, string? branch)
-    {
-        var choosing = stage.ChoosesBranch && !stage.IsCompleted;
-        if (!choosing)
-        {
-            if (string.IsNullOrWhiteSpace(branch))
+            var outcomes = PathwayGrowth.Outcomes(pathway, stage);
+            if (outcomes.Count == 0 && named.Length == 0)
                 return null;
 
-            return stage.ChoosesBranch
-                ? $"The '{stage.Name}' stage's branch was chosen when it was first finished. To follow another, reinstate its stages."
-                : $"The '{stage.Name}' stage isn't a branch point, so no branch is chosen when it's finished.";
+            return outcomes.Any(o => PathwayGrowth.SameOutcome(o.Name, named))
+                ? null
+                : $"Record the outcome: {string.Join(", ", outcomes.Select(o => o.Name))}.";
         }
 
-        var branches = Branches(pathway, stage);
-        if (branches.Count == 0)
-            return string.IsNullOrWhiteSpace(branch) ? null : $"No branches follow the '{stage.Name}' stage.";
-
-        var names = string.Join(", ", branches.Select(b => b.Name));
-        if (string.IsNullOrWhiteSpace(branch))
-            return $"Choose which branch follows the '{stage.Name}' stage: {names}.";
-
-        return branches.Any(b => SameBranch(b.Name, branch))
-            ? null
-            : $"'{branch.Trim()}' isn't one of the branches after the '{stage.Name}' stage: {names}.";
+        return named.Length > 0
+            ? "The outcome was recorded already: it isn’t changed by finishing the stage again."
+            : null;
     }
 
-    /// <summary>Whether two branch names are the same branch: ignoring case and the spaces around them.</summary>
-    public static bool SameBranch(string? a, string? b) =>
-        string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
-
-    private static IEnumerable<PatientPathwayStage> StagesAfterUntilNextBranchPoint(
-        PatientPathway pathway, PatientPathwayStage branchPoint) =>
-        pathway.Stages
-            .Where(s => s.StageOrder > branchPoint.StageOrder)
-            .OrderBy(s => s.StageOrder)
-            .TakeWhile(s => !s.ChoosesBranch);
+    /// <summary>The outcome as the template wrote it, for one named by the clinician (ignoring case), or null.</summary>
+    public static string? OutcomeName(PatientPathway pathway, PatientPathwayStage stage, string? outcome) =>
+        string.IsNullOrWhiteSpace(outcome)
+            ? null
+            : PathwayGrowth.Outcomes(pathway, stage).Select(o => o.Name).FirstOrDefault(n => PathwayGrowth.SameOutcome(n, outcome));
 
     /// <summary>
     /// Why a stage can't be finished yet for want of its visit: it's Required, being finished for the first time, and
@@ -304,6 +261,3 @@ public static partial class PathwayWorkflow
     [GeneratedRegex("(?<=[a-z])([A-Z])")]
     private static partial Regex WordBoundary();
 }
-
-/// <summary>One branch after a branch point: its name, as the template first wrote it, and its stages in order.</summary>
-public sealed record PathwayBranch(string Name, List<PatientPathwayStage> Stages);

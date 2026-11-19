@@ -511,7 +511,7 @@ public sealed class ExportedStageResponse
     public string? SkipReason { get; set; }
     public string? SkipDetail { get; set; }
 
-    /// <summary>The branch it belongs to, if any (a name the template's author wrote).</summary>
+    /// <summary>A choice node's recorded outcome, if any (MC10b: a name the template's author wrote; before choice nodes, its branch).</summary>
     public string? Branch { get; set; }
 }
 

@@ -174,5 +174,13 @@ public enum NotificationKind
     /// ManagePrivacy), with the request in <see cref="Notification.SubjectId"/>. A fixed title ("Data request due
     /// soon"); the message holds the due date only, never the patient or the requester.
     /// </summary>
-    DataRequestDueSoon = 42
+    DataRequestDueSoon = 42,
+
+    // 43 is reserved by the earlier plan.
+
+    /// <summary>
+    /// A pathway was handed to your team (MC7, the relay): a stage your team works became current. A fixed title
+    /// ("Pathway handed over"); the message names only who passed it, never the patient or the stage.
+    /// </summary>
+    PathwayHandedOver = 44
 }

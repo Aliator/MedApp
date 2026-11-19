@@ -70,34 +70,34 @@ public sealed class ReinstatePathwayStageHandlerTests : PathwayHandlerTestBase
     }
 
     [Test]
-    public async Task Handle_ReinstatedStageAfterTheCurrentOne_AsksForNoVisitYet()
+    public async Task Handle_ReinstatedStageBeforeTheCurrentOne_IsCurrentAgainAndAsksForItsVisit()
     {
-        var pathway = CreateBranchingPathway(finishedStages: 1);
-        Skip(pathway.StageAt(2), StageSkipReason.BranchNotChosen);
+        var pathway = CreatePathway(Status.InProgress, finishedStages: 1);
+        Skip(pathway.StageAt(2));
         pathway.StageAt(2).VisitRequirement = VisitRequirement.Required;
         GivenPathway(pathway);
 
         var response = await Handler.Handle(
             new ReinstatePathwayStageCommand(pathway.Id, pathway.StageAt(2).Id, SkipDetail, Admin), CancellationToken.None);
 
-        // The Benign letter is before Treatment, so it's current again; it involves a visit, which is asked for.
+        // It's before the third stage, so it's current again; it involves a visit, which is asked for.
         response.CurrentStageId.Should().Be(pathway.StageAt(2).Id);
+        response.CurrentStageIds.Should().Equal(pathway.StageAt(2).Id);
         SavedChanges.Single().NewAppointments.Should().ContainSingle();
     }
 
     [Test]
     public async Task Handle_LaterStageReinstated_LeavesTheCurrentStage()
     {
-        var pathway = CreateBranchingPathway(finishedStages: 1);
-        Skip(pathway.StageAt(3), StageSkipReason.BranchNotChosen);
-        Skip(pathway.StageAt(4), StageSkipReason.BranchNotChosen);
+        var pathway = CreatePathway(Status.InProgress);
+        Skip(pathway.StageAt(3));
         pathway.StageAt(3).VisitRequirement = VisitRequirement.Required;
         GivenPathway(pathway);
 
         var response = await Handler.Handle(
-            new ReinstatePathwayStageCommand(pathway.Id, pathway.StageAt(4).Id, SkipDetail, Admin), CancellationToken.None);
+            new ReinstatePathwayStageCommand(pathway.Id, pathway.StageAt(3).Id, SkipDetail, Admin), CancellationToken.None);
 
-        response.CurrentStageId.Should().Be(pathway.StageAt(2).Id);
+        response.CurrentStageId.Should().Be(pathway.StageAt(1).Id);
         SavedChanges.Single().NewAppointments.Should().BeEmpty();
         Appointments.Verify(r => r.GetForStagesForUpdateAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()), Times.Never);
     }

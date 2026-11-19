@@ -201,6 +201,14 @@ public sealed class TeamRepository(MedAppDbContext context) : ITeamRepository
             .ThenBy(m => m.TeamId)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Guid>> GetMemberIdsAsync(Guid teamId, CancellationToken ct) =>
+        await context.TeamMemberships
+            .AsNoTracking()
+            .Where(m => m.TeamId == teamId)
+            .Select(m => m.UserId)
+            .Distinct()
+            .ToListAsync(ct);
+
     public async Task<IReadOnlySet<Guid>> GetClinicAdminsAsync(IEnumerable<Guid> userIds, CancellationToken ct)
     {
         var ids = userIds.Distinct().ToList();
