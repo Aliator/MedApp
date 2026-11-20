@@ -126,3 +126,14 @@ public sealed class DataRequestReviewItemResponse
     /// <summary>The reason it's withheld now, or the reason it starts withheld (a note about another patient).</summary>
     public string? WithheldReason { get; set; }
 }
+
+/// <summary>
+/// The home page's counts of data requests: the open ones, and the open ones due within seven days or already past due
+/// (UK dates).
+/// </summary>
+public sealed class DataRequestCountResponse
+{
+    public int Open { get; set; }
+
+    public int DueSoon { get; set; }
+}

@@ -133,3 +133,22 @@ public sealed class SearchDataRequestsHandler(
         return PagedMapper.ToResponse(result, request.Page, request.PageSize, r => DataRequestMapper.ToSummary(r, today));
     }
 }
+
+/// <summary>
+/// The home page's counts of data requests (ManagePrivacy; 403 otherwise): the open ones, and those due within
+/// <see cref="DataRequestRules.DueSoonDays"/> days or already past due (UK dates). Records nothing: counts name no
+/// patient.
+/// </summary>
+public sealed record CountDataRequestsQuery(PathwayActor Actor) : IRequest<DataRequestCountResponse>;
+
+public sealed class CountDataRequestsHandler(IDataRequestRepository repository, TimeProvider timeProvider)
+    : IRequestHandler<CountDataRequestsQuery, DataRequestCountResponse>
+{
+    public async Task<DataRequestCountResponse> Handle(CountDataRequestsQuery request, CancellationToken cancellationToken)
+    {
+        DataRequestRules.EnsureCanHandle(request.Actor);
+        var dueSoonBy = UkTime.Today(timeProvider).AddDays(DataRequestRules.DueSoonDays);
+        var counts = await repository.CountOpenAsync(dueSoonBy, cancellationToken);
+        return new DataRequestCountResponse { Open = counts.Open, DueSoon = counts.DueSoon };
+    }
+}

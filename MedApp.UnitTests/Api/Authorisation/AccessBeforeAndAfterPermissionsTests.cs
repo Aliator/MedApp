@@ -169,6 +169,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         ConsultsController.Reply 00011
         ConsultsController.Send 00011
         ConsultsController.Withdraw 00011
+        DataRequestsController.CountDataRequests 00001
         DataRequestsController.CreateDataRequest 00001
         DataRequestsController.DownloadDataRequestPack 00001
         DataRequestsController.ExtendDataRequest 00001
@@ -199,6 +200,7 @@ public sealed class AccessBeforeAndAfterPermissionsTests
         JobsController.RunJob 00001
         LabCasesController.AddSurgeryDetails 00000
         LabCasesController.Authorise 00000
+        LabCasesController.CountLabCases 00000
         LabCasesController.Get 00011
         LabCasesController.MarkEnteredInError 00011
         LabCasesController.MarkStepEnteredInError 00000

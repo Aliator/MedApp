@@ -114,6 +114,17 @@ public sealed class LabCaseRepository(MedAppDbContext context) : ILabCaseReposit
         return new PagedResult<LabCase>(page, totalCount);
     }
 
+    public async Task<IReadOnlyList<LabCase>> GetOpenAsync(TeamScope scope, Guid? labTeamId, CancellationToken ct) =>
+        await context.LabCases.AsNoTracking()
+            .VisibleCases(scope, context.PathwayAccess, labTeamId)
+            .Where(c => c.Status == LabCaseStatus.Open)
+            .Include(c => c.Hospital)
+            .Include(c => c.HospitalRequest!).ThenInclude(r => r.Hospital)
+            .Include(c => c.LabTest!).ThenInclude(t => t.Steps)
+            .Include(c => c.Steps)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
     public void Track(LabCaseChange change, bool isNew)
     {
         if (isNew && context.Entry(change.Case).State != EntityState.Added)

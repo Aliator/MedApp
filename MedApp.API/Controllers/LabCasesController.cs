@@ -36,6 +36,16 @@ public sealed class LabCasesController(IMediator mediator) : ControllerBase
             request.Page, request.PageSize, request.View, request.Source, request.LabTestId, request.Search, request.Sort,
             request.Ascending, User.ToPathwayActor()), ct));
 
+    /// <summary>
+    /// How many open lab cases the caller's teams see are at risk, overdue (their clock breached) and ready to report, for
+    /// the home page. Names no patient, so records nothing.
+    /// </summary>
+    [HttpGet("count")]
+    [RequirePermission(Permission.ProcessSpecimens)]
+    [ProducesResponseType(typeof(LabCaseCountResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CountLabCases(CancellationToken ct) =>
+        Ok(await mediator.Send(new CountLabCasesQuery(User.ToTeamScope()), ct));
+
     /// <summary>One lab case. Opening it is recorded (<c>LabCaseViewed</c>); another clinic's is a 404.</summary>
     [HttpGet("{id:guid}")]
     [RequirePermission(Permission.ViewPatients)]

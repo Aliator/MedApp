@@ -225,6 +225,21 @@ public sealed class DataRequestHandlerTests
     }
 
     [Test]
+    public async Task Count_OpenAndDueWithinSevenDaysOrOverdue_ForManagePrivacyOnly()
+    {
+        var dueBy = Today.AddDays(DataRequestRules.DueSoonDays);
+        _repository.Setup(r => r.CountOpenAsync(dueBy, It.IsAny<CancellationToken>())).ReturnsAsync(new DataRequestCounts(3, 1));
+        var handler = new CountDataRequestsHandler(_repository.Object, _clock);
+
+        var count = await handler.Handle(new CountDataRequestsQuery(Admin), _cts.Token);
+
+        count.Should().BeEquivalentTo(new { Open = 3, DueSoon = 1 });
+        var clinician = () => handler.Handle(new CountDataRequestsQuery(Clinician), _cts.Token);
+        await clinician.Should().ThrowAsync<ForbiddenException>().WithMessage(DataRequestRules.CantHandleMessage);
+        _repository.Verify(r => r.CountOpenAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
     public async Task Pack_BeforeTheReview_IsAConflict_AndRecordsNothing()
     {
         var request = Given(Open());

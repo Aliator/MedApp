@@ -1,9 +1,9 @@
 import type {Schemas} from '../../api/client';
 import {usernameOf} from '../accounts';
 import {DemoReply, invalid, notFound, on, problem, refuse} from '../api/http';
-import {newId} from '../ids';
+import {id, newId, PATIENTS} from '../ids';
 import {db} from '../store';
-import {nowUtc, today} from '../time';
+import {daysFrom, nowUtc, today, ukTime} from '../time';
 import {can, contains, flag, me, paged, patientName, patientSortName, requirePermission, sortedBy} from './common';
 
 /**
@@ -18,10 +18,49 @@ export type DemoDataRequest = Omit<
   'isOverdue' | 'canManage' | 'canReview' | 'canMakePack' | 'packBlockedReason' | 'patientName' | 'dueOn'
 > & {id: string; patientId: string; version: number};
 
-/** The demo's requests, kept beside the seed's records (absent from an older seed, so made empty when first needed). */
+/** The request seeded for the admin: Tobias Lund's own, identity checked, due within the week. */
+export const SEEDED_DATA_REQUEST = id(0xef, 1);
+
+function seededRequest(): DemoDataRequest {
+  const receivedOn = daysFrom(-26);
+  const at = ukTime(receivedOn, 10);
+  return {
+    id: SEEDED_DATA_REQUEST,
+    patientId: PATIENTS.tobiasLund,
+    receivedOn,
+    requestedByPatient: true,
+    requesterName: null,
+    requesterRelationship: null,
+    identityCheckedOn: receivedOn,
+    identityCheckedByUsername: 'admin',
+    identityCheckMethod: 'InPerson',
+    identityCheckDetail: null,
+    firstDueOn: addMonths(receivedOn, 1),
+    extensionMonths: 0,
+    extensionReason: null,
+    status: 'Open',
+    refusalReason: null,
+    sentOn: null,
+    sendMethod: null,
+    closedAtUtc: null,
+    closedByUsername: null,
+    reviewedAtUtc: null,
+    reviewedByUsername: null,
+    withheld: [],
+    createdAtUtc: at,
+    createdByUsername: 'admin',
+    lastUpdatedUtc: at,
+    version: 2,
+  };
+}
+
+/**
+ * The demo's requests, kept beside the seed's records: absent from the seed, so the first read makes the list with one
+ * open request (synthetic), for the admin's Needs your attention.
+ */
 function requests(): DemoDataRequest[] {
   const state = db() as ReturnType<typeof db> & {dataRequests?: DemoDataRequest[]};
-  state.dataRequests ??= [];
+  state.dataRequests ??= [seededRequest()];
   return state.dataRequests;
 }
 
@@ -102,6 +141,14 @@ function close(request: DemoDataRequest, status: 'Sent' | 'Refused' | 'Withdrawn
 const reason = (text: string | null | undefined) => (text ?? '').trim();
 
 export function registerDataRequests() {
+  // The home page's counts: open, and open ones due within 7 days or overdue. They name no patient, so nothing is logged.
+  on('get', '/api/data-requests/count', () => {
+    requireAccess();
+    const open = requests().filter(isOpen);
+    const dueBy = daysFrom(7);
+    return {open: open.length, dueSoon: open.filter((r) => dueOn(r) <= dueBy).length};
+  });
+
   on('get', '/api/data-requests/search', ({query}) => {
     requireAccess();
     const status = query.get('Status');

@@ -272,6 +272,19 @@ public sealed class LabCaseSummaryResponse
     public LabClockResponse? Clock { get; set; }
 }
 
+/// <summary>
+/// The home page's counts of the open lab cases the caller's teams see: those whose clock is at risk, breached
+/// (overdue), and those with every step done, ready to report.
+/// </summary>
+public sealed class LabCaseCountResponse
+{
+    public int AtRisk { get; set; }
+
+    public int Overdue { get; set; }
+
+    public int ToReport { get; set; }
+}
+
 /// <summary>A hospital case's report as it went back (MC20; FHIR UK Core <c>DiagnosticReport-Lab</c>'s shape).</summary>
 public sealed class LabCaseHospitalReportResponse
 {

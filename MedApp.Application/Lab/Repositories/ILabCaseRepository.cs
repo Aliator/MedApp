@@ -33,6 +33,12 @@ public interface ILabCaseRepository
     /// <summary>A page of cases the viewer sees, in the view's order (narrowed in SQL; clock views sorted in memory).</summary>
     Task<PagedResult<LabCase>> SearchAsync(SearchLabCasesQuery query, TeamScope scope, Guid? labTeamId, DateTime nowUtc, CancellationToken ct);
 
+    /// <summary>
+    /// The open cases the viewer sees, read only, with what their clock and next step need (the test and its steps, the
+    /// case's steps, a hospital request), never the patient: for the home page's counts.
+    /// </summary>
+    Task<IReadOnlyList<LabCase>> GetOpenAsync(TeamScope scope, Guid? labTeamId, CancellationToken ct);
+
     /// <summary>Adds a change's new case (when <paramref name="isNew"/>), its new steps and audit entries, unsaved.</summary>
     void Track(LabCaseChange change, bool isNew);
 

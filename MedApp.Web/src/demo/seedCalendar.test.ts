@@ -24,7 +24,7 @@ describe('the light demo’s calendars', () => {
       for (const person of [ADMIN, STAFF, LAB]) {
         const mine = state.blocks.filter((b) => b.staffUserId === person.id);
         expect(mine.some((b) => b.date === on), `${person.username} today`).toBe(true);
-        expect(mine.filter((b) => week.includes(b.date)).length, `${person.username} this week`).toBeGreaterThan(3);
+        expect(mine.filter((b) => b.date !== undefined && week.includes(b.date)).length, `${person.username} this week`).toBeGreaterThan(3);
         expect(workingDayOf(person.id, on).working, `${person.username} working today`).toBe(true);
       }
     });

@@ -1,6 +1,7 @@
 using FluentValidation;
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Common.Paging;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Lab.Common;
 using MedApp.Application.Lab.Repositories;
 using MedApp.Application.Pathways.Common;
@@ -65,6 +66,16 @@ public sealed record SearchLabCasesQuery(
     public bool NeedsMemory =>
         ParsedView is LabCaseView.Open or LabCaseView.AtRisk or LabCaseView.Overdue or LabCaseView.ToReport
         || Ordering.ColumnOf(Sort, LabCaseSearch.SortColumns) == LabCaseSearch.SortByDue;
+}
+
+/// <summary>
+/// The home page's counts of the open lab cases the caller's teams see (the lab and admins all; a clinic its own
+/// clinic's): at risk, overdue, and ready to report, as the views count them. Records nothing (no patient is named).
+/// </summary>
+public sealed record CountLabCasesQuery(TeamScope? Scope = null) : IRequest<LabCaseCountResponse>
+{
+    /// <summary>The viewer's team walls (null only outside a request: the system's).</summary>
+    public TeamScope Teams => Scope ?? TeamScope.System;
 }
 
 public sealed class SearchLabCasesValidator : AbstractValidator<SearchLabCasesQuery>
@@ -170,17 +181,35 @@ public static class LabCaseSearch
     private static string? ClockState(LabCase labCase, DateTime nowUtc) =>
         labCase.Status == LabCaseStatus.Open ? LabClock.Of(labCase, nowUtc)?.State : null;
 
+    /// <summary>
+    /// Whether a case SQL narrowed to the view is in it, by what's worked out in memory: the clock for at risk and
+    /// overdue, the next step for to report (open cases only); any other view's are all in it.
+    /// </summary>
+    public static bool IsInView(LabCase labCase, LabCaseView view, DateTime nowUtc) => view switch
+    {
+        LabCaseView.AtRisk => ClockState(labCase, nowUtc) == LabClock.AtRisk,
+        LabCaseView.Overdue => ClockState(labCase, nowUtc) == LabClock.Breached,
+        LabCaseView.ToReport => LabCaseRules.Next(labCase)?.Kind == LabNextKind.Report,
+        _ => true
+    };
+
+    /// <summary>The home page's counts over the open cases the viewer sees, as the views count them.</summary>
+    public static LabCaseCountResponse Count(IReadOnlyCollection<LabCase> open, DateTime nowUtc)
+    {
+        var cases = open.Where(c => c.Status == LabCaseStatus.Open).ToList();
+        return new LabCaseCountResponse
+        {
+            AtRisk = cases.Count(c => IsInView(c, LabCaseView.AtRisk, nowUtc)),
+            Overdue = cases.Count(c => IsInView(c, LabCaseView.Overdue, nowUtc)),
+            ToReport = cases.Count(c => IsInView(c, LabCaseView.ToReport, nowUtc)),
+        };
+    }
+
     /// <summary>The views and column that follow the clock and next step, in memory, over the cases SQL narrowed.</summary>
     public static IReadOnlyList<LabCase> Arrange(IEnumerable<LabCase> narrowed, SearchLabCasesQuery query, DateTime nowUtc)
     {
         var view = query.ParsedView;
-        var items = narrowed.Where(c => view switch
-        {
-            LabCaseView.AtRisk => ClockState(c, nowUtc) == LabClock.AtRisk,
-            LabCaseView.Overdue => ClockState(c, nowUtc) == LabClock.Breached,
-            LabCaseView.ToReport => LabCaseRules.Next(c)?.Kind == LabNextKind.Report,
-            _ => true
-        });
+        var items = narrowed.Where(c => IsInView(c, view, nowUtc));
 
         IOrderedEnumerable<LabCase> ordered = view switch
         {
@@ -228,5 +257,23 @@ public sealed class SearchLabCasesHandler(
             ActivityAction.PatientListed, result.Items.Select(c => c.PatientId).Distinct(), cancellationToken);
 
         return PagedMapper.ToResponse(result, request.Page, request.PageSize, c => LabCaseMapper.ToSummary(c, now));
+    }
+}
+
+/// <summary>
+/// The home page's counts of the open lab cases the viewer's teams see. Records nothing: counts name no patient.
+/// </summary>
+public sealed class CountLabCasesHandler(
+    ILabCaseRepository repository,
+    ITeamRepository teams,
+    TimeProvider timeProvider)
+    : IRequestHandler<CountLabCasesQuery, LabCaseCountResponse>
+{
+    public async Task<LabCaseCountResponse> Handle(CountLabCasesQuery request, CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var labTeamId = (await teams.GetLabAsync(cancellationToken))?.Id;
+        var open = await repository.GetOpenAsync(request.Teams, labTeamId, cancellationToken);
+        return LabCaseSearch.Count(open, now);
     }
 }

@@ -41,6 +41,14 @@ public sealed class DataRequestRepository(MedAppDbContext context) : IDataReques
     public Task<int> CountForPatientAsync(Guid patientId, CancellationToken ct) =>
         context.DataRequests.CountAsync(d => d.PatientId == patientId, ct);
 
+    public async Task<DataRequestCounts> CountOpenAsync(DateOnly dueOnOrBefore, CancellationToken ct)
+    {
+        var open = context.DataRequests.Where(d => d.Status == DataRequestStatus.Open);
+        return new DataRequestCounts(
+            await open.CountAsync(ct),
+            await open.CountAsync(d => d.DueOn <= dueOnOrBefore, ct));
+    }
+
     public async Task<IReadOnlyList<DataRequest>> GetDueSoonUnnotifiedAsync(DateOnly dueOnOrBefore, int take, CancellationToken ct) =>
         await context.DataRequests
             .Where(d => d.Status == DataRequestStatus.Open
