@@ -136,8 +136,8 @@ describe('the light demo’s lab, results and referrals', () => {
     startLightDemo(STAFF);
     expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping', expectedTurnaroundDays: 14})).status).toBe(403);
     startLightDemo(ADMIN);
-    expect((await call('GET', '/api/specimen-types')).body).toHaveLength(3);
-    expect((await call('GET', '/api/specimen-types?includeArchived=true')).body).toHaveLength(4);
+    expect((await call('GET', '/api/specimen-types')).body).toHaveLength(4);
+    expect((await call('GET', '/api/specimen-types?includeArchived=true')).body).toHaveLength(5);
     expect((await call('POST', '/api/specimen-types', {name: 'blood sample', expectedTurnaroundDays: 3})).status).toBe(409);
     expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping', expectedTurnaroundDays: 91})).status).toBe(400);
     expect((await call('POST', '/api/specimen-types', {name: 'Nail clipping', expectedTurnaroundDays: 21})).body).toMatchObject({canBeDeleted: true});
@@ -152,8 +152,8 @@ describe('the light demo’s lab, results and referrals', () => {
     startLightDemo(STAFF);
     expect((await call('POST', '/api/lab-tests', test)).status).toBe(403);
     startLightDemo(ADMIN);
-    expect((await call('GET', '/api/lab-tests')).body).toHaveLength(4);
-    expect((await call('GET', '/api/lab-tests?includeArchived=true')).body).toHaveLength(5);
+    expect((await call('GET', '/api/lab-tests')).body).toHaveLength(5);
+    expect((await call('GET', '/api/lab-tests?includeArchived=true')).body).toHaveLength(6);
     expect((await call('POST', '/api/lab-tests', {...test, name: 'skin histology'})).status).toBe(409);
     expect((await call('POST', '/api/lab-tests', {...test, limitDays: 7})).body.errors).toHaveProperty('limitDays');
     expect((await call('POST', '/api/lab-tests', {...test, atRiskDays: 14})).body.errors).toHaveProperty('atRiskDays');

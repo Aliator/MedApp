@@ -16,8 +16,8 @@ namespace MedApp.DevMcp.DemoData;
 public sealed record DemoSeedOptions(int Seed, DateTime NowUtc, IReadOnlyCollection<string> KeepUsers);
 
 /// <summary>
-/// Wipes the local database's data and fills it with the light demo's clinic (<c>MedApp.Web/src/demo</c>): Dermatology
-/// and the lab, the same people, templates, patients and pathways at the same points, replayed through the app's own
+/// Wipes the local database's data and fills it with the light demo's clinic (<c>MedApp.Web/src/demo</c>): Dermatology,
+/// the Eye clinic and the lab, the same people, templates, patients and pathways at the same points, replayed through the app's own
 /// handlers by the people who did the work (staff in their teams; the admin only sets up), so the audit trails,
 /// notifications, grants and gates are the app's. Dates are relative to the day it runs, as the light demo's are. It runs
 /// with a service provider of its own (<see cref="SeedServices"/>), whose clock and activity actor it moves. What's in it:
@@ -53,6 +53,7 @@ public static class DemoDataSeeder
         await DemoPatients.CreateAsync(seed);
         var (mdtToday, mdtAhead) = await DemoClinic.CreateMeetingsAsync(seed);
         await DemoStory.RunAsync(seed);
+        await DemoEyeClinic.RunAsync(seed);
         await DemoLab.CreateAsync(seed);
         await DemoClinic.CreateMdtListsAsync(seed, mdtToday, mdtAhead);
         await DemoSetup.CreateCalendarSetupAsync(seed);

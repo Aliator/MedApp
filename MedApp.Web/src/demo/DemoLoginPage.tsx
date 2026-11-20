@@ -10,7 +10,7 @@ import {AppIcon} from '../components/shared/icons';
 import {accountDescription, accountLabel, DEMO_ACCOUNTS} from './accounts';
 
 /**
- * The light demo's login page (the demo build only): no password, just a choice of the three demo accounts. Choosing one
+ * The light demo's login page (the demo build only): no password, just a choice of the four demo accounts. Choosing one
  * signs in through the stand-in API, as the real page would, and goes in.
  */
 export function DemoLoginPage() {

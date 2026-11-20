@@ -85,7 +85,8 @@ public static class DemoClinic
     /// Nadia Thornbury's blocks this week and next (lunch daily; Wednesday's triage; the Tuesday and Thursday biopsy
     /// lists; the Monday and Friday skin clinics), Ravi Aldous's (cut-up, reporting and lunch daily; Tuesday's and
     /// Thursday's quality checks) and the admin's (lunch daily; Monday's and Thursday's rota planning; Wednesday's
-    /// governance review), and when seeded at a weekend, that weekend's sessions for the three, each made by its owner, leaving out any that would overlap a visit or meeting
+    /// governance review), Saira Varma's (lunch daily; the Monday and Wednesday eye clinics; the Tuesday and Thursday
+    /// cataract and glaucoma lists; Friday's letters), and when seeded at a weekend, that weekend's sessions for the four, each made by its owner, leaving out any that would overlap a visit or meeting
     /// already in her diary (the app refuses a block over one; the light demo lets them overlap). Then Bea Sandiford's
     /// outreach clinics on the first two open days from today, from after this morning's MDT if she was at it.
     /// </summary>
@@ -95,6 +96,7 @@ public static class DemoClinic
         var nadia = DemoPeople.Thornbury;
         var ravi = DemoPeople.Aldous;
         var admin = DemoPeople.Admin;
+        var saira = DemoPeople.Varma;
         var skipped = 0;
         async Task Block(DemoPerson who, DateOnly date, string type, (int H, int M) from, (int H, int M) to, string? note)
         {
@@ -134,6 +136,14 @@ public static class DemoClinic
                     await Block(admin, date, AdminTime, (13, 30), (14, 30), "Rota planning");
                 if (day == 2)
                     await Block(admin, date, AdminTime, (10, 0), (11, 0), "Governance review");
+
+                await Block(saira, date, Lunch, (12, 30), (13, 15), null);
+                if (day is 0 or 2)
+                    await Block(saira, date, Clinic, (9, 0), (12, 30), "Eye clinic");
+                if (day is 1 or 3)
+                    await Block(saira, date, ProcedureList, (13, 30), (16, 30), "Cataract and glaucoma list");
+                if (day == 4)
+                    await Block(saira, date, AdminTime, (14, 0), (15, 0), "Letters");
             }
 
         if (t.IsWeekend)
@@ -148,6 +158,7 @@ public static class DemoClinic
                     await Block(ravi, date, ProcedureList, (9, 0), (11, 0), "Weekend cut-up");
                     await Block(ravi, date, AdminTime, (11, 0), (13, 0), "Weekend reporting");
                     await Block(admin, date, AdminTime, (9, 30), (12, 0), "Weekend cover");
+                    await Block(saira, date, Clinic, (9, 0), (12, 0), "Weekend eye clinic");
                 }
 
         // Bea Sandiford is out at a clinic all day today and the next open day, so the tour's team meeting can't have her

@@ -42,7 +42,7 @@ export function isPatientPinned(patientId: string): boolean {
 
 /** The tour's parts, in order. */
 export const TOUR_PARTS = [
-  {key: 'start', title: 'Getting started', intro: 'Find your way around, and meet the three accounts.'},
+  {key: 'start', title: 'Getting started', intro: 'Find your way around, and meet the accounts.'},
   {
     key: 'story',
     title: 'The relay',

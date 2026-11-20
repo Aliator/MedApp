@@ -16,7 +16,7 @@ function daysAhead(days: number, hour: number): Date {
 }
 
 describe('the light demo handlers', () => {
-  it('signs in only as one of the two demo accounts, and out again', async () => {
+  it('signs in only as one of the demo accounts, and out again', async () => {
     startLightDemo(null);
     expect((await call('GET', '/api/auth/whoami')).body.isAuthenticated).toBe(false);
     expect((await call('POST', '/api/auth/login', {username: 'j.whitlock', password: 'x'})).status).toBe(401);

@@ -61,7 +61,7 @@ describe('the walkthrough', () => {
     for (const link of caseLinks) expect(state.labCases.some((c) => c.id === pathOf(link).split('/')[3]), link).toBe(true);
   });
 
-  it('asks only for the three demo accounts', () => {
+  it('asks only for the demo accounts', () => {
     for (const step of TOUR) if (step.account) expect(DEMO_ACCOUNTS.map((a) => a.username)).toContain(step.account);
   });
 

@@ -1,4 +1,4 @@
-import {HALLWORTH, LAB, STAFF} from '../accounts';
+import {EYE_CLINIC_ADMIN, HALLWORTH, LAB, STAFF} from '../accounts';
 import {APPOINTMENTS, MORE_APPOINTMENTS, PATHWAYS, USERS, id} from '../ids';
 import type {BaseState, DemoNotification} from '../state';
 import type {DemoHospitalRequest} from './hospitals';
@@ -162,6 +162,7 @@ export const SPECIMEN_TYPES = {
   skinScraping: id(0xe1, 3),
   /** Archived and never used: the setup page can delete it. */
   skinSwab: id(0xe1, 4),
+  eyeSwab: id(0xe1, 5),
 } as const;
 
 export const LAB_TESTS = {
@@ -172,6 +173,8 @@ export const LAB_TESTS = {
   liverFunction: id(0xed, 4),
   /** A quick microscopy of a skin scraping, no culture: reported within hours (the tour's relay). */
   scrapingMicroscopy: id(0xed, 5),
+  /** The Eye clinic's swabs (Freya Tolland's). */
+  eyeSwabCulture: id(0xed, 6),
 } as const;
 
 export const SPECIMENS = {
@@ -193,6 +196,8 @@ export const SPECIMENS = {
   aishaBiopsy: id(0xe3, 9),
   /** Leah Corrin's skin scraping, taken at her Triage visit yesterday (the tour's relay): with the lab, its case ready for results. */
   leahScraping: id(0xe3, 10),
+  /** Freya Tolland's eye swab, taken at her Eye examination visit: received by the lab, its case open (the Eye clinic's). */
+  freyaSwab: id(0xe3, 11),
 } as const;
 
 export const RESULTS = {
@@ -236,6 +241,7 @@ const TEST_OF_TYPE: Record<string, string> = {
   [SPECIMEN_TYPES.skinBiopsy]: LAB_TESTS.skinHistology,
   [SPECIMEN_TYPES.bloodSample]: LAB_TESTS.fullBloodCount,
   [SPECIMEN_TYPES.skinScraping]: LAB_TESTS.fungalScraping,
+  [SPECIMEN_TYPES.eyeSwab]: LAB_TESTS.eyeSwabCulture,
 };
 
 const ago = (days: number, hours = 10, minutes = 0) => ukTime(daysFrom(-days), hours, minutes);
@@ -334,6 +340,8 @@ export function seedLab(state: BaseState): LabSlice {
   const aishaTake = pathway(PATHWAYS.forkedTests).stages.find((s) => s.branchAdditionId && s.name === 'Take biopsy')!;
   const aishaTaken = plusMinutes(aishaTake.completedAtUtc!, -20);
   const leahTaken = plusMinutes(visit(MORE_APPOINTMENTS.leahTriage), 20);
+  const freyaTaken = plusMinutes(visit(APPOINTMENTS.freyaExam), 25);
+  const freyaReceived = pathway(PATHWAYS.eyeRedEye).stages.find((s) => s.ownerTeamId)!.pickedUpAtUtc!;
   const specimens: DemoSpecimen[] = [
     specimen(SPECIMENS.priyaBiopsy, PATHWAYS.histologyToFinish, 3, SPECIMEN_TYPES.skinBiopsy, priyaTaken, STAFF.id, {
       site: 'Upper back, left of midline',
@@ -426,6 +434,16 @@ export function seedLab(state: BaseState): LabSlice {
       receivedByUserId: LAB.id,
       version: 3,
     }),
+    specimen(SPECIMENS.freyaSwab, PATHWAYS.eyeRedEye, 3, SPECIMEN_TYPES.eyeSwab, freyaTaken, EYE_CLINIC_ADMIN.id, {
+      site: 'Left eye',
+      requestingUserId: EYE_CLINIC_ADMIN.id,
+      status: 'Received',
+      sentAtUtc: plusMinutes(freyaTaken, 120),
+      sentByUserId: EYE_CLINIC_ADMIN.id,
+      receivedAtUtc: freyaReceived,
+      receivedByUserId: LAB.id,
+      version: 3,
+    }),
   ];
 
   const byId = (specimenId: string) => specimens.find((s) => s.id === specimenId)!;
@@ -510,6 +528,7 @@ export function seedLab(state: BaseState): LabSlice {
       {id: SPECIMEN_TYPES.bloodSample, name: 'Blood sample', expectedTurnaroundDays: 5, snomedCode: '119297000', isArchived: false},
       {id: SPECIMEN_TYPES.skinScraping, name: 'Skin scraping', expectedTurnaroundDays: 10, snomedCode: null, isArchived: false},
       {id: SPECIMEN_TYPES.skinSwab, name: 'Skin swab', expectedTurnaroundDays: 4, snomedCode: null, isArchived: true},
+      {id: SPECIMEN_TYPES.eyeSwab, name: 'Eye swab', expectedTurnaroundDays: 5, snomedCode: null, isArchived: false},
     ],
     labTests: [
       {
@@ -573,6 +592,17 @@ export function seedLab(state: BaseState): LabSlice {
         limitDays: 7,
         atRiskDays: 1,
         steps: [{id: id(0xed, 141), name: 'Microscopy', kind: 'Standard', isOptional: false}, {id: id(0xed, 142), name: 'Report', kind: 'Standard', isOptional: false}],
+        isArchived: false,
+      },
+      {
+        id: LAB_TESTS.eyeSwabCulture,
+        name: 'Eye swab culture',
+        kind: 'Microbiology',
+        snomedCode: null,
+        targetDays: 5,
+        limitDays: 7,
+        atRiskDays: 2,
+        steps: [{id: id(0xed, 151), name: 'Culture', kind: 'Standard', isOptional: false}, {id: id(0xed, 152), name: 'Report', kind: 'Standard', isOptional: false}],
         isArchived: false,
       },
     ],

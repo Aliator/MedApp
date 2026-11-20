@@ -43,7 +43,7 @@ export function registerAccount() {
   on('post', '/api/auth/login', ({body}) => {
     const person = personByUsername(body.username);
     if (!person || !DEMO_ACCOUNTS.some((account) => account.id === person.id))
-      return problem(401, 'In the light demo, choose one of the three accounts on the login page.');
+      return problem(401, 'In the light demo, choose one of the four accounts on the login page.');
     db().user = person.username;
     logActivity('SignedIn', {userId: person.id});
     return {sessionId: person.id, expiresAtUtc: new Date(Date.now() + 8 * 3600_000).toISOString()};
