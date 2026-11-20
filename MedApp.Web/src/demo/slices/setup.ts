@@ -1,7 +1,7 @@
 import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
+import {ADMIN, LAB, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
 import {dermatologyStageId} from '../dermatology';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
@@ -474,6 +474,15 @@ function seedJobs(): Schemas['ScheduledJobResponse'][] {
 }
 
 /** Seeds this slice, after the base seed (`state`: read it, or add to it, as the clinic's other records). */
+export function weekendCover(on: string): Record<string, DemoStaffHours> {
+  if (dayOfWeek(on) <= 5) return {};
+  const days = [
+    ...['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, starts: clock(8), ends: clock(18), siteId: SITES.centre})),
+    ...['Saturday', 'Sunday'].map((dayOfWeek) => ({dayOfWeek, starts: clock(9), ends: clock(13), siteId: SITES.centre})),
+  ];
+  return Object.fromEntries([ADMIN, STAFF, LAB].map((person) => [person.id, {since: daysFrom(-7, on), days: days.map((d) => ({...d}))}]));
+}
+
 export function seedSetup(state: BaseState): SetupSlice {
   const created = ago(200, 9, 0);
   const weekdays = (days: string[], opens: string, closes: string) => days.map((dayOfWeek) => ({dayOfWeek, opens, closes}));
@@ -489,8 +498,8 @@ export function seedSetup(state: BaseState): SetupSlice {
         isArchived: false,
         createdAt: created,
         lastUpdated: created,
-        hours: null,
-        hoursSince: null,
+        hours: dayOfWeek(state.seededOn) > 5 ? [...weekdays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], clock(8), clock(18)), ...weekdays(['Saturday', 'Sunday'], clock(9), clock(13))] : null,
+        hoursSince: dayOfWeek(state.seededOn) > 5 ? daysFrom(-7, state.seededOn) : null,
       },
       {
         id: MORE_SITES.northfield,
@@ -519,6 +528,7 @@ export function seedSetup(state: BaseState): SetupSlice {
     ],
     // Tom Hallworth works Tuesday to Thursday at the centre; everyone else the default.
     staffHours: {
+      ...weekendCover(state.seededOn),
       [USERS.hallworth]: {
         since: daysFrom(-90),
         days: ['Tuesday', 'Wednesday', 'Thursday'].map((dayOfWeek) => ({dayOfWeek, starts: clock(9), ends: clock(17), siteId: SITES.centre})),
