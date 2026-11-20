@@ -21,7 +21,10 @@ public sealed class BookingTests : E2ETest
         await Main.GetByRole(AriaRole.Button, new() { Name = "Book Appointment" }).ClickAsync();
         var dialog = Page.GetByRole(AriaRole.Dialog, new() { Name = "Book Appointment" });
         await Expect(dialog).ToContainTextAsync(patient.LastName);
-        await Expect(dialog.GetByRole(AriaRole.Combobox, new() { Name = "With" })).ToContainTextAsync($"{me} (you)");
+        // With is a plain list, or one with a search box (a button) once there are more than eight staff.
+        var with = dialog.GetByRole(AriaRole.Combobox, new() { Name = "With" })
+            .Or(dialog.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^With ") }));
+        await Expect(with).ToContainTextAsync($"{me} (you)");
         await Expect(dialog.GetByRole(AriaRole.Combobox, new() { Name = "Length" })).ToContainTextAsync("30 minutes");
 
         var days = dialog.GetByRole(AriaRole.Group, new() { NameRegex = new Regex("^Days in the week of") });
