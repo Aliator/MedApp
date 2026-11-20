@@ -10,10 +10,9 @@ import {useCurrentUser} from '../../auth/auth';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {accountLabel, personByUsername} from '../accounts';
-import {whyStepCantOpen} from '../ReadMePage';
 import {SampleText} from '../SampleText';
-import {switchAccount} from '../session';
-import {TOUR, TOUR_PARTS} from '../tour';
+import {resetDemo, switchAccount} from '../session';
+import {TOUR, TOUR_PARTS, whyStepCantOpen} from '../tour';
 import {COACH_MARKS, type CoachMark} from './coachMarks';
 import {coachPosition, endCoachTour, setCoachPosition, subscribeCoach, type CoachPosition} from './coachState';
 import {COACH_CARD_ATTRIBUTE, findClickable, findTarget, isShown} from './findTarget';
@@ -209,6 +208,20 @@ function CoachRun({position}: {position: CoachPosition}) {
             <Text type="supporting">It isn’t showing on this page right now.</Text>
           )}
           {why && <AlertMessage status="info" label="About this step" message={why} />}
+          {why && (
+            <HStack>
+              <Button
+                label="Reset the Demo"
+                variant="secondary"
+                size="sm"
+                icon={<Icon icon={AppIcon.Refresh} />}
+                onClick={() => {
+                  setCoachPosition({step: position.step, mark: 0});
+                  void resetDemo();
+                }}
+              />
+            </HStack>
+          )}
           {mark.showsSampleText && step.sampleText && <SampleText lines={step.sampleText} />}
           <HStack gap={2} wrap="wrap" vAlign="center">
             <Text type="supporting">{`${position.mark + 1} of ${marks.length}`}</Text>

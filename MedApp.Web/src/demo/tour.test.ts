@@ -33,7 +33,7 @@ const COLLECTIONS = {
   'hospital-requests': 'hospitalRequests',
 } as const;
 
-describe('the Read Me tour', () => {
+describe('the walkthrough', () => {
   const links = TOUR.flatMap((step) => (step.path ? [step.path] : []));
 
   it('opens only pages in the route tree', () => {

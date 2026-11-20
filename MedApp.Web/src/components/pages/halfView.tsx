@@ -36,7 +36,7 @@ export interface HalfViews {
   openOnLeft: (path: string) => void;
   /**
    * Opens this page on the left (the main view), keeping any half view as it is: for a page in the half view to open
-   * one beside itself (the light demo's Read Me, followed on the right).
+   * one beside itself (a page followed on the right).
    */
   showOnLeft: (path: string) => void;
   /** Closes the half view, leaving the main page on its own (with the nav open again). */

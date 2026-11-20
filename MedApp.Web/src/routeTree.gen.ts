@@ -22,7 +22,6 @@ import { Route as AppAccessibilityRouteImport } from './routes/_app/accessibilit
 import { Route as AppMdtRouteImport } from './routes/_app/mdt'
 import { Route as AppNoPermissionRouteImport } from './routes/_app/no-permission'
 import { Route as AppPracticesRouteImport } from './routes/_app/practices'
-import { Route as AppReadMeRouteImport } from './routes/_app/read-me'
 import { Route as AppTasksRouteImport } from './routes/_app/tasks'
 import { Route as AppAccountIndexRouteImport } from './routes/_app/account/index'
 import { Route as AppAccountColoursRouteImport } from './routes/_app/account/colours'
@@ -158,11 +157,6 @@ const AppNoPermissionRoute = AppNoPermissionRouteImport.update({
 const AppPracticesRoute = AppPracticesRouteImport.update({
   id: '/practices',
   path: '/practices',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReadMeRoute = AppReadMeRouteImport.update({
-  id: '/read-me',
-  path: '/read-me',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -554,7 +548,6 @@ export interface FileRoutesByFullPath {
   '/mdt': typeof AppMdtRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
-  '/read-me': typeof AppReadMeRoute
   '/tasks': typeof AppTasksRoute
   '/account/colours': typeof AppAccountColoursRoute
   '/account/email': typeof AppAccountEmailRoute
@@ -640,7 +633,6 @@ export interface FileRoutesByTo {
   '/mdt': typeof AppMdtRoute
   '/no-permission': typeof AppNoPermissionRoute
   '/practices': typeof AppPracticesRoute
-  '/read-me': typeof AppReadMeRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/account/colours': typeof AppAccountColoursRoute
@@ -729,7 +721,6 @@ export interface FileRoutesById {
   '/_app/mdt': typeof AppMdtRoute
   '/_app/no-permission': typeof AppNoPermissionRoute
   '/_app/practices': typeof AppPracticesRoute
-  '/_app/read-me': typeof AppReadMeRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/account/colours': typeof AppAccountColoursRoute
@@ -819,7 +810,6 @@ export interface FileRouteTypes {
     | '/mdt'
     | '/no-permission'
     | '/practices'
-    | '/read-me'
     | '/tasks'
     | '/account/colours'
     | '/account/email'
@@ -905,7 +895,6 @@ export interface FileRouteTypes {
     | '/mdt'
     | '/no-permission'
     | '/practices'
-    | '/read-me'
     | '/tasks'
     | '/'
     | '/account/colours'
@@ -993,7 +982,6 @@ export interface FileRouteTypes {
     | '/_app/mdt'
     | '/_app/no-permission'
     | '/_app/practices'
-    | '/_app/read-me'
     | '/_app/tasks'
     | '/_app/'
     | '/_app/account/colours'
@@ -1171,13 +1159,6 @@ declare module '@tanstack/react-router' {
       path: '/practices'
       fullPath: '/practices'
       preLoaderRoute: typeof AppPracticesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/read-me': {
-      id: '/_app/read-me'
-      path: '/read-me'
-      fullPath: '/read-me'
-      preLoaderRoute: typeof AppReadMeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1692,7 +1673,6 @@ interface AppRouteChildren {
   AppMdtRoute: typeof AppMdtRoute
   AppNoPermissionRoute: typeof AppNoPermissionRoute
   AppPracticesRoute: typeof AppPracticesRoute
-  AppReadMeRoute: typeof AppReadMeRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAccountColoursRoute: typeof AppAccountColoursRoute
@@ -1773,7 +1753,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppMdtRoute: AppMdtRoute,
   AppNoPermissionRoute: AppNoPermissionRoute,
   AppPracticesRoute: AppPracticesRoute,
-  AppReadMeRoute: AppReadMeRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppAccountColoursRoute: AppAccountColoursRoute,

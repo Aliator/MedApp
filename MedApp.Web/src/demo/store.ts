@@ -1,4 +1,5 @@
 import {SEED_VERSION, seed} from './seed';
+import {today} from './time';
 import type {DemoState} from './state';
 
 /**
@@ -56,10 +57,13 @@ export async function save(): Promise<void> {
   }
 }
 
-/** Reads the kept state, or seeds it on a first visit (or when the seed's shape has changed since). */
+export const isCurrent = (kept: DemoState | undefined): kept is DemoState =>
+  kept !== undefined && kept.version === SEED_VERSION && kept.seededOn === today();
+
 export async function load(): Promise<DemoState> {
   const kept = await read();
-  state = kept && kept.version === SEED_VERSION ? kept : seed();
+  const user = kept?.user ?? null;
+  state = isCurrent(kept) ? kept : {...seed(), user};
   if (state !== kept) await save();
   return state;
 }

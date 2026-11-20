@@ -99,7 +99,7 @@ export const DEMO_ACCOUNTS = [ADMIN, CLINIC_ADMIN, LAB] as const;
 export const accountTypeOfPerson = (person: DemoPerson, teams: readonly DemoMembership[] = person.teams): AccountType =>
   accountTypeOf(person.roles, teams.map((t) => t.role));
 
-/** An account in a line, for the login page and the Read Me: "Clinic admin (Dermatology). Clinician. Consultant dermatologist." */
+/** An account in a line, for the login page and the walkthrough: "Clinic admin (Dermatology). Clinician. Consultant dermatologist." */
 export function accountDescription(person: DemoPerson): string {
   const type = accountTypeOfPerson(person);
   const label = {Admin: 'Admin, read only', ClinicAdmin: 'Clinic admin (Dermatology)', Staff: person.teams.length ? 'Staff (the lab)' : 'Staff'}[type];
@@ -107,7 +107,7 @@ export function accountDescription(person: DemoPerson): string {
   return `${label}.${roles.length ? ` ${roles.join(' and ')}.` : ''} ${person.jobTitle}.`;
 }
 
-/** How the Read Me and the login page name an account: "the admin", or the person's name. */
+/** How the walkthrough and the login page name an account: "the admin", or the person's name. */
 export const accountLabel = (person: DemoPerson) => (person.roles.includes('Admin') ? 'the admin' : person.fullName);
 
 /** The rest of the clinic, who appear in lists and on pathways but can't be signed in as. */

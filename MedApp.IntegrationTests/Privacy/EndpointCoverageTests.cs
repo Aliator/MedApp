@@ -71,12 +71,14 @@ public sealed class EndpointCoverageTests : IntegrationTest
         ["api/letters/count"] = Nothing("counts for the side nav: names no patients"),
         ["api/specimens/{id:guid}"] = Records("SpecimenViewed"), // its page, label and request sheet; the specimen's ID in the details
         ["api/specimens/search"] = Records("PatientListed"),
+        ["api/lab-cases/count"] = Nothing("counts for the home page: names no patients"),
         ["api/lab-cases/{id:guid}"] = Records("LabCaseViewed"), // the case's page; its ID and the viewer's access in the details
         ["api/hospital-requests/{id:guid}"] = Records("LabCaseViewed"), // a hospital request (MC18): its case's ID and the access
         ["api/results/{id:guid}"] = Records("ResultViewed"), // the result's ID in the details
         ["api/results/search"] = Records("PatientListed"),
         ["api/results/count"] = Nothing("a count for the side nav: names no patients"),
         ["api/pathways/{id:guid}/consent-records"] = Records("PathwayViewed"), // the pathway page's consent card
+        ["api/data-requests/count"] = Nothing("counts for the home page: names no patients"),
         ["api/data-requests/search"] = Records("PatientListed"),
         ["api/data-requests/{id:guid}"] = Records("PatientViewed"), // the request's ID in the details
         ["api/data-requests/{id:guid}/review-items"] = Records("PatientViewed"), // with review: true

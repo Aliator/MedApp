@@ -8,6 +8,8 @@ const COUNTS = {
   'GET /api/results/count': () => json({awaitingMine: 4}),
   'GET /api/letters/count': () => json({toApprove: 2, toSend: 1}),
   'GET /api/referrals/awaiting-triage/count': () => json({count: 3, inYourTeams: true}),
+  'GET /api/lab-cases/count': () => json({atRisk: 2, overdue: 1, toReport: 5}),
+  'GET /api/data-requests/count': () => json({open: 3, dueSoon: 1}),
 };
 
 /** Someone with exactly these permissions. */
@@ -29,6 +31,29 @@ describe('NeedsAttention', () => {
     expect(list.getByRole('link', {name: '1 letter to send'})).toHaveAttribute('href', '/letters');
     expect(list.getByRole('link', {name: '3 referrals awaiting triage in your teams'})).toHaveAttribute('href', '/referrals');
     expect(screen.getByRole('heading', {name: 'Needs your attention'})).toBeInTheDocument();
+  });
+
+  it('shows the lab its cases overdue, at risk and ready to report, each linking to its view', async () => {
+    const fetch = mockApi(COUNTS);
+    renderWithApp(<NeedsAttention />, {user: withPermissions('ViewPatients', 'ProcessSpecimens')});
+
+    const list = within(await card());
+    expect(await list.findByRole('link', {name: '1 lab case overdue'})).toHaveAttribute('href', '/lab/cases?view=Overdue');
+    expect(list.getByRole('link', {name: '2 lab cases at risk'})).toHaveAttribute('href', '/lab/cases?view=AtRisk');
+    expect(list.getByRole('link', {name: '5 lab cases ready to report'})).toHaveAttribute('href', '/lab/cases?view=ToReport');
+    expect(list.getAllByRole('link')).toHaveLength(3);
+    expect(calls(fetch)).not.toContain('GET /api/data-requests/count');
+  });
+
+  it('shows an admin the data requests due soon and open, and asks for no lab count', async () => {
+    const fetch = mockApi(COUNTS);
+    renderWithApp(<NeedsAttention />, {user: withPermissions('ViewPatients', 'ManagePrivacy')});
+
+    const list = within(await card());
+    expect(await list.findByRole('link', {name: '1 data request due within 7 days or overdue'})).toHaveAttribute('href', '/data-requests');
+    expect(list.getByRole('link', {name: '3 data requests open'})).toHaveAttribute('href', '/data-requests');
+    expect(list.getAllByRole('link')).toHaveLength(2);
+    expect(calls(fetch)).not.toContain('GET /api/lab-cases/count');
   });
 
   it('is not there when everything is zero', async () => {
@@ -57,7 +82,9 @@ describe('NeedsAttention', () => {
 
   it('asks for nothing without ViewPatients, which every count needs', async () => {
     const fetch = mockApi(COUNTS);
-    renderWithApp(<NeedsAttention />, {user: withPermissions('SignOffResults', 'ApproveLetters', 'SendLetters', 'TriageReferrals')});
+    renderWithApp(<NeedsAttention />, {
+      user: withPermissions('SignOffResults', 'ApproveLetters', 'SendLetters', 'TriageReferrals', 'ProcessSpecimens', 'ManagePrivacy'),
+    });
 
     // Give any request a moment to be made.
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -72,6 +99,15 @@ describe('attentionLines', () => {
     expect(lines.map((line) => `${line.count} ${line.words(line.count)}`)).toEqual([
       '1 result awaiting your sign-off',
       '1 referral awaiting triage',
+    ]);
+  });
+
+  it('says a lab case and a data request in the singular too', () => {
+    const lines = attentionLines({labCasesAtRisk: 1, labCasesToReport: 1, dataRequestsOpen: 1});
+    expect(lines.map((line) => `${line.count} ${line.words(line.count)}`)).toEqual([
+      '1 lab case at risk',
+      '1 lab case ready to report',
+      '1 data request open',
     ]);
   });
 

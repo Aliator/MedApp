@@ -25,7 +25,7 @@ export function DemoLoginPage() {
           description="A light version of MedApp that runs in your browser, with made-up patients. Don’t enter real patient details."
         />
         {login.isError && <Banner status="error" container="card" title="That didn’t work. Reload the page and try again." role="alert" />}
-        <Text type="body">Choose who to be. You can switch at any time from the Three accounts card on the Read Me (first in the side nav).</Text>
+        <Text type="body">Choose who to be. Walkthrough, in the side nav, switches account for you where a step needs another; or sign out and choose again.</Text>
         <List edge="flush">
           {DEMO_ACCOUNTS.map((account) => (
             <ListItem

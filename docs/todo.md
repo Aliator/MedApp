@@ -142,7 +142,7 @@ The axe audit (`npm run a11y` in `tools/ui-parity`: every screen in dark, light 
 
 ## Features
 
-- **Show everything that needs someone's attention somewhere easy to see,** now that the side nav has no count badges (the owner, 18 November 2026). The home page's **Needs your attention** card has results awaiting your sign-off, letters to approve and to send, and referrals awaiting triage; check nothing else waiting on a person (an MDT outcome to record, a data request to review, a specimen to process, a Requires Appointment list) is only findable by looking, and give it a line on the card, a notification, or a clear place on its own page.
+- **Show everything that needs someone's attention somewhere easy to see,** now that the side nav has no count badges (the owner, 18 November 2026). The home page's **Needs your attention** card has results awaiting your sign-off, letters to approve and to send, referrals awaiting triage, lab cases overdue, at risk and ready to report, and data requests due within 7 days and open; check nothing else waiting on a person (an MDT outcome to record, a data request to review, a specimen to process, a Requires Appointment list) is only findable by looking, and give it a line on the card, a notification, or a clear place on its own page.
 - **Review in use whether the configurable tab rows on the grid pages work better than the power search for finding things, and whether any page's default tabs are missing** (the owner, 18 November 2026).
 
 - **Calendar follow-ups.** What staff calendars and appointments left out (`docs/calendar-plan.md`, section 8):

@@ -3,6 +3,7 @@ import {addOtherClinic, OTHER_CLINIC} from '../../test/otherClinic';
 import {ADMIN, LAB, STAFF} from '../accounts';
 import {MEETINGS, PATHWAYS, PATIENTS, REFERRALS, TEMPLATES, USERS} from '../ids';
 import {db} from '../store';
+import {today} from '../time';
 import {auditEntries} from './adminLogs';
 
 const isCurrent = (stage: {isCurrent: boolean}) => stage.isCurrent;
@@ -342,6 +343,22 @@ describe('the light demo handlers', () => {
     const sent = await call('POST', `/api/data-requests/${id}/sent`, {sentOn: '2026-02-10', method: 'Post', expectedVersion: 3});
     expect(sent.body).toMatchObject({status: 'Sent', canManage: false, canReview: false});
     expect((await call('GET', '/api/data-requests/search?Status=Sent')).body.totalCount).toBe(1);
+  });
+
+  it('seeds an open data request due within the week, and counts the open and due soon for the admin’s home page', async () => {
+    startLightDemo(ADMIN);
+    const logged = db().activityLog.length;
+    expect((await call('GET', '/api/data-requests/count')).body).toEqual({open: 1, dueSoon: 1});
+    expect(db().activityLog).toHaveLength(logged);
+    const seeded = (await call('GET', '/api/data-requests/search?Status=Open')).body.items;
+    expect(seeded).toMatchObject([{patientId: PATIENTS.tobiasLund, status: 'Open', isIdentityChecked: true, isReviewed: false, isOverdue: false}]);
+
+    const created = await call('POST', '/api/data-requests', {patientId: PATIENTS.ellisVarden, receivedOn: today(), requestedByPatient: true});
+    expect(created.status).toBe(201);
+    expect((await call('GET', '/api/data-requests/count')).body).toEqual({open: 2, dueSoon: 1});
+
+    startLightDemo(STAFF);
+    expect((await call('GET', '/api/data-requests/count')).status).toBe(403);
   });
 
   it('keeps data requests to admins: a clinician can neither see, log nor review one', async () => {

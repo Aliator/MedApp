@@ -48,7 +48,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 26;
+export const SEED_VERSION = 27;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -710,6 +710,7 @@ export function seed(): DemoState {
       overlapsAppointment: false,
     });
   };
+  const isWeekend = dayOfWeek(on) > 5;
   for (const week of [0, 7]) {
     for (let day = 0; day < 5; day++) {
       const date = thisWeek(week + day, on);
@@ -717,7 +718,25 @@ export function seed(): DemoState {
       if (day === 2) block(STAFF.id, date, ACTIVITY_TYPES.triage, [9, 0], [10, 30], 'Referral triage');
       if (day === 1 || day === 3) block(STAFF.id, date, ACTIVITY_TYPES.procedureList, [9, 0], [12, 0], 'Biopsy list');
       if (day === 0 || day === 4) block(STAFF.id, date, ACTIVITY_TYPES.clinic, [13, 30], [17, 0], 'Skin clinic');
+
+      block(LAB.id, date, ACTIVITY_TYPES.procedureList, [8, 30], [10, 30], 'Cut-up');
+      block(LAB.id, date, ACTIVITY_TYPES.admin, [11, 0], [12, 30], 'Reporting');
+      block(LAB.id, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
+      if (day === 1 || day === 3) block(LAB.id, date, ACTIVITY_TYPES.admin, [14, 0], [16, 0], 'Quality checks');
+
+      block(ADMIN.id, date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
+      if (day === 0 || day === 3) block(ADMIN.id, date, ACTIVITY_TYPES.admin, [13, 30], [14, 30], 'Rota planning');
+      if (day === 2) block(ADMIN.id, date, ACTIVITY_TYPES.admin, [10, 0], [11, 0], 'Governance review');
     }
+    if (isWeekend)
+      for (const day of [5, 6]) {
+        const date = thisWeek(week + day, on);
+        block(STAFF.id, date, ACTIVITY_TYPES.clinic, [9, 0], [12, 0], 'Weekend skin clinic');
+        block(STAFF.id, date, ACTIVITY_TYPES.admin, [12, 0], [13, 0], 'Letters');
+        block(LAB.id, date, ACTIVITY_TYPES.procedureList, [9, 0], [11, 0], 'Weekend cut-up');
+        block(LAB.id, date, ACTIVITY_TYPES.admin, [11, 0], [13, 0], 'Weekend reporting');
+        block(ADMIN.id, date, ACTIVITY_TYPES.admin, [9, 30], [12, 0], 'Weekend cover');
+      }
   }
 
   // Bea Sandiford is out at a clinic all day today and the next weekday, so the tour's team meeting (arranged with
