@@ -30,7 +30,7 @@ const EDGE = 12;
 
 export function marksFor(stepIndex: number): CoachMark[] {
   const step = TOUR[stepIndex];
-  return COACH_MARKS[step.key] ?? [{text: step.steps.join(' ')}];
+  return COACH_MARKS[step.key] ?? [{text: step.title}];
 }
 
 export function pageForMark(stepIndex: number, markIndex: number): string | undefined {

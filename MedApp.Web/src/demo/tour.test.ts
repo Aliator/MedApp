@@ -10,6 +10,7 @@ import {LAB_CASE_IDS} from './slices/labCases';
 import {CONSENT} from './slices/clinical';
 import {db} from './store';
 import {today} from './time';
+import {COACH_MARKS} from './coach/coachMarks';
 import {TOUR, TOUR_PARTS} from './tour';
 
 /** Every page in the app's route tree, as a pattern (`/pathways/$id` matches `/pathways/<any id>`). */
@@ -137,8 +138,8 @@ describe('the walkthrough', () => {
   });
 
   it('has the first time for the admin and Nadia Thornbury clash with Bea Sandiford, and the team’s suggestions move on', async () => {
-    expect(TOUR.find((step) => step.key === 'relay-lab')!.steps.join(' ')).toMatch(/Authorise and Open Pathway.*Finish Stage on Testing/);
-    expect(TOUR.find((step) => step.key === 'team-calendar')!.steps.join(' ')).toMatch(/b\.sandiford and t\.hallworth/);
+    expect(COACH_MARKS['relay-lab'].map((m) => m.text).join(' ')).toMatch(/Authorise and Open Pathway.*Finish Stage on Testing/);
+    expect(COACH_MARKS['team-calendar'].map((m) => m.text).join(' ')).toMatch(/b\.sandiford and t\.hallworth/);
     startLightDemo(ADMIN);
     const availability = async (ids: string[]) =>
       (await call('GET', `/api/calendar/availability?${ids.map((id) => `StaffUserIds=${id}`).join('&')}&From=${today()}&DurationMinutes=30`)).body;
@@ -153,18 +154,17 @@ describe('the walkthrough', () => {
 
   it('has the notepad step copy sample notes into the relay’s pathway, pinned in the relay, which she can add notes to', async () => {
     const step = TOUR.find((s) => s.key === 'notepad')!;
-    expect(step).toMatchObject({switchTo: STAFF.username, isNumbered: true});
-    // No button of its own: the notepad opens from the side nav.
-    expect(step.buttonLabel).toBeUndefined();
-    expect(step.steps[1]).toMatch(/Notepad in the side nav/);
-    expect(step.steps[2]).toMatch(/Shift-click Notepad/);
+    expect(step).toMatchObject({switchTo: STAFF.username});
+    const marks = COACH_MARKS.notepad;
+    expect(marks.map((m) => m.text).join(' ')).toMatch(/Shift-click Notepad/);
+    expect(marks.some((m) => m.target && 'css' in m.target && m.target.css === '[data-notepad-toggle]')).toBe(true);
     expect(step.path).toBeUndefined();
     expect(step.sampleText!.length).toBeGreaterThan(0);
-    expect(step.steps.join(' ')).toMatch(/Add Note to Pathway/);
+    expect(marks.map((m) => m.text).join(' ')).toMatch(/Add Note to Pathway/);
     const pathway = seed().pathways.find((p) => p.id === PATHWAYS.relay)!;
-    expect(step.steps.join(' ')).toContain(pathway.title);
-    expect(step.steps.join(' ')).toMatch(/from its pin/);
-    expect(TOUR.find((s) => s.key === 'relay-triage')!.steps.join(' ')).toMatch(/choose Pin/);
+    expect(marks.some((m) => m.path === `/pathways/${pathway.id}`)).toBe(true);
+    expect(marks.map((m) => m.text).join(' ')).toMatch(/pinned under Pathways/);
+    expect(COACH_MARKS['relay-triage'].some((m) => m.target && 'name' in m.target && m.target.name === 'Pin')).toBe(true);
     expect(pathway).toMatchObject({teamId: TEAMS.dermatology, status: 'InProgress', patientId: PATIENTS.leahCorrin});
     startLightDemo(STAFF);
     expect((await call('GET', `/api/pathways/patient-pathways/${pathway.id}`)).body.canAddNotes).toBe(true);
