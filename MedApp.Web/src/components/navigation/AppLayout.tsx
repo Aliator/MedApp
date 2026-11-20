@@ -31,11 +31,8 @@ import {HalfViewClicks} from './HalfViewClicks';
 
 const STORAGE_KEY = 'medapp.halfView';
 
-/**
- * The light demo's first visit opens its Read Me (the demo build only; docs/agents/light-demo.md). The demo's banner is
- * on the Read Me itself, not above every page (the owner's choice).
- */
-const DemoFirstVisit = __LIGHT_DEMO__ ? lazy(() => import('../../demo/DemoFirstVisit').then((m) => ({default: m.DemoFirstVisit}))) : null;
+/** The light demo's walkthrough, started from the side nav (the demo build only; docs/agents/light-demo.md). */
+const DemoWalkthrough = __LIGHT_DEMO__ ? lazy(() => import('../../demo/DemoWalkthrough').then((m) => ({default: m.DemoWalkthrough}))) : null;
 
 /**
  * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
@@ -280,9 +277,9 @@ function MainLayout() {
           contentPadding={half || isNotepadDocked ? 0 : 6}>
           {/* Shift-click or Ctrl-click on any in-app link opens it in a half view (inside AppShell, which knows a phone). */}
           <HalfViewClicks />
-          {DemoFirstVisit && (
+          {DemoWalkthrough && (
             <Suspense fallback={null}>
-              <DemoFirstVisit />
+              <DemoWalkthrough />
             </Suspense>
           )}
           {/*

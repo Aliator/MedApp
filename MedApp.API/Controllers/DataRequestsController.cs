@@ -36,6 +36,17 @@ public sealed class DataRequestsController(IMediator mediator) : ControllerBase
             request.Page, request.PageSize, request.Status, request.PatientId, request.AwaitingReview,
             User.ToPathwayActor(), request.Search, request.Sort, request.Ascending), ct));
 
+    /// <summary>
+    /// How many data requests are open, and how many of those are due within seven days or already past due, for the home
+    /// page. Names no patient, so records nothing.
+    /// </summary>
+    [HttpGet("count")]
+    [RequirePermission(Permission.ManagePrivacy)]
+    [ProducesResponseType(typeof(DataRequestCountResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> CountDataRequests(CancellationToken ct) =>
+        Ok(await mediator.Send(new CountDataRequestsQuery(User.ToPathwayActor()), ct));
+
     /// <summary>Logs a data request as received; its due date is one calendar month on.</summary>
     [HttpPost]
     [RequirePermission(Permission.ManagePrivacy)]

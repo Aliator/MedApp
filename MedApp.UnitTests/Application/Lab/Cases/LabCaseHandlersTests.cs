@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FluentValidation;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.Common.Teams;
 using MedApp.Application.Lab.Cases.Commands;
 using MedApp.Application.Lab.Cases.Queries;
 using MedApp.Application.Lab.Common;
@@ -363,6 +364,56 @@ public sealed class LabCaseSearchTests : LabCaseTestBase
         Run("Overdue").Should().Equal(late);
         Run("AtRisk").Should().BeEmpty();
         Run("Reported").Should().Equal(reported);
+    }
+
+    [Test]
+    public async Task Count_TheOpenCasesAtRiskOverdueAndToReport_AsTheViewsCountThem()
+    {
+        var ready = GivenCase(LabPathway(), null, ThroughRequiredSteps());
+        ready.Steps.Add(Step(ready, 5, LabCaseStepKind.Outcome, choice: LabChoice.NeedsMoreWork, outcome: LabOutcome.NoMoreWork));
+        var atRisk = GivenCase(LabPathway());
+        atRisk.ReceivedAtUtc = Now.AddDays(-6);
+        var late = GivenCase(LabPathway());
+        late.ReceivedAtUtc = Now.AddDays(-20);
+        var reportedLate = GivenCase(LabPathway());
+        reportedLate.ReceivedAtUtc = Now.AddDays(-20);
+        reportedLate.Status = LabCaseStatus.Reported;
+        reportedLate.ReportedAtUtc = Now;
+        LabCases.Setup(l => l.GetOpenAsync(LabMember.Teams, Lab.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([ready, atRisk, late, reportedLate]);
+
+        var count = await new CountLabCasesHandler(LabCases.Object, Teams.Object, Clock)
+            .Handle(new CountLabCasesQuery(LabMember.Teams), Cts.Token);
+
+        count.Should().BeEquivalentTo(new { AtRisk = 1, Overdue = 1, ToReport = 1 });
+    }
+
+    [Test]
+    public async Task Count_OnlyTheCasesTheViewersTeamsSee()
+    {
+        LabCase Late(SpecimenSource source, Guid? clinic, Guid? pathwayId) => new()
+        {
+            Id = Guid.NewGuid(), Source = source, RequestingTeamId = clinic, PathwayId = pathwayId, LabTest = Histology,
+            Status = LabCaseStatus.Open, ReceivedAtUtc = Now.AddDays(-20),
+        };
+        LabCase[] all =
+        [
+            Late(SpecimenSource.Clinic, TeamId, Guid.NewGuid()),
+            Late(SpecimenSource.Clinic, Guid.NewGuid(), Guid.NewGuid()),
+            Late(SpecimenSource.Hospital, null, null),
+        ];
+        var noGrants = Array.Empty<MedApp.Domain.Teams.PathwayAccess>().AsQueryable();
+        LabCases.Setup(l => l.GetOpenAsync(It.IsAny<TeamScope>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TeamScope scope, Guid? labTeamId, CancellationToken _) =>
+                (IReadOnlyList<LabCase>)all.AsQueryable().VisibleCases(scope, noGrants, labTeamId).ToList());
+        var handler = new CountLabCasesHandler(LabCases.Object, Teams.Object, Clock);
+
+        async Task<int> OverdueFor(TeamScope scope) => (await handler.Handle(new CountLabCasesQuery(scope), Cts.Token)).Overdue;
+
+        (await OverdueFor(LabMember.Teams)).Should().Be(3);
+        (await OverdueFor(new TeamScope(Guid.NewGuid(), [], seesAllTeams: true))).Should().Be(3);
+        (await OverdueFor(ClinicStaff.Teams)).Should().Be(1);
+        (await OverdueFor(new TeamScope(Guid.NewGuid(), [Guid.NewGuid()], false))).Should().Be(0);
     }
 
     [Test]

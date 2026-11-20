@@ -568,6 +568,15 @@ export function registerLabCases() {
     return page;
   });
 
+  // The home page's counts, as the views count them; they name no patient, so nothing is logged.
+  on('get', '/api/lab-cases/count', () => {
+    requirePermission('ProcessSpecimens');
+    const scope = myScope();
+    const open = (db().labCases ?? []).filter((c) => c.status === 'Open' && canSeeCase(c, scope));
+    const inView = (view: string) => open.filter(VIEWS[view].match).length;
+    return {atRisk: inView('AtRisk'), overdue: inView('Overdue'), toReport: inView('ToReport')};
+  });
+
   on('get', '/api/lab-cases/{id}', ({params}) => {
     requirePermission('ViewPatients');
     const scope = myScope();

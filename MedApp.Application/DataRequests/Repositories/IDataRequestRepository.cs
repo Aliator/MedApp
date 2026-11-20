@@ -18,6 +18,9 @@ public sealed record DataRequestFilter(
     string? Sort = null,
     bool Ascending = true);
 
+/// <summary>How many requests are open, and how many of those are due on or before a date (the home page's counts).</summary>
+public sealed record DataRequestCounts(int Open, int DueSoon);
+
 /// <summary>Patients' data requests. Every change is saved with its activity log entry, in one save.</summary>
 public interface IDataRequestRepository
 {
@@ -32,6 +35,12 @@ public interface IDataRequestRepository
 
     /// <summary>How many requests the patient has, in any status (a patient with any can't be deleted).</summary>
     Task<int> CountForPatientAsync(Guid patientId, CancellationToken ct);
+
+    /// <summary>
+    /// How many requests are open, and how many of those are due on or before <paramref name="dueOnOrBefore"/> (overdue
+    /// ones included).
+    /// </summary>
+    Task<DataRequestCounts> CountOpenAsync(DateOnly dueOnOrBefore, CancellationToken ct);
 
     /// <summary>
     /// Open requests due on or before <paramref name="dueOnOrBefore"/> whose "due soon" notification wasn't sent for

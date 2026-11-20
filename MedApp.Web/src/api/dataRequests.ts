@@ -93,6 +93,7 @@ export const dataRequestKeys = {
   one: (id: string) => ['data-requests', id] as const,
   reviewItems: (id: string) => ['data-requests', id, 'review-items'] as const,
   search: (search: DataRequestSearch) => ['data-requests', 'search', search] as const,
+  count: ['data-requests', 'count'] as const,
 };
 
 /** Leaves out empty filters, so they aren't sent and equal searches share a cache entry. */
@@ -132,6 +133,12 @@ export function dataRequestReviewItemsQuery(id: string) {
     gcTime: 0,
   });
 }
+
+/** The home page's counts of open data requests and those due within 7 days or overdue (`GET api/data-requests/count`): names no patients, records nothing. */
+export const dataRequestCountQuery = queryOptions({
+  queryKey: dataRequestKeys.count,
+  queryFn: () => unwrap(api.GET('/api/data-requests/count')),
+});
 
 /** Where a data request's page is. */
 export const dataRequestHref = (id: string) => `/data-requests/${id}`;

@@ -120,7 +120,7 @@ export const LAB_CASES = {
   ...HOSPITAL_LAB_CASES,
 } as const;
 
-/** The IDs the Read Me's tour opens. */
+/** The IDs the walkthrough opens. */
 export const LAB_CASE_IDS = {
   /** Wilfred Ashdown's hospital case, at "Needs more work?". */
   atChoice: LAB_CASES.wilfred,

@@ -1,5 +1,4 @@
 import {clearAllAppStorage} from '../app/settingsStore';
-import {READ_ME_PATH} from './readMeSeen';
 import {db, reset, save} from './store';
 
 /** The site's base address (`/MedApp/` on GitHub Pages), without its last slash, for full page loads. */
@@ -19,25 +18,14 @@ function closeHalfView() {
   }
 }
 
-/** Keeps the Read Me in the half view, on the right, through a full load (`AppLayout` reopens what's kept for the tab). */
-function keepReadMeOnRight() {
-  try {
-    sessionStorage.setItem('medapp.halfView', READ_ME_PATH);
-  } catch {
-    // Without storage, the page opens on its own.
-  }
-}
-
 /**
- * Signs in as another demo account and opens `path` (in the app, such as `/calendar`), with a full load, so every
- * cached answer is read again as them. With `readMeOnRight`, the page opens on the left with the Read Me beside it on
- * the right, as the tour's buttons open pages; otherwise on its own.
+ * Signs in as another demo account and opens `path` (in the app, such as `/calendar`), on its own, with a full load, so
+ * every cached answer is read again as them.
  */
-export async function switchAccount(username: string, path = '/', {readMeOnRight = false}: {readMeOnRight?: boolean} = {}): Promise<void> {
+export async function switchAccount(username: string, path = '/'): Promise<void> {
   db().user = username;
   await save();
-  if (readMeOnRight && path !== READ_ME_PATH) keepReadMeOnRight();
-  else closeHalfView();
+  closeHalfView();
   demoNavigation.assign(`${base()}${path}`);
 }
 

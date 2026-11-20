@@ -62,6 +62,7 @@ export const labCaseKeys = {
   all: ['lab-cases'] as const,
   one: (id: string) => ['lab-cases', id] as const,
   search: (search: LabCaseSearch) => ['lab-cases', 'search', search] as const,
+  count: ['lab-cases', 'count'] as const,
 };
 
 /** One lab case (`GET api/lab-cases/{id}`): opening it is recorded as viewing it. */
@@ -81,6 +82,12 @@ export function labCaseSearchQuery(search: LabCaseSearch) {
     placeholderData: keepPreviousData,
   });
 }
+
+/** The home page's counts of open cases at risk, overdue and ready to report (`GET api/lab-cases/count`): names no patients, records nothing. */
+export const labCaseCountQuery = queryOptions({
+  queryKey: labCaseKeys.count,
+  queryFn: () => unwrap(api.GET('/api/lab-cases/count')),
+});
 
 /** After a change: the case as answered, and every list it shows in (its samples, results, hospital request and pathway too). */
 function useRefresh(id?: string) {

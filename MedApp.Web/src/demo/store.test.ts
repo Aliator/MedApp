@@ -1,7 +1,8 @@
 import {STAFF} from './accounts';
 import {PATHWAYS} from './ids';
 import {seed, SEED_VERSION} from './seed';
-import {db, load, replaceState, reset} from './store';
+import {db, isCurrent, load, replaceState, reset} from './store';
+import {daysFrom, today} from './time';
 
 describe('the light demo store', () => {
   it('seeds on the first visit, even without IndexedDB (in memory only)', async () => {
@@ -17,5 +18,14 @@ describe('the light demo store', () => {
     await reset();
     expect(db().user).toBe(STAFF.username);
     expect(db().pathways.some((p) => p.id === PATHWAYS.onHold)).toBe(true);
+  });
+
+  it('keeps a copy seeded today, and seeds again one from another day or an older seed', () => {
+    const fresh = seed();
+    expect(isCurrent(fresh)).toBe(true);
+    expect(isCurrent({...fresh, seededOn: daysFrom(-1)})).toBe(false);
+    expect(isCurrent({...fresh, version: SEED_VERSION - 1})).toBe(false);
+    expect(isCurrent(undefined)).toBe(false);
+    expect(fresh.seededOn).toBe(today());
   });
 });

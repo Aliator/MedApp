@@ -200,6 +200,19 @@ describe('the light demo’s lab cases (MC15)', () => {
     expect((await caseOf(LAB_CASES.callumBiopsy)).clock?.state).toMatch(/^Reported/);
   });
 
+  it('counts the lab’s open cases at risk, overdue and ready to report for its home page, as the views do, logging nothing', async () => {
+    startLightDemo(LAB);
+    const total = async (view: string) => (await call('POST', '/api/lab-cases/search', {view})).body.totalCount;
+    const logged = db().activityLog.length;
+    const count = (await call('GET', '/api/lab-cases/count')).body;
+    expect(count).toEqual({atRisk: 1, overdue: 2, toReport: 3});
+    expect(db().activityLog).toHaveLength(logged);
+    expect(count).toEqual({atRisk: await total('AtRisk'), overdue: await total('Overdue'), toReport: await total('ToReport')});
+
+    startLightDemo(ADMIN);
+    expect((await call('GET', '/api/lab-cases/count')).status).toBe(403);
+  });
+
   it('sends a hospital case’s report back to its hospital when authorised, its clock stopped there (MC20)', async () => {
     startLightDemo(LAB);
     const request = db().hospitalRequests.find((r) => r.id === HOSPITAL_REQUESTS.mayaBiopsy)!;
