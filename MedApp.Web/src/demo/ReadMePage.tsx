@@ -13,15 +13,12 @@ import {InHalfPaneContext, useHalfView, useHalfViews} from '../components/pages/
 import {AlertMessage} from '../components/shared/AlertMessage';
 import {AppIcon} from '../components/shared/icons';
 import {CardSection} from '../components/views/CardSection';
-import {ViewCard} from '../components/views/ViewCard';
-import {ARCHITECTURE} from './architecture';
-import {accountDescription, accountLabel, ADMIN, DEMO_ACCOUNTS, LAB, personByUsername, STAFF} from './accounts';
-import {DemoBanner} from './DemoBanner';
+import {ADMIN, accountLabel, personByUsername} from './accounts';
 import {PLACE_ATTRIBUTE, rememberReadMePlace, restoreReadMePlace} from './readMePlace';
 import {markReadMeSeen, READ_ME_PATH} from './readMeSeen';
-import {resetDemo, switchAccount} from './session';
+import {switchAccount} from './session';
 import {db} from './store';
-import {NOT_IN_THE_LIGHT_VERSION, TOUR, TOUR_PARTS, type TourPart, type TourStep} from './tour';
+import {TOUR, TOUR_PARTS, type TourPart, type TourStep} from './tour';
 
 /** The IDs in a path (`/pathways/<id>`), by the kind of record the page before them names. */
 const RECORDS: Record<string, (id: string) => boolean> = {
@@ -34,7 +31,7 @@ const RECORDS: Record<string, (id: string) => boolean> = {
 export function whyStepCantOpen(step: TourStep): string | null {
   const [, kind, id] = (step.path ?? '').split(/[/?]/);
   if (id && RECORDS[kind] && !RECORDS[kind](id))
-    return 'That record isn’t in your copy of the demo any more. Reset (in the banner at the top of the Read Me) brings it back.';
+    return 'That record isn’t in your copy of the demo any more. Reset brings it back.';
   return step.whyNot?.(db()) ?? null;
 }
 
@@ -62,7 +59,7 @@ function SampleText({lines}: {lines: string[]}) {
   );
 }
 
-/** A part of the tour's title, with its line if it has one. */
+/** A part of the walkthrough's title, with its intro when it has one. */
 function TourPartHeading({part}: {part: TourPart}) {
   const {title, intro}: {title: string; intro?: string} = TOUR_PARTS.find((p) => p.key === part)!;
   return (
@@ -73,37 +70,24 @@ function TourPartHeading({part}: {part: TourPart}) {
   );
 }
 
-/**
- * The light demo's Read Me (the demo build only): what this is, the three accounts, a guided tour whose buttons open the
- * exact page or record (switching account first when the step needs it), and what the full version does that this one
- * doesn't, with the demo's banner at the top. Shown on the first visit (`DemoFirstVisit`), and in the side nav.
- */
+/** The light demo's Read Me: just the tutorial walkthrough. */
 export function ReadMePage() {
   const me = useCurrentUser();
   const navigate = useNavigate();
   const halfViews = useHalfViews();
   const [notes, setNotes] = useState<Record<string, string>>({});
-  // This Read Me's content, where its place is kept and put back.
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => markReadMeSeen(), []);
 
-  // Pages open on the left, keeping the Read Me on the right (a half view), so it can be read beside them: from the
-  // Read Me on its own, as Ctrl-click opens one (it moves to the right); from the right half, in the main view. A phone
-  // has no half view, and nowhere without the half views to open them (a test of the page alone) has one either: there
-  // the page opens in the Read Me's place.
+  // Keep the walkthrough beside a page it opens when half views are available.
   const isOnRight = useContext(InHalfPaneContext);
   const {isHalf} = useHalfView();
   const {isMobile} = useAppShellMobile();
   const beside = isMobile ? null : halfViews;
 
-  // Back where the reader was, when a tour button moved the Read Me here (it would otherwise start at the top): once
-  // it's laid out, in the right half or on its own. One in the left half (the moment before a page replaces it there)
-  // leaves the place for the right one.
   useEffect(() => {
     if (!isOnRight && isHalf) return;
-    // Tried on each frame until it's laid out in its scrolling area (a half pane's page settles over a few), for up to
-    // two seconds or so.
     let frame = 0;
     let tries = 0;
     const attempt = () => {
@@ -112,11 +96,11 @@ export function ReadMePage() {
     frame = requestAnimationFrame(attempt);
     return () => cancelAnimationFrame(frame);
   }, [isOnRight, isHalf]);
+
   const openPage = async (path: string, place?: string) => {
     if (beside) {
       if (isOnRight) beside.showOnLeft(path);
       else {
-        // The Read Me moves to the right half, as a new page there.
         if (place) rememberReadMePlace(root.current, place, 'right');
         beside.openOnLeft(path);
       }
@@ -130,13 +114,10 @@ export function ReadMePage() {
     const why = whyStepCantOpen(step);
     if (why) {
       setNotes((current) => ({...current, [step.key]: why}));
-      // Something already done still opens: the step says what's different. A record that's gone doesn't.
       if (!step.whyNot?.(db())) return;
     }
     if (step.account && step.account !== me.username) {
-      // After the reload, the same arrangement: the page on the left, the Read Me on the right.
       const readMeOnRight = beside !== null && step.path !== undefined;
-      // The Read Me shows again after it (beside the page, or alone when the step has no page): kept where the reader was.
       if (readMeOnRight || step.path === undefined) rememberReadMePlace(root.current, step.key, readMeOnRight ? 'right' : 'whole');
       await switchAccount(step.account, step.path ?? READ_ME_PATH, {readMeOnRight});
       return;
@@ -144,159 +125,54 @@ export function ReadMePage() {
     if (step.path) await openPage(step.path, step.key);
   };
 
-  /** A step's own "Switch to …" (`switchTo`): signs in as that account and comes back to the Read Me, where it was. */
   const switchForStep = async (step: TourStep, username: string) => {
     rememberReadMePlace(root.current, step.key, 'whole');
     await switchAccount(username, READ_ME_PATH);
   };
 
-  const others = DEMO_ACCOUNTS.filter((account) => account.username !== me.username);
-
   return (
-    <Page title="Read Me" subtitle="The light version of MedApp, for trying it out">
+    <Page title="Read Me">
       <VStack ref={root} gap={6}>
-        <DemoBanner />
-        <ViewCard
-          footerActions={
-            <Button label="Start Using MedApp" variant="primary" icon={<Icon icon={AppIcon.Home} />} onClick={() => void openPage('/')} />
-          }>
-          <CardSection title="What this is">
-            <List listStyle="disc" edge="flush" density="compact">
-              <ListItem label="A light version of MedApp, a patient and pathway app, with no server: it runs entirely in your browser." />
-              <ListItem label="The data is synthetic: made-up patients, staff and NHS numbers (from a range never issued). Don’t enter real patient details." />
-              <ListItem label="Your changes stay in this browser only. Reset, in the banner at the top of this page, puts everything back as it started." />
-              <ListItem label="The rules are simplified: the full version checks every change on its server." />
-            </List>
-          </CardSection>
-        </ViewCard>
-
-        <ViewCard
-          footerActions={
-            <HStack gap={2} wrap="wrap" {...{[PLACE_ATTRIBUTE]: 'switch-account'}}>
-              {others.map((other) => (
-                <Button
-                  key={other.id}
-                  label={`Switch to ${other.fullName}`}
-                  variant="secondary"
-                  icon={<Icon icon={AppIcon.Account} />}
-                  onClick={() => {
-                    // A full reload, back to the Read Me on its own: kept where the reader was.
-                    rememberReadMePlace(root.current, 'switch-account', 'whole');
-                    void switchAccount(other.username, READ_ME_PATH);
-                  }}
-                />
-              ))}
-            </HStack>
-          }>
-          <CardSection title="Three accounts">
-            <VStack gap={3}>
-              <List listStyle="disc" edge="flush" density="compact">
-                {DEMO_ACCOUNTS.map((account) => (
-                  <ListItem
-                    key={account.id}
-                    label={`${account.fullName} (${account.username})${account.username === me.username ? ': you, now' : ''}`}
-                    description={accountDescription(account)}
-                  />
-                ))}
-              </List>
-              <Text type="body">
-                Switch between them with the buttons below, or let the tour’s buttons switch for you. The admin runs the centre: accounts, setup,
-                Insights, and every team’s records to read, but no clinical changes. Only staff do clinical work: {STAFF.fullName} as a
-                Dermatology clinician, and {LAB.fullName}, the lab’s histopathologist, who also does the bench steps in this demo. A clinic
-                admin is staff who also looks after their clinic; in this demo she works as any clinician does.
-              </Text>
-            </VStack>
-          </CardSection>
-        </ViewCard>
-
-        <ViewCard showFooter={false}>
-          <CardSection title="A guided tour">
-            <VStack gap={5}>
-              <Text type="body">
-                {beside
-                  ? 'Each button opens the exact page on the left, keeping this Read Me on the right to follow, and switches account first if the step needs it.'
-                  : 'Each button opens the exact page, switching account first if the step needs it.'}
-              </Text>
-              {TOUR.map((step, i) => (
-                <VStack key={step.key} gap={2} {...{[PLACE_ATTRIBUTE]: step.key}}>
-                  {/* A part's title (and its line) above its first step. */}
-                  {step.part !== TOUR[i - 1]?.part && <TourPartHeading part={step.part} />}
-                  <Heading level={4}>
-                    {`${i + 1}. ${step.title}`}
-                    {step.account ? ` (as ${accountLabel(personByUsername(step.account) ?? ADMIN)})` : ''}
-                  </Heading>
-                  <List listStyle={step.isNumbered ? 'decimal' : 'disc'} edge="flush" density="compact">
-                    {/* Each as text, so a long one wraps (a plain string label is cut to one line). */}
-                    {step.steps.map((line) => (
-                      <ListItem key={line} label={<Text type="body">{line}</Text>} />
-                    ))}
-                  </List>
-                  {/* Above the sample text, for a step done as one account with no page of its own (the notepad's). */}
-                  {step.switchTo && step.switchTo !== me.username && (
-                    <HStack>
-                      <Button
-                        label={`Switch to ${step.switchTo}`}
-                        variant="secondary"
-                        icon={<Icon icon={AppIcon.Account} />}
-                        onClick={() => void switchForStep(step, step.switchTo!)}
-                      />
-                    </HStack>
-                  )}
-                  {step.sampleText && <SampleText lines={step.sampleText} />}
-                  {notes[step.key] && <AlertMessage status="info" label="About this step" message={notes[step.key]} />}
-                  {step.buttonLabel && (
-                    <HStack>
-                      <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
-                    </HStack>
-                  )}
-                </VStack>
-              ))}
-            </VStack>
-          </CardSection>
-        </ViewCard>
-
-        <ViewCard showFooter={false}>
-          <CardSection title="What doesn’t work in the light version">
-            <List listStyle="disc" edge="flush" density="compact">
-              {NOT_IN_THE_LIGHT_VERSION.map((item) => (
-                // As text, so each wraps onto more lines instead of being cut off (a plain string is cut to one line).
-                <ListItem
-                  key={item.title}
-                  label={<Text type="body" weight="semibold">{item.title}</Text>}
-                  description={<Text type="body" color="secondary">{`The full version: ${item.full}`}</Text>}
-                />
-              ))}
-            </List>
-          </CardSection>
-        </ViewCard>
-
-        <ViewCard showFooter={false}>
-          <CardSection title="How the full app is built">
-            <Text type="body">MedApp is a full-stack app; this demo runs only its web app. Underneath, the real one is:</Text>
-          </CardSection>
-          {ARCHITECTURE.map((part) => (
-            <CardSection key={part.title} title={part.title}>
-              <List listStyle="disc" edge="flush" density="compact">
-                {part.items.map((item) => (
-                  <ListItem key={item.label} label={item.label} description={item.description} />
-                ))}
-              </List>
-            </CardSection>
-          ))}
-        </ViewCard>
-
-        <ViewCard
-          footerActions={
-            <Button label="Reset the Demo" variant="secondary" icon={<Icon icon={AppIcon.Refresh} />} onClick={() => void resetDemo()} />
-          }>
-          <CardSection title="How it was made light">
+        <CardSection title="Tutorial walkthrough">
+          <VStack gap={5}>
             <Text type="body">
-              The full MedApp is a .NET API with SQL Server, rendered on a server and deployed to Kubernetes, behind a
-              security baseline. This version is the same React app, built as static files for GitHub Pages: its calls to
-              the API are answered in the browser by a small stand-in, which keeps its data in this browser’s storage.
+              {beside
+                ? 'Each button opens the exact page on the left, keeping this walkthrough on the right to follow, and switches account first if the step needs it.'
+                : 'Each button opens the exact page, switching account first if the step needs it.'}
             </Text>
-          </CardSection>
-        </ViewCard>
+            {TOUR.map((step, i) => (
+              <VStack key={step.key} gap={2} {...{[PLACE_ATTRIBUTE]: step.key}}>
+                {step.part !== TOUR[i - 1]?.part && <TourPartHeading part={step.part} />}
+                <Heading level={4}>
+                  {`${i + 1}. ${step.title}`}
+                  {step.account ? ` (as ${accountLabel(personByUsername(step.account) ?? ADMIN)})` : ''}
+                </Heading>
+                <List listStyle={step.isNumbered ? 'decimal' : 'disc'} edge="flush" density="compact">
+                  {step.steps.map((line) => (
+                    <ListItem key={line} label={<Text type="body">{line}</Text>} />
+                  ))}
+                </List>
+                {step.switchTo && step.switchTo !== me.username && (
+                  <HStack>
+                    <Button
+                      label={`Switch to ${step.switchTo}`}
+                      variant="secondary"
+                      icon={<Icon icon={AppIcon.Account} />}
+                      onClick={() => void switchForStep(step, step.switchTo!)}
+                    />
+                  </HStack>
+                )}
+                {step.sampleText && <SampleText lines={step.sampleText} />}
+                {notes[step.key] && <AlertMessage status="info" label="About this step" message={notes[step.key]} />}
+                {step.buttonLabel && (
+                  <HStack>
+                    <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
+                  </HStack>
+                )}
+              </VStack>
+            ))}
+          </VStack>
+        </CardSection>
       </VStack>
     </Page>
   );
