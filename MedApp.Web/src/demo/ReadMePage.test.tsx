@@ -1,9 +1,11 @@
 import {screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {HalfViewsContext, InHalfPaneContext, type HalfViews} from '../components/pages/halfView';
 import {renderWithApp} from '../test/render';
 import {asCurrentUser, startLightDemo} from '../test/lightDemo';
 import {ADMIN, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS} from './ids';
+import {coachPosition, resetCoachForTests} from './coach/coachState';
 import {ReadMePage} from './ReadMePage';
 import {hasSeenReadMe} from './readMeSeen';
 import {demoNavigation} from './session';
@@ -22,6 +24,18 @@ const halfViewsWith = (openPath: string | null): HalfViews => ({
 describe('ReadMePage', () => {
   // A place kept by one test's button isn't for the next test's Read Me.
   afterEach(() => sessionStorage.removeItem('medapp.readMePlace'));
+
+  it('starts the guided tour from the start, or from a step', async () => {
+    resetCoachForTests();
+    const user = userEvent.setup();
+    startLightDemo(ADMIN);
+    renderWithApp(<ReadMePage />, {user: asCurrentUser(ADMIN), path: '/read-me'});
+
+    await user.click(await screen.findByRole('button', {name: 'Start the Guided Tour'}));
+    expect(coachPosition()).toEqual({step: 0, mark: 0});
+    await user.click(screen.getAllByRole('button', {name: 'Guide Me Through It'})[3]);
+    expect(coachPosition()).toEqual({step: 3, mark: 0});
+  });
 
   it('says what the light version is, the three accounts, the tour and what it leaves out, and counts as seen', async () => {
     startLightDemo(ADMIN);
