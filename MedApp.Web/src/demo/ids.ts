@@ -1,5 +1,5 @@
 /**
- * The light demo's fixed IDs: the seed makes every record with one of these, so the Read Me's tour can open an exact
+ * The light demo's fixed IDs: the seed makes every record with one of these, so the walkthrough can open an exact
  * record, and Reset brings back the same ones. Synthetic, like everything in the seed.
  */
 

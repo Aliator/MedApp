@@ -211,7 +211,7 @@ const REPORT_FILES = {
   gpReport: id(0xe5, 4),
 } as const;
 
-/** The IDs the Read Me's tour opens. */
+/** The IDs the walkthrough opens. */
 export const LAB_IDS = {
   /** The result to sign off as Nadia Thornbury (on Callum Ashby's pathway, back from the lab). */
   resultToSignOff: RESULTS.callumBiopsy,

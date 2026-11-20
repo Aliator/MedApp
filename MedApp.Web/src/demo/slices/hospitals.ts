@@ -102,7 +102,7 @@ export const HOSPITAL_PATIENTS = {
   mayaThistlewood: id(0xc4, 2),
 } as const;
 
-/** The IDs the Read Me's tour opens. */
+/** The IDs the walkthrough opens. */
 export const HOSPITAL_IDS = {
   /** A hospital request to open as the lab (`r.aldous`). */
   urgentRequest: HOSPITAL_REQUESTS.wilfredExcision,

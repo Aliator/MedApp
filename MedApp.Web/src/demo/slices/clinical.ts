@@ -208,7 +208,7 @@ export const CONSENT = {
   ellisWithdrawn: id(0xeb, 0x102),
 } as const;
 
-/** The IDs the Read Me's tour can open (all seeded below). */
+/** The IDs the walkthrough can open (all seeded below). */
 export const CLINICAL_IDS = {
   /** The Dermatology MDT that has started (open `/mdt?meeting=` with it). */
   mdtToday: MDT_MEETINGS.today,

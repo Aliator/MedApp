@@ -37,8 +37,7 @@ import {ADMIN_CATEGORIES, useNavCategories, type AdminCategory, type AdminPage} 
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
-import {guidedTourNavEntry, readMeNavEntry} from '../../demo/readMeNav';
-import {READ_ME_PATH as READ_ME} from '../../demo/readMeSeen';
+import {walkthroughNavEntry} from '../../demo/walkthroughNav';
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */
 export function isCurrentSection(pathname: string, path: string): boolean {
@@ -638,8 +637,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   // Each item once: its row for the open nav, and its icon for the folded one (a half view), whose hover brings
   // the same row out over the page.
   const main: NavRailEntry[] = [
-    // The light demo's Read Me, in its build only (docs/agents/light-demo.md).
-    ...(__LIGHT_DEMO__ ? [readMeNavEntry({isSelected: isAt(READ_ME), isHalfView: isHalfAt(READ_ME), halfViewRef: halfViewRow(isHalfAt(READ_ME)), menu: <RowMenu label="Read Me" href={READ_ME} />}), guidedTourNavEntry()] : []),
+    // The light demo's walkthrough, in its build only (docs/agents/light-demo.md).
+    ...(__LIGHT_DEMO__ ? [walkthroughNavEntry()] : []),
     // A clinic team's home leads the nav for clinic staff (MC24): the team's work and theirs.
     ...(hasTeamHome
       ? [

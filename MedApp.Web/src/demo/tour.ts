@@ -4,8 +4,9 @@ import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, TEAMS} from './ids';
 import {LAB_CASE_IDS} from './slices/labCases';
 import type {DemoState} from './state';
+import {db} from './store';
 
-/** One step of the Read Me's guided tour: a button that opens the exact page or record, as the right account. */
+/** One step of the walkthrough: the exact page or record it opens, as the right account. */
 export interface TourStep {
   key: string;
   /** The part of the tour it's in (`TOUR_PARTS`): a part's steps are together, in the parts' order. */
@@ -15,7 +16,7 @@ export interface TourStep {
   steps: string[];
   /** The account the step needs (it switches to it first), or undefined for either. */
   account?: string;
-  /** The page to open: a path in the app, with its query; none stays on the Read Me. */
+  /** The page to open: a path in the app, with its query; none stays where it is. */
   path?: string;
   /**
    * An account to switch to from the step itself (a "Switch to …" button above its sample text), for a step with no
@@ -32,7 +33,7 @@ export interface TourStep {
   whyNot?: (state: DemoState) => string | null;
 }
 
-const RESET_HINT = 'Reset (in the banner at the top of the Read Me) brings it back.';
+const RESET_HINT = 'Reset the Demo, below, brings it back.';
 
 /**
  * Whether the signed-in person has pinned a patient: their pins as this browser holds them (`medapp.pins`, what the
@@ -48,7 +49,7 @@ export function isPatientPinned(patientId: string): boolean {
   }
 }
 
-/** The tour's parts, in order: the Read Me shows each one's title (and its line, if any) above its first step. */
+/** The tour's parts, in order. */
 export const TOUR_PARTS = [
   {key: 'start', title: 'Getting started', intro: 'Find your way around, and meet the three accounts.'},
   {
@@ -72,14 +73,13 @@ export const TOUR: TourStep[] = [
     part: 'start',
     title: 'Two pages side by side',
     steps: [
-      'Rest the pointer on Patients in the side nav and open its menu (the burger at the end of the row), then choose Open in half view on the right. Patients opens on the right, beside this Read Me.',
+      'Rest the pointer on Patients in the side nav and open its menu (the burger at the end of the row), then choose Open in half view on the right. Patients opens on the right, beside this page.',
       'Close it with the close button (×) at the top of the Patients half.',
       'Shift-click Patients in the side nav: it opens on the right again.',
       'Close it again.',
-      'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this Read Me moves to the right.',
-      'Keep the Read Me there and carry on with the tour from it: each button opens its page on the left, beside the Read Me.',
+      'Ctrl-click (⌘-click on a Mac) Patients: it opens on the left, and this page moves to the right.',
       'With two pages open, the side nav folds to its icons: open it from the side with the expand button (Expand sidebar) at the bottom of the icon rail.',
-      'This folding is a setting in Account Settings (Shrink the side nav when two pages are open), on by default: the button below opens it on the left, beside this Read Me.',
+      'This folding is a setting in Account Settings (Shrink the side nav when two pages are open), on by default.',
     ],
     isNumbered: true,
     path: '/account',
@@ -306,3 +306,15 @@ export const NOT_IN_THE_LIGHT_VERSION: {title: string; full: string}[] = [
     full: 'Admins add staff, reset passwords and two-factor, and change roles and their permissions. Here the three accounts are fixed, though their teams can be changed.',
   },
 ];
+
+const RECORDS: Record<string, (id: string) => boolean> = {
+  patients: (id) => db().patients.some((p) => p.id === id),
+  pathways: (id) => db().pathways.some((p) => p.id === id),
+  referrals: (id) => db().referrals.some((r) => r.id === id),
+};
+
+export function whyStepCantOpen(step: TourStep): string | null {
+  const [, kind, id] = (step.path ?? '').split(/[/?]/);
+  if (id && RECORDS[kind] && !RECORDS[kind](id)) return 'That record isn’t in your copy of the demo any more. Reset the Demo, below, brings it back.';
+  return step.whyNot?.(db()) ?? null;
+}
