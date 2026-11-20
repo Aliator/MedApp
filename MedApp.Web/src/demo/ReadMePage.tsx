@@ -4,7 +4,6 @@ import {Icon} from '@astryxdesign/core/Icon';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Heading, Text} from '@astryxdesign/core/Text';
-import {useClipboard} from '@astryxdesign/core/hooks';
 import {useNavigate} from '@tanstack/react-router';
 import {useContext, useEffect, useRef, useState} from 'react';
 import {useCurrentUser} from '../auth/auth';
@@ -16,6 +15,8 @@ import {CardSection} from '../components/views/CardSection';
 import {ADMIN, accountLabel, personByUsername} from './accounts';
 import {PLACE_ATTRIBUTE, rememberReadMePlace, restoreReadMePlace} from './readMePlace';
 import {markReadMeSeen, READ_ME_PATH} from './readMeSeen';
+import {SampleText} from './SampleText';
+import {startCoachTour} from './coach/coachState';
 import {switchAccount} from './session';
 import {db} from './store';
 import {TOUR, TOUR_PARTS, type TourPart, type TourStep} from './tour';
@@ -33,30 +34,6 @@ export function whyStepCantOpen(step: TourStep): string | null {
   if (id && RECORDS[kind] && !RECORDS[kind](id))
     return 'That record isn’t in your copy of the demo any more. Reset brings it back.';
   return step.whyNot?.(db()) ?? null;
-}
-
-/** A step's sample text, as plain selectable lines, with a button that copies them all (one per line). */
-function SampleText({lines}: {lines: string[]}) {
-  const {copy, isCopied} = useClipboard({announce: 'Copied'});
-  return (
-    <VStack gap={2}>
-      <VStack gap={1}>
-        {lines.map((line) => (
-          <Text key={line} type="body">
-            {line}
-          </Text>
-        ))}
-      </VStack>
-      <HStack>
-        <Button
-          label={isCopied ? 'Copied' : 'Copy the Notes'}
-          variant="secondary"
-          icon={<Icon icon={isCopied ? AppIcon.Check : AppIcon.Copy} />}
-          onClick={() => void copy(lines.join('\n'))}
-        />
-      </HStack>
-    </VStack>
-  );
 }
 
 /** A part of the walkthrough's title, with its intro when it has one. */
@@ -135,6 +112,9 @@ export function ReadMePage() {
       <VStack ref={root} gap={6}>
         <CardSection title="Tutorial walkthrough">
           <VStack gap={5}>
+            <HStack>
+              <Button label="Start the Guided Tour" variant="primary" icon={<Icon icon={AppIcon.Question} />} onClick={() => startCoachTour()} />
+            </HStack>
             <Text type="body">
               {beside
                 ? 'Each button opens the exact page on the left, keeping this walkthrough on the right to follow, and switches account first if the step needs it.'
@@ -164,11 +144,10 @@ export function ReadMePage() {
                 )}
                 {step.sampleText && <SampleText lines={step.sampleText} />}
                 {notes[step.key] && <AlertMessage status="info" label="About this step" message={notes[step.key]} />}
-                {step.buttonLabel && (
-                  <HStack>
-                    <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />
-                  </HStack>
-                )}
+                <HStack gap={2} wrap="wrap">
+                  {step.buttonLabel && <Button label={step.buttonLabel} variant="secondary" icon={<Icon icon={AppIcon.ChevronRight} />} onClick={() => void start(step)} />}
+                  <Button label="Guide Me Through It" variant="ghost" icon={<Icon icon={AppIcon.Question} />} onClick={() => startCoachTour(i)} />
+                </HStack>
               </VStack>
             ))}
           </VStack>
