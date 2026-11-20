@@ -2,6 +2,7 @@ import {SideNavItem} from '@astryxdesign/core/SideNav';
 import type {ReactNode} from 'react';
 import type {NavRailEntry} from '../components/navigation/NavRail';
 import {AppIcon} from '../components/shared/icons';
+import {startCoachTour} from './coach/coachState';
 import {READ_ME_PATH} from './readMeSeen';
 
 /**
@@ -27,5 +28,15 @@ export function readMeNavEntry({
     isSelected,
     isHalfView,
     row: <SideNavItem label="Read Me" icon={AppIcon.Info} href={READ_ME_PATH} isSelected={isSelected} ref={halfViewRef} actions={menu} />,
+  };
+}
+
+export function guidedTourNavEntry(): NavRailEntry {
+  return {
+    key: 'guided-tour',
+    label: 'Guided Tour',
+    icon: AppIcon.Question,
+    isSelected: false,
+    row: <SideNavItem label="Guided Tour" icon={AppIcon.Question} onClick={() => startCoachTour()} />,
   };
 }
