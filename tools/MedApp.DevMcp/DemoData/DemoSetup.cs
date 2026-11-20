@@ -177,6 +177,22 @@ public static class DemoSetup
         await seed.Send(t.Ago(90), admin, new SetStaffHoursCommand(DemoPeople.Hallworth.Id,
             new[] { "Tuesday", "Wednesday", "Thursday" }.Select(d => new StaffHoursDay(d, new TimeOnly(9, 0), new TimeOnly(17, 0), Site.MainSiteId)).ToList(), calendar), "set Tom Hallworth's hours");
 
+        // Seeded at a weekend, the centre and the three demo accounts work it, so their calendars have today (the light
+        // demo's weekendCover).
+        if (t.IsWeekend)
+        {
+            string[] weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+            string[] weekend = ["Saturday", "Sunday"];
+            await seed.Send(t.Ago(7), admin, new SetSiteHoursCommand(Site.MainSiteId,
+                weekdays.Select(d => new SiteHoursDay(d, new TimeOnly(8, 0), new TimeOnly(18, 0)))
+                    .Concat(weekend.Select(d => new SiteHoursDay(d, new TimeOnly(9, 0), new TimeOnly(13, 0)))).ToList()), "open the centre at the weekend");
+            foreach (var person in new[] { DemoPeople.Admin, DemoPeople.Thornbury, DemoPeople.Aldous })
+                await seed.Send(t.Ago(7), admin, new SetStaffHoursCommand(person.Id,
+                    weekdays.Select(d => new StaffHoursDay(d, new TimeOnly(8, 0), new TimeOnly(18, 0), Site.MainSiteId))
+                        .Concat(weekend.Select(d => new StaffHoursDay(d, new TimeOnly(9, 0), new TimeOnly(13, 0), Site.MainSiteId))).ToList(), calendar),
+                    $"set {person.Username}'s weekend hours");
+        }
+
         // The closed days: the next bank holidays everywhere, and a training day at Northfield in about three weeks.
         at = t.Ago(30, 9, 0);
         foreach (var (date, name) in new[] { (t.NextDate(12, 25), "Christmas Day"), (t.NextDate(12, 26), "Boxing Day"), (t.NextDate(1, 1), "New Year's Day") })

@@ -57,6 +57,7 @@ public static class DemoDataSeeder
         await DemoClinic.CreateMdtListsAsync(seed, mdtToday, mdtAhead);
         await DemoSetup.CreateCalendarSetupAsync(seed);
         await DemoClinic.CreateBlocksAsync(seed, mdtToday, mdtAhead);
+        await DemoClinic.CreateDataRequestAsync(seed);
         var activity = await DemoActivity.CreateAsync(seed);
         await DemoClinic.FinishAsync(seed);
 

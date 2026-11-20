@@ -30,6 +30,10 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
 
 **Times are relative to now,** as the light demo's are: what happened "this morning" is the last weekday's when it's run before then or at a weekend, and visits keep to weekdays and off the closed days.
 
+**Every account has a calendar today and this week,** as in the light demo (the owner, 20 November 2026): blocks for Nadia Thornbury, Ravi Aldous (cut-up, reporting, quality checks) and the admin (rota planning, a governance review) on weekdays this week and next. **Loaded on a Saturday or Sunday,** the centre opens at the weekend and the three work it (09:00 to 13:00), with weekend sessions on their calendars. The light demo also seeds itself again each day; the full app's data stays as loaded until the script runs again.
+
+**Needs your attention shows for every account:** Nadia Thornbury's results, letters and referrals; Ravi Aldous's lab cases at risk, overdue and ready to report; and the admin's data requests, from Tobias Lund's own request (received 26 days ago, identity checked in person, due within the week; `tour.dataRequest` in the summary).
+
 **Files:** the GP practice's report is stored only when Azurite answers on `127.0.0.1:14331`. Otherwise the summary says files were skipped (the result's record stays).
 
 ## The clinic
