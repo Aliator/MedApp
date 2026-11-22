@@ -45,6 +45,9 @@ public sealed class ApiPipeline(IServiceProvider services, IReadOnlyList<ApiRout
         }
     }
 
+    /// <summary>Whether a request is being served.</summary>
+    public bool IsBusy => _oneAtATime.CurrentCount == 0;
+
     private async Task<ApiResponse> RunAsync(ApiRequest request, CancellationToken ct)
     {
         var uri = new Uri(new Uri("https://localhost"), request.Url);

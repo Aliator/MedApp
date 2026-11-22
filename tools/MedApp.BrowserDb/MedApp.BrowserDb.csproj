@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- NuGet audit: a known high (NU1903) or critical (NU1904) vulnerability in any package, direct or
+         transitive, fails the build. Moderate and low ones stay warnings. -->
+    <PropertyGroup>
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    </PropertyGroup>
+
+    <!-- Builds the full browser demo's database (docs/full-browser-demo-plan.md), natively: MedApp.Browser's sources and
+         SQLite fit, and the full app's demo data seeder (tools/MedApp.DevMcp/DemoData), run against a new SQLite file.
+         Never deployed; its output is published with the demo. -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>MedApp.BrowserDb</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Cultures stay, as in the browser: letters write dates as en-GB does. -->
+        <InvariantGlobalization>false</InvariantGlobalization>
+    </PropertyGroup>
+
+    <Import Project="..\..\MedApp.Browser\BrowserSources.props" />
+
+    <!-- The demo data seeder, as the tool compiles it, but what only runs against SQL Server: the reset (snapshots,
+         migrations), the wipe's caller and its services, and the check for Azurite. -->
+    <ItemGroup>
+        <Compile Include="..\MedApp.DevMcp\DemoData\*.cs"
+                 Exclude="..\MedApp.DevMcp\DemoData\*.SqlServer.cs;..\MedApp.DevMcp\DemoData\DemoDataReset.cs;..\MedApp.DevMcp\DemoData\DemoFiles.cs"
+                 Link="Shared\DemoData\%(Filename)%(Extension)" />
+        <Compile Include="..\MedApp.DevMcp\Guards.cs;..\MedApp.DevMcp\DevMcpOptions.cs;..\MedApp.DevMcp\DevToolActivityContext.cs;..\MedApp.DevMcp\Tools\TestAdminTools.cs;..\MedApp.DevMcp\Tools\TestStaffTools.Roles.cs"
+                 Link="Shared\DevMcp\%(Filename)%(Extension)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ModelContextProtocol.Core" Version="2.4.0" />
+        <PackageReference Include="SkiaSharp" Version="3.119.4" />
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+</Project>

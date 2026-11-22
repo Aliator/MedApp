@@ -47,6 +47,8 @@ public sealed class SqliteFileStore(BrowserDatabase database) : IFileStore
 /// <summary>Where the browser's SQLite database is: a file in the runtime's in-memory file system.</summary>
 public sealed class BrowserDatabase(string path)
 {
+    public string Path { get; } = path;
+
     public string ConnectionString { get; } = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString();
 
     public SqliteConnection Open()

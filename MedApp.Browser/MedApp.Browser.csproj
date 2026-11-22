@@ -33,68 +33,7 @@
         </ItemGroup>
     </Target>
 
-    <ItemGroup>
-        <ProjectReference Include="..\MedApp.Application\MedApp.Application.csproj" />
-        <ProjectReference Include="..\MedApp.Domain\MedApp.Domain.csproj" />
-        <ProjectReference Include="..\MedApp.Contracts\MedApp.Contracts.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
-        <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.15" />
-        <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.15" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.15" />
-        <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.15" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
-        <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="3.2.1" />
-        <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
-        <PackageReference Include="Markdig" Version="1.6.0" />
-    </ItemGroup>
-
-    <!-- Infrastructure's portable files, compiled as they are. What can't run in the browser is left out, and replaced
-         by the stand-ins in Infrastructure/ here. -->
-    <ItemGroup>
-        <Compile Include="..\MedApp.Infrastructure\**\*.cs"
-                 Exclude="..\MedApp.Infrastructure\bin\**;..\MedApp.Infrastructure\obj\**;..\MedApp.Infrastructure\Migrations\**;
-                          ..\MedApp.Infrastructure\Common\Extensions\ServiceExtensions.cs;
-                          ..\MedApp.Infrastructure\Attachments\AttachmentStorageOptions.cs;
-                          ..\MedApp.Infrastructure\Attachments\BlobFileStore.cs;
-                          ..\MedApp.Infrastructure\Attachments\SkiaThumbnailGenerator.cs;
-                          ..\MedApp.Infrastructure\Attachments\StaleUploadSweeper.cs;
-                          ..\MedApp.Infrastructure\Common\Email\EmailDispatcher.cs;
-                          ..\MedApp.Infrastructure\Common\Email\SmtpEmailTransport.cs;
-                          ..\MedApp.Infrastructure\Common\Identity\DataProtectionKeyCheck.cs;
-                          ..\MedApp.Infrastructure\Common\Identity\PasswordResetTokenProvider.cs;
-                          ..\MedApp.Infrastructure\Data\CalendarLock.cs;
-                          ..\MedApp.Infrastructure\Letters\SecureEmailLetterTransport.cs;
-                          ..\MedApp.Infrastructure\PatientMessages\NotifyPatientMessageTransport.cs"
-                 Link="Shared\Infrastructure\%(RecursiveDir)%(Filename)%(Extension)" />
-        <EmbeddedResource Include="..\MedApp.Infrastructure\Common\Identity\Passwords\common-passwords.txt" LogicalName="MedApp.Infrastructure.CommonPasswords.txt" Link="Shared\Infrastructure\common-passwords.txt" />
-        <EmbeddedResource Include="..\MedApp.Infrastructure\Letters\Fonts\*.ttf" LogicalName="MedApp.Infrastructure.LetterFonts.%(Filename)%(Extension)" Link="Shared\Infrastructure\Fonts\%(Filename)%(Extension)" />
-    </ItemGroup>
-
-    <!-- The API's controllers, unchanged, against the MVC stand-in in Mvc/ here. -->
-    <ItemGroup>
-        <Compile Include="..\MedApp.API\Controllers\*.cs" Exclude="..\MedApp.API\Controllers\FhirController.cs" Link="Shared\Api\Controllers\%(Filename)%(Extension)" />
-        <Compile Include="..\MedApp.API\Common\Authentication\ClaimsPrincipalExtensions.cs;
-                          ..\MedApp.API\Common\Authentication\SessionAuthenticationDefaults.cs;
-                          ..\MedApp.API\Common\Authentication\RequirePermissionAttribute.cs;
-                          ..\MedApp.API\Common\Authentication\AuthPolicies.cs;
-                          ..\MedApp.API\Common\Authentication\ISessionCookieService.cs;
-                          ..\MedApp.API\Attachments\AttachmentResponseHeaders.cs;
-                          ..\MedApp.API\Middleware\ExceptionHandling.cs"
-                 Link="Shared\Api\%(Filename)%(Extension)" />
-    </ItemGroup>
-
-    <!-- The API's settings (Identity's rules, retention, notepads, reminders), read as the API reads them. -->
-    <ItemGroup>
-        <EmbeddedResource Include="..\MedApp.API\appsettings.json" LogicalName="MedApp.Browser.appsettings.json" Link="Shared\Api\appsettings.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Using Include="Microsoft.AspNetCore.Http" />
-        <Using Include="Microsoft.Extensions.DependencyInjection" />
-        <Using Include="Microsoft.Extensions.Logging" />
-    </ItemGroup>
+    <!-- The sources (Infrastructure's portable files, the API's controllers) and packages, shared with tools/MedApp.BrowserDb. -->
+    <Import Project="BrowserSources.props" />
 
 </Project>

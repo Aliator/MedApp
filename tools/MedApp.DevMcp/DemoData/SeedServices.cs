@@ -1,9 +1,7 @@
 using MedApp.Application.Activity.Common;
 using MedApp.Application.Attachments.Common;
 using MedApp.Application.Common.Email;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace MedApp.DevMcp.DemoData;
 
@@ -25,43 +23,34 @@ public sealed class SeedActivityContext : IActivityContext
 }
 
 /// <summary>
-/// The app's services as the seed uses them: the same as the tool's (<see cref="DevMcpServices.AddDevMcpCore"/>), but
-/// with a clock and an activity actor the seed controls, so handlers it calls write history at the right moment and
-/// by the right person. A provider of its own, apart from the tool's, so nothing else sees the moved clock.
+/// The app's services as the seed uses them: a host's (the tool's for SQL Server, <see cref="DevMcpServices.AddDevMcpCore"/>;
+/// the browser's for its SQLite database), but with a clock and an activity actor the seed controls, so handlers it
+/// calls write history at the right moment and by the right person. A provider of its own, apart from the tool's, so
+/// nothing else sees the moved clock.
 /// </summary>
-public sealed class SeedServices : IAsyncDisposable
+public sealed partial class SeedServices : IAsyncDisposable
 {
+    /// <summary>The base for the confirmation links the account commands make (none is sent).</summary>
+    public const string LinkBaseUrl = "http://localhost:5173";
+
     private readonly ServiceProvider _provider;
 
-    /// <param name="discardFiles">
-    /// No attachment store answers: files the app's commands make (letters' PDFs) are dropped, so their records still
-    /// save (as a snapshot loaded elsewhere has the records without the bytes).
-    /// </param>
-    public SeedServices(IConfiguration configuration, DateTime nowUtc, bool discardFiles = false)
+    /// <param name="addApp">Adds the app's services, as the host runs them.</param>
+    /// <param name="fileStore">The files' store, if it's to be another than the host's.</param>
+    public SeedServices(DateTime nowUtc, Action<IServiceCollection> addApp, IFileStore? fileStore = null)
     {
         Clock = new SeedClock(nowUtc);
         Context = new SeedActivityContext();
 
-        var overlay = new ConfigurationBuilder()
-            .AddConfiguration(configuration)
-            // Without a base for links, the app makes no confirmation link and records no address request. Nothing is
-            // sent: email goes to DiscardedEmail.
-            .AddInMemoryCollection(configuration["Email:LinkBaseUrl"] is { Length: > 0 }
-                ? []
-                : [new KeyValuePair<string, string?>("Email:LinkBaseUrl", "http://localhost:5173")])
-            .Build();
+        var services = new ServiceCollection();
+        addApp(services);
 
-        var services = new ServiceCollection()
-            .AddLogging(logging => logging.SetMinimumLevel(LogLevel.Warning))
-            .AddSingleton<IConfiguration>(overlay)
-            .AddDevMcpCore(overlay);
-
-        // Registered last, so these win over the tool's own.
+        // Registered last, so these win over the host's own.
         services.AddSingleton<TimeProvider>(Clock);
         services.AddSingleton<IActivityContext>(Context);
         services.AddSingleton<IEmailSender, DiscardedEmail>();
-        if (discardFiles)
-            services.AddSingleton<IFileStore, DiscardedFiles>();
+        if (fileStore is not null)
+            services.AddSingleton(fileStore);
         _provider = services.BuildServiceProvider();
     }
 
@@ -104,16 +93,4 @@ public sealed class DiscardedEmail : IEmailSender
     public bool CanSend => true;
 
     public Task SendAsync(EmailMessage message, CancellationToken ct) => Task.CompletedTask;
-}
-
-/// <summary>The seed's file store when no attachment store answers: it takes every file and keeps none.</summary>
-public sealed class DiscardedFiles : IFileStore
-{
-    public bool IsConfigured => true;
-
-    public Task SaveAsync(string key, Stream content, string contentType, CancellationToken ct) => Task.CompletedTask;
-
-    public Task<Stream?> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream?>(null);
-
-    public Task DeleteAsync(string key, CancellationToken ct) => Task.CompletedTask;
 }

@@ -39,27 +39,46 @@ namespace MedApp.Browser.Hosting;
 /// </summary>
 public static class BrowserServices
 {
-    public static IServiceCollection AddBrowserBackend(this IServiceCollection services, BrowserDatabase database)
+    public static IServiceCollection AddBrowserBackend(this IServiceCollection services, BrowserDatabase database, BrowserBackendOptions? options = null)
     {
-        var configuration = Configuration();
+        options ??= new BrowserBackendOptions();
+        var configuration = Configuration(options.Settings);
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(logging => logging.AddProvider(new BrowserConsoleLoggerProvider()));
         services.AddSingleton(database);
 
         services.AddApplication();
         services.AddBrowserApi(configuration);
-        services.AddBrowserInfrastructure(configuration, database);
+        services.AddBrowserInfrastructure(configuration, database, options.CompiledModel);
         return services;
     }
 
-    /// <summary>The API's <c>appsettings.json</c>, as it's published.</summary>
-    private static IConfiguration Configuration()
+    /// <summary>
+    /// The browser's database: SQLite, the model fitted to it (or its compiled form, <c>Data/CompiledModel</c>, made
+    /// by <c>tools/MedApp.BrowserDb/optimize-model.sh</c>), and SQL Server's dialect translated.
+    /// </summary>
+    public static DbContextOptionsBuilder UseBrowserDatabase(this DbContextOptionsBuilder options, string connectionString, bool compiledModel)
+    {
+        options
+            .UseSqlite(connectionString)
+            .ReplaceService<IModelCustomizer, SqliteModelCustomizer>()
+            .AddInterceptors(new SqlServerDialect())
+            .ConfigureWarnings(MedApp.Infrastructure.Common.Extensions.ServiceExtensions.LogFailedSavesAtDebug);
+#if BROWSER_COMPILED_MODEL
+        if (compiledModel)
+            options.UseModel(Data.CompiledModel.MedAppDbContextModel.Instance);
+#endif
+        return options;
+    }
+
+    /// <summary>The API's <c>appsettings.json</c>, as it's published, with any settings over it.</summary>
+    private static IConfiguration Configuration(IReadOnlyDictionary<string, string?> overrides)
     {
         using var settings = typeof(BrowserServices).Assembly.GetManifestResourceStream("MedApp.Browser.appsettings.json")!;
         var bytes = new MemoryStream();
         settings.CopyTo(bytes);
         bytes.Position = 0;
-        return new ConfigurationBuilder().AddJsonStream(bytes).Build();
+        return new ConfigurationBuilder().AddJsonStream(bytes).AddInMemoryCollection(overrides).Build();
     }
 
     /// <summary>What the API's <c>AddApi</c> provides the Application layer.</summary>
@@ -80,13 +99,9 @@ public static class BrowserServices
     }
 
     /// <summary>What Infrastructure's <c>AddInfrastructure</c> registers, with the browser's stand-ins.</summary>
-    private static void AddBrowserInfrastructure(this IServiceCollection services, IConfiguration configuration, BrowserDatabase database)
+    private static void AddBrowserInfrastructure(this IServiceCollection services, IConfiguration configuration, BrowserDatabase database, bool compiledModel)
     {
-        services.AddDbContext<MedAppDbContext>(options => options
-            .UseSqlite(database.ConnectionString)
-            .ReplaceService<IModelCustomizer, SqliteModelCustomizer>()
-            .AddInterceptors(new SqlServerDialect())
-            .ConfigureWarnings(MedApp.Infrastructure.Common.Extensions.ServiceExtensions.LogFailedSavesAtDebug));
+        services.AddDbContext<MedAppDbContext>(options => options.UseBrowserDatabase(database.ConnectionString, compiledModel));
 
         services.AddBrowserIdentity(configuration);
 
@@ -148,6 +163,19 @@ public static class BrowserServices
         services.AddScoped<AdminGrant>();
         services.AddScoped<ILastAdminGuard, LastAdminGuard>();
         services.AddScoped<IPermissionHolders, PermissionHolders>();
+    }
+}
+
+/// <param name="Settings">Settings over the API's <c>appsettings.json</c>.</param>
+/// <param name="CompiledModel">
+/// Whether to use the compiled model, when there is one. The demo database's build makes the model as the app does
+/// instead, and checks the compiled one matches it.
+/// </param>
+public sealed record BrowserBackendOptions(IReadOnlyDictionary<string, string?> Settings, bool CompiledModel = true)
+{
+    public BrowserBackendOptions()
+        : this(new Dictionary<string, string?>())
+    {
     }
 }
 
