@@ -18,16 +18,27 @@ export const USERS = {
   marsh: id(0xd0, 5),
   hallworth: id(0xd0, 6),
   aldous: id(0xd0, 7),
+  varma: id(0xd0, 8),
+  ferrand: id(0xd0, 9),
 } as const;
 
 export const TEAMS = {
-  /** The one clinic (19 Nov: one clinic, one lab). */
+  /** The two clinics and the lab (20 Nov: Dermatology, the Eye clinic and the lab). */
   dermatology: id(0xd1, 1),
+  eyeClinic: id(0xd1, 7),
   lab: id(0xd1, 6),
 } as const;
 
+/** Each team's name, in the order the seed makes them. */
+export const TEAM_NAMES: [string, string][] = [
+  [TEAMS.dermatology, 'Dermatology'],
+  [TEAMS.eyeClinic, 'Eye clinic'],
+  // The lab (decision 182): a team of its own kind, serving every clinic.
+  [TEAMS.lab, 'Lab'],
+];
+
 export const TEMPLATES = {
-  /** Dermatology's ten (the owner's reviewed templates, `docs/pathways/dermatology.yaml`, mapped in `dermatology.ts`). */
+  /** Dermatology's ten (the owner's reviewed templates, `docs/pathways/dermatology.yaml`, mapped in `clinicTemplates.ts`). */
   suspectedSkinCancer: id(0xd2, 5),
   inflammatorySkin: id(0xd2, 2),
   changingMole: id(0xd2, 8),
@@ -38,8 +49,13 @@ export const TEMPLATES = {
   skinInfection: id(0xd2, 13),
   hairLoss: id(0xd2, 14),
   pigmentation: id(0xd2, 15),
-  /** Not one of the ten: the tour's three-stage relay (`TOUR_RELAY` in `dermatology.ts`). */
+  /** Not one of the ten: the tour's three-stage relay (`TOUR_RELAY` in `clinicTemplates.ts`). */
   skinSample: id(0xd2, 16),
+  /** The Eye clinic's four (`docs/pathways/ophthalmology.yaml`, copied in `ophthalmologyReviewed.ts`). */
+  cataract: id(0xd2, 17),
+  glaucoma: id(0xd2, 18),
+  redEye: id(0xd2, 19),
+  macular: id(0xd2, 20),
 } as const;
 
 /** Addable routes (MC10): routes a clinician may add on new information, never suggested. */
@@ -49,7 +65,7 @@ export const TEMPLATE_BRANCHES = {
 } as const;
 
 /** The stage library's own definition, which Dermatology's reviewed templates share; theirs are numbered from
- * `id(0xd3, 0x20)` (`dermatologyStageDefinitions`). */
+ * `id(0xd3, 0x20)` (`reviewedStageDefinitions`). */
 export const STAGES = {
   carePlan: id(0xd3, 13),
 } as const;
@@ -77,6 +93,14 @@ export const PATIENTS = {
   leahCorrin: id(0xd4, 16),
   /** Has the changing mole pathway at Take photographs, which needs her consent to clinical photography (MC27, MC29). */
   noraFennick: id(0xd4, 15),
+  /** The Eye clinic's: cataract, at Biometry (booked). */
+  edithMarlow: id(0xd4, 17),
+  /** The Eye clinic's: red eye, her swab with the lab (an open lab case). */
+  freyaTolland: id(0xd4, 18),
+  /** The Eye clinic's: macular, at Triage, nobody assigned. */
+  hamishDewar: id(0xd4, 19),
+  /** Referred to the Eye clinic: awaiting triage. */
+  ruthPenhaligon: id(0xd4, 20),
 } as const;
 
 export const PATHWAYS = {
@@ -104,6 +128,14 @@ export const PATHWAYS = {
   relay: id(0xd5, 16),
   /** Suspected skin infection, Ilona Petrova, Nadia Thornbury's: at Take skin sample, seen this morning, her scraping not yet sent. */
   scrapingToSend: id(0xd5, 17),
+  /** Cataract assessment, Edith Marlow, Saira Varma's: Wants surgery and suitable recorded; at Biometry, booked. */
+  eyeCataract: id(0xd5, 18),
+  /** Glaucoma assessment, Oliver Maddox (also referred to Dermatology), Saira Varma's: at Glaucoma assessment, booked. */
+  eyeGlaucoma: id(0xd5, 19),
+  /** Red eye assessment, Freya Tolland, Saira Varma's: her swab received by the lab, at the lab's Microbiology. */
+  eyeRedEye: id(0xd5, 20),
+  /** Macular assessment, Hamish Dewar: at Triage, nobody assigned yet. */
+  eyeMacular: id(0xd5, 21),
 } as const;
 
 export const REFERRALS = {
@@ -112,6 +144,8 @@ export const REFERRALS = {
   aishaDermatology: id(0xd6, 2),
   /** Ellis Varden's, accepted into the biopsy pathway. */
   ellisAccepted: id(0xd6, 5),
+  /** Ruth Penhaligon to the Eye clinic, awaiting triage. */
+  eyeToTriage: id(0xd6, 6),
 } as const;
 
 export const APPOINTMENTS = {
@@ -119,6 +153,11 @@ export const APPOINTMENTS = {
   ellisFirstVisit: id(0xd7, 3),
   priyaFirstVisit: id(0xd7, 4),
   priyaBiopsy: id(0xd7, 5),
+  /** The Eye clinic's visits, with Saira Varma. */
+  edithAssessment: id(0xd7, 6),
+  edithBiometry: id(0xd7, 7),
+  oliverGlaucoma: id(0xd7, 8),
+  freyaExam: id(0xd7, 9),
 } as const;
 
 export const MEETINGS = {

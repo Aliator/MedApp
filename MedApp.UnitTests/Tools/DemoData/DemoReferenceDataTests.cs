@@ -24,11 +24,24 @@ public sealed class DemoReferenceDataTests
             ("j.whitlock", "Jo Whitlock", "Manager"),
             ("b.sandiford", "Bea Sandiford", "Nurse"),
             ("h.marsh", "Hannah Marsh", "Booking"),
-            ("t.hallworth", "Tom Hallworth", "Clinician"));
+            ("t.hallworth", "Tom Hallworth", "Clinician"),
+            ("s.varma", "Saira Varma", "Clinician"),
+            ("c.ferrand", "Clara Ferrand", "Nurse"));
         DemoPeople.Thornbury.Teams.Should().Equal((DemoPeople.Dermatology, TeamMemberRole.ClinicAdmin));
+        DemoPeople.Varma.Teams.Should().Equal((DemoPeople.EyeClinic, TeamMemberRole.ClinicAdmin));
+        DemoPeople.Varma.JobTitle.Should().Be("Consultant ophthalmologist");
+        DemoPeople.Ferrand.Teams.Should().Equal((DemoPeople.EyeClinic, TeamMemberRole.Member));
+        DemoPeople.Ferrand.JobTitle.Should().Be("Ophthalmic nurse");
+        foreach (var bothClinics in new[] { DemoPeople.Whitlock, DemoPeople.Marsh })
+            bothClinics.Teams.Should().Equal([(DemoPeople.Dermatology, TeamMemberRole.Member), (DemoPeople.EyeClinic, TeamMemberRole.Member)],
+                "the team walls need them in both clinics to assign, book and register their work");
         DemoPeople.Aldous.Teams.Should().Equal((Team.LabName, TeamMemberRole.Member));
         DemoPeople.Admin.Teams.Should().BeEmpty("an admin is in no team, and read only");
     }
+
+    [Test]
+    public void People_HaveTheirOwnDocumentationRangeAddresses() =>
+        DemoPeople.Roster().Select(p => p.IpAddress).Should().OnlyHaveUniqueItems().And.OnlyContain(ip => ip.StartsWith("192.0.2."));
 
     [Test]
     public void People_NeverHoldTheRoleFromBeforeRoles()
@@ -40,11 +53,12 @@ public sealed class DemoReferenceDataTests
     public void People_ActAsTheirSessionWould_WithinTheirTeams()
     {
         var people = DemoPeople.Roster();
-        var dermatology = Guid.NewGuid();
+        var teams = new Dictionary<string, Guid> { [Team.LabName] = Team.LabId, [DemoPeople.Dermatology] = Guid.NewGuid(), [DemoPeople.EyeClinic] = Guid.NewGuid() };
+        var dermatology = teams[DemoPeople.Dermatology];
         foreach (var person in people)
         {
             person.Id = Guid.NewGuid();
-            person.TeamIds.AddRange(person.Teams.Select(t => t.Team == Team.LabName ? Team.LabId : dermatology));
+            person.TeamIds.AddRange(person.Teams.Select(t => teams[t.Team]));
         }
 
         DemoPeople.Admin.Actor.Has(Permission.WorkPathways).Should().BeFalse("admins are read only");
@@ -55,6 +69,9 @@ public sealed class DemoReferenceDataTests
         DemoPeople.Aldous.Actor.Has(Permission.AuthoriseLabReports).Should().BeTrue();
         DemoPeople.Aldous.Actor.Has(Permission.ProcessSpecimens).Should().BeTrue();
         DemoPeople.Whitlock.Actor.Has(Permission.AssignPathways).Should().BeTrue();
+        DemoPeople.Varma.Actor.Teams.TeamIds.Should().Equal(teams[DemoPeople.EyeClinic]);
+        DemoPeople.Varma.Actor.Has(Permission.TriageReferrals).Should().BeTrue("she triages the Eye clinic's referrals");
+        DemoPeople.Varma.Actor.Has(Permission.AssignPathways).Should().BeFalse("the service manager assigns, as for Dermatology");
         people.Where(p => !p.IsAdmin).Should().OnlyContain(p => p.Actor.Has(Permission.UseApp));
     }
 
@@ -63,9 +80,20 @@ public sealed class DemoReferenceDataTests
     {
         var numbers = DemoPatients.NhsNumbers.ToList();
 
-        numbers.Should().HaveCount(15).And.OnlyHaveUniqueItems();
+        numbers.Should().HaveCount(19).And.OnlyHaveUniqueItems();
         numbers.Should().OnlyContain(n => n.StartsWith("999") && NhsNumbers.IsValid(n));
         DemoPatients.All.Select(p => p.Name).Should().OnlyHaveUniqueItems();
+    }
+
+    [Test]
+    public void Patients_IncludeTheEyeClinics_WithTheirSpecsNhsNumbers()
+    {
+        DemoPatients.All.TakeLast(4).Select(p => (p.Name, p.DateOfBirth, p.NhsNumber, p.House)).Should().Equal(
+            (DemoPatients.EdithMarlow, new DateOnly(1944, 6, 17), "9991060006", 26),
+            (DemoPatients.FreyaTolland, new DateOnly(1992, 2, 11), "9991061371", 27),
+            (DemoPatients.HamishDewar, new DateOnly(1950, 9, 3), "9991062742", 28),
+            (DemoPatients.RuthPenhaligon, new DateOnly(1966, 12, 29), "9991064117", 29));
+        DemoPatients.All.Single(p => p.Name == DemoPatients.RuthPenhaligon).Practice.Should().Be(DemoSetup.ExampleLane);
     }
 
     [Test]

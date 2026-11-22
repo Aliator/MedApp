@@ -72,7 +72,7 @@ describe('the team walls in the light demo', () => {
   it('lets an admin count and read every team’s referrals', async () => {
     addOtherClinic(startLightDemo(ADMIN).state);
     expect((await call('GET', `/api/referrals/${OTHER_CLINIC.referralId}`)).status).toBe(200);
-    expect((await call('GET', '/api/referrals/awaiting-triage/count')).body).toEqual({count: 3, inYourTeams: false});
+    expect((await call('GET', '/api/referrals/awaiting-triage/count')).body).toEqual({count: 4, inYourTeams: false});
   });
 
   it("shows another team's appointment on a calendar as busy time, with no patient", async () => {

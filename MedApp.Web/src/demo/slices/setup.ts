@@ -1,8 +1,8 @@
 import type {Schemas} from '../../api/client';
 import {ADMIN_PERMISSIONS, type Permission} from '../../auth/permissions';
 import {addDays, dayOfWeek, weekStart} from '../../utils/calendarSlots';
-import {ADMIN, LAB, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
-import {dermatologyStageId} from '../dermatology';
+import {ADMIN, EYE_CLINIC_ADMIN, LAB, PATHOLOGIST_ROLE, PEOPLE, STAFF, type DemoMembership} from '../accounts';
+import {reviewedStageId} from '../clinicTemplates';
 import {ACTIVITY_TYPES, id, PATHWAYS, PATIENTS, REFERRALS, ROOMS, SITES, TEAMS, TEMPLATES, USERS} from '../ids';
 import {ACTIVITY_TYPE_LIST, ROOM_LIST, SITE} from '../seed';
 import type {BaseState} from '../state';
@@ -302,6 +302,7 @@ function seedPractices(state: BaseState, created: string): SetupSlice['practices
     [PATIENTS.harrietQuill, PRACTICES.exampleLane],
     [PATIENTS.tobiasLund, PRACTICES.harbourView],
     [PATIENTS.oliverMaddox, PRACTICES.harbourView],
+    [PATIENTS.ruthPenhaligon, PRACTICES.exampleLane],
   ];
   for (const [patientId, practiceId] of practiceOf) {
     const patient = state.patients.find((p) => p.id === patientId);
@@ -480,7 +481,7 @@ export function weekendCover(on: string): Record<string, DemoStaffHours> {
     ...['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((dayOfWeek) => ({dayOfWeek, starts: clock(8), ends: clock(18), siteId: SITES.centre})),
     ...['Saturday', 'Sunday'].map((dayOfWeek) => ({dayOfWeek, starts: clock(9), ends: clock(13), siteId: SITES.centre})),
   ];
-  return Object.fromEntries([ADMIN, STAFF, LAB].map((person) => [person.id, {since: daysFrom(-7, on), days: days.map((d) => ({...d}))}]));
+  return Object.fromEntries([ADMIN, STAFF, EYE_CLINIC_ADMIN, LAB].map((person) => [person.id, {since: daysFrom(-7, on), days: days.map((d) => ({...d}))}]));
 }
 
 export function seedSetup(state: BaseState): SetupSlice {
@@ -594,7 +595,7 @@ export function seedSetup(state: BaseState): SetupSlice {
         event: 'StageFinished',
         minimumPriority: 'High',
         templateId: TEMPLATES.suspectedSkinCancer,
-        stageDefinitionId: dermatologyStageId(state.stageDefinitions, 'Histology'),
+        stageDefinitionId: reviewedStageId(state.stageDefinitions, 'Histology'),
         isEnabled: true,
         createdAtUtc: ago(20),
         updatedAtUtc: ago(20),

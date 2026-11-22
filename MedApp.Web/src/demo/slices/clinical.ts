@@ -156,6 +156,10 @@ export const LETTER_TEMPLATES = {
   dermatologyDischarge: id(0xe6, 5),
   /** Dermatology's onward referral to the hospital (MC28, `OnwardReferral`). */
   dermatologyOnwardReferral: id(0xe6, 6),
+  /** The Eye clinic's, named as its stages need them. */
+  eyeFinalLetter: id(0xe6, 7),
+  eyeReferral: id(0xe6, 8),
+  eyeUrgentReferral: id(0xe6, 9),
 } as const;
 
 /** Letters (kind 0xe7; their recipients are 0xe8). */
@@ -243,7 +247,12 @@ const CLOSING = 'Yours sincerely,\n\n\n{{author.name}}\n{{author.jobTitle}}';
 const RE_LINE = '**Re: {{patient.name}}, born {{patient.dateOfBirth}}, NHS number {{patient.nhsNumber}}**';
 
 /** The onward referral's opening: who the patient is and where they're registered, all from merge fields. */
-const ONWARD_REFERRAL_OPENING = `Dear colleague,\n\n${RE_LINE}\n\n{{patient.address}}\n\nRegistered with {{practice.name}}. Last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}.\n\nPlease see {{patient.name}} for the treatment below.`;
+const onwardReferralOpening = (clinic: string) =>
+  `Dear colleague,\n\n${RE_LINE}\n\n{{patient.address}}\n\nRegistered with {{practice.name}}. Last seen in the ${clinic} on {{appointment.lastAttendedDate}}.\n\nPlease see {{patient.name}} for the treatment below.`;
+const ONWARD_REFERRAL_OPENING = onwardReferralOpening('Dermatology clinic');
+const ONWARD_REFERRAL_HEADINGS = '## Reason for referral\n\n## Findings and results\n\n## What we are asking for';
+const endOfCareBody = (clinic: string) =>
+  `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}} was last seen in the ${clinic} on {{appointment.lastAttendedDate}}. Their care with us is complete, and we hand it back to you.\n\n## Summary of care\n\n## Advice given\n\n## For the GP`;
 
 const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
   [LETTER_TEMPLATES.clinicLetter, 'Clinic letter', 'ClinicLetter', null, `Dear colleague,\n\n${RE_LINE}\n\n## Diagnosis\n\n## What we found\n\n## Plan`],
@@ -274,14 +283,23 @@ const TEMPLATE_SPECS:[string, string, string, string | null, string][] = [
     'Dermatology end of care letter',
     'DischargeSummary',
     TEAMS.dermatology,
-    `Dear colleague,\n\n${RE_LINE}\n\n{{patient.name}} was last seen in the Dermatology clinic on {{appointment.lastAttendedDate}}. Their care with us is complete, and we hand it back to you.\n\n## Summary of care\n\n## Advice given\n\n## For the GP`,
+    endOfCareBody('Dermatology clinic'),
   ],
   [
     LETTER_TEMPLATES.dermatologyOnwardReferral,
     'Onward referral to hospital',
     'OnwardReferral',
     TEAMS.dermatology,
-    `${ONWARD_REFERRAL_OPENING}\n\n## Reason for referral\n\n## Findings and results\n\n## What we are asking for`,
+    `${ONWARD_REFERRAL_OPENING}\n\n${ONWARD_REFERRAL_HEADINGS}`,
+  ],
+  [LETTER_TEMPLATES.eyeFinalLetter, 'Final letter to GP', 'DischargeSummary', TEAMS.eyeClinic, endOfCareBody('Eye clinic')],
+  [LETTER_TEMPLATES.eyeReferral, 'Referral letter to hospital', 'OnwardReferral', TEAMS.eyeClinic, `${onwardReferralOpening('Eye clinic')}\n\n${ONWARD_REFERRAL_HEADINGS}`],
+  [
+    LETTER_TEMPLATES.eyeUrgentReferral,
+    'Urgent referral letter to hospital',
+    'OnwardReferral',
+    TEAMS.eyeClinic,
+    `${onwardReferralOpening('Eye clinic')}\n\n${ONWARD_REFERRAL_HEADINGS}`,
   ],
 ];
 

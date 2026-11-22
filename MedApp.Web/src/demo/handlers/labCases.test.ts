@@ -13,9 +13,9 @@ describe('the light demo’s lab cases (MC15)', () => {
   it('lists the lab’s cases by tab, and a clinic only its own clinic’s', async () => {
     startLightDemo(LAB);
     const open = (await call('POST', '/api/lab-cases/search', {view: 'Open'})).body;
-    // Six worked (the tour's relay's among them), and two lab stages' cases waiting for their samples (MC16: Aisha's
-    // first, her second's asked for a repeat; and Samuel's Microbiology, his scraping still on its way).
-    expect(open.totalCount).toBe(8);
+    // Seven worked (the tour's relay's and the Eye clinic's swab among them), and two lab stages' cases waiting for their
+    // samples (MC16: Aisha's first, her second's asked for a repeat; and Samuel's Microbiology, his scraping still on its way).
+    expect(open.totalCount).toBe(9);
     expect(open.items.filter((c: {nextKind: string}) => c.nextKind === 'Receive')).toHaveLength(2);
     const repeats = (await call('POST', '/api/lab-cases/search', {view: 'RepeatRequested'})).body;
     expect(repeats.items.map((c: {id: string}) => c.id)).toEqual([LAB_CASES.aishaBiopsy]);

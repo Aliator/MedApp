@@ -1,7 +1,7 @@
 import type {Schemas} from '../api/client';
 import {chainLinks, grownLinks, grownStageOrders} from '../api/pathwayRoutes';
 import {addDays, dayOfWeek, nextWeekday} from '../utils/calendarSlots';
-import {ADMIN, LAB, STAFF, usernameOf} from './accounts';
+import {ADMIN, EYE_CLINIC_ADMIN, LAB, PEOPLE, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
@@ -13,13 +13,14 @@ import {
   ROOMS,
   SITES,
   TEAMS,
+  TEAM_NAMES,
   STAGES,
   TEMPLATE_BRANCHES,
   TEMPLATES,
   USERS,
   id,
 } from './ids';
-import {dermatologyStageDefinitions, dermatologyTemplates} from './dermatology';
+import {reviewedStageDefinitions, reviewedTemplates} from './clinicTemplates';
 import {seedClinical} from './slices/clinical';
 import {consultAccess, seedConsults} from './slices/consults';
 import {seedHospitals} from './slices/hospitals';
@@ -38,7 +39,7 @@ import type {
   DemoStageDefinition,
   DemoState,
 } from './state';
-import {daysFrom, thisWeek, today, ukTime} from './time';
+import {daysFrom, nowUtc, thisWeek, today, ukTime} from './time';
 
 /**
  * The light demo's seed: a small TypeScript copy of part of the demo clinic (`tools/MedApp.DevMcp/DemoData`), with
@@ -48,7 +49,7 @@ import {daysFrom, thisWeek, today, ukTime} from './time';
  */
 
 /** Bump when the seed's shape changes, so a visitor's older copy is seeded again. */
-export const SEED_VERSION = 27;
+export const SEED_VERSION = 28;
 
 /** Activity types for calendar blocks (`ActivityTypeResponse`). */
 export const ACTIVITY_TYPE_LIST: Schemas['ActivityTypeResponse'][] = [
@@ -68,7 +69,7 @@ export const ROOM_LIST = [
 /**
  * The stage library's own definition, as the full demo clinic has it: its name, what it involves, whether it needs a
  * visit, and its gates (a letter of a kind sent, a consent record, the results signed off). Dermatology's reviewed
- * templates share it and add the rest (`dermatology.ts`).
+ * templates share it, and the clinics' templates add the rest (`clinicTemplates.ts`).
  */
 const LIBRARY: Record<
   keyof typeof STAGES,
@@ -79,10 +80,10 @@ const LIBRARY: Record<
 
 type StageKey = keyof typeof STAGES;
 
-/** The stage library as the state keeps it: the existing definitions, then those Dermatology's reviewed templates add. */
+/** The stage library as the state keeps it: the existing definitions, then those the clinics' templates add. */
 export const stageDefinitionList = (): DemoStageDefinition[] => {
   const library = libraryDefinitions();
-  return [...library, ...dermatologyStageDefinitions(library)];
+  return [...library, ...reviewedStageDefinitions(library)];
 };
 
 const libraryDefinitions = (): DemoStageDefinition[] =>
@@ -99,13 +100,6 @@ const libraryDefinitions = (): DemoStageDefinition[] =>
     waitsForResults: LIBRARY[key].results ?? false,
     isArchived: false,
   }));
-
-const TEAM_NAMES: [string, string][] = [
-  // One clinic and the lab (the owner, 19 Nov).
-  [TEAMS.dermatology, 'Dermatology'],
-  // The lab (decision 182): a team of its own kind, serving every clinic.
-  [TEAMS.lab, 'Lab'],
-];
 
 export const teamName = (id: string | null | undefined) => TEAM_NAMES.find(([key]) => key === id)?.[1] ?? null;
 
@@ -205,6 +199,10 @@ const PATIENT_SPECS: [string, string, string, string, string, number][] = [
   [PATIENTS.felixMoreton, 'Felix', 'Moreton', '1968-03-09', '9991023372', 23],
   [PATIENTS.noraFennick, 'Nora', 'Fennick', '1990-06-14', '9991041818', 24],
   [PATIENTS.leahCorrin, 'Leah', 'Corrin', '1986-08-30', '9991051376', 25],
+  [PATIENTS.edithMarlow, 'Edith', 'Marlow', '1944-06-17', '9991060006', 26],
+  [PATIENTS.freyaTolland, 'Freya', 'Tolland', '1992-02-11', '9991061371', 27],
+  [PATIENTS.hamishDewar, 'Hamish', 'Dewar', '1950-09-03', '9991062742', 28],
+  [PATIENTS.ruthPenhaligon, 'Ruth', 'Penhaligon', '1966-12-29', '9991064117', 29],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
@@ -506,7 +504,7 @@ export const ownerAccess = (pathway: DemoPathway): DemoPathwayAccess => ({
 export function seed(): DemoState {
   const on = today();
   const stageDefinitions = stageDefinitionList();
-  const templates: Schemas['PathwayTemplateResponse'][] = dermatologyTemplates(stageDefinitions);
+  const templates: Schemas['PathwayTemplateResponse'][] = reviewedTemplates(stageDefinitions);
   for (const template of templates) template.links ??= chainLinks(template.stages ?? []);
 
   const pathways = (
@@ -589,6 +587,27 @@ export function seed(): DemoState {
         title: 'Scaly patch, right elbow', dueIn: 40, priority: 'Medium', done: 2, outcomes: {'Infection assessment': 'Sample needed'},
         started: true, status: 'InProgress', assignee: STAFF.id, createdDaysAgo: 20,
       },
+      // The Eye clinic's (the owner, 20 November 2026).
+      {
+        n: 18, id: PATHWAYS.eyeCataract, patientId: PATIENTS.edithMarlow, templateId: TEMPLATES.cataract,
+        title: 'Cataract, right eye', dueIn: 45, priority: 'Medium', done: 2, outcomes: {'Cataract assessment': 'Wants surgery and suitable'},
+        status: 'InProgress', assignee: EYE_CLINIC_ADMIN.id, createdDaysAgo: 20,
+      },
+      {
+        n: 19, id: PATHWAYS.eyeGlaucoma, patientId: PATIENTS.oliverMaddox, templateId: TEMPLATES.glaucoma,
+        title: 'Raised eye pressure, both eyes', dueIn: 50, priority: 'Medium', done: 1, status: 'InProgress',
+        assignee: EYE_CLINIC_ADMIN.id, createdDaysAgo: 10,
+      },
+      // Her swab with the lab: Microbiology picked up when it was received (below), its case open (`seedLabCases`).
+      {
+        n: 20, id: PATHWAYS.eyeRedEye, patientId: PATIENTS.freyaTolland, templateId: TEMPLATES.redEye,
+        title: 'Red sore eye, left', dueIn: 14, priority: 'High', done: 3, outcomes: {'Eye examination': 'Swab needed'}, status: 'InProgress',
+        assignee: EYE_CLINIC_ADMIN.id, createdDaysAgo: 5,
+      },
+      {
+        n: 21, id: PATHWAYS.eyeMacular, patientId: PATIENTS.hamishDewar, templateId: TEMPLATES.macular,
+        title: 'Distorted central vision, right eye', dueIn: 21, priority: 'High', done: 0, status: 'Unassigned', createdDaysAgo: 1,
+      },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
@@ -601,6 +620,8 @@ export function seed(): DemoState {
     makeReferral(REFERRALS.ellisAccepted, PATIENTS.ellisVarden, TEAMS.dermatology, 16, 'High',
       'Scaly lesion on the left forearm, not healing for 4 months.',
       {pathwayId: PATHWAYS.biopsyToBook, daysAgo: 14, templateName: 'Suspected skin cancer'}),
+    makeReferral(REFERRALS.eyeToTriage, PATIENTS.ruthPenhaligon, TEAMS.eyeClinic, 2, 'High',
+      'Suspected glaucoma, raised pressures at the optometrist'),
   ];
 
   const pathway = (id: string) => pathways.find((p) => p.id === id)!;
@@ -748,6 +769,61 @@ export function seed(): DemoState {
   for (let date = on; busyDays.length < 2; date = addDays(date, 1)) if (isOpenDay(date)) busyDays.push(date);
   for (const date of busyDays) block(USERS.sandiford, date, ACTIVITY_TYPES.clinic, [8, 0], [18, 0], 'Outreach clinic');
 
+  // The Eye clinic's visits, with Saira Varma: Oliver Maddox's at 14:00 on the first open weekday it's still ahead,
+  // Edith Marlow's Biometry at 10:00 on the next.
+  const openDayAfter = (date: string) => {
+    let next = addDays(date, 1);
+    while (!isOpenDay(next)) next = addDays(next, 1);
+    return next;
+  };
+  const glaucomaDay = isOpenDay(on) && nowUtc() < ukTime(on, 14, 0) ? on : openDayAfter(on);
+  const edith = pathway(PATHWAYS.eyeCataract);
+  const freya = pathway(PATHWAYS.eyeRedEye);
+  const eyeVisits = [
+    appointment(APPOINTMENTS.edithAssessment, PATHWAYS.eyeCataract, 1, EYE_CLINIC_ADMIN, weekdayBack(7), 10, 0, 30, 'Attended', ROOMS.procedureRoom),
+    appointment(APPOINTMENTS.edithBiometry, PATHWAYS.eyeCataract, 2, EYE_CLINIC_ADMIN, openDayAfter(on), 10, 0, 30, 'Booked', ROOMS.procedureRoom),
+    appointment(APPOINTMENTS.oliverGlaucoma, PATHWAYS.eyeGlaucoma, 1, EYE_CLINIC_ADMIN, glaucomaDay, 14, 0, 30, 'Booked', ROOMS.procedureRoom),
+    appointment(APPOINTMENTS.freyaExam, PATHWAYS.eyeRedEye, 1, EYE_CLINIC_ADMIN, weekdayBack(3), 10, 0, 30, 'Attended', ROOMS.procedureRoom),
+  ];
+  appointments.push(...eyeVisits);
+  const [edithVisit, , , freyaVisit] = eyeVisits;
+  // Edith Marlow's Cataract assessment was finished at her visit, so Biometry has been current since.
+  Object.assign(edith.stages[1], {startedAtUtc: edithVisit.startUtc, completedAtUtc: edithVisit.endUtc});
+  edith.stages[2].reachedAtUtc = edithVisit.endUtc ?? null;
+  // Freya Tolland was triaged the day she was referred, examined and swabbed at one visit, and her swab received by the
+  // lab the next day, which picked up its Microbiology (`seedLab` has the swab, `seedLabCases` its case).
+  const [freyaTriage, freyaExam, freyaSwab, freyaMicrobiology] = freya.stages;
+  const freyaTriaged = new Date(Math.min(Date.parse(freya.createdAt) + 2 * 3600_000, Date.parse(freyaVisit.startUtc!) - 30 * 60000)).toISOString();
+  Object.assign(freyaTriage, {startedAtUtc: freya.createdAt, completedAtUtc: freyaTriaged});
+  Object.assign(freyaExam, {reachedAtUtc: freyaTriaged, startedAtUtc: freyaVisit.startUtc, completedAtUtc: new Date(Date.parse(freyaVisit.startUtc!) + 20 * 60000).toISOString()});
+  Object.assign(freyaSwab, {reachedAtUtc: freyaExam.completedAtUtc, startedAtUtc: freyaExam.completedAtUtc, completedAtUtc: freyaVisit.endUtc});
+  const swabReceived = new Date(Date.parse(freyaVisit.endUtc!) + 24 * 3600_000).toISOString();
+  Object.assign(freyaMicrobiology, {
+    reachedAtUtc: freyaSwab.completedAtUtc,
+    startedAtUtc: swabReceived,
+    startedByUserId: LAB.id,
+    pickedUpAtUtc: swabReceived,
+    pickedUpByUserId: LAB.id,
+  });
+  freya.handovers.find((h) => h.stageId === freyaMicrobiology.id)!.atUtc = freyaSwab.completedAtUtc!;
+
+  // Saira Varma's week, less any block her visits fall in.
+  const varmaVisits = appointments.filter((a) => a.staffUserId === EYE_CLINIC_ADMIN.id && a.startUtc && a.endUtc);
+  const varmaBlock = (date: string, activity: string, from: [number, number], to: [number, number], note: string | null) => {
+    const [startUtc, endUtc] = [ukTime(date, ...from), ukTime(date, ...to)];
+    if (!varmaVisits.some((a) => a.startUtc! < endUtc && a.endUtc! > startUtc)) block(EYE_CLINIC_ADMIN.id, date, activity, from, to, note);
+  };
+  for (const week of [0, 7]) {
+    for (let day = 0; day < 5; day++) {
+      const date = thisWeek(week + day, on);
+      varmaBlock(date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
+      if (day === 0 || day === 2) varmaBlock(date, ACTIVITY_TYPES.clinic, [9, 0], [12, 30], 'Eye clinic');
+      if (day === 1 || day === 3) varmaBlock(date, ACTIVITY_TYPES.procedureList, [13, 30], [16, 30], 'Cataract and glaucoma list');
+      if (day === 4) varmaBlock(date, ACTIVITY_TYPES.admin, [14, 0], [15, 0], 'Letters');
+    }
+    if (isWeekend) for (const day of [5, 6]) varmaBlock(thisWeek(week + day, on), ACTIVITY_TYPES.clinic, [9, 0], [12, 0], 'Weekend eye clinic');
+  }
+
   const mdtDate = weekdayAhead(2);
   const meetings: Schemas['MeetingResponse'][] = [
     {
@@ -793,10 +869,10 @@ export function seed(): DemoState {
     version: 1,
     templateCount: templates.filter((t) => t.teamId === id).length,
     pathwayCount: pathways.filter((p) => p.teamId === id).length,
-    memberCount: id === TEAMS.dermatology ? 3 : 1,
+    memberCount: PEOPLE.filter((p) => p.teams.some((t) => t.teamId === id)).length,
     referralCount: referrals.filter((r) => r.teamId === id).length,
     letterTemplateCount: 0,
-    triagerCount: id === TEAMS.dermatology ? 3 : 1,
+    triagerCount: PEOPLE.filter((p) => p.teams.some((t) => t.teamId === id) && p.permissions.includes('TriageReferrals')).length,
     canBeDeleted: false,
     targetDaysUrgent: TARGET_DAYS.Urgent,
     targetDaysHigh: TARGET_DAYS.High,

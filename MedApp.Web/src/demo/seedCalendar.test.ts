@@ -1,4 +1,4 @@
-import {ADMIN, LAB, STAFF} from './accounts';
+import {ADMIN, EYE_CLINIC_ADMIN, LAB, STAFF} from './accounts';
 import {workingDayOf} from './handlers/setupCalendar';
 import {seed} from './seed';
 import {replaceState} from './store';
@@ -21,7 +21,7 @@ describe('the light demo’s calendars', () => {
       const on = today();
       const week = Array.from({length: 7}, (_, day) => thisWeek(day, on));
 
-      for (const person of [ADMIN, STAFF, LAB]) {
+      for (const person of [ADMIN, STAFF, EYE_CLINIC_ADMIN, LAB]) {
         const mine = state.blocks.filter((b) => b.staffUserId === person.id);
         expect(mine.some((b) => b.date === on), `${person.username} today`).toBe(true);
         expect(mine.filter((b) => b.date !== undefined && week.includes(b.date)).length, `${person.username} this week`).toBeGreaterThan(3);

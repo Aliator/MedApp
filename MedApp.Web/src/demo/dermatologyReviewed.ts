@@ -2,7 +2,7 @@
  * The owner's reviewed Dermatology pathway templates: a TypeScript copy of `docs/pathways/dermatology.yaml` (the source
  * of truth), field for field, kept in step with it by hand. Defaults are left out: `owner` clinic, `optional`,
  * `needsConsent` and `mdt` false, the rest null. `outcomes` are `[name, next]`. The seed maps it onto the model
- * (`dermatologyTemplates` in `dermatology.ts`).
+ * (`reviewedTemplates` in `clinicTemplates.ts`).
  */
 
 export interface ReviewedStage {

@@ -39,7 +39,7 @@ namespace MedApp.DevMcp.DemoData;
 /// The clinic's setup, as the light demo's setup slice has it (<c>MedApp.Web/src/demo/slices/setup.ts</c>, with the
 /// lab's catalogue, hospitals, consent forms and letter templates from the other slices), made through the app's own
 /// commands by the admin (or the person whose calendar it is): sites and rooms with their hours, the GP practice
-/// directory, activity types, closed days, the Dermatology team, the stage library and its templates, specimen types,
+/// directory, activity types, closed days, the Dermatology and Eye clinic teams, the stage library and its templates, specimen types,
 /// lab tests, hospitals, consent forms, letter templates, working hours, calendar templates, monitoring rules and
 /// clinic sessions. All synthetic: invented sites and practices, <c>ZZ</c> postcodes, Ofcom's drama numbers.
 /// </summary>
@@ -55,11 +55,13 @@ public static class DemoSetup
     public const string SkinBiopsy = "Skin biopsy (punch)";
     public const string BloodSample = "Blood sample";
     public const string SkinScraping = "Skin scraping";
+    public const string EyeSwab = "Eye swab";
 
     public const string SkinHistology = "Skin histology";
     public const string FullBloodCount = "Full blood count";
     public const string FungalScraping = "Skin scraping for fungi";
     public const string ScrapingMicroscopy = "Skin scraping microscopy";
+    public const string EyeSwabCulture = "Eye swab culture";
 
     public const string Riverside = "Riverside General Hospital (synthetic)";
 
@@ -69,6 +71,9 @@ public static class DemoSetup
 
     public const string ClinicLetter = "Clinic letter";
     public const string OnwardReferral = "Onward referral to hospital";
+    public const string EyeFinalLetter = "Final letter to GP";
+    public const string EyeReferral = "Referral letter to hospital";
+    public const string EyeUrgentReferral = "Urgent referral letter to hospital";
 
     public const string Clinic = "Clinic";
     public const string AdminTime = "Admin time";
@@ -83,6 +88,10 @@ public static class DemoSetup
     /// <summary>The onward referral's opening: who the patient is and where they're registered, all from merge fields.</summary>
     public const string OnwardReferralOpening =
         $"Dear colleague,\n\n{ReLine}\n\n{{{{patient.address}}}}\n\nRegistered with {{{{practice.name}}}}. Last seen in the Dermatology clinic on {{{{appointment.lastAttendedDate}}}}.\n\nPlease see {{{{patient.name}}}} for the treatment below.";
+
+    /// <summary>The Eye clinic's onward referral opening: Dermatology's, from the Eye clinic.</summary>
+    public const string EyeReferralOpening =
+        $"Dear colleague,\n\n{ReLine}\n\n{{{{patient.address}}}}\n\nRegistered with {{{{practice.name}}}}. Last seen in the Eye clinic on {{{{appointment.lastAttendedDate}}}}.\n\nPlease see {{{{patient.name}}}} for the treatment below.";
 
     /// <summary>What the clinic had set up before its first pathway: everything but the calendars and clinic sessions.</summary>
     public static async Task CreateAsync(DemoSeed seed)
@@ -121,11 +130,13 @@ public static class DemoSetup
         foreach (var unused in CalendarActivityTypeConfiguration.Seeded.Where(s => s.Name is not (Lunch or AdminTime)))
             await seed.Send(at, admin, new SetActivityTypeArchivedCommand(unused.Id, true), $"archive {unused.Name}");
 
-        // The teams: Dermatology, the one clinic, beside the lab every database has. General, which every database starts
-        // with, is archived: the demo has one clinic and the lab.
+        // The teams: the two clinics, Dermatology and the Eye clinic (with the same waiting-time targets), beside the lab
+        // every database has. General, which every database starts with, is archived: the demo has its clinics and the lab.
         at = t.Ago(120, 9, 0);
         var dermatology = await seed.Send(at, admin, new CreateTeamCommand(DemoPeople.Dermatology, 14, 28, 63, 126), "add Dermatology");
         seed.Teams[DemoPeople.Dermatology] = dermatology.Id;
+        var eyeClinic = await seed.Send(at.AddMinutes(2), admin, new CreateTeamCommand(DemoPeople.EyeClinic, 14, 28, 63, 126), "add the Eye clinic");
+        seed.Teams[DemoPeople.EyeClinic] = eyeClinic.Id;
         var generalVersion = await seed.Db(db => db.Teams.Where(x => x.Id == Team.GeneralId).Select(x => x.Version).SingleAsync(seed.Ct));
         await seed.Send(at.AddMinutes(1), admin, new SetTeamArchivedCommand(Team.GeneralId, true, generalVersion), "archive General");
         await DemoPeople.AddMembershipsAsync(seed, at.AddMinutes(5));
@@ -134,7 +145,7 @@ public static class DemoSetup
 
         // The lab's catalogue: specimen types and tests (one of each archived, never used, so it can be deleted).
         at = t.Ago(150, 10, 0);
-        foreach (var (name, days, snomed) in new[] { (SkinBiopsy, 14, "309066003"), (BloodSample, 5, "119297000"), (SkinScraping, 10, (string?)null) })
+        foreach (var (name, days, snomed) in new[] { (SkinBiopsy, 14, "309066003"), (BloodSample, 5, "119297000"), (SkinScraping, 10, (string?)null), (EyeSwab, 5, null) })
             seed.SpecimenTypes[name] = (await seed.Send(at, admin, new CreateSpecimenTypeCommand(name, days, snomed), $"add {name}")).Id;
         var swab = await seed.Send(at, admin, new CreateSpecimenTypeCommand("Skin swab", 4), "add Skin swab");
         await seed.Send(t.Ago(60), admin, new SetSpecimenTypeArchivedCommand(swab.Id, true), "archive Skin swab");
@@ -158,10 +169,11 @@ public static class DemoSetup
         await seed.Send(t.Ago(60), admin, new CreateConsentFormCommand("Treatment in the patient’s best interests (lacks capacity)", "1.0"), "add a consent form");
         seed.ConsentForms[PhotographyForm] = (await seed.Send(t.Ago(60), admin, new CreateConsentFormCommand(PhotographyForm, "1.0"), "add a consent form")).Id;
 
-        // Letter templates: two for every team, and Dermatology's own (MC28). Merge fields copy identity and
-        // administrative details only; the clinical text is the author's.
+        // Letter templates: two for every team, Dermatology's own (MC28), and the Eye clinic's, named as its stages need
+        // them. Merge fields copy identity and administrative details only; the clinical text is the author's.
         at = t.Ago(90, 9, 0);
         var dermatologyId = seed.TeamId(DemoPeople.Dermatology);
+        var eyeClinicId = seed.TeamId(DemoPeople.EyeClinic);
         foreach (var (name, kind, teamId, body) in new (string, string, Guid?, string)[]
         {
             (ClinicLetter, "ClinicLetter", null, $"Dear colleague,\n\n{ReLine}\n\n## Diagnosis\n\n## What we found\n\n## Plan"),
@@ -170,12 +182,31 @@ public static class DemoSetup
             ("Results review letter to GP", "ClinicLetter", dermatologyId, $"Dear colleague,\n\n{ReLine}\n\nWe went through {{{{patient.name}}}}'s results with them on {{{{appointment.lastAttendedDate}}}}.\n\n## Results\n\n## What we discussed\n\n## Plan"),
             ("Dermatology end of care letter", "DischargeSummary", dermatologyId, $"Dear colleague,\n\n{ReLine}\n\n{{{{patient.name}}}} was last seen in the Dermatology clinic on {{{{appointment.lastAttendedDate}}}}. Their care with us is complete, and we hand it back to you.\n\n## Summary of care\n\n## Advice given\n\n## For the GP"),
             (OnwardReferral, "OnwardReferral", dermatologyId, $"{OnwardReferralOpening}\n\n## Reason for referral\n\n## Findings and results\n\n## What we are asking for"),
+            (EyeFinalLetter, "DischargeSummary", eyeClinicId, $"Dear colleague,\n\n{ReLine}\n\n{{{{patient.name}}}} was last seen in the Eye clinic on {{{{appointment.lastAttendedDate}}}}. Their care with us is complete, and we hand it back to you.\n\n## Summary of care\n\n## Advice given\n\n## For the GP"),
+            (EyeReferral, "OnwardReferral", eyeClinicId, $"{EyeReferralOpening}\n\n## Reason for referral\n\n## Findings and results\n\n## What we are asking for"),
+            (EyeUrgentReferral, "OnwardReferral", eyeClinicId, $"{EyeReferralOpening}\n\n## Reason for referral\n\n## Findings and results\n\n## What we are asking for"),
         })
             seed.LetterTemplates[name] = (await seed.Send(at, admin, new CreateLetterTemplateCommand(name, kind, teamId, Letterhead, body, Closing), $"add the {name} template")).Id;
 
         // Working hours: Tom Hallworth works Tuesday to Thursday at the centre; everyone else the default.
         await seed.Send(t.Ago(90), admin, new SetStaffHoursCommand(DemoPeople.Hallworth.Id,
             new[] { "Tuesday", "Wednesday", "Thursday" }.Select(d => new StaffHoursDay(d, new TimeOnly(9, 0), new TimeOnly(17, 0), Site.MainSiteId)).ToList(), calendar), "set Tom Hallworth's hours");
+
+        // Seeded at a weekend, the centre and the four demo accounts work it, so their calendars have today (the light
+        // demo's weekendCover).
+        if (t.IsWeekend)
+        {
+            string[] weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+            string[] weekend = ["Saturday", "Sunday"];
+            await seed.Send(t.Ago(7), admin, new SetSiteHoursCommand(Site.MainSiteId,
+                weekdays.Select(d => new SiteHoursDay(d, new TimeOnly(8, 0), new TimeOnly(18, 0)))
+                    .Concat(weekend.Select(d => new SiteHoursDay(d, new TimeOnly(9, 0), new TimeOnly(13, 0)))).ToList()), "open the centre at the weekend");
+            foreach (var person in new[] { DemoPeople.Admin, DemoPeople.Thornbury, DemoPeople.Aldous, DemoPeople.Varma })
+                await seed.Send(t.Ago(7), admin, new SetStaffHoursCommand(person.Id,
+                    weekdays.Select(d => new StaffHoursDay(d, new TimeOnly(8, 0), new TimeOnly(18, 0), Site.MainSiteId))
+                        .Concat(weekend.Select(d => new StaffHoursDay(d, new TimeOnly(9, 0), new TimeOnly(13, 0), Site.MainSiteId))).ToList(), calendar),
+                    $"set {person.Username}'s weekend hours");
+        }
 
         // The closed days: the next bank holidays everywhere, and a training day at Northfield in about three weeks.
         at = t.Ago(30, 9, 0);
@@ -211,15 +242,17 @@ public static class DemoSetup
         yield return (Test(FungalScraping, "Microbiology", null, 14, 21, 3, ("Microscopy", "Standard", false), ("Culture", "Standard", false), ("Report", "Standard", false)), false);
         yield return (Test("Liver function tests", "ClinicalChemistry", null, 2, 3, 1, ("Analyser run", "Standard", false)), true);
         yield return (Test(ScrapingMicroscopy, "Microbiology", null, 5, 7, 1, ("Microscopy", "Standard", false), ("Report", "Standard", false)), false);
+        yield return (Test(EyeSwabCulture, "Microbiology", null, 5, 7, 2, ("Culture", "Standard", false), ("Report", "Standard", false)), false);
     }
 
     /// <summary>
-    /// The stage library and Dermatology's templates (<see cref="DemoDermatology"/>), written as an admin set them up
-    /// before the first pathway: one definition per stage name, each template's stages, links and addable branches.
+    /// The stage library and the clinics' templates (<see cref="DemoTemplates"/>: Dermatology's and the Eye clinic's, each
+    /// in its own team), written as an admin set them up before the first pathway: one definition per stage name, each
+    /// template's stages, links and addable branches.
     /// </summary>
     private static async Task CreateTemplatesAsync(DemoSeed seed)
     {
-        var definitions = DemoDermatology.Definitions().ToDictionary(d => d.Name, d => new PatientPathwayStageDefinition
+        var definitions = DemoTemplates.Definitions().ToDictionary(d => d.Name, d => new PatientPathwayStageDefinition
         {
             Id = Guid.NewGuid(),
             Name = d.Name,
@@ -233,12 +266,11 @@ public static class DemoSetup
             WaitsForResults = d.WaitsForResults,
         });
 
-        var dermatology = seed.TeamId(DemoPeople.Dermatology);
-        var templates = DemoDermatology.Templates().Select(t => new PathwayTemplate
+        var templates = DemoTemplates.Clinics.SelectMany(clinic => DemoTemplates.Templates(clinic).Select(t => new PathwayTemplate
         {
             Id = Guid.NewGuid(),
             Name = t.Name,
-            TeamId = dermatology,
+            TeamId = seed.TeamId(clinic.Team),
             RetentionClass = t.RetentionClass,
             Maps = t.Stages.Select(s => new PathwayTemplateMap
             {
@@ -255,7 +287,7 @@ public static class DemoSetup
             AddableBranches = t.Branches
                 .Select(b => new PathwayTemplateBranch(Guid.NewGuid(), b.Name, b.StageNames.Select(n => definitions[n].Id).ToList(), b.AttachAfterStageOrders, b.IsRepeatable))
                 .ToList(),
-        }).ToList();
+        })).ToList();
 
         await seed.Db(async db =>
         {

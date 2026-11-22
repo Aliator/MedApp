@@ -29,6 +29,10 @@ public static class DemoPatients
     public const string FelixMoreton = "Felix Moreton";
     public const string NoraFennick = "Nora Fennick";
     public const string LeahCorrin = "Leah Corrin";
+    public const string EdithMarlow = "Edith Marlow";
+    public const string FreyaTolland = "Freya Tolland";
+    public const string HamishDewar = "Hamish Dewar";
+    public const string RuthPenhaligon = "Ruth Penhaligon";
 
     public static readonly IReadOnlyList<DemoPatient> All =
     [
@@ -45,6 +49,11 @@ public static class DemoPatients
         new("Felix", "Moreton", new DateOnly(1968, 3, 9), "9991023372", 23),
         new("Nora", "Fennick", new DateOnly(1990, 6, 14), "9991041818", 24),
         new("Leah", "Corrin", new DateOnly(1986, 8, 30), "9991051376", 25),
+        // The Eye clinic's (the owner, 20 November 2026).
+        new("Edith", "Marlow", new DateOnly(1944, 6, 17), "9991060006", 26),
+        new("Freya", "Tolland", new DateOnly(1992, 2, 11), "9991061371", 27),
+        new("Hamish", "Dewar", new DateOnly(1950, 9, 3), "9991062742", 28),
+        new("Ruth", "Penhaligon", new DateOnly(1966, 12, 29), "9991064117", 29, DemoSetup.ExampleLane),
     ];
 
     /// <summary>The hospital's patients, whom only its requests link to the centre (MC18).</summary>

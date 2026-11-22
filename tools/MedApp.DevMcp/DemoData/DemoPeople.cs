@@ -62,9 +62,9 @@ public sealed class DemoPerson(string username, string fullName, string jobTitle
 
 /// <summary>
 /// The demo clinic's people (the light demo's <c>PEOPLE</c>): the admin (read only, in no team), Dermatology's clinic
-/// admin, the lab's pathologist, and the rest of the clinic. Where the team walls need it, they're in the team they work
-/// for: the booking coordinator books and registers Dermatology's work, and the service manager assigns its pathways
-/// (both in no team in the light demo, where nothing checks it).
+/// admin, the lab's pathologist, the Eye clinic's clinic admin, and the rest of the centre. Where the team walls need it,
+/// they're in the teams they work for: the booking coordinator books and registers both clinics' work, and the service
+/// manager assigns their pathways (both in no team in the light demo, where nothing checks it).
 /// </summary>
 public static class DemoPeople
 {
@@ -72,6 +72,7 @@ public static class DemoPeople
     public const string EmailDomain = "centre.example";
 
     public const string Dermatology = "Dermatology";
+    public const string EyeClinic = "Eye clinic";
 
     public static DemoPerson Admin { get; private set; } = null!;
     public static DemoPerson Thornbury { get; private set; } = null!;
@@ -80,6 +81,8 @@ public static class DemoPeople
     public static DemoPerson Sandiford { get; private set; } = null!;
     public static DemoPerson Marsh { get; private set; } = null!;
     public static DemoPerson Hallworth { get; private set; } = null!;
+    public static DemoPerson Varma { get; private set; } = null!;
+    public static DemoPerson Ferrand { get; private set; } = null!;
 
     /// <summary>Everyone, the admin first (fresh each run: the seed fills in their IDs and passwords).</summary>
     public static IReadOnlyList<DemoPerson> Roster()
@@ -90,14 +93,18 @@ public static class DemoPeople
         Aldous = new DemoPerson("r.aldous", "Ravi Aldous", "Consultant histopathologist", [StandardRoles.Lab, StandardRoles.Pathologist],
             (Team.LabName, TeamMemberRole.Member)) { IpAddress = "192.0.2.22" };
         Whitlock = new DemoPerson("j.whitlock", "Jo Whitlock", "Service manager", [StandardRoles.Manager],
-            (Dermatology, TeamMemberRole.Member)) { IpAddress = "192.0.2.23" };
+            (Dermatology, TeamMemberRole.Member), (EyeClinic, TeamMemberRole.Member)) { IpAddress = "192.0.2.23" };
         Sandiford = new DemoPerson("b.sandiford", "Bea Sandiford", "Clinical nurse specialist: skin cancer", [StandardRoles.Nurse],
             (Dermatology, TeamMemberRole.Member)) { IpAddress = "192.0.2.24" };
         Marsh = new DemoPerson("h.marsh", "Hannah Marsh", "Booking coordinator", [StandardRoles.Booking],
-            (Dermatology, TeamMemberRole.Member)) { IpAddress = "192.0.2.25" };
+            (Dermatology, TeamMemberRole.Member), (EyeClinic, TeamMemberRole.Member)) { IpAddress = "192.0.2.25" };
         Hallworth = new DemoPerson("t.hallworth", "Tom Hallworth", "GP with an extended role (GPwER) in dermatology", [StandardRoles.Clinician],
             (Dermatology, TeamMemberRole.Member)) { IpAddress = "192.0.2.26" };
-        return [Admin, Thornbury, Aldous, Whitlock, Sandiford, Marsh, Hallworth];
+        Varma = new DemoPerson("s.varma", "Saira Varma", "Consultant ophthalmologist", [StandardRoles.Clinician],
+            (EyeClinic, TeamMemberRole.ClinicAdmin)) { IpAddress = "192.0.2.27" };
+        Ferrand = new DemoPerson("c.ferrand", "Clara Ferrand", "Ophthalmic nurse", [StandardRoles.Nurse],
+            (EyeClinic, TeamMemberRole.Member)) { IpAddress = "192.0.2.28" };
+        return [Admin, Thornbury, Aldous, Whitlock, Sandiford, Marsh, Hallworth, Varma, Ferrand];
     }
 
     /// <summary>

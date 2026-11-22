@@ -7,13 +7,14 @@ using static MedApp.UnitTests.Common.Constants.DemoDataTestConstants;
 namespace MedApp.UnitTests.Tools.DemoData;
 
 /// <summary>
-/// Dermatology's templates as the demo data makes them (<see cref="DemoDermatology"/>), mapped onto the model as the light
-/// demo's <c>dermatology.ts</c> maps them: the reviewed ten and the tour's relay, routes only forward, shared definitions.
+/// Dermatology's templates as the demo data makes them (<see cref="DemoDermatology"/>), mapped onto the model by
+/// <see cref="DemoTemplates"/> as the light demo maps them: the reviewed ten and the tour's relay, routes only forward,
+/// shared definitions.
 /// </summary>
 [TestFixture]
 public sealed class DemoDermatologyTests
 {
-    private static readonly IReadOnlyList<DemoTemplate> Templates = DemoDermatology.Templates();
+    private static readonly IReadOnlyList<DemoTemplate> Templates = DemoTemplates.Templates(DemoDermatology.Clinic);
 
     private static DemoTemplate Template(string name) => Templates.Single(t => t.Name == name);
 
@@ -29,10 +30,10 @@ public sealed class DemoDermatologyTests
     [Test]
     public void Definitions_AreOnePerStageName_AndCoverEveryStage()
     {
-        var definitions = DemoDermatology.Definitions();
+        var definitions = DemoTemplates.Definitions();
 
         definitions.Select(d => d.Name).Should().OnlyHaveUniqueItems();
-        definitions[0].Name.Should().Be(DemoDermatology.CarePlan, "the library's own care plan comes first");
+        definitions[0].Name.Should().Be(DemoTemplates.CarePlan, "the library's own care plan comes first");
         var names = definitions.Select(d => d.Name).ToHashSet();
         Templates.SelectMany(t => t.Stages.Select(s => s.Name).Concat(t.Branches.SelectMany(b => b.StageNames)))
             .Should().OnlyContain(name => names.Contains(name));
@@ -42,7 +43,7 @@ public sealed class DemoDermatologyTests
     [Test]
     public void Definitions_TakeTheirGatesFromTheReviewedStages()
     {
-        var definitions = DemoDermatology.Definitions().ToDictionary(d => d.Name);
+        var definitions = DemoTemplates.Definitions().ToDictionary(d => d.Name);
 
         definitions["Take biopsy"].NeedsConsent.Should().BeTrue();
         definitions["Take photographs"].NeedsConsent.Should().BeTrue();
@@ -69,6 +70,14 @@ public sealed class DemoDermatologyTests
                     stage.Outcomes.Should().NotBeEmpty().And.OnlyContain(o => o.NextStageOrders.All(n => n > stage.StageOrder), $"{template.Name}: {stage.Name}");
             }
         }
+    }
+
+    [Test]
+    public void Clinic_IsDermatologysTeam()
+    {
+        DemoDermatology.Clinic.Team.Should().Be(DemoPeople.Dermatology);
+        DemoTemplates.Clinics.Select(c => c.Team).Should().Equal([DemoPeople.Dermatology, DemoPeople.EyeClinic],
+            "Dermatology's stages come first in the library, so its shared definitions stay as they were");
     }
 
     [Test]
@@ -115,7 +124,7 @@ public sealed class DemoDermatologyTests
     public void ToursRelay_IsTriageTheLabsTestingTheResultsVisitAndAReferralBackToTheGp()
     {
         var relay = Template(DemoDermatology.SkinSampleToTheLab);
-        var definitions = DemoDermatology.Definitions().ToDictionary(d => d.Name);
+        var definitions = DemoTemplates.Definitions().ToDictionary(d => d.Name);
 
         relay.Stages.Select(s => (s.Name, s.IsLabs)).Should().Equal(
             ("Triage", false), ("Testing", true), ("Results appointment", false), ("Refer to GP for medication", false));
@@ -129,5 +138,5 @@ public sealed class DemoDermatologyTests
     [TestCase("Urgent referral letter to hospital", LetterKind.OnwardReferral)]
     [TestCase("Referral letter to psychology", LetterKind.ClinicLetter)]
     public void LetterKindOf_IsTheLettersKind(string? letter, LetterKind? kind) =>
-        DemoDermatology.LetterKindOf(letter).Should().Be(kind);
+        DemoTemplates.LetterKindOf(letter).Should().Be(kind);
 }

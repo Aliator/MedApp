@@ -1,11 +1,13 @@
 import type {Schemas} from '../api/client';
 import {DERMATOLOGY_REVIEWED, type ReviewedStage, type ReviewedTemplate} from './dermatologyReviewed';
-import {id, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
+import {id, TEAM_NAMES, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
+import {OPHTHALMOLOGY_REVIEWED} from './ophthalmologyReviewed';
 import type {DemoStageDefinition} from './state';
 
 /**
- * The owner's reviewed Dermatology templates (`docs/pathways/dermatology.yaml`, copied in `dermatologyReviewed.ts`)
- * mapped onto the model, for the light demo's seed:
+ * Each clinic's templates from its reviewed file, mapped onto the model the same way, for the light demo's seed:
+ * Dermatology's (the owner's reviewed `docs/pathways/dermatology.yaml`, copied in `dermatologyReviewed.ts`, with the
+ * tour's relay) and the Eye clinic's (the draft `docs/pathways/ophthalmology.yaml`, copied in `ophthalmologyReviewed.ts`):
  * - `kind`: assessment and labResult are choice nodes (`Assessment`, `LabResult`), their `outcomes` the outcomes.
  * - `owner: lab` makes a lab stage; `visit`, `needsLetter` (the letter kind: a final letter to the GP is `DischargeSummary`, an onward referral to hospital, else a clinic letter)
  *   and `needsConsent` go to the stage definition; `snomed` to its code and term; `retentionClass` to the template.
@@ -18,7 +20,7 @@ import type {DemoStageDefinition} from './state';
  * names match.
  */
 
-/** Each template's fixed ID, by its name in the reviewed file. */
+/** Each template's fixed ID, by its name in the reviewed file (template names are unique across the clinics). */
 const TEMPLATE_IDS: Record<string, string> = {
   'Suspected skin cancer': TEMPLATES.suspectedSkinCancer,
   'Changing mole or lesion check': TEMPLATES.changingMole,
@@ -31,6 +33,10 @@ const TEMPLATE_IDS: Record<string, string> = {
   'Hair loss assessment': TEMPLATES.hairLoss,
   'Skin pigmentation assessment': TEMPLATES.pigmentation,
   'Skin sample to the lab': TEMPLATES.skinSample,
+  'Cataract assessment': TEMPLATES.cataract,
+  'Glaucoma assessment': TEMPLATES.glaucoma,
+  'Red eye assessment': TEMPLATES.redEye,
+  'Macular assessment': TEMPLATES.macular,
 };
 
 /** The reviewed file's addable routes' fixed IDs, by name. */
@@ -92,21 +98,24 @@ const TOUR_RELAY: ReviewedTemplate = {
   addableRoutes: [],
 };
 
-/** The templates the demo has: the reviewed ten, then the tour's relay. */
-const ALL_TEMPLATES: ReviewedTemplate[] = [...DERMATOLOGY_REVIEWED, TOUR_RELAY];
+/** Each clinic's templates, by team: Dermatology's reviewed ten then the tour's relay, then the Eye clinic's four. */
+const CLINICS: {teamId: string; templates: ReviewedTemplate[]}[] = [
+  {teamId: TEAMS.dermatology, templates: [...DERMATOLOGY_REVIEWED, TOUR_RELAY]},
+  {teamId: TEAMS.eyeClinic, templates: OPHTHALMOLOGY_REVIEWED},
+];
 
-/** Every stage of the templates, their addable routes' too, in order (the reviewed file's first, so their IDs stay). */
+/** Every stage of the templates, their addable routes' too, in order (Dermatology's first, so their IDs stay). */
 const everyStage = (): ReviewedStage[] =>
-  ALL_TEMPLATES.flatMap((t) => [...t.stages, ...t.addableRoutes.flatMap((r) => r.stages)]);
+  CLINICS.flatMap((c) => c.templates).flatMap((t) => [...t.stages, ...t.addableRoutes.flatMap((r) => r.stages)]);
 
 /** The first new definition's number (`id(0xd3, n)`): after the existing library's. */
 const FIRST_DEFINITION = 0x20;
 
 /**
- * The stage definitions the reviewed templates add to the library, one per stage name not already in it, in the
- * file's order, each with a fixed ID.
+ * The stage definitions the clinics' templates add to the library, one per stage name not already in it, in the
+ * files' order, each with a fixed ID.
  */
-export function dermatologyStageDefinitions(existing: readonly DemoStageDefinition[]): DemoStageDefinition[] {
+export function reviewedStageDefinitions(existing: readonly DemoStageDefinition[]): DemoStageDefinition[] {
   const added: DemoStageDefinition[] = [];
   for (const stage of everyStage()) {
     if (existing.some((d) => d.name === stage.name) || added.some((d) => d.name === stage.name)) continue;
@@ -128,8 +137,8 @@ export function dermatologyStageDefinitions(existing: readonly DemoStageDefiniti
   return added;
 }
 
-/** A Dermatology stage definition's ID, by name (the library's, after `dermatologyStageDefinitions`). */
-export const dermatologyStageId = (definitions: readonly DemoStageDefinition[], name: string) => {
+/** A stage definition's ID, by name (the library's, after `reviewedStageDefinitions`). */
+export const reviewedStageId = (definitions: readonly DemoStageDefinition[], name: string) => {
   const found = definitions.find((d) => d.name === name);
   if (!found) throw new Error(`No stage definition named '${name}'.`);
   return found.id;
@@ -173,8 +182,8 @@ function forwardOrder(template: ReviewedTemplate): {order: ReviewedStage[]; isBa
 
 let nextRouteNumber = 0x10;
 
-/** One reviewed template as the API answers it (`PathwayTemplateResponse`), its stages' definitions from `definitions`. */
-function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageDefinition[]): Schemas['PathwayTemplateResponse'] {
+/** One reviewed template as the API answers it (`PathwayTemplateResponse`), its team's, its stages' definitions from `definitions`. */
+function toTemplate(template: ReviewedTemplate, teamId: string, definitions: readonly DemoStageDefinition[]): Schemas['PathwayTemplateResponse'] {
   const {order, isBack} = forwardOrder(template);
   const orderOf = new Map(order.map((s, i) => [s.id, i + 1]));
   const byId = new Map(template.stages.map((s) => [s.id, s]));
@@ -265,8 +274,8 @@ function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageD
     id: TEMPLATE_IDS[template.template],
     name: template.template,
     isArchived: false,
-    teamId: TEAMS.dermatology,
-    teamName: 'Dermatology',
+    teamId,
+    teamName: TEAM_NAMES.find(([key]) => key === teamId)![1],
     retentionClass: template.retentionClass,
     pathwayCount: 0,
     clockStopStageOrder: 1,
@@ -277,8 +286,8 @@ function toTemplate(template: ReviewedTemplate, definitions: readonly DemoStageD
   };
 }
 
-/** The ten reviewed Dermatology templates and the tour's relay, owned by the Dermatology team, as the API answers them. */
-export function dermatologyTemplates(definitions: readonly DemoStageDefinition[]): Schemas['PathwayTemplateResponse'][] {
+/** Every clinic's templates, each owned by its clinic's team, as the API answers them. */
+export function reviewedTemplates(definitions: readonly DemoStageDefinition[]): Schemas['PathwayTemplateResponse'][] {
   nextRouteNumber = 0x10;
-  return ALL_TEMPLATES.map((template) => toTemplate(template, definitions));
+  return CLINICS.flatMap((clinic) => clinic.templates.map((template) => toTemplate(template, clinic.teamId, definitions)));
 }
