@@ -37,6 +37,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MedApp.Web", "MedApp.Web", 
 		MedApp.Web\tsconfig.json = MedApp.Web\tsconfig.json
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Browser", "MedApp.Browser\MedApp.Browser.csproj", "{DEB3CCED-FA02-4517-96D7-31ED7810EA3E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,10 @@ Global
 		{C7A10765-D143-4FF7-A399-D0688FD611AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7A10765-D143-4FF7-A399-D0688FD611AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7A10765-D143-4FF7-A399-D0688FD611AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEB3CCED-FA02-4517-96D7-31ED7810EA3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEB3CCED-FA02-4517-96D7-31ED7810EA3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEB3CCED-FA02-4517-96D7-31ED7810EA3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEB3CCED-FA02-4517-96D7-31ED7810EA3E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -103,5 +109,6 @@ Global
 		{0F062BCB-C8C3-4CF3-B1EE-6484AE6399C6} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 		{36C0B8F3-5BCB-47E3-989D-1E8555DE14C1} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 		{C7A10765-D143-4FF7-A399-D0688FD611AE} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
+		{DEB3CCED-FA02-4517-96D7-31ED7810EA3E} = {B3810A18-A009-4874-BB0C-D2BFCF6A918C}
 	EndGlobalSection
 EndGlobal

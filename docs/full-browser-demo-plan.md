@@ -72,6 +72,19 @@ The same Pages workflow builds both sites: the light demo at `/MedApp/`, this at
 4. **The web app:** the build mode, the login page with download, cache and progress, the walkthrough.
 5. **Deploying:** the Pages workflow builds both, the nightly rebuild; then, once tested and the owner agrees, the switch.
 
+### Phase 1: done (22 November 2026)
+
+- **`MedApp.Browser`** builds in the solution (no native linking on a build, so CI needs no workload); `dotnet publish` links SQLite natively and needs wasm-tools. Cultures stay on (letters and data requests use en-GB), so `InvariantGlobalization` is off.
+- **Infrastructure by source**, left out and replaced: `ServiceExtensions.cs` (its portable part, the repositories, jobs' settings and demographics, is now `ServiceExtensions.Portable.cs`, compiled by both), `CalendarLock` (a transaction, no lock), Blob storage (`SqliteFileStore`, a `BrowserFiles` table), SkiaSharp (no thumbnails), SMTP and its dispatcher (nothing sent), secure email letters and GOV.UK Notify (not available), data protection (Identity's own token providers under the same names). `LastAdminGuard` runs as it is (no lock: not SQL Server).
+- **SQL Server's dialect** is translated by an EF Core command interceptor (`SqlServerDialect`), so the repositories run unchanged: `NEXT VALUE FOR` becomes a counter row, lock hints go, and SQLite's constraint failures are raised as `SqlException` numbers 2601, 2627 and 547 naming the index or keys, as the catch clauses read them.
+- **The model** is fitted to SQLite after it's built (`SqliteModelCustomizer`): no row versions or sequence, no SQL Server column types, `NOCASE` text, `DateTimeOffset` as numbers, SQLite's functions for the insights. The API's model and migrations are unchanged.
+- **The HTTP layer:** 37 of the 38 controller files (353 of 356 actions) compile unchanged against `Mvc/` (MVC's attributes, results, `ControllerBase`, `ProblemDetails`); `ExceptionHandling.cs` runs unchanged. `FhirController` is left out (its filters and `FhirResult`): Phase 3.
+- **Sessions:** the API's own (`SessionService`, a `UserSessions` row); the cookie is held in memory; any password signs in (the account picker), but the password must be non-empty as the API's validator requires; holds never apply.
+- **Proved in Chromium** (`MedApp.Browser/harness`): sign-in, whoami, users and roles, a patient created, searched and read, a pathway search, the activity log, and the API's 400, 401, 403, 404 and 409 bodies.
+- **Size:** 244 files, 42.9 MB, 15.8 MB gzipped, 12.4 MB with Brotli (every assembly loads at start). **Start:** about 0.6 s for the runtime, then 5.7 to 6.4 s for the backend, of which 3.5 to 4 s is building EF Core's model; first answer about 6.3 s after the page starts (served locally).
+
+**For Phase 2:** a compiled model (`dotnet ef dbcontext optimize` for the SQLite model) is the biggest saving at start. The seeded database must be made by the same `SqliteModelCustomizer` and `SqlServerDialect` (and the `__BrowserSequences` and `BrowserFiles` tables). Requests are served one at a time (one SQLite file, one thread); saving to IndexedDB can follow each request that changed data.
+
 ## What's lost against the full app (for the owner, 22 November 2026)
 
 Sharing between people (each browser has its own database), real security (it all runs on the visitor's machine: synthetic data only, never real patients), email and texts, live notifications, server rendering, outside services (PDS, FHIR), virus scanning, thumbnails, scheduled jobs except while the tab is open, and possibly PDFs. A first visit downloads 15 to 25 MB.

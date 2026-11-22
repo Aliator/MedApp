@@ -118,6 +118,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Web` | The UI, rendered on the server by a Node server (`server/server.mjs`) and hydrated; a solution folder in `MedApp.sln`, built with npm. |
 | `MedApp.Client.Deprecated` | **Deprecated** Blazor WASM UI: not run, no new work, kept building (its `README.md`). |
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev (SQL Server, Azurite, the API, the React app); on publish, builds the image from `MedApp.API/Dockerfile`. |
+| `MedApp.Browser` | The backend in the browser (WebAssembly, SQLite) for the full demo (`docs/full-browser-demo-plan.md`): Infrastructure's files and the API's controllers compiled by source, with stand-ins. |
 | `MedApp.ServiceDefaults` | OpenTelemetry and health checks (`/health`, `/alive`: the app's port in Development, else only `HealthChecks:Port`, 8081 in Kubernetes, and absent without it). |
 | `MedApp.UnitTests` | NUnit tests of handlers, validators, Infrastructure services and the API's own services (`Api/`). |
 | `MedApp.IntegrationTests` | The real API in memory (`WebApplicationFactory<Program>`, as Production) against SQL Server 2022 and Azurite (Testcontainers); also `SessionService` and `IdentityTransactions`. |
