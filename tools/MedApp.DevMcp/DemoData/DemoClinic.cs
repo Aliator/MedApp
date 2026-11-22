@@ -3,6 +3,7 @@ using MedApp.Application.Calendar.Meetings.Commands.ReplyToMeeting;
 using MedApp.Application.Calendar.Common;
 using MedApp.Application.Calendar.StaffCalendars.Commands.CreateCalendarBlock;
 using MedApp.Application.Common.Exceptions;
+using MedApp.Application.DataRequests.Commands;
 using MedApp.Application.Jobs.Common;
 using MedApp.Application.Mdt.Commands.ChooseMdtPresenter;
 using MedApp.Application.Mdt.Commands.ListForMdt;
@@ -82,7 +83,10 @@ public static class DemoClinic
 
     /// <summary>
     /// Nadia Thornbury's blocks this week and next (lunch daily; Wednesday's triage; the Tuesday and Thursday biopsy
-    /// lists; the Monday and Friday skin clinics), made by her, leaving out any that would overlap a visit or meeting
+    /// lists; the Monday and Friday skin clinics), Ravi Aldous's (cut-up, reporting and lunch daily; Tuesday's and
+    /// Thursday's quality checks) and the admin's (lunch daily; Monday's and Thursday's rota planning; Wednesday's
+    /// governance review), Saira Varma's (lunch daily; the Monday and Wednesday eye clinics; the Tuesday and Thursday
+    /// cataract and glaucoma lists; Friday's letters), and when seeded at a weekend, that weekend's sessions for the four, each made by its owner, leaving out any that would overlap a visit or meeting
     /// already in her diary (the app refuses a block over one; the light demo lets them overlap). Then Bea Sandiford's
     /// outreach clinics on the first two open days from today, from after this morning's MDT if she was at it.
     /// </summary>
@@ -90,6 +94,9 @@ public static class DemoClinic
     {
         var t = seed.Timeline;
         var nadia = DemoPeople.Thornbury;
+        var ravi = DemoPeople.Aldous;
+        var admin = DemoPeople.Admin;
+        var saira = DemoPeople.Varma;
         var skipped = 0;
         async Task Block(DemoPerson who, DateOnly date, string type, (int H, int M) from, (int H, int M) to, string? note)
         {
@@ -117,7 +124,42 @@ public static class DemoClinic
                     await Block(nadia, date, ProcedureList, (9, 0), (12, 0), "Biopsy list");
                 if (day is 0 or 4)
                     await Block(nadia, date, Clinic, (13, 30), (17, 0), "Skin clinic");
+
+                await Block(ravi, date, ProcedureList, (8, 30), (10, 30), "Cut-up");
+                await Block(ravi, date, AdminTime, (11, 0), (12, 30), "Reporting");
+                await Block(ravi, date, Lunch, (12, 30), (13, 15), null);
+                if (day is 1 or 3)
+                    await Block(ravi, date, AdminTime, (14, 0), (16, 0), "Quality checks");
+
+                await Block(admin, date, Lunch, (12, 30), (13, 15), null);
+                if (day is 0 or 3)
+                    await Block(admin, date, AdminTime, (13, 30), (14, 30), "Rota planning");
+                if (day == 2)
+                    await Block(admin, date, AdminTime, (10, 0), (11, 0), "Governance review");
+
+                await Block(saira, date, Lunch, (12, 30), (13, 15), null);
+                if (day is 0 or 2)
+                    await Block(saira, date, Clinic, (9, 0), (12, 30), "Eye clinic");
+                if (day is 1 or 3)
+                    await Block(saira, date, ProcedureList, (13, 30), (16, 30), "Cataract and glaucoma list");
+                if (day == 4)
+                    await Block(saira, date, AdminTime, (14, 0), (15, 0), "Letters");
             }
+
+        if (t.IsWeekend)
+            foreach (var week in new[] { 0, 7 })
+                foreach (var day in new[] { 5, 6 })
+                {
+                    var date = t.ThisWeek(week + day);
+                    if (t.ClosedDays.Contains(date))
+                        continue;
+                    await Block(nadia, date, Clinic, (9, 0), (12, 0), "Weekend skin clinic");
+                    await Block(nadia, date, AdminTime, (12, 0), (13, 0), "Letters");
+                    await Block(ravi, date, ProcedureList, (9, 0), (11, 0), "Weekend cut-up");
+                    await Block(ravi, date, AdminTime, (11, 0), (13, 0), "Weekend reporting");
+                    await Block(admin, date, AdminTime, (9, 30), (12, 0), "Weekend cover");
+                    await Block(saira, date, Clinic, (9, 0), (12, 0), "Weekend eye clinic");
+                }
 
         // Bea Sandiford is out at a clinic all day today and the next open day, so the tour's team meeting can't have her
         // then: adding the team shows who's busy, and the suggestions move on to a time they're all free. Her MDTs those
@@ -139,6 +181,22 @@ public static class DemoClinic
         }
 
         seed.Counts["blocksLeftOutOverVisits"] = skipped;
+    }
+
+    /// <summary>
+    /// Tobias Lund's own request for his data, received 26 days ago and his identity checked in person, so it's open and due
+    /// within the week: the admin's Needs your attention has it (the light demo's seeded data request).
+    /// </summary>
+    public static async Task CreateDataRequestAsync(DemoSeed seed)
+    {
+        var t = seed.Timeline;
+        var admin = DemoPeople.Admin;
+        var received = t.DaysFrom(-26);
+        var request = await seed.Send(t.Ago(26, 10, 0), admin,
+            new CreateDataRequestCommand(seed.Patients[TobiasLund], received, true, null, null, admin.Actor), "log Tobias Lund's data request");
+        await seed.Send(t.Ago(26, 10, 30), admin,
+            new RecordIdentityCheckCommand(request.Id, received, "InPerson", null, request.Version, admin.Actor), "record the identity check");
+        seed.Tour["dataRequest"] = request.Id;
     }
 
     /// <summary>

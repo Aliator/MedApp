@@ -47,7 +47,7 @@ Clinical work needs a member of staff in the right team. `ensure_test_staff` mak
 
 ## The demo data: one script
 
-**All demo data is loaded by one script.** It replaces the local data with the light demo's clinic (Dermatology and the lab), replayed through the app's handlers. `docs/demo-data.md` is the guided tour: what's in it, and where to see each feature.
+**All demo data is loaded by one script.** It replaces the local data with the light demo's clinic (Dermatology, the Eye clinic and the lab), replayed through the app's handlers. `docs/demo-data.md` is the guided tour: what's in it, and where to see each feature.
 
 ```bash
 tools/seed-demo-data.sh --confirm --keep-users dev-parity --out demo-summary.json     # Git Bash, macOS, Linux
@@ -95,9 +95,9 @@ The built-in "Definition missing" stage is kept.
 - **Through the app's handlers:** each action is sent as the person who did it (their permissions and team walls), at the moment the story puts it, on a service provider of its own (`SeedServices`, whose clock and activity actor it moves). So the gates, walls, audit entries, notifications and grants are the app's, and clinical work is never the admin's.
 - **What it writes itself:** the stage library and templates (as the admin set them up), the relay's Triage gates (no command changes them), and the activity log's sign-ins and views. `DemoActivityParityTests` (unit tests) runs the real sign-in, search and referral commands and checks the seed's copy still matches.
 
-**What's in it:** the light demo's clinic (`docs/demo-data.md`): Dermatology and the lab; `admin` (read only) and six staff with the light demo's usernames, roles and teams; Dermatology's eleven templates; 15 patients (999-range NHS numbers, `@example.com` emails) and 12 pathways at the light demo's points; the lab's cases and the hospital's requests; two MDTs, a consult, letters, consent, calendars and clinic sessions. Times are relative to now, so it always looks current.
+**What's in it:** the light demo's clinic (`docs/demo-data.md`): Dermatology, the Eye clinic and the lab; `admin` (read only) and eight staff with the light demo's usernames, roles and teams; Dermatology's eleven templates and the Eye clinic's four; 19 patients (999-range NHS numbers, `@example.com` emails) and 16 pathways at the light demo's points; the lab's cases and the hospital's requests; two MDTs, a consult, letters, consent, calendars and clinic sessions. Times are relative to now, so it always looks current.
 
-**The code** is in `DemoData/`. `DemoDataReset` is the way in for the script and the MCP tool, and `DemoDataSeeder` runs the steps: `DemoPeople`, `DemoSetup` (with `DemoDermatology`'s templates), `DemoPatients`, `DemoStory` (the pathways, through `DemoReplay`'s verbs), `DemoLab` (the hospital's requests), `DemoClinic` (MDTs, calendars, service alerts) and `DemoActivity`.
+**The code** is in `DemoData/`. `DemoDataReset` is the way in for the script and the MCP tool, and `DemoDataSeeder` runs the steps: `DemoPeople`, `DemoSetup` (with the clinics' templates: `DemoDermatology` and `DemoOphthalmology`, mapped by `DemoTemplates`), `DemoPatients`, `DemoStory` and `DemoEyeClinic` (the pathways, through `DemoReplay`'s verbs), `DemoLab` (the hospital's requests), `DemoClinic` (MDTs, calendars, service alerts) and `DemoActivity`.
 
 ## Running
 

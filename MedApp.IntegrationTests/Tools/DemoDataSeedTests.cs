@@ -207,16 +207,16 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         (await StagesOf("Tobias", "Lund", "New lesion, right cheek"))[0].Should().Be("Triage:-");
 
         var statuses = await Query(db => db.PatientPathways.Select(p => p.Status).ToListAsync());
-        statuses.Should().HaveCount(12).And.Contain(PatientPathwayStatus.Blocked).And.Contain(PatientPathwayStatus.Unassigned);
+        statuses.Should().HaveCount(16).And.Contain(PatientPathwayStatus.Blocked).And.Contain(PatientPathwayStatus.Unassigned);
     }
 
     [Test]
-    public async Task Referrals_TwoAwaitTriage_AndEllisVardensWasAccepted()
+    public async Task Referrals_ThreeAwaitTriage_AndEllisVardensWasAccepted()
     {
         var referrals = await Query(db => db.Referrals.AsNoTracking().ToListAsync());
 
-        referrals.Should().HaveCount(3);
-        referrals.Count(r => r.Status == ReferralStatus.AwaitingTriage).Should().Be(2);
+        referrals.Should().HaveCount(4);
+        referrals.Count(r => r.Status == ReferralStatus.AwaitingTriage).Should().Be(3);
         referrals.Single(r => r.Status == ReferralStatus.Accepted).PathwayId.Should().NotBeNull();
     }
 
@@ -252,7 +252,7 @@ public abstract class DemoDataSeedTestBase(string name, DateTime nowUtc)
         var patients = await Query(db => db.Patients.AsNoTracking().ToListAsync());
         var emails = await Query(db => db.Users.Where(u => u.Email != null).Select(u => u.Email!).ToListAsync());
 
-        patients.Should().HaveCount(15);
+        patients.Should().HaveCount(19);
         patients.Should().OnlyContain(p => p.NhsNumber != null && p.NhsNumber.StartsWith("999") && NhsNumbers.IsValid(p.NhsNumber));
         // A hospital-only patient has no address (an empty one).
         patients.Where(p => !string.IsNullOrEmpty(p.Email)).Should().OnlyContain(p => p.Email!.EndsWith("@example.com"));

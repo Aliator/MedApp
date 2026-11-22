@@ -3,8 +3,9 @@ import {ownerAccess} from '../demo/seed';
 import type {DemoState} from '../demo/state';
 
 /**
- * A second clinic, for the team walls' tests only: the light demo seeds one clinic (Dermatology) and the lab, so a
- * test that needs another clinic's records behind the wall adds them with `addOtherClinic`. Synthetic, like the seed.
+ * A third clinic, for the team walls' tests only: beside the seeded Dermatology, Eye clinic and lab, a test that needs
+ * another clinic's records on Dermatology's own patients (and Tom Hallworth in two clinics) adds them with
+ * `addOtherClinic`. Its IDs are its own, apart from the Eye clinic's. Synthetic, like the seed.
  */
 export const OTHER_CLINIC = {
   teamId: id(0xd1, 0x7e),

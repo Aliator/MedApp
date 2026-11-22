@@ -117,6 +117,8 @@ export const LAB_CASES = {
   aishaBiopsy: id(0xca, 4),
   /** Leah Corrin's skin scraping, the tour's relay: every step done, to report, which finishes her Testing stage. */
   leahScraping: id(0xca, 5),
+  /** Freya Tolland's eye swab, her Microbiology (lab) case: received and accessioned, Culture next (the Eye clinic's). */
+  freyaSwab: id(0xca, 6),
   ...HOSPITAL_LAB_CASES,
 } as const;
 
@@ -243,6 +245,7 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
   callumResult.reportText = callumReport;
   const ilona = sample(SPECIMENS.ilonaBlood);
   const leah = sample(SPECIMENS.leahScraping);
+  const freya = sample(SPECIMENS.freyaSwab);
   const daysAgo = (days: number, hour = 11) => {
     const at = new Date(Date.parse(nowUtc()) - days * 86400_000);
     at.setUTCHours(hour, 0, 0, 0);
@@ -334,6 +337,9 @@ export function seedLabCases(state: BaseState & LabSlice & HospitalSlice): LabCa
       new Date(Date.parse(leah.receivedAtUtc!) + 2.5 * 3600_000).toISOString(),
       {stageId: labStageAfter(pathwayOf(PATHWAYS.relay), leah.stageId, TEAMS.lab)!.id},
     ),
+    make(LAB_CASES.freyaSwab, freya.number, [freya], LAB_TESTS.eyeSwabCulture, adequate, new Date(Date.parse(freya.receivedAtUtc!) + 2 * 3600_000).toISOString(), {
+      stageId: labStageAfter(pathwayOf(PATHWAYS.eyeRedEye), freya.stageId, TEAMS.lab)!.id,
+    }),
     make(
       HOSPITAL_LAB_CASES.wilfred,
       request(HOSPITAL_REQUESTS.wilfredExcision).labCaseNumber,

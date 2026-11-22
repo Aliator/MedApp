@@ -543,7 +543,7 @@ public static class DemoStory
     }
 
     /// <summary>Records a stage's booked visit attended, by the clinician it's with.</summary>
-    private static async Task AttendedAsync(DemoSeed seed, StoryPathway pathway, string stage, DateTime at, bool branch = false)
+    internal static async Task AttendedAsync(DemoSeed seed, StoryPathway pathway, string stage, DateTime at, bool branch = false)
     {
         var stageId = pathway.Stage(stage, branch).Id;
         var booked = await seed.Db(db => db.Appointments

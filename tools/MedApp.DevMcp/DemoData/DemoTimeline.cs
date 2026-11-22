@@ -22,6 +22,9 @@ public sealed class DemoTimeline
     /// <summary>Today, UK time.</summary>
     public DateOnly Today { get; }
 
+    /// <summary>Whether it's seeded on a Saturday or Sunday, when the centre and the four demo accounts work the weekend.</summary>
+    public bool IsWeekend => Today.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
     /// <summary>This week's Monday (UK).</summary>
     public DateOnly ThisMonday { get; }
 

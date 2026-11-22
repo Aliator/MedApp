@@ -14,7 +14,7 @@ describe('the light demo’s setup and admin handlers', () => {
     const list = (await call('GET', '/api/practices?includeArchived=true')).body;
     expect(list.map((p: {name: string}) => p.name)).toContain('Example Lane Surgery (synthetic)');
     const lane = list.find((p: {id: string}) => p.id === PRACTICES.exampleLane);
-    expect(lane).toMatchObject({patientCount: 3, canBeDeleted: false});
+    expect(lane).toMatchObject({patientCount: 4, canBeDeleted: false});
     expect((await call('PUT', `/api/practices/${lane.id}`, {name: 'Renamed', expectedVersion: 99})).status).toBe(409);
     expect((await call('PUT', `/api/practices/${lane.id}`, {name: 'Renamed', expectedVersion: 1})).body.version).toBe(2);
     expect((await call('DELETE', `/api/practices/${lane.id}`)).status).toBe(409);
