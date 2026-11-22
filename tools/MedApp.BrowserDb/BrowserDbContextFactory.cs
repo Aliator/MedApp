@@ -11,7 +11,7 @@ public sealed class BrowserDbContextFactory : IDesignTimeDbContextFactory<MedApp
     public MedAppDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<MedAppDbContext>();
-        options.UseBrowserDatabase("Data Source=:memory:", compiledModel: false);
+        options.UseBrowserDatabase("Data Source=:memory:");
         return new MedAppDbContext(options.Options);
     }
 }

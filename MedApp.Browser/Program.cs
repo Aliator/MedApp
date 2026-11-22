@@ -6,6 +6,8 @@ using MedApp.Browser.Hosting;
 
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("browser")]
 
+// The compiled model (Data/CompiledModel) is initialised on a thread of its own unless told not to; the browser has one.
+AppContext.SetSwitch("Microsoft.EntityFrameworkCore.Issue31751", true);
 Console.WriteLine("MedApp backend loaded");
 
 /// <summary>

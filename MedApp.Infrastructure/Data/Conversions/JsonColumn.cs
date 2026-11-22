@@ -26,7 +26,8 @@ public static class JsonColumn
         return property;
     }
 
-    private static string Write<T>(T value) => JsonSerializer.Serialize(value, Options);
+    // Internal, not private: the browser's compiled model (MedApp.Browser/Data/CompiledModel) calls them.
+    internal static string Write<T>(T value) => JsonSerializer.Serialize(value, Options);
 
-    private static T Read<T>(string json) => JsonSerializer.Deserialize<T>(json, Options)!;
+    internal static T Read<T>(string json) => JsonSerializer.Deserialize<T>(json, Options)!;
 }

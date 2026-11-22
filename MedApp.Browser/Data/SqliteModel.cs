@@ -2,7 +2,6 @@ using MedApp.Application.Pathways.Insights.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace MedApp.Browser.Data;
@@ -16,7 +15,7 @@ namespace MedApp.Browser.Data;
 /// <item>The specimen number sequence becomes a counter row (<see cref="SqlServerDialect"/>).</item>
 /// <item>SQL Server's column types and its <c>N'…'</c> literals go; text compares ignoring case, as SQL Server's
 /// collation does; <c>DateTimeOffset</c>s are stored as numbers, so SQLite can compare and sort them.</item>
-/// <item>The insights' functions get SQLite's equivalents.</item>
+/// <item>The insights' functions get SQLite's equivalents (<c>SecondsBetween</c> by <see cref="SqliteInsightsTranslations"/>).</item>
 /// </list>
 /// Filtered indexes keep their SQL: SQLite reads SQL Server's bracketed names.
 /// </summary>
@@ -56,14 +55,7 @@ public sealed class SqliteModelCustomizer(ModelCustomizerDependencies dependenci
             }
         }
 
-        modelBuilder
-            .HasDbFunction(typeof(InsightsFunctions).GetMethod(nameof(InsightsFunctions.SecondsBetween))!)
-            .HasTranslation(args => new SqlBinaryExpression(
-                System.Linq.Expressions.ExpressionType.Subtract,
-                new SqlFunctionExpression("unixepoch", [args[1]], true, [true], typeof(long), null),
-                new SqlFunctionExpression("unixepoch", [args[0]], true, [true], typeof(long), null),
-                typeof(long),
-                null));
+        model.RemoveDbFunction(SqliteInsightsTranslations.SecondsBetween);
 
         modelBuilder
             .HasDbFunction(typeof(InsightsFunctions).GetMethod(nameof(InsightsFunctions.JsonValue))!)

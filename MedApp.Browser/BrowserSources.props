@@ -5,7 +5,6 @@
          other than MedApp.Browser, MedApp.Browser's own files but its entry point. -->
     <PropertyGroup>
         <BrowserSourcesDir>$(MSBuildThisFileDirectory)</BrowserSourcesDir>
-        <DefineConstants Condition="Exists('$(BrowserSourcesDir)Data\CompiledModel\MedAppDbContextModel.cs')">$(DefineConstants);BROWSER_COMPILED_MODEL</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>

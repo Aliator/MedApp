@@ -2,7 +2,8 @@
 // (?run=…) sends its requests through backend.js and puts them, with their answers, on the page and in
 // window.harness, which the Playwright check reads.
 //   ?run=empty      Phase 1's: a new empty database, with only the first admin.
-//   ?run=demo       Phase 2's: the published demo database; each demo account's answers, then a note added.
+//   ?run=demo       Phase 2's: the published demo database; each demo account's answers, the insights (SQLite's
+//                   own functions), then a note added.
 //   ?run=reloaded   The saved copy: the note is still there.
 import { fetchApi, flush, startBackend } from './backend.js';
 
@@ -78,6 +79,10 @@ async function demoChecks(version) {
     await send('GET', `/api/calendar?from=${ukToday()}&to=${ukToday()}`);
     await send('POST', '/api/auth/logout');
   }
+
+  await send('POST', '/api/auth/login', { username: 'admin', password: 'any' });
+  await send('GET', '/api/pathways/insights?weeks=12');
+  await send('POST', '/api/auth/logout');
 
   await send('POST', '/api/auth/login', { username: 'n.thornbury', password: 'any' });
   await send('POST', `/api/pathways/patient-pathways/${version.tour.relay}/notes`, { text: NOTE });

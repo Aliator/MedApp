@@ -39,35 +39,34 @@ namespace MedApp.Browser.Hosting;
 /// </summary>
 public static class BrowserServices
 {
-    public static IServiceCollection AddBrowserBackend(this IServiceCollection services, BrowserDatabase database, BrowserBackendOptions? options = null)
+    /// <param name="settings">Settings over the API's <c>appsettings.json</c>.</param>
+    public static IServiceCollection AddBrowserBackend(
+        this IServiceCollection services, BrowserDatabase database, IReadOnlyDictionary<string, string?>? settings = null)
     {
-        options ??= new BrowserBackendOptions();
-        var configuration = Configuration(options.Settings);
+        var configuration = Configuration(settings ?? new Dictionary<string, string?>());
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(logging => logging.AddProvider(new BrowserConsoleLoggerProvider()));
         services.AddSingleton(database);
 
         services.AddApplication();
         services.AddBrowserApi(configuration);
-        services.AddBrowserInfrastructure(configuration, database, options.CompiledModel);
+        services.AddBrowserInfrastructure(configuration, database);
         return services;
     }
 
     /// <summary>
-    /// The browser's database: SQLite, the model fitted to it (or its compiled form, <c>Data/CompiledModel</c>, made
-    /// by <c>tools/MedApp.BrowserDb/optimize-model.sh</c>), and SQL Server's dialect translated.
+    /// The browser's database: SQLite, the model fitted to it, and SQL Server's dialect translated. EF Core finds the
+    /// model's compiled form (<c>Data/CompiledModel</c>, made by <c>tools/MedApp.BrowserDb/optimize-model.sh</c>) itself,
+    /// and builds the model only for making a database (<c>EnsureCreated</c>).
     /// </summary>
-    public static DbContextOptionsBuilder UseBrowserDatabase(this DbContextOptionsBuilder options, string connectionString, bool compiledModel)
+    public static DbContextOptionsBuilder UseBrowserDatabase(this DbContextOptionsBuilder options, string connectionString)
     {
         options
             .UseSqlite(connectionString)
             .ReplaceService<IModelCustomizer, SqliteModelCustomizer>()
             .AddInterceptors(new SqlServerDialect())
             .ConfigureWarnings(MedApp.Infrastructure.Common.Extensions.ServiceExtensions.LogFailedSavesAtDebug);
-#if BROWSER_COMPILED_MODEL
-        if (compiledModel)
-            options.UseModel(Data.CompiledModel.MedAppDbContextModel.Instance);
-#endif
+        SqliteInsightsTranslations.AddTo(options);
         return options;
     }
 
@@ -99,9 +98,9 @@ public static class BrowserServices
     }
 
     /// <summary>What Infrastructure's <c>AddInfrastructure</c> registers, with the browser's stand-ins.</summary>
-    private static void AddBrowserInfrastructure(this IServiceCollection services, IConfiguration configuration, BrowserDatabase database, bool compiledModel)
+    private static void AddBrowserInfrastructure(this IServiceCollection services, IConfiguration configuration, BrowserDatabase database)
     {
-        services.AddDbContext<MedAppDbContext>(options => options.UseBrowserDatabase(database.ConnectionString, compiledModel));
+        services.AddDbContext<MedAppDbContext>(options => options.UseBrowserDatabase(database.ConnectionString));
 
         services.AddBrowserIdentity(configuration);
 
@@ -163,19 +162,6 @@ public static class BrowserServices
         services.AddScoped<AdminGrant>();
         services.AddScoped<ILastAdminGuard, LastAdminGuard>();
         services.AddScoped<IPermissionHolders, PermissionHolders>();
-    }
-}
-
-/// <param name="Settings">Settings over the API's <c>appsettings.json</c>.</param>
-/// <param name="CompiledModel">
-/// Whether to use the compiled model, when there is one. The demo database's build makes the model as the app does
-/// instead, and checks the compiled one matches it.
-/// </param>
-public sealed record BrowserBackendOptions(IReadOnlyDictionary<string, string?> Settings, bool CompiledModel = true)
-{
-    public BrowserBackendOptions()
-        : this(new Dictionary<string, string?>())
-    {
     }
 }
 

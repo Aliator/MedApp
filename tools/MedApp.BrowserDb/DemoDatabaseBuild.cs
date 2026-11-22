@@ -15,7 +15,7 @@ namespace MedApp.BrowserDb;
 /// <summary>
 /// The demo database, as the browser starts on it: a new SQLite file made from the browser's model (the API's, fitted
 /// to SQLite), with the full app's demo data loaded by its own seeder, through the app's handlers, as in the browser
-/// (the same services and stand-ins). Writes <see cref="DatabaseFile"/>, compressed (<c>.gz</c>), and
+/// (the same services, stand-ins and compiled model). Writes <see cref="DatabaseFile"/>, compressed (<c>.gz</c>), and
 /// <see cref="VersionFile"/>, which the page reads to tell whether its saved copy is the published one.
 /// </summary>
 public static class DemoDatabaseBuild
@@ -39,17 +39,17 @@ public static class DemoDatabaseBuild
         var database = new BrowserDatabase(path);
         var now = DateTime.UtcNow;
 
-        await using (var services = new ServiceCollection().AddBrowserBackend(database, new BrowserBackendOptions(new Dictionary<string, string?>(), CompiledModel: false)).BuildServiceProvider())
+        await using (var services = new ServiceCollection().AddBrowserBackend(database).BuildServiceProvider())
         await using (var scope = services.CreateAsyncScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<MedAppDbContext>();
             await BrowserBackend.CreateAsync(context, ct);
-            await log.WriteLineAsync(CompiledModelCheck.Run(context.Model));
+            await log.WriteLineAsync(CompiledModelCheck.Run(context));
         }
 
         Dictionary<string, object?> summary;
-        await using (var seed = new SeedServices(now, services => services.AddBrowserBackend(database, new BrowserBackendOptions(
-                         new Dictionary<string, string?> { ["Email:LinkBaseUrl"] = SeedServices.LinkBaseUrl }, CompiledModel: false))))
+        await using (var seed = new SeedServices(now, services => services.AddBrowserBackend(
+                         database, new Dictionary<string, string?> { ["Email:LinkBaseUrl"] = SeedServices.LinkBaseUrl })))
             summary = await DemoDataSeeder.SeedAsync(seed, new DemoSeedOptions(2026, now, []), wipe: false, filesSkipped: null, ct);
 
         await using (var connection = database.Open())

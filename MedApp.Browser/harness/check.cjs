@@ -113,6 +113,9 @@ function demoSteps(note) {
     steps.push(['POST /api/auth/logout', 204]);
   }
   steps.push(['POST /api/auth/login', 200]);
+  steps.push(['GET /api/pathways/insights', 200, j => j.open.current > 0 && j.stageTimes.some(t => t.stages?.length > 0)]);
+  steps.push(['POST /api/auth/logout', 204]);
+  steps.push(['POST /api/auth/login', 200]);
   steps.push(['POST /api/pathways/patient-pathways/', 201, j => j.text === note]);
   steps.push(['GET /api/pathways/patient-pathways/', 200, j => j.noteList?.some(n => n.text === note)]);
   steps.push(['POST /api/auth/logout', 204]);
@@ -187,7 +190,8 @@ let url;
   checkRun('The published demo database', demo, demoSteps(demo.note), () =>
     expect(demo.source === 'downloaded', 'downloaded the published database')
     && expect(demo.accounts?.length === 9 && !JSON.stringify(demo.accounts).includes('password'), 'nine accounts listed, no passwords')
-    && expect(demo.progress.some(p => p.database.total > 0 && p.database.loaded === p.database.total), 'reported the download')
+    && expect(demo.progress.some(p => p.database.total > 0 && p.database.loaded === p.database.total), 'reported the database\'s download')
+    && expect(demo.progress.some(p => p.backend.total > 0 && p.backend.loaded === p.backend.total), `reported the backend's download (${demo.progress.at(-1)?.backend.total} files)`)
     && Object.entries(attention).every(([user, a]) =>
       expect(a.count > 0, `${user}: Needs your attention ${a.count}; today's calendar ${a.calendar}`)));
 
