@@ -41,6 +41,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Browser", "MedApp.Br
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.BrowserDb", "tools\MedApp.BrowserDb\MedApp.BrowserDb.csproj", "{C4BF7213-3234-4FD3-9450-A07416B9534D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MedApp.Browser.Tests", "MedApp.Browser.Tests\MedApp.Browser.Tests.csproj", "{1202156C-0026-4D1F-BAF3-BD7D7DEB51DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,10 @@ Global
 		{C4BF7213-3234-4FD3-9450-A07416B9534D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C4BF7213-3234-4FD3-9450-A07416B9534D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4BF7213-3234-4FD3-9450-A07416B9534D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1202156C-0026-4D1F-BAF3-BD7D7DEB51DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1202156C-0026-4D1F-BAF3-BD7D7DEB51DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1202156C-0026-4D1F-BAF3-BD7D7DEB51DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1202156C-0026-4D1F-BAF3-BD7D7DEB51DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -5,7 +5,10 @@
 //   ?run=demo       Phase 2's: the published demo database; each demo account's answers, the insights (SQLite's
 //                   own functions), then a note added.
 //   ?run=reloaded   The saved copy: the note is still there.
+//   ?run=smoke      Phase 3's: every GET in the API's schema each demo account can fill in, then a set of changes
+//                   (smoke.js), on a newly downloaded demo database.
 import { fetchApi, flush, startBackend } from './backend.js';
+import { ACCOUNTS, smokeChanges, smokeReads } from './smoke.js';
 
 const log = document.getElementById('log');
 const status = document.getElementById('status');
@@ -90,6 +93,37 @@ async function demoChecks(version) {
   await send('POST', '/api/auth/logout');
 }
 
+async function smokeSend(method, url, body, extraHeaders = {}) {
+  const headers = { Host: location.host, ...extraHeaders };
+  const bytes = body === undefined ? undefined : body instanceof Uint8Array || typeof body === 'string' ? body : JSON.stringify(body);
+  if (bytes !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  const response = await fetchApi(method, url, headers, bytes);
+  const type = response.headers['Content-Type'] ?? '';
+  let json = null;
+  try {
+    json = response.body && type.includes('json') ? JSON.parse(response.body) : null;
+  } catch {
+    json = null;
+  }
+  const size = response.body != null ? new TextEncoder().encode(response.body).length : response.bodyBase64 ? atob(response.bodyBase64).length : 0;
+  return { status: response.status, headers: response.headers, json, text: response.body ?? null, bytes: size };
+}
+
+async function smokeChecks(version) {
+  const operations = await (await fetch('smoke-operations.json')).json();
+  harness.smoke = { reads: {}, changes: [] };
+  for (const username of ACCOUNTS) {
+    await smokeSend('POST', '/api/auth/login', { username, password: 'any' });
+    const started = performance.now();
+    harness.smoke.reads[username] = await smokeReads(smokeSend, operations, version.tour, username);
+    harness.timings[`reads.${username}Ms`] = Math.round(performance.now() - started);
+    await smokeSend('POST', '/api/auth/logout');
+  }
+  const started = performance.now();
+  harness.smoke.changes = await smokeChanges(smokeSend, version.tour);
+  harness.timings.changesMs = Math.round(performance.now() - started);
+}
+
 async function reloadedChecks(version) {
   await send('POST', '/api/auth/login', { username: 'n.thornbury', password: 'any' });
   await send('GET', `/api/pathways/patient-pathways/${version.tour.relay}`);
@@ -107,6 +141,7 @@ try {
 
   if (run === 'empty') await emptyChecks();
   else if (run === 'reloaded') await reloadedChecks(version);
+  else if (run === 'smoke') await smokeChecks(version);
   else await demoChecks(version);
 
   const saving = performance.now();

@@ -242,7 +242,7 @@ public sealed class ActionBinder(HttpContext http, ApiRoute route, byte[] body)
             var value = property.GetValue(model);
             var attributes = property.GetCustomAttributes<ValidationAttribute>().ToList();
             if (attributes.All(a => a is not RequiredAttribute) && IsRequiredReference(Nullability.Create(property), property.PropertyType))
-                attributes.Insert(0, new RequiredAttribute());
+                attributes.Insert(0, new RequiredAttribute { AllowEmptyStrings = true });
 
             var context = new ValidationContext(model) { MemberName = property.Name, DisplayName = property.Name };
             foreach (var attribute in attributes)

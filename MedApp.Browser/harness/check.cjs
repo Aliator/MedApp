@@ -4,8 +4,10 @@
 //   dotnet run --project tools/MedApp.BrowserDb -c Release -- --out <db>           (the demo database)
 //   NODE_PATH=tools/ui-parity/node_modules node MedApp.Browser/harness/check.cjs <out>/wwwroot <db>
 // Runs, in order: a new empty database (Phase 1's checks); the published demo database, downloaded, with each demo
-// account's answers and a note added; a reload, from the copy saved in IndexedDB, with the note; and a newer
-// published database (db-version.json's date moved on), which replaces the saved copy.
+// account's answers and a note added; a reload, from the copy saved in IndexedDB, with the note; a newer published
+// database (db-version.json's date moved on), which replaces the saved copy; and the smoke check (smoke.js), on a
+// newly downloaded copy: as each of four demo accounts, every GET in MedApp.Web/src/api/schema.d.ts it can fill in,
+// then a set of changes, failing on any 5xx or answer that isn't the API's.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -15,10 +17,16 @@ const root = path.resolve(process.argv[2] ?? 'wwwroot');
 const dbFolder = path.resolve(process.argv[3] ?? root);
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.wasm': 'application/wasm', '.dat': 'application/octet-stream', '.gz': 'application/gzip' };
 const DATABASE_FILES = ['medapp.db.gz', 'db-version.json'];
+const SCHEMA = path.join(__dirname, '..', '..', 'MedApp.Web', 'src', 'api', 'schema.d.ts');
 let newerBuild = null;
+let operations = [];
 
 const server = http.createServer((req, res) => {
   const name = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (name === '/smoke-operations.json') {
+    res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(operations));
+    return;
+  }
   if (name === '/db-version.json' && newerBuild) {
     const version = JSON.parse(fs.readFileSync(path.join(dbFolder, 'db-version.json'), 'utf8'));
     res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ...version, builtOn: newerBuild }));
@@ -67,7 +75,7 @@ const empty = [
   ['GET /api/patients/search', 200, j => j.totalCount === 1 && j.items[0].lastName === 'McTest'],
   ['GET /api/patients/', 200, j => j.firstName === 'Testy'],
   ['GET /api/pathways/patient-pathways/search', 200, j => j.totalCount === 0],
-  ['POST /api/patients', 400, j => j.type?.endsWith('section-15.5.1') && j.errors.FirstName?.[0] === 'The FirstName field is required.'],
+  ['POST /api/patients', 400, j => j.title === 'One or more validation errors occurred.' && j.errors.FirstName?.[0] === 'First name must not be empty.'],
   ['POST /api/patients', 400, j => j.errors['$.firstName'] && j.errors.request?.[0] === 'The request field is required.'],
   ['POST /api/patients', 400, j => j.title === 'One or more validation errors occurred.' && j.errors.Email],
   ['POST /api/patients', 409, j => j.title?.includes('NHS number')],
@@ -165,8 +173,36 @@ const expect = (ok, what) => {
   return ok;
 };
 
+function checkSmoke(harness) {
+  console.log(`\n== The smoke check (${harness.source}) ==`);
+  if (harness.error || !harness.smoke) {
+    failures++;
+    console.log(`FAIL ${harness.error ?? 'no results'}`);
+    return;
+  }
+  const gets = operations.filter(op => op.method === 'GET').length;
+  for (const [username, results] of Object.entries(harness.smoke.reads)) {
+    const counts = {};
+    for (const r of results) counts[r.skipped ? 'not filled in' : r.status] = (counts[r.skipped ? 'not filled in' : r.status] ?? 0) + 1;
+    const bad = results.filter(r => r.problem);
+    failures += bad.length;
+    console.log(`${bad.length ? 'FAIL' : 'ok  '} ${username}: ${results.length - (counts['not filled in'] ?? 0)} of ${gets} GETs, ${JSON.stringify(counts)} (${harness.timings[`reads.${username}Ms`]} ms)`);
+    for (const r of bad) console.log(`       FAIL GET ${r.url} -> ${r.status}: ${r.problem}`);
+    for (const r of results.filter(r => r.skipped)) console.log(`       not filled in: GET ${r.url}`);
+    const slowest = results.filter(r => !r.skipped).sort((a, b) => b.ms - a.ms).slice(0, 3);
+    console.log(`       slowest: ${slowest.map(r => `${r.url} ${r.ms} ms`).join(', ')}`);
+  }
+  for (const r of harness.smoke.changes) {
+    if (r.problem) failures++;
+    console.log(`${r.problem ? 'FAIL' : 'ok  '} [${r.area}] ${r.label} (${r.username}): ${r.method} ${r.url} -> ${r.status}${r.problem ? ' ' + r.problem : ''}`);
+  }
+  console.log(`${harness.smoke.changes.length} changes in ${harness.timings.changesMs} ms`);
+}
+
 let url;
 (async () => {
+  const { schemaOperations } = await import(path.join(__dirname, '..', 'wwwroot', 'smoke.js'));
+  operations = schemaOperations(fs.readFileSync(SCHEMA, 'utf8'));
   await new Promise(resolve => server.listen(0, resolve));
   url = `http://localhost:${server.address().port}/`;
   const browser = await chromium.launch();
@@ -203,6 +239,19 @@ let url;
   const newer = await open(page, 'reloaded');
   checkRun('A newer published database', newer, reloadedSteps(demo.note, false), () =>
     expect(newer.source === 'downloaded' && newer.builtOn === newerBuild, 'downloaded the newer database, replacing the saved copy'));
+
+  newerBuild = null;
+  const smokeContext = await browser.newContext();
+  const smokePage = await smokeContext.newPage();
+  watch(smokePage);
+  const started = Date.now();
+  await smokePage.goto(`${url}?run=smoke`);
+  await smokePage.waitForFunction(() => window.harness?.done === true, null, { timeout: 600000 });
+  const smoke = await smokePage.evaluate(() => window.harness);
+  smoke.timings.pageLoadToDoneMs = Date.now() - started;
+  checkSmoke(smoke);
+  const { backend: smokeBackend, ...smokeTimings } = smoke.timings;
+  console.log(JSON.stringify({ ...smokeTimings, ...smokeBackend }));
 
   await browser.close();
   server.close();

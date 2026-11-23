@@ -68,7 +68,13 @@ public sealed class BrowserBackend
             Lap("seed");
         }
 
-        return new BrowserBackend(services, new ApiPipeline(services, routes), database, timings);
+        var backend = new BrowserBackend(services, new ApiPipeline(services, routes), database, timings);
+
+        // No timer in the browser: the jobs due are run once, as ScheduledJobHost's round runs them, after the watcher
+        // has started, so the first answer says the database changed. Run now (Scheduled Jobs) runs one at any time.
+        await ActivatorUtilities.CreateInstance<MedApp.API.Jobs.ScheduledJobHost>(services).RunDueAsync(ct);
+        Lap("jobs");
+        return backend;
     }
 
     /// <summary>

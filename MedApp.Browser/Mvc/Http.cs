@@ -125,6 +125,18 @@ public sealed class HttpResponse
 
 public delegate Task RequestDelegate(HttpContext context);
 
+/// <summary>A request's headers, parsed: what the FHIR API reads (<c>Accept</c>).</summary>
+public sealed class RequestHeaders(HeaderDictionary headers)
+{
+    public IList<Microsoft.Net.Http.Headers.MediaTypeHeaderValue> Accept =>
+        Microsoft.Net.Http.Headers.MediaTypeHeaderValue.ParseList(headers.Accept.ToString());
+}
+
+public static class HeaderDictionaryTypeExtensions
+{
+    public static RequestHeaders GetTypedHeaders(this HttpRequest request) => new(request.Headers);
+}
+
 /// <summary>Kestrel's refusal of a request it can't read (a body over its size limit).</summary>
 public sealed class BadHttpRequestException(string message, int statusCode) : IOException(message)
 {

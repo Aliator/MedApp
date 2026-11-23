@@ -53,6 +53,18 @@ public sealed class ApiRoute
             _ => $"{prefix.TrimEnd('/')}/{template}",
         };
 
+    /// <summary>The first route, in precedence order, for the method and the path's segments (decoded), with its values.</summary>
+    public static (ApiRoute? Route, Dictionary<string, string>? Values) Find(IEnumerable<ApiRoute> routes, string method, IReadOnlyList<string> path)
+    {
+        foreach (var route in routes)
+        {
+            if (string.Equals(route.Method, method, StringComparison.OrdinalIgnoreCase) && route.Match(path) is { } values)
+                return (route, values);
+        }
+
+        return (null, null);
+    }
+
     /// <summary>The route values when the path's segments (decoded) match the template, or null.</summary>
     public Dictionary<string, string>? Match(IReadOnlyList<string> path)
     {

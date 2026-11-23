@@ -3,12 +3,14 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using MedApp.API.Common.Authentication;
+using MedApp.API.Fhir;
 using MedApp.API.Middleware;
 using MedApp.Application.Common.Authentication;
 using MedApp.Application.Common.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Primitives;
 
 namespace MedApp.Browser.Hosting;
@@ -119,23 +121,13 @@ public sealed class ApiPipeline(IServiceProvider services, IReadOnlyList<ApiRout
         var path = context.Request.Path.ToString();
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.UnescapeDataString).ToList();
 
-        ApiRoute? route = null;
-        Dictionary<string, string>? values = null;
-        if (segments is ["api", ..])
-        {
-            foreach (var candidate in routes)
-            {
-                if (candidate.Method != context.Request.Method || candidate.Match(segments) is not { } matched)
-                    continue;
-                route = candidate;
-                values = matched;
-                break;
-            }
-        }
-
+        var (route, values) = segments is ["api", ..] ? ApiRoute.Find(routes, context.Request.Method, segments) : (null, null);
         if (route is null)
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            if (IsFhir(context.Request))
+                await FhirJson.NotFoundAsync(context);
+            else
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
@@ -146,6 +138,49 @@ public sealed class ApiPipeline(IServiceProvider services, IReadOnlyList<ApiRout
         if (!await AuthorizeAsync(context, route))
             return;
 
+        var filters = route.Controller.GetCustomAttributes<TypeFilterAttribute>(inherit: true)
+            .Concat(route.Action.GetCustomAttributes<TypeFilterAttribute>(inherit: true))
+            .Select(filter => ActivatorUtilities.CreateInstance(context.RequestServices, filter.ImplementationType))
+            .ToList();
+        await RunResourceFiltersAsync(context, filters.OfType<IAsyncResourceFilter>().ToList(), 0,
+            () => RunActionAsync(context, route, body, filters.OfType<IAsyncExceptionFilter>().ToList()));
+    }
+
+    /// <summary>MVC's resource filters (the FHIR API's format check), each around the next, then the action.</summary>
+    private static async Task<ResourceExecutedContext> RunResourceFiltersAsync(
+        HttpContext context, IReadOnlyList<IAsyncResourceFilter> filters, int index, Func<Task> action)
+    {
+        if (index == filters.Count)
+            await action();
+        else
+            await filters[index].OnResourceExecutionAsync(
+                new ResourceExecutingContext(context), () => RunResourceFiltersAsync(context, filters, index + 1, action));
+        return new ResourceExecutedContext(context);
+    }
+
+    /// <summary>Binding and the action, with MVC's exception filters (the FHIR API's OperationOutcomes) around them.</summary>
+    private async Task RunActionAsync(HttpContext context, ApiRoute route, byte[] body, IReadOnlyList<IAsyncExceptionFilter> exceptionFilters)
+    {
+        try
+        {
+            await BindAndInvokeAsync(context, route, body);
+        }
+        catch (Exception e) when (exceptionFilters.Count > 0)
+        {
+            var exceptionContext = new ExceptionContext(context, e);
+            foreach (var filter in exceptionFilters)
+            {
+                await filter.OnExceptionAsync(exceptionContext);
+                if (exceptionContext.ExceptionHandled)
+                    return;
+            }
+
+            throw;
+        }
+    }
+
+    private async Task BindAndInvokeAsync(HttpContext context, ApiRoute route, byte[] body)
+    {
         var binder = new ActionBinder(context, route, body);
         var arguments = binder.Bind();
         if (binder.UnsupportedMediaType)
@@ -257,6 +292,15 @@ public sealed class ApiPipeline(IServiceProvider services, IReadOnlyList<ApiRout
         if (signedIn && missing.Count == 0 && !otherFails)
             return true;
 
+        if (IsFhir(context.Request))
+        {
+            // FhirAuthorizationResultHandler: an OperationOutcome, never a ProblemDetails.
+            await (signedIn
+                ? FhirJson.WriteAsync(context.Response, FhirJson.Outcome("forbidden", "You don't have access to this resource."), StatusCodes.Status403Forbidden)
+                : FhirJson.WriteAsync(context.Response, FhirJson.Outcome("login", "Sign in to use the FHIR API."), StatusCodes.Status401Unauthorized));
+            return false;
+        }
+
         if (!signedIn)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -335,9 +379,12 @@ public sealed class ApiPipeline(IServiceProvider services, IReadOnlyList<ApiRout
                 break;
 
             default:
-                throw new NotSupportedException($"The result {result.GetType().Name} isn't supported in the browser.");
+                await result.ExecuteResultAsync(new ActionContext { HttpContext = context });
+                break;
         }
     }
+
+    private static bool IsFhir(HttpRequest request) => request.Path.StartsWithSegments("/api/fhir", StringComparison.OrdinalIgnoreCase);
 
     private static void SetFileHeaders(HttpResponse response, FileResult file)
     {

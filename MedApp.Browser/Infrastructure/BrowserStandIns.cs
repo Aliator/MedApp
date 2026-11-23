@@ -116,6 +116,15 @@ namespace MedApp.Browser.Infrastructure
             throw new InvalidOperationException("Letters can't be sent by secure email in the browser.");
     }
 
+    /// <summary>
+    /// Uploads held in memory while they're checked: the runtime's files are in memory anyway, and its file system can't
+    /// read a file whose name was deleted while open (as <c>TempFileUploadStaging</c> does).
+    /// </summary>
+    public sealed class MemoryUploadStaging : IUploadStaging
+    {
+        public Stream Create() => new MemoryStream();
+    }
+
     /// <summary>No thumbnails (SkiaSharp isn't built for the browser): images are listed without one.</summary>
     public sealed class NoThumbnails : IThumbnailGenerator
     {

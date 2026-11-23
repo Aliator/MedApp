@@ -49,14 +49,18 @@
 
     <!-- The API's controllers, unchanged, against the MVC stand-in in MedApp.Browser/Mvc. -->
     <ItemGroup>
-        <Compile Include="$(BrowserSourcesDir)..\MedApp.API\Controllers\*.cs" Exclude="$(BrowserSourcesDir)..\MedApp.API\Controllers\FhirController.cs" Link="Shared\Api\Controllers\%(Filename)%(Extension)" />
+        <Compile Include="$(BrowserSourcesDir)..\MedApp.API\Controllers\*.cs" Link="Shared\Api\Controllers\%(Filename)%(Extension)" />
         <Compile Include="$(BrowserSourcesDir)..\MedApp.API\Common\Authentication\ClaimsPrincipalExtensions.cs;
                           $(BrowserSourcesDir)..\MedApp.API\Common\Authentication\SessionAuthenticationDefaults.cs;
                           $(BrowserSourcesDir)..\MedApp.API\Common\Authentication\RequirePermissionAttribute.cs;
                           $(BrowserSourcesDir)..\MedApp.API\Common\Authentication\AuthPolicies.cs;
                           $(BrowserSourcesDir)..\MedApp.API\Common\Authentication\ISessionCookieService.cs;
                           $(BrowserSourcesDir)..\MedApp.API\Attachments\AttachmentResponseHeaders.cs;
-                          $(BrowserSourcesDir)..\MedApp.API\Middleware\ExceptionHandling.cs"
+                          $(BrowserSourcesDir)..\MedApp.API\Fhir\FhirJson.cs;
+                          $(BrowserSourcesDir)..\MedApp.API\Fhir\FhirExceptionFilter.cs;
+                          $(BrowserSourcesDir)..\MedApp.API\Fhir\FhirFormatFilter.cs;
+                          $(BrowserSourcesDir)..\MedApp.API\Middleware\ExceptionHandling.cs;
+                          $(BrowserSourcesDir)..\MedApp.API\Jobs\ScheduledJobHost.cs"
                  Link="Shared\Api\%(Filename)%(Extension)" />
     </ItemGroup>
 
@@ -74,6 +78,7 @@
     <ItemGroup>
         <Using Include="Microsoft.AspNetCore.Http" />
         <Using Include="Microsoft.Extensions.DependencyInjection" />
+        <Using Include="Microsoft.Extensions.Hosting" />
         <Using Include="Microsoft.Extensions.Logging" />
     </ItemGroup>
 

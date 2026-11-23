@@ -114,7 +114,7 @@ public static class BrowserServices
         services.AddSingleton<IFileStore, SqliteFileStore>();
         services.AddSingleton<IMalwareScanner, NoMalwareScanner>();
         services.AddSingleton<IThumbnailGenerator, NoThumbnails>();
-        services.AddSingleton<IUploadStaging, TempFileUploadStaging>();
+        services.AddSingleton<IUploadStaging, MemoryUploadStaging>();
 
         services.AddDemographics(configuration);
         services.AddJobSettings(configuration);

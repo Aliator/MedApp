@@ -111,6 +111,35 @@ namespace Microsoft.AspNetCore.Mvc
     {
         [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
         public abstract class ActionFilterAttribute : Attribute;
+
+        public interface IFilterMetadata;
+
+        public interface IAsyncExceptionFilter : IFilterMetadata
+        {
+            Task OnExceptionAsync(ExceptionContext context);
+        }
+
+        public interface IAsyncResourceFilter : IFilterMetadata
+        {
+            Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next);
+        }
+
+        public delegate Task<ResourceExecutedContext> ResourceExecutionDelegate();
+
+        public class FilterContext : ActionContext
+        {
+            public FilterContext(HttpContext httpContext) => HttpContext = httpContext;
+        }
+
+        public sealed class ExceptionContext(HttpContext httpContext, Exception exception) : FilterContext(httpContext)
+        {
+            public Exception Exception { get; } = exception;
+            public bool ExceptionHandled { get; set; }
+        }
+
+        public sealed class ResourceExecutingContext(HttpContext httpContext) : FilterContext(httpContext);
+
+        public sealed class ResourceExecutedContext(HttpContext httpContext) : FilterContext(httpContext);
     }
 
     namespace ModelBinding
@@ -126,7 +155,17 @@ namespace Microsoft.AspNetCore.Mvc
         public sealed class BindNeverAttribute : Attribute;
     }
 
-    public interface IActionResult;
+    /// <summary>A result the router runs; one the router doesn't know writes itself, as MVC's do.</summary>
+    public interface IActionResult
+    {
+        Task ExecuteResultAsync(ActionContext context) =>
+            throw new NotSupportedException($"The result {GetType().Name} isn't supported in the browser.");
+    }
+
+    public class ActionContext
+    {
+        public HttpContext HttpContext { get; init; } = null!;
+    }
 
     /// <summary>A result the router runs: sets the status, headers and body of the response.</summary>
     public abstract class ActionResult : IActionResult;
@@ -320,14 +359,24 @@ namespace Microsoft.Net.Http.Headers
     /// <summary>The part of ASP.NET Core's media type parser uploads use: the type, its subtype and parameters.</summary>
     public sealed class MediaTypeHeaderValue
     {
-        private MediaTypeHeaderValue(string mediaType, string? charset)
+        private MediaTypeHeaderValue(string mediaType, string? charset, double? quality)
         {
             MediaType = mediaType;
             Charset = charset;
+            Quality = quality;
         }
 
         public Microsoft.Extensions.Primitives.StringSegment MediaType { get; }
         public Microsoft.Extensions.Primitives.StringSegment Charset { get; }
+        public double? Quality { get; }
+        public bool MatchesAllTypes => MediaType.Equals("*/*", StringComparison.Ordinal);
+
+        /// <summary>A header's comma-separated media types (<c>Accept</c>), leaving out any that don't parse.</summary>
+        public static IList<MediaTypeHeaderValue> ParseList(string? input) =>
+            (input ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => TryParse(part, out var parsed) ? parsed : null)
+            .OfType<MediaTypeHeaderValue>()
+            .ToList();
 
         public static bool TryParse(string? input, out MediaTypeHeaderValue parsed)
         {
@@ -342,14 +391,21 @@ namespace Microsoft.Net.Http.Headers
                 return false;
 
             string? charset = null;
+            double? quality = null;
             foreach (var parameter in parts.Skip(1))
             {
                 var pair = parameter.Split('=', 2);
-                if (pair.Length == 2 && pair[0].Trim().Equals("charset", StringComparison.OrdinalIgnoreCase))
+                if (pair.Length != 2)
+                    continue;
+                var name = pair[0].Trim();
+                if (name.Equals("charset", StringComparison.OrdinalIgnoreCase))
                     charset = pair[1].Trim().Trim('"');
+                else if (name.Equals("q", StringComparison.OrdinalIgnoreCase)
+                         && double.TryParse(pair[1].Trim(), System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var q))
+                    quality = q;
             }
 
-            parsed = new MediaTypeHeaderValue(mediaType, charset);
+            parsed = new MediaTypeHeaderValue(mediaType, charset, quality);
             return true;
         }
 
