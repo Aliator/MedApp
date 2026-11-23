@@ -1,15 +1,28 @@
 name: Pages
-# The light demo on GitHub Pages (https://aliator.github.io/MedApp/): the React app built with no server
-# (`npm run build:demo`), its API calls answered in the visitor's browser by a stand-in with synthetic data
-# (docs/agents/light-demo.md). It never touches the API, a database or a secret.
-# On each push to main that changes the web app (or this workflow), and by hand. Pages must be set to deploy from
-# GitHub Actions in the repository's settings.
+# Two demos on GitHub Pages, neither touching the API, a database server or a secret:
+# - the light demo (https://aliator.github.io/MedApp/): the React app with a stand-in API in the browser
+#   (`npm run build:demo`, docs/agents/light-demo.md);
+# - the full demo (https://aliator.github.io/MedApp/full/): the React app on the real backend compiled to
+#   WebAssembly with SQLite (`MedApp.Browser`), its demo database made by the full app's seeder
+#   (docs/full-browser-demo-plan.md).
+# On each push to main that changes either, nightly (so the full demo's dated demo data stays current), and by hand.
+# Pages must be set to deploy from GitHub Actions in the repository's settings.
 on:
   push:
     branches: [ main ]
     paths:
       - 'MedApp.Web/**'
+      - 'MedApp.Browser/**'
+      - 'MedApp.Application/**'
+      - 'MedApp.Infrastructure/**'
+      - 'MedApp.Domain/**'
+      - 'MedApp.Contracts/**'
+      - 'MedApp.API/**'
+      - 'tools/MedApp.BrowserDb/**'
+      - 'tools/MedApp.DevMcp/**'
       - '.github/workflows/pages.yml'
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 # Each job asks for only what it needs.
 permissions: {}
@@ -28,6 +41,24 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 10.0.x
+
+      # Links SQLite into the WebAssembly runtime (Emscripten).
+      - name: Install the WebAssembly build tools
+        working-directory: .
+        run: dotnet workload install wasm-tools
+
+      - name: Publish the in-browser backend
+        working-directory: .
+        run: dotnet publish MedApp.Browser -c Release -o "$RUNNER_TEMP/backend"
+
+      # The full app's seeder against SQLite, dated today: medapp.db.gz and db-version.json.
+      - name: Build the demo database
+        working-directory: .
+        run: dotnet run --project tools/MedApp.BrowserDb -c Release -- --out "$RUNNER_TEMP/demo-db"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -37,13 +68,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Client only, under /MedApp/, with index.html copied to 404.html so a deep link loads the app.
+      # Client only, under /MedApp/.
       - name: Build the light demo
         run: npm run build:demo
 
+      # Client only, under /MedApp/full/, with the backend's files and the database copied in.
+      - name: Build the full demo
+        run: npm run build:full-demo
+        env:
+          FULL_DEMO_BACKEND: ${{ runner.temp }}/backend/wwwroot
+          FULL_DEMO_DATABASE: ${{ runner.temp }}/demo-db
+
+      # Both in one site; Pages serves only the top 404.html, so it loads whichever app the address is under.
+      - name: Put the two together
+        run: node scripts/assemble-pages.mjs dist-demo dist-full-demo "$RUNNER_TEMP/site"
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: MedApp.Web/dist-demo
+          path: ${{ runner.temp }}/site
 
   deploy:
     needs: build

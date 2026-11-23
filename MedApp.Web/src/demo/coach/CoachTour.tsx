@@ -9,13 +9,12 @@ import {createPortal} from 'react-dom';
 import {useCurrentUser} from '../../auth/auth';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
-import {accountLabel, personByUsername} from '../accounts';
 import {SampleText} from '../SampleText';
-import {resetDemo, switchAccount} from '../session';
-import {TOUR, TOUR_PARTS, whyStepCantOpen} from '../tour';
+import {TOUR, TOUR_PARTS} from '../tour';
 import {COACH_MARKS, type CoachMark} from './coachMarks';
 import {coachPosition, endCoachTour, setCoachPosition, subscribeCoach, type CoachPosition} from './coachState';
 import {COACH_CARD_ATTRIBUTE, findClickable, findTarget, isShown} from './findTarget';
+import type {TourHost} from './tourHost';
 
 export const COACH_TARGET_ATTRIBUTE = 'data-coach-target';
 
@@ -78,13 +77,18 @@ function showOnTop(element: HTMLElement | null) {
   }
 }
 
-export function CoachTour() {
+/**
+ * The walkthrough, over the real app: the step's account and page, its highlights one at a time. `host` is the demo
+ * it runs in (the light demo's `lightTourHost`, or the full demo's), which says where the steps' records are, checks
+ * a step, switches account and resets the data.
+ */
+export function CoachTour({host}: {host: TourHost}) {
   const position = useSyncExternalStore(subscribeCoach, coachPosition, () => null);
   if (!position || !TOUR[position.step]) return null;
-  return <CoachRun key={`${position.step}:${position.mark}`} position={position} />;
+  return <CoachRun key={`${position.step}:${position.mark}`} position={position} host={host} />;
 }
 
-function CoachRun({position}: {position: CoachPosition}) {
+function CoachRun({position, host: tour}: {position: CoachPosition; host: TourHost}) {
   const me = useCurrentUser();
   const navigate = useNavigate();
   const here = useRouterState({select: (state) => `${state.location.pathname}${state.location.searchStr}`});
@@ -94,7 +98,9 @@ function CoachRun({position}: {position: CoachPosition}) {
   const key = `${position.step}:${position.mark}`;
   const account = step.account ?? step.switchTo;
   const isSwitching = account !== undefined && account !== me.username;
-  const page = pageForMark(position.step, position.mark);
+  const tourPage = pageForMark(position.step, position.mark);
+  // This demo's own address for it (the full demo looks its records up): null until it's known.
+  const page = tour.usePage(tourPage);
 
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [search, setSearch] = useState(0);
@@ -108,15 +114,15 @@ function CoachRun({position}: {position: CoachPosition}) {
     if (isSwitching) {
       if (switched.current) return;
       switched.current = true;
-      setCoachPosition({...position, opened: page ? key : position.opened});
-      void switchAccount(account!, page ?? here);
+      setCoachPosition({...position, opened: tourPage ? key : position.opened});
+      void tour.switchAccount(account!, tourPage ?? here);
       return;
     }
     if (page && position.opened !== key) {
       setCoachPosition({...position, opened: key});
       void navigate({href: page} as Parameters<typeof navigate>[0]);
     }
-  }, [account, here, isSwitching, key, navigate, page, position]);
+  }, [account, here, isSwitching, key, navigate, page, position, tour, tourPage]);
 
   useEffect(() => {
     if (isSwitching || !mark.target) return;
@@ -188,8 +194,8 @@ function CoachRun({position}: {position: CoachPosition}) {
 
   const isSearching = !isSwitching && mark.target !== undefined && searched !== search;
   const part = TOUR_PARTS.find((p) => p.key === step.part)!;
-  const person = account ? personByUsername(account) : undefined;
-  const why = position.mark === 0 ? whyStepCantOpen(step) : null;
+  const person = account ? tour.accountLabel(account) : undefined;
+  const why = tour.useWhyStepCantOpen(step, position.mark === 0 && !isSwitching);
   const isLast = nextPosition(position) === null;
   const isFirst = previousPosition(position) === null;
 
@@ -202,8 +208,8 @@ function CoachRun({position}: {position: CoachPosition}) {
           <Text type="label" weight="semibold">
             {step.title}
           </Text>
-          {person && <Text type="supporting">{`As ${accountLabel(person)}`}</Text>}
-          <Text type="body">{isSwitching ? `Switching to ${person ? accountLabel(person) : account}…` : mark.text}</Text>
+          {person && <Text type="supporting">{`As ${person}`}</Text>}
+          <Text type="body">{isSwitching ? `Switching to ${person ?? account}…` : mark.text}</Text>
           {!isSwitching && !isSearching && mark.target && !target && (
             <Text type="supporting">It isn’t showing on this page right now.</Text>
           )}
@@ -217,7 +223,7 @@ function CoachRun({position}: {position: CoachPosition}) {
                 icon={<Icon icon={AppIcon.Refresh} />}
                 onClick={() => {
                   setCoachPosition({step: position.step, mark: 0});
-                  void resetDemo();
+                  void tour.resetDemo();
                 }}
               />
             </HStack>

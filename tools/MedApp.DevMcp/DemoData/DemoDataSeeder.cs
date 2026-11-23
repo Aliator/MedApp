@@ -5,7 +5,6 @@ using MedApp.Infrastructure.Common.Identity;
 using MedApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MedApp.DevMcp.DemoData;
@@ -16,32 +15,33 @@ namespace MedApp.DevMcp.DemoData;
 public sealed record DemoSeedOptions(int Seed, DateTime NowUtc, IReadOnlyCollection<string> KeepUsers);
 
 /// <summary>
-/// Wipes the local database's data and fills it with the light demo's clinic (<c>MedApp.Web/src/demo</c>): Dermatology,
+/// Fills a database with the light demo's clinic (<c>MedApp.Web/src/demo</c>): Dermatology,
 /// the Eye clinic and the lab, the same people, templates, patients and pathways at the same points, replayed through the app's own
 /// handlers by the people who did the work (staff in their teams; the admin only sets up), so the audit trails,
 /// notifications, grants and gates are the app's. Dates are relative to the day it runs, as the light demo's are. It runs
 /// with a service provider of its own (<see cref="SeedServices"/>), whose clock and activity actor it moves. What's in it:
-/// <c>docs/demo-data.md</c>.
+/// <c>docs/demo-data.md</c>. The local SQL Server database is wiped first (<see cref="RunAsync"/>); the browser's
+/// SQLite database is made new from the model (<c>tools/MedApp.BrowserDb</c>).
 /// </summary>
-public static class DemoDataSeeder
+public static partial class DemoDataSeeder
 {
-    public static async Task<Dictionary<string, object?>> RunAsync(IConfiguration configuration, DemoSeedOptions options, CancellationToken ct)
+    /// <summary>
+    /// Loads the demo data into a database the services reach: the story, from the standard roles on. A database that
+    /// may hold data is wiped first (<paramref name="wipe"/>); a new one, made from the model, needn't be.
+    /// </summary>
+    /// <param name="filesSkipped">Why files aren't stored, if they aren't (for the summary).</param>
+    public static async Task<Dictionary<string, object?>> SeedAsync(
+        SeedServices services, DemoSeedOptions options, bool wipe, string? filesSkipped, CancellationToken ct)
     {
-        // The tool checks this when it starts; checked again here, as tests and other callers come in this way.
-        DevGuard.Check(configuration);
-
         var timer = Stopwatch.StartNew();
         var timeline = new DemoTimeline(options.NowUtc);
-        // Whether files can be stored: without a store, the files the app's commands make are dropped (their records stay).
-        var filesSkipped = await DemoFiles.WhyNotAvailableAsync(configuration, ct);
-        await using var services = new SeedServices(configuration, timeline.NowUtc, discardFiles: filesSkipped is not null);
 
         var keep = options.KeepUsers.Append(TestAdminTools.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
         // The standard roles, with their permissions put back as they start (an admin may have edited them locally).
         await services.Run(sp => StandardRoleSetup.EnsureAsync(
             sp.GetRequiredService<MedAppDbContext>(), timeline.NowUtc, resetPermissions: true, ct));
 
-        var removed = await DemoWipe.RunAsync(services, keep, ct);
+        var removed = wipe ? await DemoWipe.RunAsync(services, keep, ct) : [];
         await services.Run(sp => TestAdminTools.EnsureTestAdmin(
             sp.GetRequiredService<UserManager<ApplicationUser>>(),
             sp.GetRequiredService<MedAppDbContext>(), ct));

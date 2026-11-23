@@ -30,6 +30,7 @@ check '.NET only'             '' "$handler"                     'light none fals
 check 'both sides'            '' "$page $handler"               'light light false true false false false false false'
 check 'a test project only'   '' MedApp.UnitTests/Some/Tests.cs 'light none false true false false false false false'
 check 'a migration'           '' "$migration"                   'light none false true false false false false false'
+check 'the browser demo backend' '' MedApp.Browser/Hosting/ApiRoutes.cs 'light none false true false false false false false'
 check 'web build input'       '' MedApp.Web/server/server.mjs   'light light true false false false false false false'
 check 'web entry file'        '' MedApp.Web/src/entry-server.tsx 'light light true false false false false false false'
 check 'other labels'          'dependencies javascript' "$page" 'light light false false false false false false false'

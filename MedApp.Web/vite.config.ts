@@ -2,6 +2,7 @@
 import {tanstackRouter} from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import {defineConfig} from 'vite';
+import {fullDemoBackend} from './vite.fullDemo.ts';
 
 // Under the Aspire AppHost, `WithReference(api)` passes the API's URL in; the fallback is the API's https
 // launch-profile port, for running `npm run dev` on its own.
@@ -9,29 +10,36 @@ const apiUrl = process.env.API_HTTPS || process.env.services__api__https__0 || '
 
 // `--mode demo` builds the light demo for GitHub Pages (docs/agents/light-demo.md): client only, under /MedApp/, with
 // the stand-in API in the browser. Every other build has `__LIGHT_DEMO__` false, so the demo's code is left out of it.
+// `--mode full-demo` builds the full demo (docs/full-browser-demo-plan.md): client only too, under /MedApp/full/, with
+// the real backend in the browser (MedApp.Browser, WebAssembly), whose files `fullDemoBackend` serves and copies in.
+// Every other build has `__FULL_DEMO__` false.
+const FULL_DEMO_BASE = '/MedApp/full/';
+
 export default defineConfig(({command, mode, isSsrBuild}) => {
   const isDemo = mode === 'demo';
+  const isFullDemo = mode === 'full-demo';
   return {
-    base: isDemo ? '/MedApp/' : '/',
-    define: {__LIGHT_DEMO__: JSON.stringify(isDemo)},
+    base: isDemo ? '/MedApp/' : isFullDemo ? FULL_DEMO_BASE : '/',
+    define: {__LIGHT_DEMO__: JSON.stringify(isDemo), __FULL_DEMO__: JSON.stringify(isFullDemo)},
     plugins: [
       // Must come before react(): it generates src/routeTree.gen.ts from src/routes.
       tanstackRouter({target: 'react', autoCodeSplitting: true}),
       react(),
+      ...(isFullDemo ? [fullDemoBackend(FULL_DEMO_BASE)] : []),
     ],
     build: {
       // The server rendering reads the client build's manifest for the page's scripts and stylesheets (the build
       // copies it into dist/ssr/, as client-manifest.json). The server entry's own build needs none.
-      manifest: !isSsrBuild && !isDemo,
-      // The light demo is a static site of its own (the Pages workflow uploads it).
-      ...(isDemo ? {outDir: 'dist-demo'} : {}),
+      manifest: !isSsrBuild && !isDemo && !isFullDemo,
+      // The demos are static sites of their own (the Pages workflow uploads them).
+      ...(isDemo ? {outDir: 'dist-demo'} : isFullDemo ? {outDir: 'dist-full-demo'} : {}),
     },
     // The built server entry (dist/ssr/entry-server.js) carries its packages in it: in the image's /app/ssr/, it has no
     // node_modules beside it.
     ssr: command === 'build' ? {noExternal: true} : undefined,
     server: {
-      // The light demo's dev server (`npm run dev:demo`) needs no API, and keeps clear of the app's port.
-      port: Number(process.env.PORT) || (isDemo ? 5174 : 5173),
+      // The demos' dev servers (`npm run dev:demo`, `npm run dev:full-demo`) need no API, and keep clear of the app's port.
+      port: Number(process.env.PORT) || (isDemo ? 5174 : isFullDemo ? 5175 : 5173),
       strictPort: true,
       // Same-origin /api, so the HttpOnly session cookie is first-party and CORS isn't involved (plan Q3).
       // /swagger too, so `npm run gen:api` can read the API's OpenAPI document without trusting its dev certificate.
@@ -73,6 +81,9 @@ export default defineConfig(({command, mode, isSsrBuild}) => {
           // The light demo (docs/agents/light-demo.md): never in the production build, and checked by its own tests (the
           // tour's links, the stand-in's handlers and its pages) rather than held to the app's thresholds.
           'src/demo/**',
+          // The full demo's hooks into the backend in the browser (docs/full-browser-demo-plan.md): never in the
+          // production build either, and checked by their own tests and in Chromium.
+          'src/fullDemo/**',
         ],
       },
     },

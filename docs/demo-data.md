@@ -22,6 +22,7 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
    The summary holds passwords for local accounts: don't commit it.
 
 **Other ways in, all the same seeder:**
+- **The full browser demo's database:** `dotnet run --project tools/MedApp.BrowserDb -c Release -- --out <folder>` runs it against a new SQLite file (the browser's model and services), with no wipe and no snapshot, and writes `medapp.db`, `medapp.db.gz` and `db-version.json` (the tour's IDs and the accounts, no passwords). The same clinic, row for row (`docs/full-browser-demo-plan.md`, Phase 2).
 - **From Claude Code:** `medapp-dev`'s `reset_demo_data` with `confirm: true` and `keepUsers: ["dev-parity"]` runs the same code as the script (build the tool first: `dotnet build tools/MedApp.DevMcp`). It doesn't apply migrations: it refuses, and names the script, if any are pending.
 - **The seeder alone:** `dotnet run --project tools/MedApp.DevMcp -c Release -- seed-demo --confirm`, when the database is already migrated. `seed-demo --help` lists its options (`--keep-users`, `--seed`, `--out`, `--no-snapshot`, `--save-snapshot`, `--check`).
 - **On kind:** `deploy/kind/up.sh --demo-data kind-demo` restores a snapshot of a database the script loaded: add `--save-snapshot kind-demo` to the script's options to save one (`deploy/kind/README.md`).
@@ -34,7 +35,7 @@ Everything is invented: names, `@example.com` patient emails, `@centre.example` 
 
 **Needs your attention shows for every account:** Nadia Thornbury's results, letters and referrals; Saira Varma's referral awaiting triage (Ruth Penhaligon's); Ravi Aldous's lab cases at risk, overdue and ready to report; and the admin's data requests, from Tobias Lund's own request (received 26 days ago, identity checked in person, due within the week; `tour.dataRequest` in the summary).
 
-**Files:** the GP practice's report is stored only when Azurite answers on `127.0.0.1:14331`. Otherwise the summary says files were skipped (the result's record stays).
+**Files:** the GP practice's report is stored only when Azurite answers on `127.0.0.1:14331`. Otherwise the summary says files were skipped (the result's record stays). The browser demo's database always has its files (in its `BrowserFiles` table).
 
 ## The clinic
 

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+    <!-- NuGet audit: a known high (NU1903) or critical (NU1904) vulnerability in any package, direct or
+         transitive, fails the build. Moderate and low ones stay warnings. -->
+    <PropertyGroup>
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    </PropertyGroup>
+
+    <!-- The MedApp backend in the browser (docs/full-browser-demo-plan.md). Trimming stays off: EF Core makes objects
+         by reflection, and trimmed it fails at runtime. SQLite is linked in natively when publishing, which needs the
+         wasm-tools workload; a build (the solution's, in CI) doesn't link, so it needs none. -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <OutputType>Exe</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>MedApp.Browser</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishTrimmed>false</PublishTrimmed>
+        <!-- Cultures stay: letters and data requests write dates as en-GB does. -->
+        <InvariantGlobalization>false</InvariantGlobalization>
+        <WasmBuildNative Condition="'$(WasmBuildingForNestedPublish)' != 'true'">false</WasmBuildNative>
+        <!-- SQLite's two varargs config functions, which nothing here calls (EF Core doesn't). -->
+        <NoWarn>$(NoWarn);WASM0001</NoWarn>
+    </PropertyGroup>
+
+    <!-- Without wasm-tools nothing native can be linked, and a build needs nothing native: SQLite is left out quietly. -->
+    <Target Name="LeaveOutNativeSqliteWithoutWasmTools" BeforeTargets="_CheckBrowserWorkloadNeededButNotAvailable" Condition="'$(WasmNativeWorkloadAvailable)' != 'true'">
+        <ItemGroup>
+            <NativeFileReference Remove="@(NativeFileReference)" />
+        </ItemGroup>
+    </Target>
+
+    <!-- The sources (Infrastructure's portable files, the API's controllers) and packages, shared with tools/MedApp.BrowserDb. -->
+    <Import Project="BrowserSources.props" />
+
+</Project>

@@ -909,6 +909,12 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --results-directory ./coverage
       
+      # The browser demo's backend (docs/full-browser-demo-plan.md): every endpoint in the web app's API schema reaches
+      # an action in its route table.
+      - name: Run the browser backend's tests
+        if: ${{ needs.changes.outputs.tier != 'light' }}
+        run: dotnet test MedApp.Browser.Tests --configuration Release
+
       - name: Generate coverage report
         if: ${{ needs.changes.outputs.tier != 'light' }}
         uses: danielpalme/ReportGenerator-GitHub-Action@5f3701a41d14548c9b8e575a5c235230e515cbc0 # v5.6.0
