@@ -637,8 +637,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   // Each item once: its row for the open nav, and its icon for the folded one (a half view), whose hover brings
   // the same row out over the page.
   const main: NavRailEntry[] = [
-    // The light demo's walkthrough, in its build only (docs/agents/light-demo.md).
-    ...(__LIGHT_DEMO__ ? [walkthroughNavEntry()] : []),
+    // The demos' walkthrough, in their builds only (docs/agents/light-demo.md, docs/full-browser-demo-plan.md).
+    ...(__LIGHT_DEMO__ || __FULL_DEMO__ ? [walkthroughNavEntry()] : []),
     // A clinic team's home leads the nav for clinic staff (MC24): the team's work and theirs.
     ...(hasTeamHome
       ? [

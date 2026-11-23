@@ -1,14 +1,17 @@
 // The MedApp backend in this page (docs/full-browser-demo-plan.md): the .NET backend, started on the demo database,
 // answering /api requests as the API would. The visitor's copy of the database is kept in IndexedDB: saved after each
-// request that changed it, and used on the next visit while it's a copy of the published one (db-version.json).
+// request that changed it, and used on the next visit while it's a copy of the published one (db-version.json). The
+// runtime's own files are kept in Cache Storage (their names carry their hash, so a kept copy never goes stale), so a
+// later visit starts without downloading them again.
 //
 //   const { version } = await startBackend({ onProgress });
 //   const response = await fetchApi('GET', '/api/auth/whoami', {});
-import createDotnetRuntime from './_framework/dotnet.js';
+import { dotnet } from './_framework/dotnet.js';
 
 const STORE_NAME = 'medapp-full-demo';
 const STORE = 'database';
 const SAVED = 'saved';
+const RUNTIME_CACHE = 'medapp-full-demo-runtime';
 
 let backend = null;
 let started = null;
@@ -19,31 +22,44 @@ let unsaved = false;
 
 /**
  * Downloads the backend and the database (or takes the saved copy), then starts the backend on it.
- * onProgress({ backend: { loaded, total }, database: { loaded, total } }): the backend's files by count, the database's
- * download by bytes. database: false starts on a new, empty database instead, with only the first admin (not saved).
+ * onProgress({ backend: { loaded, total, bytes, cached }, database: { loaded, total } }): the backend's files by count,
+ * with the bytes of them read so far (uncompressed) and how many came from Cache Storage; the database's download by
+ * bytes. database: false starts on a new, empty database instead, with only the first admin (not saved).
+ * cacheRuntime: false always downloads the runtime's files (the browser's own cache aside).
  * Returns { version, source: 'saved' | 'downloaded' | 'empty', timings }.
  */
-export function startBackend({ onProgress = () => {}, database = true, base = new URL('./', import.meta.url) } = {}) {
-  started ??= start(onProgress, database, base);
+export function startBackend({ onProgress = () => {}, database = true, base = new URL('./', import.meta.url), cacheRuntime = true } = {}) {
+  started ??= start(onProgress, database, base, cacheRuntime);
   return started;
 }
 
-async function start(onProgress, database, base) {
+async function start(onProgress, database, base, cacheRuntime) {
   const t0 = performance.now();
-  const progress = { backend: { loaded: 0, total: 0 }, database: { loaded: 0, total: 0 } };
+  const progress = { backend: { loaded: 0, total: 0, bytes: 0, cached: 0 }, database: { loaded: 0, total: 0 } };
   const report = () => onProgress(structuredClone(progress));
   const timings = {};
+  const files = runtimeFiles(cacheRuntime, {
+    onBytes: n => {
+      progress.backend.bytes += n;
+      report();
+    },
+    onCached: () => progress.backend.cached++,
+  });
 
   const runtime = (async () => {
-    const api = await createDotnetRuntime({
+    let builder = dotnet.withModuleConfig({
       onDownloadResourceProgress: (loaded, total) => {
-        progress.backend = { loaded, total };
+        progress.backend = { ...progress.backend, loaded, total };
         report();
       },
     });
+    if (files.loader) builder = builder.withResourceLoader(files.loader);
+    const api = await builder.create();
     const exports = (await api.getAssemblyExports(api.getConfig().mainAssemblyName)).MedAppBackend;
     await api.runMain();
     timings.runtimeMs = Math.round(performance.now() - t0);
+    timings.runtimeFromCache = progress.backend.cached;
+    void files.forgetOthers();
     return exports;
   })();
 
@@ -83,10 +99,62 @@ export async function flush() {
   while (saving) await saving;
 }
 
-/** Forgets the saved copy: the next start downloads the published database again. */
+/**
+ * Forgets the saved copy: the next start downloads the published database again. Nothing more is saved from this page
+ * (a request still to come would save the old data back), so reload it next.
+ */
 export async function forgetSavedDatabase() {
+  savedVersion = null;
+  if (backend) await inTurn(() => {});
   await flush();
   await store('readwrite', s => s.delete(SAVED));
+}
+
+/** Forgets the runtime's files kept in Cache Storage: the next start downloads them again. */
+export async function forgetCachedRuntime() {
+  if (typeof caches !== 'undefined') await caches.delete(RUNTIME_CACHE);
+}
+
+/**
+ * The runtime's files through Cache Storage (the runtime's resource loader): a file kept there is used as it is, and one
+ * that isn't is downloaded (with its integrity checked, as the runtime would) and kept. The JavaScript modules can't be
+ * given this way (the runtime imports them by URL): the browser's own cache keeps those. forgetOthers() removes kept
+ * files this start didn't ask for (an older build's). Without Cache Storage (or with cacheRuntime off), the runtime
+ * downloads them itself, and only the bytes go uncounted.
+ */
+function runtimeFiles(cacheRuntime, { onBytes, onCached }) {
+  const used = new Set();
+  let opened = null;
+  const open = () => (opened ??= caches.open(RUNTIME_CACHE).catch(() => null));
+  const counted = response => {
+    if (!response.body) return response;
+    const body = response.body.pipeThrough(new TransformStream({ transform(chunk, out) { onBytes(chunk.byteLength); out.enqueue(chunk); } }));
+    return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+  };
+  const canCache = cacheRuntime && typeof caches !== 'undefined';
+  const loader = (type, _name, defaultUri, integrity) => {
+    if (type === 'dotnetjs') return undefined;
+    const url = new URL(defaultUri, import.meta.url).href;
+    if (!canCache) return fetch(url, { cache: 'no-cache', ...(integrity ? { integrity } : {}) }).then(counted);
+    used.add(url);
+    return (async () => {
+      const cache = await open();
+      const kept = cache ? await cache.match(url).catch(() => undefined) : undefined;
+      if (kept) {
+        onCached();
+        return counted(kept);
+      }
+      const response = await fetch(url, { cache: 'no-cache', ...(integrity ? { integrity } : {}) });
+      if (cache && response.ok) await cache.put(url, response.clone()).catch(() => {});
+      return counted(response);
+    })();
+  };
+  const forgetOthers = async () => {
+    const cache = canCache ? await open() : null;
+    if (!cache) return;
+    for (const request of await cache.keys()) if (!used.has(request.url)) await cache.delete(request);
+  };
+  return { loader, forgetOthers };
 }
 
 function inTurn(work) {

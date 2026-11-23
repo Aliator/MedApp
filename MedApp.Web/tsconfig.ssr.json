@@ -6,6 +6,6 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.ssr.tsbuildinfo",
     "types": ["vite/client", "vitest/globals", "node"]
   },
-  "include": ["src/lightDemo.d.ts", "src/entry-server.tsx", "src/entry-server.test.tsx", "src/auth/permissionCatalogue.test.ts"],
+  "include": ["src/lightDemo.d.ts", "src/fullDemo.d.ts", "src/entry-server.tsx", "src/entry-server.test.tsx", "src/auth/permissionCatalogue.test.ts"],
   "exclude": []
 }

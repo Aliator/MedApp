@@ -26,6 +26,7 @@ How a page renders on the server: its route's `beforeLoad` and `loader` run, the
 | `npm run dev:client` | Plain Vite, pages rendered in the browser only (no server rendering) |
 | `npm run build` | Type check, then the production build into `dist/`, and the page server into `dist/ssr/` (with the client manifest, as `client-manifest.json`) |
 | `npm run dev:demo` / `npm run build:demo` | The light demo for GitHub Pages: no server, the API answered in the browser with synthetic data, on :5174 / into `dist-demo/` (`docs/agents/light-demo.md`) |
+| `npm run dev:full-demo` / `npm run build:full-demo` | The full demo (`docs/full-browser-demo-plan.md`): the real backend in the browser (`MedApp.Browser`, WebAssembly and SQLite), under `/MedApp/full/`, on :5175 / into `dist-full-demo/` (with `404.html`). Both need the published backend and the demo database first: `dotnet publish MedApp.Browser -c Release` and `dotnet run --project tools/MedApp.BrowserDb -c Release -- --out MedApp.Browser/bin/demo-db` (from the repo root), or point `FULL_DEMO_BACKEND` (the published `wwwroot`) and `FULL_DEMO_DATABASE` (the database folder) elsewhere (`vite.fullDemo.ts`). The dev server serves them; the build copies `_framework/`, `backend.js`, `medapp.db.gz` and `db-version.json` in, and writes `runtime-size.json` |
 | `npm run start` | The built page server, on its own (production mode; set `MEDAPP_API_URL`, and `HEALTH_PORT` for a `GET /alive` listener) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc -b` |
