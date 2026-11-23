@@ -61,7 +61,7 @@ jobs:
       helm: ${{ steps.plan.outputs.helm }}
       coverage: ${{ steps.plan.outputs.coverage }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
 
@@ -203,7 +203,7 @@ jobs:
       run:
         working-directory: MedApp.Web
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -298,7 +298,7 @@ jobs:
     env:
       SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -336,7 +336,7 @@ jobs:
       run:
         working-directory: MedApp.Web
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -347,7 +347,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: web-blob-*
           path: MedApp.Web/blob-reports
@@ -408,12 +408,12 @@ jobs:
       # Dependabot doesn't update it: bump it by hand, from `docker buildx imagetools inspect aquasec/trivy:<version>`.
       TRIVY_IMAGE: aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: MedApp.API/Dockerfile
@@ -497,7 +497,7 @@ jobs:
       # what was typed, the run's admin password included. e2e.yml, which runs against a deployment, never sets it.
       E2E_TRACE_DIR: ${{ github.workspace }}/e2e-traces
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Started first, so it's up by the time the image is built. Upper and lower case, digits and a symbol, as SQL
       # Server's rules need; the password goes to the container through the environment, never on a command line.
@@ -527,7 +527,7 @@ jobs:
       # As the image job builds it, but kept on the runner (load) rather than thrown away. It reads the cache earlier
       # runs left (the image job, running alongside, writes this run's), so on a cold cache both build from scratch.
       - name: Build the image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: MedApp.API/Dockerfile
@@ -664,7 +664,7 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.helm != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Lint with the chart's own SQL Server
         run: helm lint --strict deploy/helm/medapp --set image.tag=ci
@@ -829,7 +829,7 @@ jobs:
       tests-2: ${{ steps.run.outputs.tests-2 }}
       tests-3: ${{ steps.run.outputs.tests-3 }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -885,7 +885,7 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.dotnet != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
@@ -1010,12 +1010,12 @@ jobs:
     permissions:
       pull-requests: write  # the comment
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: ${{ needs.unit-tests.result == 'success' }}
         with:
           name: dotnet-coverage-comment
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: ${{ needs.web-coverage.result == 'success' }}
         with:
           name: web-coverage
