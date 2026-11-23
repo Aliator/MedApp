@@ -36,6 +36,8 @@ function start() {
   }
 }
 
-// The light demo (GitHub Pages) first starts its stand-in for the API, in the browser. Other builds leave it out.
+// The light demo (GitHub Pages) first starts its stand-in for the API, in the browser; the full demo sends the API's
+// requests to the real backend in the browser, which it starts downloading at once. Other builds leave both out.
 if (__LIGHT_DEMO__) void import('./demo/install').then(({installLightDemo}) => installLightDemo()).then(start);
+else if (__FULL_DEMO__) void import('./fullDemo/install').then(({installFullDemo}) => installFullDemo()).then(start);
 else start();

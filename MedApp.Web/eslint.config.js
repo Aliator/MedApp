@@ -4,7 +4,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  {ignores: ['dist', 'dist-demo', 'coverage', 'src/routeTree.gen.ts', 'src/api/schema.d.ts', 'src/themes/*/medapp.js', 'src/themes/*/medapp.d.ts']},
+  {ignores: ['dist', 'dist-demo', 'dist-full-demo', 'coverage', 'src/routeTree.gen.ts', 'src/api/schema.d.ts', 'src/themes/*/medapp.js', 'src/themes/*/medapp.d.ts']},
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended, reactHooks.configs.flat.recommended],

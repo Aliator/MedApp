@@ -4,7 +4,6 @@ import {ADMIN, LAB, STAFF} from './accounts';
 import {PATHWAYS, PATIENTS, TEAMS} from './ids';
 import {LAB_CASE_IDS} from './slices/labCases';
 import type {DemoState} from './state';
-import {db} from './store';
 
 /** One step of the walkthrough: the exact page or record it opens, as the right account. */
 export interface TourStep {
@@ -177,15 +176,3 @@ export const TOUR: TourStep[] = [
     path: '/admin/insights',
   },
 ];
-
-const RECORDS: Record<string, (id: string) => boolean> = {
-  patients: (id) => db().patients.some((p) => p.id === id),
-  pathways: (id) => db().pathways.some((p) => p.id === id),
-  referrals: (id) => db().referrals.some((r) => r.id === id),
-};
-
-export function whyStepCantOpen(step: TourStep): string | null {
-  const [, kind, id] = (step.path ?? '').split(/[/?]/);
-  if (id && RECORDS[kind] && !RECORDS[kind](id)) return 'That record isn’t in your copy of the demo any more. Reset the Demo, below, brings it back.';
-  return step.whyNot?.(db()) ?? null;
-}

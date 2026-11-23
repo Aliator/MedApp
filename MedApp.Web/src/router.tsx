@@ -16,8 +16,8 @@ export function createAppRouter(queryClient: QueryClient) {
     context: {queryClient},
     defaultPreload: 'intent',
     scrollRestoration: true,
-    // The light demo is served from a folder (/MedApp/ on GitHub Pages).
-    ...(__LIGHT_DEMO__ ? {basepath: import.meta.env.BASE_URL} : {}),
+    // The demos are served from a folder (/MedApp/ and /MedApp/full/ on GitHub Pages).
+    ...(__LIGHT_DEMO__ || __FULL_DEMO__ ? {basepath: import.meta.env.BASE_URL} : {}),
   });
 }
 
