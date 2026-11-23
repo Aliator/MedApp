@@ -1,3 +1,4 @@
+import {useAppShellMobile} from '@astryxdesign/core/AppShell';
 import {Icon} from '@astryxdesign/core/Icon';
 import {DropdownMenu, type DropdownMenuItemData} from '@astryxdesign/core/DropdownMenu';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -608,6 +609,19 @@ function AdminCategoryRow({category, pages, isOpen, onToggle, isAlwaysOpen, page
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
  * opens its page beside the current one.
  */
+function TopBarBell() {
+  const [isInDrawer, setIsInDrawer] = useState(false);
+  const holder = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    setIsInDrawer(holder.current?.closest('dialog, [role="dialog"]') != null);
+  }, []);
+  return (
+    <HStack ref={holder} style={{paddingInlineEnd: 'var(--spacing-3)'}}>
+      {!isInDrawer && <NotificationBell />}
+    </HStack>
+  );
+}
+
 export interface AppSideNavProps {
   /** Folding the nav to its icons, as a half view does (see AppLayout). */
   collapsible?: SideNavProps['collapsible'];
@@ -902,6 +916,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   ];
   // The admin pages, in categories that open with a click; one shows only if the person can see a page in it.
   const isFolded = typeof collapsible === 'object' && collapsible.isCollapsed === true;
+  const {isMobile} = useAppShellMobile();
   const adminCategories = useNavCategories(`${pathname} ${halfPath ?? ''}`);
   const adminPageRow = (page: AdminPage) => (
     <SideNavItem
@@ -1072,10 +1087,11 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
                 heading="MedApp"
                 headingHref="/"
                 icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-                headerEndContent={<NotificationBell />}
+                headerEndContent={isMobile ? undefined : <NotificationBell />}
               />
             )
           }
+          footerIcons={isMobile ? <TopBarBell /> : undefined}
           footer={
             // Lifted off the window's bottom edge, clear of the link preview the browser shows in the bottom-left
             // corner while the pointer is on a link.
