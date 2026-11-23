@@ -50,7 +50,8 @@ while IFS= read -r file; do
     MedApp.API/*.csproj | MedApp.Application/*.csproj | MedApp.Contracts/*.csproj | MedApp.Domain/*.csproj | MedApp.Infrastructure/*.csproj | MedApp.ServiceDefaults/*.csproj | global.json)
       dotnet=true; image=true ;;
     MedApp.API/* | MedApp.Application/* | MedApp.Contracts/* | MedApp.Domain/* | MedApp.Infrastructure/* | MedApp.ServiceDefaults/* | \
-    MedApp.UnitTests/* | MedApp.IntegrationTests/* | MedApp.E2ETests/* | MedApp.AppHost/* | MedApp.Client.Deprecated/* | tools/MedApp.DevMcp/* | MedApp.sln)
+    MedApp.UnitTests/* | MedApp.IntegrationTests/* | MedApp.E2ETests/* | MedApp.AppHost/* | MedApp.Client.Deprecated/* | tools/MedApp.DevMcp/* | MedApp.sln | \
+    MedApp.Browser/* | MedApp.Browser.Tests/* | tools/MedApp.BrowserDb/*)
       dotnet=true ;;
     # A Markdown file at the root (AGENTS.md, CLAUDE.md): nothing reads it.
     */*) unknown=${unknown:-$file} ;;

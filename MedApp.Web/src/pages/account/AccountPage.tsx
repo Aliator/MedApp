@@ -9,7 +9,7 @@ import {Switch} from '@astryxdesign/core/Switch';
 import {useQuery} from '@tanstack/react-query';
 import {ACCESSIBILITY_SETTINGS, useAccessibility} from '../../app/accessibility';
 import {useColorMode} from '../../app/colorMode';
-import {useRef, useState} from 'react';
+import {lazy, Suspense, useRef, useState} from 'react';
 import {MAX_PAGE_SIZE, MIN_PAGE_SIZE, useListSettings} from '../../app/listSettings';
 import {FLYOUT_DELAYS, START_PAGES, useNavSettings, type StartPage} from '../../app/navSettings';
 import {TEXT_SIZES, useTextSize, type TextSize} from '../../app/textSize';
@@ -25,6 +25,9 @@ import {ViewCard} from '../../components/views/ViewCard';
 import {ViewSection} from '../../components/views/ViewSection';
 import {NotificationSettings} from './NotificationSettings';
 import {StaffDetailsCard} from './StaffDetailsCard';
+
+/** The full demo's Reset the Demo (its build only: docs/full-browser-demo-plan.md). */
+const FullDemoResetCard = __FULL_DEMO__ ? lazy(() => import('../../fullDemo/FullDemoResetCard').then((m) => ({default: m.FullDemoResetCard}))) : null;
 
 /** The signed-in user's teams, read only: an admin sets them on the Users page. */
 function MyTeams() {
@@ -100,6 +103,11 @@ export function AccountPage() {
           </ViewSection>
         </ViewCard>
         <StaffDetailsCard />
+        {FullDemoResetCard && (
+          <Suspense fallback={null}>
+            <FullDemoResetCard />
+          </Suspense>
+        )}
         <ViewCard
           footerActions={
             <Button

@@ -118,6 +118,7 @@ Dependencies point inward: `API → Application → Domain` and `Infrastructure 
 | `MedApp.Web` | The UI, rendered on the server by a Node server (`server/server.mjs`) and hydrated; a solution folder in `MedApp.sln`, built with npm. |
 | `MedApp.Client.Deprecated` | **Deprecated** Blazor WASM UI: not run, no new work, kept building (its `README.md`). |
 | `MedApp.AppHost` | .NET Aspire AppHost for local dev (SQL Server, Azurite, the API, the React app); on publish, builds the image from `MedApp.API/Dockerfile`. |
+| `MedApp.Browser` | The backend in the browser (WebAssembly, SQLite) for the full demo (`docs/full-browser-demo-plan.md`): Infrastructure's files and the API's controllers compiled by source, with stand-ins; `MedApp.Browser.Tests` checks every schema path reaches its routes. |
 | `MedApp.ServiceDefaults` | OpenTelemetry and health checks (`/health`, `/alive`: the app's port in Development, else only `HealthChecks:Port`, 8081 in Kubernetes, and absent without it). |
 | `MedApp.UnitTests` | NUnit tests of handlers, validators, Infrastructure services and the API's own services (`Api/`). |
 | `MedApp.IntegrationTests` | The real API in memory (`WebApplicationFactory<Program>`, as Production) against SQL Server 2022 and Azurite (Testcontainers); also `SessionService` and `IdentityTransactions`. |
@@ -144,7 +145,7 @@ To add a feature end to end:
 3. The command/query, handler and validator in `Application` (registered by assembly scanning). A handler that reads or changes patient data records it in the activity log (see `docs/agents/privacy.md`).
 4. A new repository: interface in `Application/<Area>/Repositories/`, implementation in `Infrastructure/Data/Repositories/`, registered in `AddRepositories()` (`MedApp.Infrastructure/Common/Extensions/ServiceExtensions.cs`).
 5. The controller action maps the request into a command, calls `mediator.Send(...)` and returns the result. Keep business logic out of controllers.
-6. A schema change needs an EF migration, reviewed (see [Migrations](#migrations)). Migrations are **not** applied at startup.
+6. A schema change needs an EF migration, reviewed (see [Migrations](#migrations)), and the browser demo's compiled model remade (`tools/MedApp.BrowserDb/optimize-model.sh`). Migrations are **not** applied at startup.
 7. Unit tests for the handler and the validator.
 8. If it alters what personal data is held, who sees it, where it goes (a recipient, a sub-processor, a region) or how long it's kept, update `docs/governance/` in the same PR: at least `data-inventory.md` and `dpia.md`, and any document it makes untrue (`docs/governance/README.md`).
 

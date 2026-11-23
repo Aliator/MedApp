@@ -1,4 +1,5 @@
-const KEY = 'medappLightDemo.coach';
+// The two demos share an origin (GitHub Pages), so each keeps its own place in the tour.
+const KEY = __FULL_DEMO__ ? 'medappFullDemo.coach' : 'medappLightDemo.coach';
 
 export interface CoachPosition {
   step: number;

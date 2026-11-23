@@ -32,7 +32,11 @@ import {HalfViewClicks} from './HalfViewClicks';
 const STORAGE_KEY = 'medapp.halfView';
 
 /** The light demo's walkthrough, started from the side nav (the demo build only; docs/agents/light-demo.md). */
-const DemoWalkthrough = __LIGHT_DEMO__ ? lazy(() => import('../../demo/DemoWalkthrough').then((m) => ({default: m.DemoWalkthrough}))) : null;
+const DemoWalkthrough = __LIGHT_DEMO__
+  ? lazy(() => import('../../demo/DemoWalkthrough').then((m) => ({default: m.DemoWalkthrough})))
+  : __FULL_DEMO__
+    ? lazy(() => import('../../fullDemo/FullDemoWalkthrough').then((m) => ({default: m.FullDemoWalkthrough})))
+    : null;
 
 /**
  * A half of a half view scrolls up and down only, and keeps room for a scrollbar on both sides whether or not its page
@@ -253,8 +257,8 @@ function MainLayout() {
         <SettingsSync />
         {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
         <KeyboardShortcuts />
-        {/* New notifications, as they happen (the bell is in the side nav). The light demo has no server to hear from. */}
-        {!__LIGHT_DEMO__ && <LiveNotifications />}
+        {/* New notifications, as they happen (the bell is in the side nav). The demos have no server to hear from. */}
+        {!__LIGHT_DEMO__ && !__FULL_DEMO__ && <LiveNotifications />}
         {/* The warning before the session times out, and the way back to the login page when it has. */}
         <SessionTimeout />
         {/* A request refused for a permission the person's roles don't grant: say so, and hide what it allowed. */}

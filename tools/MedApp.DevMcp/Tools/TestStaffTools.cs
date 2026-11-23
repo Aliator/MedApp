@@ -54,7 +54,7 @@ public sealed record TestStaffAccount(
 /// <c>create_user</c> does.
 /// </summary>
 [McpServerToolType]
-public sealed class TestStaffTools
+public sealed partial class TestStaffTools
 {
     public const string DefaultPrefix = "dev";
 
@@ -153,16 +153,6 @@ public sealed class TestStaffTools
         if (!PrefixPattern.IsMatch(prefix ?? string.Empty))
             throw new McpException($"'{prefix}' isn't a usable prefix: start with a lower-case letter, then lower-case letters, digits or hyphens.");
         return [.. Accounts.Select(a => a.UsernameFor(prefix!))];
-    }
-
-    /// <summary>The roles to give and take away so an account holds exactly <paramref name="wanted"/> (names ignore case).</summary>
-    public static (IReadOnlyList<string> Add, IReadOnlyList<string> Remove) RoleChanges(IEnumerable<string> current, IEnumerable<string> wanted)
-    {
-        var have = current.ToList();
-        var want = wanted.ToList();
-        return (
-            [.. want.Except(have, StringComparer.OrdinalIgnoreCase)],
-            [.. have.Except(want, StringComparer.OrdinalIgnoreCase)]);
     }
 
     /// <summary>An account's team membership, as <c>PUT …/teams</c> takes it (a member's role is left out: Member).</summary>

@@ -42,14 +42,6 @@ public static class DevMcpServices
     }
 }
 
-/// <summary>The activity log's actor for changes this tool makes.</summary>
-public sealed class DevToolActivityContext : IActivityContext
-{
-    public const string Username = "medapp-dev";
-
-    public ActivityActor Actor { get; } = new(null, Username, null);
-}
-
 /// <summary>Pushes nothing: the tool has no SignalR hub, and nobody to push to.</summary>
 public sealed class NoLiveNotifications : INotificationPublisher
 {
