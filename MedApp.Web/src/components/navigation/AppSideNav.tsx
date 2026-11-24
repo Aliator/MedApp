@@ -39,6 +39,7 @@ import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
 import {TouchNavContext, useIsTouchNav, useTouchNav} from './touchNav';
+import {useNavSettings} from '../../app/navSettings';
 import {walkthroughNavEntry} from '../../demo/walkthroughNav';
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */
@@ -205,7 +206,8 @@ function holdInvokerThroughPress(control: HTMLElement) {
  * folded nav's flyouts. No tooltip: its icon says what it is.
  */
 function RowMenu(props: RowMenuProps) {
-  return useTouchNav() ? null : <RowMenuControls {...props} />;
+  const {alwaysShowRowMenus} = useNavSettings();
+  return useTouchNav() && !alwaysShowRowMenus ? null : <RowMenuControls {...props} />;
 }
 
 interface RowMenuProps {
@@ -679,7 +681,8 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const isTouchNav = useIsTouchNav();
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
-  const isActiveRow = (href: string) => href === hoveredRow || href === focusedRow;
+  const {alwaysShowRowMenus} = useNavSettings();
+  const isActiveRow = (href: string) => alwaysShowRowMenus || href === hoveredRow || href === focusedRow;
   const leaveFocus = (event: FocusEvent<HTMLElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget)) setFocusedRow(null);
   };

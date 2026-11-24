@@ -51,7 +51,8 @@ export function AccountPage() {
   const me = useCurrentUser();
   const {mode, setMode} = useColorMode();
   const {textSize, setTextSize} = useTextSize();
-  const {flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView} = useNavSettings();
+  const {flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView, alwaysShowRowMenus, setAlwaysShowRowMenus} =
+    useNavSettings();
   const {pageSize, setPageSize, startsOnMine, setStartsOnMine} = useListSettings();
   const accessibility = useAccessibility();
   // Rows per page, as typed: it takes effect on Apply, or Enter. (Enter commits the typed number and applies it in
@@ -145,6 +146,12 @@ export function AccountPage() {
                 description="Opening a page in half view shrinks the side nav to its icons. Turn off to keep it open beside both pages."
                 value={foldsInHalfView}
                 onChange={setFoldsInHalfView}
+              />
+              <Switch
+                label="Always show the side nav's menu buttons"
+                description="Each side nav row's menu button (open beside, pin) shows all the time, rather than only when the pointer rests on the row. For touch screens, and remote desktops used from a phone or tablet, where there's no pointer to rest."
+                value={alwaysShowRowMenus}
+                onChange={setAlwaysShowRowMenus}
               />
             </VStack>
           </CardSection>
