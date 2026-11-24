@@ -73,6 +73,7 @@ export interface PatientsListSearch {
   nhs?: string;
   /** The clinic picker's team, or `all` (see `parseClinic`). */
   clinic?: string;
+  mine?: boolean;
 }
 
 export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListSearch {
@@ -87,6 +88,7 @@ export function parsePatientsSearch(raw: Record<string, unknown>): PatientsListS
     dobTo: date(raw.dobTo),
     nhs: text(raw.nhs),
     clinic: parseClinic(raw.clinic),
+    mine: bool(raw.mine),
   });
 }
 

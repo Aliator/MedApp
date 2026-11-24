@@ -19,7 +19,7 @@ import {ageOn, formatShortDate} from '../../utils/dates';
 import {formatNhsNumber, normaliseNhsNumber} from '../../utils/nhsNumber';
 import {hasPatientFilters, PATIENT_SORTS, type PatientSortColumn, type PatientsListSearch} from '../listSearch';
 import {useListSettings} from '../../app/listSettings';
-import {useCan} from '../../auth/auth';
+import {useCan, useCurrentUser} from '../../auth/auth';
 
 /** The search's fields, as the API filters patients, kept in the URL under these keys. */
 const FILTER_FIELDS: ListFilterField[] = [
@@ -28,6 +28,7 @@ const FILTER_FIELDS: ListFilterField[] = [
   {kind: 'text', key: 'email', label: 'Email'},
   {kind: 'date', key: 'dob', label: 'Date of birth', fromKey: 'dobFrom', toKey: 'dobTo'},
   {kind: 'text', key: 'nhs', label: 'NHS number'},
+  {kind: 'flag', key: 'mine', label: 'My clinic', operator: 'only'},
 ];
 
 type PatientRow = Patient & Record<string, unknown>;
@@ -72,9 +73,12 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
   const sortColumn: PatientSortColumn = search.sort ?? 'Patients';
   const ascending = search.asc ?? true;
   const clinic = useClinicPicker('patients', search.clinic, (next) => onSearchChange({...search, clinic: next, page: undefined}));
-  const isFiltered = hasPatientFilters(search);
+  const myTeamId = useCurrentUser().teams?.[0]?.id?.toLowerCase();
+  const startsOnMine = Boolean(myTeamId);
+  const mine = (search.mine ?? startsOnMine) && Boolean(myTeamId);
+  const isFiltered = hasPatientFilters(search) || mine;
 
-  const {data, isPending, isError} = useQuery(patientsListQuery(search, pageSize, clinic.teamId));
+  const {data, isPending, isError} = useQuery(patientsListQuery(search, pageSize, clinic.teamId ?? (mine ? myTeamId : undefined)));
   const total = data?.totalCount ?? 0;
   const rows = (data?.items ?? []) as PatientRow[];
 
@@ -175,12 +179,21 @@ export function PatientsListPage({search, onSearchChange}: PatientsListPageProps
           search={
             <ListFilterBar
               fields={FILTER_FIELDS}
-              values={search}
-              onChange={(filters) => onSearchChange({...search, ...filters, page: undefined})}
+              values={{...search, mine: mine || undefined}}
+              onChange={(filters) =>
+                onSearchChange({
+                  ...search,
+                  ...filters,
+                  mine: (filters.mine === true) === startsOnMine ? undefined : filters.mine === true,
+                  page: undefined,
+                })
+              }
+              isUnfiltered={!hasPatientFilters(search) && search.mine === undefined}
               list="patients"
               label="Search patients"
               placeholder="Search patients by first name, last name, email, date of birth or NHS number..."
               favourites={[
+                ...(myTeamId ? [{label: 'My Clinic', values: {mine: true}}] : []),
                 {label: 'All', values: {}},
                 {label: 'Under 18', values: {dobFrom: dayFromToday({years: -18, days: 1})}},
                 {label: '65 and over', values: {dobTo: dayFromToday({years: -65})}},

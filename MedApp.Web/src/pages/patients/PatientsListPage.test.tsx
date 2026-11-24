@@ -150,4 +150,16 @@ describe('PatientsListPage', () => {
     await user.click(screen.getByRole('option', {name: 'All teams'}));
     expect(onSearchChange).toHaveBeenLastCalledWith({clinic: undefined, page: undefined});
   });
+
+  it("opens a clinic member's list on My Clinic, their team's patients, and All shows everyone", async () => {
+    const team = '000000d1-0000-4000-8000-000000000008';
+    const clinician = {...userWithRoles('test-podiatrist', 'Clinician'), teams: [{id: team, name: 'Lower limb biomechanics', role: 'Member'}]};
+    const {fetch, user, onSearchChange} = renderList({}, undefined, clinician as never);
+
+    expect(await screen.findByRole('tab', {name: 'My Clinic', selected: true})).toBeInTheDocument();
+    expect(calls(fetch).filter((c) => c.startsWith('GET /api/patients/search')).at(-1)).toContain(`TeamId=${team}`);
+
+    await pickFavourite(user, 'All');
+    expect(onSearchChange).toHaveBeenLastCalledWith(expect.objectContaining({mine: false}));
+  });
 });
