@@ -1,6 +1,7 @@
 import type {Schemas} from '../api/client';
 import {DERMATOLOGY_REVIEWED, type ReviewedStage, type ReviewedTemplate} from './dermatologyReviewed';
 import {id, TEAM_NAMES, TEAMS, TEMPLATE_BRANCHES, TEMPLATES} from './ids';
+import {LOWER_LIMB_TEMPLATES} from './lowerLimb';
 import {OPHTHALMOLOGY_REVIEWED} from './ophthalmologyReviewed';
 import type {DemoStageDefinition} from './state';
 
@@ -37,6 +38,7 @@ const TEMPLATE_IDS: Record<string, string> = {
   'Glaucoma assessment': TEMPLATES.glaucoma,
   'Red eye assessment': TEMPLATES.redEye,
   'Macular assessment': TEMPLATES.macular,
+  'Lower limb biomechanics assessment': TEMPLATES.lowerLimb,
 };
 
 /** The reviewed file's addable routes' fixed IDs, by name. */
@@ -102,6 +104,7 @@ const TOUR_RELAY: ReviewedTemplate = {
 const CLINICS: {teamId: string; templates: ReviewedTemplate[]}[] = [
   {teamId: TEAMS.dermatology, templates: [...DERMATOLOGY_REVIEWED, TOUR_RELAY]},
   {teamId: TEAMS.eyeClinic, templates: OPHTHALMOLOGY_REVIEWED},
+  {teamId: TEAMS.lowerLimb, templates: LOWER_LIMB_TEMPLATES},
 ];
 
 /** Every stage of the templates, their addable routes' too, in order (Dermatology's first, so their IDs stay). */

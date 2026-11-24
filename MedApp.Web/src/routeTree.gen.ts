@@ -94,6 +94,7 @@ import { Route as AppCalendarTemplatesDayIdRouteImport } from './routes/_app/cal
 import { Route as AppCalendarTemplatesDayNewRouteImport } from './routes/_app/calendar/templates/day/new'
 import { Route as AppCalendarTemplatesWeekIdRouteImport } from './routes/_app/calendar/templates/week/$id'
 import { Route as AppCalendarTemplatesWeekNewRouteImport } from './routes/_app/calendar/templates/week/new'
+import { Route as AppPatientsIdOrthoticsOrthoticIdRouteImport } from './routes/_app/patients/$id/orthotics.$orthoticId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -534,6 +535,12 @@ const AppCalendarTemplatesWeekNewRoute =
     path: '/calendar/templates/week/new',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPatientsIdOrthoticsOrthoticIdRoute =
+  AppPatientsIdOrthoticsOrthoticIdRouteImport.update({
+    id: '/patients/$id/orthotics/$orthoticId',
+    path: '/patients/$id/orthotics/$orthoticId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -620,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
   '/calendar/templates/week/new': typeof AppCalendarTemplatesWeekNewRoute
+  '/patients/$id/orthotics/$orthoticId': typeof AppPatientsIdOrthoticsOrthoticIdRoute
 }
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
@@ -706,6 +714,7 @@ export interface FileRoutesByTo {
   '/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
   '/calendar/templates/week/new': typeof AppCalendarTemplatesWeekNewRoute
+  '/patients/$id/orthotics/$orthoticId': typeof AppPatientsIdOrthoticsOrthoticIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -794,6 +803,7 @@ export interface FileRoutesById {
   '/_app/calendar/templates/day/new': typeof AppCalendarTemplatesDayNewRoute
   '/_app/calendar/templates/week/$id': typeof AppCalendarTemplatesWeekIdRoute
   '/_app/calendar/templates/week/new': typeof AppCalendarTemplatesWeekNewRoute
+  '/_app/patients/$id/orthotics/$orthoticId': typeof AppPatientsIdOrthoticsOrthoticIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -882,6 +892,7 @@ export interface FileRouteTypes {
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
     | '/calendar/templates/week/new'
+    | '/patients/$id/orthotics/$orthoticId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/change-password'
@@ -968,6 +979,7 @@ export interface FileRouteTypes {
     | '/calendar/templates/day/new'
     | '/calendar/templates/week/$id'
     | '/calendar/templates/week/new'
+    | '/patients/$id/orthotics/$orthoticId'
   id:
     | '__root__'
     | '/_app'
@@ -1055,6 +1067,7 @@ export interface FileRouteTypes {
     | '/_app/calendar/templates/day/new'
     | '/_app/calendar/templates/week/$id'
     | '/_app/calendar/templates/week/new'
+    | '/_app/patients/$id/orthotics/$orthoticId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1665,6 +1678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCalendarTemplatesWeekNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/patients/$id/orthotics/$orthoticId': {
+      id: '/_app/patients/$id/orthotics/$orthoticId'
+      path: '/patients/$id/orthotics/$orthoticId'
+      fullPath: '/patients/$id/orthotics/$orthoticId'
+      preLoaderRoute: typeof AppPatientsIdOrthoticsOrthoticIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -1746,6 +1766,7 @@ interface AppRouteChildren {
   AppCalendarTemplatesDayNewRoute: typeof AppCalendarTemplatesDayNewRoute
   AppCalendarTemplatesWeekIdRoute: typeof AppCalendarTemplatesWeekIdRoute
   AppCalendarTemplatesWeekNewRoute: typeof AppCalendarTemplatesWeekNewRoute
+  AppPatientsIdOrthoticsOrthoticIdRoute: typeof AppPatientsIdOrthoticsOrthoticIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1826,6 +1847,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarTemplatesDayNewRoute: AppCalendarTemplatesDayNewRoute,
   AppCalendarTemplatesWeekIdRoute: AppCalendarTemplatesWeekIdRoute,
   AppCalendarTemplatesWeekNewRoute: AppCalendarTemplatesWeekNewRoute,
+  AppPatientsIdOrthoticsOrthoticIdRoute: AppPatientsIdOrthoticsOrthoticIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

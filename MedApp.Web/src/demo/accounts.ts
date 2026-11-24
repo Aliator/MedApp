@@ -89,6 +89,16 @@ export const EYE_CLINIC_ADMIN: DemoPerson = {
   teams: [{teamId: TEAMS.eyeClinic, role: 'ClinicAdmin'}],
 };
 
+export const LOWER_LIMB_ADMIN: DemoPerson = {
+  id: USERS.castell,
+  username: 'm.castell',
+  fullName: 'Mia Castell',
+  jobTitle: 'Clinical lead podiatrist',
+  roles: ['Clinician'],
+  permissions: CLINICIAN,
+  teams: [{teamId: TEAMS.lowerLimb, role: 'ClinicAdmin'}],
+};
+
 /**
  * The lab's member of staff a visitor can be: a histopathologist with the Lab and Pathologist roles (the first so the
  * demo's one lab account also does the bench steps, the second so it can authorise a report, MC15), in the lab team.
@@ -104,7 +114,7 @@ export const LAB: DemoPerson = {
 };
 
 /** The four accounts the login page offers (decision 188; the Eye clinic's, the owner, 20 November 2026). */
-export const DEMO_ACCOUNTS = [ADMIN, CLINIC_ADMIN, EYE_CLINIC_ADMIN, LAB] as const;
+export const DEMO_ACCOUNTS = [ADMIN, CLINIC_ADMIN, EYE_CLINIC_ADMIN, LOWER_LIMB_ADMIN, LAB] as const;
 
 /** Someone's account type, from their roles and their teams (as they start, or as changed since). */
 export const accountTypeOfPerson = (person: DemoPerson, teams: readonly DemoMembership[] = person.teams): AccountType =>
@@ -174,7 +184,7 @@ export const HALLWORTH: DemoPerson = {
 };
 
 /** Everyone in the demo clinic. */
-export const PEOPLE: DemoPerson[] = [ADMIN, STAFF, LAB, ...OTHERS, HALLWORTH, EYE_CLINIC_ADMIN];
+export const PEOPLE: DemoPerson[] = [ADMIN, STAFF, LAB, ...OTHERS, HALLWORTH, EYE_CLINIC_ADMIN, LOWER_LIMB_ADMIN];
 
 export const personById = (id: string | null | undefined) => PEOPLE.find((person) => person.id === id);
 export const personByUsername = (username: string | null | undefined) =>
