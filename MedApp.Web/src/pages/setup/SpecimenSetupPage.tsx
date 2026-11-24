@@ -1,6 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
-import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {NumberInput} from '@astryxdesign/core/NumberInput';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
@@ -18,6 +17,7 @@ import {TwoColumns} from '../../components/pages/TwoColumns';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {ActionsList, ActionsListItem} from '../../components/tables/ActionsList';
 import {TableActions} from '../../components/tables/TableActions';
 import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
@@ -362,12 +362,12 @@ function SetupList({label, items, isLoading, isError, emptyText}: {label: string
       </VStack>
     );
   return (
-    <List edge="bleed" hasDividers aria-label={label}>
+    <ActionsList edge="bleed" hasDividers aria-label={label}>
       {items.map((item) => (
-        <ListItem
+        <ActionsListItem
           key={item.id}
           label={<SetupNameCell name={item.name} secondary={item.secondary} />}
-          endContent={
+          actions={
             <HStack gap={2} vAlign="center">
               <SetupStatusToken isArchived={item.isArchived} />
               <TableActions
@@ -389,6 +389,6 @@ function SetupList({label, items, isLoading, isError, emptyText}: {label: string
           }
         />
       ))}
-    </List>
+    </ActionsList>
   );
 }

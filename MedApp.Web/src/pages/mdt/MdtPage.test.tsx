@@ -3,6 +3,7 @@ import {QueryClient} from '@tanstack/react-query';
 import {mdtItem, mdtMeeting} from '../../test/mdt';
 import {calls, json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {meetingLabel} from '../../components/mdt/MdtDialogs';
+import {TOUCH_NAV_QUERY} from '../../components/navigation/touchNav';
 import {MdtPage, preloadMdtPage, shownMeeting} from './MdtPage';
 import {parseMdtSearch} from './mdtSearch';
 
@@ -24,6 +25,40 @@ describe('MdtPage', () => {
     expect(await screen.findByText('Meeting cancelled: list again')).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Leg ulcer'})).toBeInTheDocument();
     expect(calls(fetch)).not.toContain(`GET /api/mdt/meetings/${later.id}/items`);
+  });
+
+  it('on a phone, leaves out the description and lets the page scroll as a whole rather than the list in a sliver', async () => {
+    const api = {
+      'GET /api/teams': () => json([]),
+      'GET /api/mdt/meetings': () => json([mdtMeeting()]),
+      [`GET /api/mdt/meetings/${mdtMeeting().id}/items`]: () => json({meeting: mdtMeeting(), items: [mdtItem()]}),
+      'GET /api/mdt/awaiting-meeting': () => json([]),
+    };
+    const description = /^Multidisciplinary team meetings/;
+    mockApi(api);
+    const {unmount} = renderWithApp(<MdtPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
+    expect(await screen.findByText(description)).toBeInTheDocument();
+    unmount();
+
+    vi.stubGlobal('matchMedia', (media: string) => ({
+      matches: media === TOUCH_NAV_QUERY,
+      media,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }));
+    try {
+      mockApi(api);
+      renderWithApp(<MdtPage search={{}} onSearchChange={vi.fn()} />, {user: staffUser});
+      expect(await screen.findByRole('link', {name: 'Skin lesion'})).toBeInTheDocument();
+      expect(screen.queryByText(description)).not.toBeInTheDocument();
+      expect(document.querySelector('[data-page-header]')).not.toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('prints the list', async () => {

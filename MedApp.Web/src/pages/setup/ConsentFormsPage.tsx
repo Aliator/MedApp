@@ -1,6 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
-import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
 import {Text} from '@astryxdesign/core/Text';
@@ -20,6 +19,7 @@ import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {ActionsList, ActionsListItem} from '../../components/tables/ActionsList';
 import {TableActions} from '../../components/tables/TableActions';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
@@ -171,12 +171,12 @@ export function ConsentFormsPage() {
             </Text>
           </VStack>
         ) : (
-          <List edge="bleed" hasDividers aria-label="Consent forms">
+          <ActionsList edge="bleed" hasDividers aria-label="Consent forms">
             {items.map((form) => (
-              <ListItem
+              <ActionsListItem
                 key={form.id}
                 label={<SetupNameCell name={form.name ?? ''} secondary={`Version ${form.formVersion ?? ''}`} />}
-                endContent={
+                actions={
                   <HStack gap={2} vAlign="center">
                     <SetupStatusToken isArchived={form.isArchived ?? false} />
                     <TableActions
@@ -201,7 +201,7 @@ export function ConsentFormsPage() {
                 }
               />
             ))}
-          </List>
+          </ActionsList>
         )}
       </PanelCard>
     </Page>

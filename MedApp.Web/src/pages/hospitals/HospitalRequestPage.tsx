@@ -11,8 +11,10 @@ import {TwoColumns} from '../../components/pages/TwoColumns';
 import {patientDetailsSection} from '../../components/patients/DetailsPatient';
 import {hasPatientFlags, PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {AlertMessage} from '../../components/shared/AlertMessage';
+import {COMPACT_ROW_REM} from '../../components/tables/RowCards';
 import {FoldingCard} from '../../components/views/FoldingCard';
 import {PanelCard} from '../../components/views/PanelCard';
+import {useNarrowerThan} from '../../components/views/useNarrowerThan';
 import {formatDate, formatDateTime} from '../../utils/dates';
 import {formatNhsNumber} from '../../utils/nhsNumber';
 
@@ -20,10 +22,20 @@ import {formatNhsNumber} from '../../utils/nhsNumber';
 export const NHS_NUMBERS_DIFFER =
   "The NHS number on the request isn't the record's. Check this is the right patient before any work on the sample, and tell the hospital if the request is wrong.";
 
+/**
+ * Details' labels beside their values, or above them in a narrow card (a phone), where the long labels would leave
+ * the values a few letters wide.
+ */
+function useLabelPosition() {
+  const [ref, isNarrow] = useNarrowerThan(COMPACT_ROW_REM);
+  return {ref, label: isNarrow ? ({position: 'top'} as const) : undefined};
+}
+
 /** What the hospital sent: the hospital, its patient number, the NHS number, the surgeon, the priority and dates. */
 function RequestDetails({request}: {request: HospitalRequest}) {
+  const labels = useLabelPosition();
   return (
-    <MetadataList>
+    <MetadataList {...labels}>
       <MetadataListItem label="Hospital">
         {request.hospitalName}
         {request.hospitalOdsCode ? ` (${request.hospitalOdsCode})` : ''}
@@ -43,8 +55,9 @@ function RequestDetails({request}: {request: HospitalRequest}) {
 
 /** The sample and the lab case it opened (the lab's own, with no pathway). */
 function CaseDetails({request}: {request: HospitalRequest}) {
+  const labels = useLabelPosition();
   return (
-    <MetadataList>
+    <MetadataList {...labels}>
       <MetadataListItem label="Lab case">
         <Link href={`/lab/cases/${request.labCaseId}`}>{request.labCaseNumber}</Link>
       </MetadataListItem>

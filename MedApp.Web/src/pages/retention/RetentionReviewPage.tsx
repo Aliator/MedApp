@@ -13,9 +13,11 @@ import {useListSettings} from '../../app/listSettings';
 import {Page} from '../../components/pages/Page';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
 import {KeepRecordDialog} from '../../components/patients/KeepRecordDialog';
+import {ActionsMenu} from '../../components/shared/ActionsMenu';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
+import {useIsCompactRow} from '../../components/tables/RowCards';
 import {TextCell} from '../../components/tables/TextCell';
 import {formatDate} from '../../utils/dates';
 import type {RetentionListSearch} from '../listSearch';
@@ -106,29 +108,7 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
       key: 'actions',
       header: 'Actions',
       width: pixel(330),
-      // Each button's name says whose record it's for (the visible text stays short), so a screen reader doesn't hear
-      // the same "Anonymise" on every row.
-      renderCell: (item) => {
-        const whose = `the record of ${item.firstName} ${item.lastName}`;
-        return (
-          <HStack gap={2}>
-            <Button label={`Review ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.View} />} href={`/patients/${item.patientId}`}>
-              Review
-            </Button>
-            <Button label={`Keep ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Archive} />} onClick={() => setKeeping(item)}>
-              Keep
-            </Button>
-            <Button
-              label={`Anonymise ${whose}`}
-              variant="destructive"
-              size="sm"
-              icon={<Icon icon={AppIcon.Delete} />}
-              onClick={() => setAnonymising(item)}>
-              Anonymise
-            </Button>
-          </HStack>
-        );
-      },
+      renderCell: (item) => <RetentionActions item={item} onKeep={() => setKeeping(item)} onAnonymise={() => setAnonymising(item)} />,
     },
   ];
 
@@ -194,5 +174,44 @@ export function RetentionReviewPage({search, onSearchChange}: RetentionReviewPag
         }
       />
     </Page>
+  );
+}
+
+/**
+ * A record's Review, Keep and Anonymise. Each button's name says whose record it's for (the visible text stays short),
+ * so a screen reader doesn't hear the same "Anonymise" on every row. In a narrow card (a phone), Keep and Anonymise
+ * are in one Actions menu, so the patient's name keeps the card's width.
+ */
+function RetentionActions({item, onKeep, onAnonymise}: {item: RetentionReviewItem; onKeep: () => void; onAnonymise: () => void}) {
+  const isCompact = useIsCompactRow();
+  const whose = `the record of ${item.firstName} ${item.lastName}`;
+  const review = (
+    <Button label={`Review ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.View} />} href={`/patients/${item.patientId}`}>
+      Review
+    </Button>
+  );
+  if (isCompact)
+    return (
+      <HStack gap={2}>
+        {review}
+        <ActionsMenu
+          name={`Actions for ${whose}`}
+          actions={[
+            {label: 'Keep', icon: AppIcon.Archive, onClick: onKeep},
+            {label: 'Anonymise', icon: AppIcon.Delete, isDestructive: true, onClick: onAnonymise},
+          ]}
+        />
+      </HStack>
+    );
+  return (
+    <HStack gap={2}>
+      {review}
+      <Button label={`Keep ${whose}`} variant="secondary" size="sm" icon={<Icon icon={AppIcon.Archive} />} onClick={onKeep}>
+        Keep
+      </Button>
+      <Button label={`Anonymise ${whose}`} variant="destructive" size="sm" icon={<Icon icon={AppIcon.Delete} />} onClick={onAnonymise}>
+        Anonymise
+      </Button>
+    </HStack>
   );
 }

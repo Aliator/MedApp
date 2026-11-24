@@ -5,6 +5,7 @@ import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {Heading} from '@astryxdesign/core/Text';
 import {useState, type ReactNode, type Ref} from 'react';
+import {useIsNarrow} from '../pages/Page';
 import {AppIcon} from '../shared/icons';
 import {useOverflows} from './useOverflows';
 
@@ -28,10 +29,12 @@ const HOVERED = {
 /**
  * A header bar: a section title with controls at the end, on a shade a little different from the card (the same
  * as the footer) so it stands out. A PanelCard's top bar, and the same bar for further sections inside the card
- * (e.g. Stages under Details on a narrow window), so they all look alike.
+ * (e.g. Stages under Details on a narrow window), so they all look alike. In a narrow layout, actions that don't fit
+ * beside the title wrap under it, rather than squeezing it.
  */
 export function PanelHeader({title, actions, summary, dividers = ['bottom'], ref, onClick}: PanelHeaderProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const isNarrow = useIsNarrow();
   return (
     <Section
       ref={ref}
@@ -45,7 +48,7 @@ export function PanelHeader({title, actions, summary, dividers = ['bottom'], ref
       // A clickable bar shows it: the pointer, and under it a slightly lighter shade (darker in light mode). Section
       // has no props for either.
       style={onClick ? {cursor: 'pointer', ...(isHovered ? HOVERED : undefined)} : undefined}>
-      <HStack gap={3} vAlign="center">
+      <HStack gap={3} vAlign="center" wrap={isNarrow ? 'wrap' : undefined}>
         <Heading level={2}>{title}</Heading>
         <StackItem size="fill">{summary}</StackItem>
         {actions}

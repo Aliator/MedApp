@@ -1,6 +1,7 @@
 import {Button} from '@astryxdesign/core/Button';
 import {act, screen, waitFor} from '@testing-library/react';
 import {renderWithApp} from '../../test/render';
+import {HalfViewContext} from '../pages/halfView';
 import {CollapseButton, PanelCard, PanelHeader} from './PanelCard';
 
 describe('PanelCard', () => {
@@ -105,6 +106,17 @@ describe('PanelHeader and CollapseButton', () => {
     await user.click(toggle);
 
     expect(onToggle).toHaveBeenCalled();
+  });
+
+  it('lets its actions wrap under the title in a narrow layout (a phone, a half view), and only there', async () => {
+    const header = <PanelHeader title="Today, Tuesday 24 November" actions={<Button label="Open Calendar" />} />;
+    const {unmount} = renderWithApp(header);
+    const bar = async () => (await screen.findByRole('heading', {name: /^Today/})).parentElement!;
+    expect(await bar()).not.toHaveAttribute('data-wrap', 'wrap');
+    unmount();
+
+    renderWithApp(<HalfViewContext.Provider value={{isHalf: true}}>{header}</HalfViewContext.Provider>);
+    expect(await bar()).toHaveAttribute('data-wrap', 'wrap');
   });
 
   it('says Hide when the section is open', async () => {

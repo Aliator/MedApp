@@ -1,3 +1,4 @@
+import {useAppShellMobile} from '@astryxdesign/core/AppShell';
 import {Icon} from '@astryxdesign/core/Icon';
 import {DropdownMenu, type DropdownMenuItemData} from '@astryxdesign/core/DropdownMenu';
 import {IconButton} from '@astryxdesign/core/IconButton';
@@ -37,6 +38,7 @@ import {ADMIN_CATEGORIES, useNavCategories, type AdminCategory, type AdminPage} 
 import {MAX_PINS, usePins, type PinKind, type Pins} from './pins';
 import {NotificationBell} from './NotificationBell';
 import {NOTEPAD_PATH, useNotepad} from '../notepad/NotepadContext';
+import {TouchNavContext, useIsTouchNav, useTouchNav} from './touchNav';
 import {walkthroughNavEntry} from '../../demo/walkthroughNav';
 
 /** Is `path` the current page or one under it? Home only matches itself (Blazor's NavLinkMatch.All). */
@@ -202,7 +204,18 @@ function holdInvokerThroughPress(control: HTMLElement) {
  * controls, the button shows while the row is hovered or focused (and while its menu is open), and always in the
  * folded nav's flyouts. No tooltip: its icon says what it is.
  */
-function RowMenu({
+function RowMenu(props: RowMenuProps) {
+  return useTouchNav() ? null : <RowMenuControls {...props} />;
+}
+
+interface RowMenuProps {
+  label: string;
+  href: string;
+  items?: DropdownMenuItemData[];
+  isRightOnly?: boolean;
+}
+
+function RowMenuControls({
   label,
   href,
   items = [],
@@ -596,6 +609,42 @@ function AdminCategoryRow({category, pages, isOpen, onToggle, isAlwaysOpen, page
  * kept until you unpin them), then the one whose pages are open, if it isn't pinned. Each item's half-view button
  * opens its page beside the current one.
  */
+function TopBarBell() {
+  const [isInDrawer, setIsInDrawer] = useState(false);
+  const holder = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    setIsInDrawer(holder.current?.closest('dialog, [role="dialog"]') != null);
+  }, []);
+  return (
+    <HStack ref={holder} style={{paddingInlineEnd: 'var(--spacing-3)'}}>
+      {!isInDrawer && <NotificationBell />}
+    </HStack>
+  );
+}
+
+/**
+ * Where Sign Out asks first, when something outside the nav does (`AppLayout`): a phone hides the nav's column, and its
+ * drawer closes as the dialog opens, so a dialog of the nav's own would never show there. Without it, the nav asks.
+ */
+export const AskToSignOutContext = createContext<(() => void) | null>(null);
+
+/** "Are you sure you want to sign out?", then signs out. */
+export function SignOutDialog({isOpen, onClose}: {isOpen: boolean; onClose: () => void}) {
+  const logout = useLogout();
+  return (
+    <ConfirmDialog
+      isOpen={isOpen}
+      title="Sign Out"
+      message="Are you sure you want to sign out?"
+      icon={AppIcon.Logout}
+      confirmText="Sign Out"
+      isProcessing={logout.isPending}
+      onConfirm={() => logout.mutate()}
+      onCancel={onClose}
+    />
+  );
+}
+
 export interface AppSideNavProps {
   /** Folding the nav to its icons, as a half view does (see AppLayout). */
   collapsible?: SideNavProps['collapsible'];
@@ -609,7 +658,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const isLabStaff = !isAdminAccount && (user.teams ?? []).some((t) => t.kind === 'Lab') && can(user, 'ViewPatients');
   // Staff in a clinic team, whose nav leads with the team's home (MC24).
   const hasTeamHome = isClinicStaff(user);
-  const logout = useLogout();
+  const askToSignOut = useContext(AskToSignOutContext);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const {mode} = useColorMode();
   const pathname = useRouterState({
@@ -627,6 +676,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const patientPins = usePins('patients', user.username);
   const pathwayPins = usePins('pathways', user.username);
 
+  const isTouchNav = useIsTouchNav();
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const [focusedRow, setFocusedRow] = useState<string | null>(null);
   const isActiveRow = (href: string) => href === hoveredRow || href === focusedRow;
@@ -889,6 +939,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   ];
   // The admin pages, in categories that open with a click; one shows only if the person can see a page in it.
   const isFolded = typeof collapsible === 'object' && collapsible.isCollapsed === true;
+  const {isMobile} = useAppShellMobile();
   const adminCategories = useNavCategories(`${pathname} ${halfPath ?? ''}`);
   const adminPageRow = (page: AdminPage) => (
     <SideNavItem
@@ -1018,8 +1069,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         <SideNavItem
           label="Sign Out"
           icon={AppIcon.Logout}
-          isDisabled={logout.isPending}
-          onClick={() => setIsConfirmingLogout(true)}
+          onClick={askToSignOut ?? (() => setIsConfirmingLogout(true))}
         />
       ),
     },
@@ -1028,78 +1078,74 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const rows = (entries: NavRailEntry[]) => entries.map((entry) => <Fragment key={entry.key}>{entry.row}</Fragment>);
 
   return (
-    <ActiveRowsContext.Provider value={isActiveRow}>
-      <SideNav
-        collapsible={collapsible}
-        onMouseOver={(event) => setHoveredRow(rowHref(event.target))}
-        onMouseLeave={() => setHoveredRow(null)}
-        onFocus={(event) => setFocusedRow(isKeyboardFocus(event.target) ? rowHref(event.target) : null)}
-        onBlur={leaveFocus}
-        header={
-          isFolded ? (
-            // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
-            // so it's a plain link here, like the rail's icons.
-            // With the bell under it, as the rail has no room beside it.
-            // Room under the logo for the bell's count, which sits over its top right corner.
-            // The column is as wide as the nav's rows, so the bell's list opens as far out from the nav as a row's menu
-            // does (NotificationBell).
-            <VStack gap={3} hAlign="center" data-nav-header="">
-              <IconButton
-                label="MedApp"
-                icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-                variant="ghost"
-                href="/"
-                style={{borderRadius: 'var(--radius-element)'}}
-              />
-              <NotificationBell />
-            </VStack>
-          ) : (
-            <SideNavHeading
-              heading="MedApp"
-              headingHref="/"
-              icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
-              headerEndContent={<NotificationBell />}
-            />
-          )
-        }
-        footer={
-          // Lifted off the window's bottom edge, clear of the link preview the browser shows in the bottom-left
-          // corner while the pointer is on a link.
-          <VStack gap={0} style={{paddingBlockEnd: 'var(--spacing-6)'}}>
-            {isFolded ? (
-              <NavRail groups={[account]} wrapRow={trackRow} />
+    <TouchNavContext.Provider value={isTouchNav}>
+      <ActiveRowsContext.Provider value={isActiveRow}>
+        <SideNav
+          collapsible={collapsible}
+          onMouseOver={isTouchNav ? undefined : (event) => setHoveredRow(rowHref(event.target))}
+          onMouseLeave={isTouchNav ? undefined : () => setHoveredRow(null)}
+          onFocus={(event) => setFocusedRow(isKeyboardFocus(event.target) ? rowHref(event.target) : null)}
+          onBlur={leaveFocus}
+          header={
+            isFolded ? (
+              // Folded, Astryx's heading adds a "MedApp" tooltip it can't leave out; the app's mark speaks for itself,
+              // so it's a plain link here, like the rail's icons.
+              // With the bell under it, as the rail has no room beside it.
+              // Room under the logo for the bell's count, which sits over its top right corner.
+              // The column is as wide as the nav's rows, so the bell's list opens as far out from the nav as a row's menu
+              // does (NotificationBell).
+              <VStack gap={3} hAlign="center" data-nav-header="">
+                <IconButton
+                  label="MedApp"
+                  icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+                  variant="ghost"
+                  href="/"
+                  style={{borderRadius: 'var(--radius-element)'}}
+                />
+                <NotificationBell />
+              </VStack>
             ) : (
-              <SideNavSection title="Account" isHeaderHidden>
-                {rows(account)}
+              <SideNavHeading
+                heading="MedApp"
+                headingHref="/"
+                icon={<NavIcon icon={<Icon icon={AppIcon.Shield} size="sm" />} />}
+                headerEndContent={isMobile ? undefined : <NotificationBell />}
+              />
+            )
+          }
+          footerIcons={isMobile ? <TopBarBell /> : undefined}
+          footer={
+            // Lifted off the window's bottom edge, clear of the link preview the browser shows in the bottom-left
+            // corner while the pointer is on a link.
+            <VStack gap={0} style={{paddingBlockEnd: 'var(--spacing-6)'}}>
+              {isFolded ? (
+                <NavRail groups={[account]} wrapRow={trackRow} />
+              ) : (
+                <SideNavSection title="Account" isHeaderHidden>
+                  {rows(account)}
+                </SideNavSection>
+              )}
+            </VStack>
+          }>
+          {isFolded ? (
+            <NavRail groups={admin.length > 0 ? [main, admin] : [main]} wrapRow={trackRow} />
+          ) : (
+            <>
+              <SideNavSection title="Main" isHeaderHidden>
+                {rows(main)}
               </SideNavSection>
-            )}
-          </VStack>
-        }>
-        {isFolded ? (
-          <NavRail groups={admin.length > 0 ? [main, admin] : [main]} wrapRow={trackRow} />
-        ) : (
-          <>
-            <SideNavSection title="Main" isHeaderHidden>
-              {rows(main)}
-            </SideNavSection>
-            {admin.length > 0 && <SideNavSection title="Administration">{rows(admin)}</SideNavSection>}
-          </>
+              {admin.length > 0 && <SideNavSection title="Administration">{rows(admin)}</SideNavSection>}
+            </>
+          )}
+        </SideNav>
+        {/* The nav is always dark; the dialog takes the app's own mode. */}
+        {!askToSignOut && (
+          <Theme theme={themes[defaultThemeSlug]} mode={mode}>
+            <SignOutDialog isOpen={isConfirmingLogout} onClose={() => setIsConfirmingLogout(false)} />
+          </Theme>
         )}
-      </SideNav>
-      {/* The nav is always dark; the dialog takes the app's own mode. */}
-      <Theme theme={themes[defaultThemeSlug]} mode={mode}>
-        <ConfirmDialog
-          isOpen={isConfirmingLogout}
-          title="Sign Out"
-          message="Are you sure you want to sign out?"
-          icon={AppIcon.Logout}
-          confirmText="Sign Out"
-          isProcessing={logout.isPending}
-          onConfirm={() => logout.mutate()}
-          onCancel={() => setIsConfirmingLogout(false)}
-        />
-      </Theme>
-    </ActiveRowsContext.Provider>
+      </ActiveRowsContext.Provider>
+    </TouchNavContext.Provider>
   );
 }
 

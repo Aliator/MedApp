@@ -2,7 +2,7 @@ import {act, fireEvent, screen, waitFor, within} from '@testing-library/react';
 import {HalfViewsContext} from '../pages/halfView';
 import {NotepadProvider, useNotepad} from '../notepad/NotepadContext';
 import {adminUser, calls, isDisabled, json, managerUser, mockApi, mockFetch, nurseUser, openDialog, renderWithApp, rowMenuItem, seniorClinicianUser, staffUser, userWithRoles} from '../../test/render';
-import {AppSideNav, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
+import {AppSideNav, AskToSignOutContext, HALF_VIEW_SHADE, isCurrentSection, openPatientId, openPathwayId} from './AppSideNav';
 import {SettingsSync} from '../../app/SettingsSync';
 import {PINS_KEY} from './pins';
 import {NAV_CATEGORIES_KEY} from './navCategories';
@@ -323,6 +323,21 @@ describe('AppSideNav', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(logouts()).toHaveLength(1);
     await waitFor(() => expect(queryClient.getQueryData(['patients'])).toBeUndefined());
+  });
+
+  it('asks to sign out where the app says (AppLayout, outside the nav), not in a dialog of its own', async () => {
+    const ask = vi.fn();
+    const {user} = renderWithApp(
+      <AskToSignOutContext.Provider value={ask}>
+        <AppSideNav />
+      </AskToSignOutContext.Provider>,
+      {user: adminUser},
+    );
+
+    await user.click(await screen.findByRole('button', {name: 'Sign Out'}));
+
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(openDialog()).toBeNull();
   });
 
   it('saves a pin made just before signing out, before signing out', async () => {
