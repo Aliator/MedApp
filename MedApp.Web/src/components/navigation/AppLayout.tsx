@@ -23,7 +23,7 @@ import {
   type DialogRegion,
   type HalfView,
 } from '../pages/halfView';
-import {AppSideNav} from './AppSideNav';
+import {AppSideNav, AskToSignOutContext, SignOutDialog} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 import {PermissionMissingWatcher} from './PermissionMissingWatcher';
 import {SessionTimeout} from './SessionTimeout';
@@ -210,6 +210,8 @@ function MainLayout() {
   const mainHalf: HalfView = {isHalf: true, side: 'left', onClose: () => close(true)};
   const otherHalf: HalfView = {isHalf: true, side: 'right', onClose: () => close(false)};
   const isNotepadDocked = useNotepadDocked();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const askToSignOut = useCallback(() => setIsSigningOut(true), []);
 
   // Where dialogs go: over the region of the page that opened them while something is beside it (a half of a half
   // view, or the page beside the docked notepad), so the rest stays usable (`DialogFrame`, `RegionDialog`).
@@ -270,13 +272,15 @@ function MainLayout() {
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
             <SideNavTheme>
-              <AppSideNav
-                collapsible={{
-                  isCollapsed: isNavCollapsed,
-                  onCollapsedChange: setIsNavCollapsed,
-                  hasButton: half !== null,
-                }}
-              />
+              <AskToSignOutContext.Provider value={askToSignOut}>
+                <AppSideNav
+                  collapsible={{
+                    isCollapsed: isNavCollapsed,
+                    onCollapsedChange: setIsNavCollapsed,
+                    hasButton: half !== null,
+                  }}
+                />
+              </AskToSignOutContext.Provider>
             </SideNavTheme>
           }
           // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
@@ -323,6 +327,8 @@ function MainLayout() {
         </Center>
         {/* On a narrow window, the notepad is a full-screen sheet instead. */}
         <NotepadSheet />
+        {/* Sign Out asks here, not in the nav, which a phone hides (its drawer closes as Sign Out is tapped). */}
+        <SignOutDialog isOpen={isSigningOut} onClose={() => setIsSigningOut(false)} />
       </HalfViewsContext.Provider>
     </SaveShortcutProvider>
   );

@@ -622,6 +622,29 @@ function TopBarBell() {
   );
 }
 
+/**
+ * Where Sign Out asks first, when something outside the nav does (`AppLayout`): a phone hides the nav's column, and its
+ * drawer closes as the dialog opens, so a dialog of the nav's own would never show there. Without it, the nav asks.
+ */
+export const AskToSignOutContext = createContext<(() => void) | null>(null);
+
+/** "Are you sure you want to sign out?", then signs out. */
+export function SignOutDialog({isOpen, onClose}: {isOpen: boolean; onClose: () => void}) {
+  const logout = useLogout();
+  return (
+    <ConfirmDialog
+      isOpen={isOpen}
+      title="Sign Out"
+      message="Are you sure you want to sign out?"
+      icon={AppIcon.Logout}
+      confirmText="Sign Out"
+      isProcessing={logout.isPending}
+      onConfirm={() => logout.mutate()}
+      onCancel={onClose}
+    />
+  );
+}
+
 export interface AppSideNavProps {
   /** Folding the nav to its icons, as a half view does (see AppLayout). */
   collapsible?: SideNavProps['collapsible'];
@@ -635,7 +658,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
   const isLabStaff = !isAdminAccount && (user.teams ?? []).some((t) => t.kind === 'Lab') && can(user, 'ViewPatients');
   // Staff in a clinic team, whose nav leads with the team's home (MC24).
   const hasTeamHome = isClinicStaff(user);
-  const logout = useLogout();
+  const askToSignOut = useContext(AskToSignOutContext);
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const {mode} = useColorMode();
   const pathname = useRouterState({
@@ -1046,8 +1069,7 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
         <SideNavItem
           label="Sign Out"
           icon={AppIcon.Logout}
-          isDisabled={logout.isPending}
-          onClick={() => setIsConfirmingLogout(true)}
+          onClick={askToSignOut ?? (() => setIsConfirmingLogout(true))}
         />
       ),
     },
@@ -1117,18 +1139,11 @@ export function AppSideNav({collapsible}: AppSideNavProps = {}) {
           )}
         </SideNav>
         {/* The nav is always dark; the dialog takes the app's own mode. */}
-        <Theme theme={themes[defaultThemeSlug]} mode={mode}>
-          <ConfirmDialog
-            isOpen={isConfirmingLogout}
-            title="Sign Out"
-            message="Are you sure you want to sign out?"
-            icon={AppIcon.Logout}
-            confirmText="Sign Out"
-            isProcessing={logout.isPending}
-            onConfirm={() => logout.mutate()}
-            onCancel={() => setIsConfirmingLogout(false)}
-          />
-        </Theme>
+        {!askToSignOut && (
+          <Theme theme={themes[defaultThemeSlug]} mode={mode}>
+            <SignOutDialog isOpen={isConfirmingLogout} onClose={() => setIsConfirmingLogout(false)} />
+          </Theme>
+        )}
       </ActiveRowsContext.Provider>
     </TouchNavContext.Provider>
   );
