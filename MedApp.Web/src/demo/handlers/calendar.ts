@@ -431,9 +431,13 @@ export function registerCalendar() {
   });
 
   on('get', '/api/calendar/staff', ({query}) => {
-    me();
+    const viewer = me();
     const permission = query.get('permission');
-    return PEOPLE.filter((p) => !permission || p.permissions.includes(permission as never)).map(staffMember);
+    const myTeams = new Set(viewer.teams.map((t) => t.teamId));
+    const inMyTeam = (p: (typeof PEOPLE)[number]) => (p.teams.some((t) => myTeams.has(t.teamId)) ? 0 : 1);
+    return PEOPLE.filter((p) => !permission || p.permissions.includes(permission as never))
+      .sort((a, b) => inMyTeam(a) - inMyTeam(b))
+      .map(staffMember);
   });
 
   on('post', '/api/calendar/blocks', ({body}) => {
