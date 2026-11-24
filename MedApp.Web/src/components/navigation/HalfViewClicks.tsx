@@ -85,6 +85,14 @@ export function HalfViewClicks() {
     const take = (event: MouseEvent | KeyboardEvent): void => {
       const {halfViews: views, isMobile: isPhone} = latest.current;
       if (!views || isPhone || event.defaultPrevented) return;
+      const back = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-page-back] a[href]') : null;
+      if (back) {
+        if (!event.shiftKey && !event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        back.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, button: 0}));
+        return;
+      }
       const side = halfViewSide(event);
       const isPlain = !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey;
       if (isPlain && event.target instanceof Element && event.target.closest('[aria-label="Right half"]')) {

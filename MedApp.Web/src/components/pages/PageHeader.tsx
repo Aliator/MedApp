@@ -79,6 +79,7 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
           {(hasBack || subtitle) && (
             <HStack gap={4} vAlign="center">
               {hasBack && (
+                <span data-page-back="">
                 <Link
                   href={backHref}
                   onClick={onBack}
@@ -91,6 +92,7 @@ export function PageHeader({title, subtitle, backHref, onBack, backLabel, action
                     Back
                   </HStack>
                 </Link>
+                </span>
               )}
               {subtitle && (
                 <Text type="body" color="secondary">
