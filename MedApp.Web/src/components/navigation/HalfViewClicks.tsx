@@ -86,6 +86,15 @@ export function HalfViewClicks() {
       const {halfViews: views, isMobile: isPhone} = latest.current;
       if (!views || isPhone || event.defaultPrevented) return;
       const side = halfViewSide(event);
+      const isPlain = !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey;
+      if (isPlain && event.target instanceof Element && event.target.closest('[aria-label="Right half"]')) {
+        const href = halfViewHref(event.target, router.options.basepath);
+        if (!href || event.target.closest(`[${HALF_VIEW_HREF}]`)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void router.navigate({href});
+        return;
+      }
       if (!side) return;
       const basepath = router.options.basepath;
       const href = halfViewHref(event.target, basepath);
