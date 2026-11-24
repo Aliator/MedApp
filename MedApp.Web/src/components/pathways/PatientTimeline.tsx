@@ -45,6 +45,7 @@ import {AlertMessage} from '../shared/AlertMessage';
 import {RichText} from '../shared/RichText';
 import {AppIcon} from '../shared/icons';
 import {OverdueToken, PriorityToken, StatusToken} from './PathwayCells';
+import {DisabledReason} from '../shared/DisabledReason';
 
 const KIND_ICONS: Record<TimelineKind, IconType> = {
   Created: AppIcon.Add,
@@ -411,17 +412,17 @@ function TimelineFilterChips({
             const label = pathwayChipLabel(pathway);
             const isPressed = filters.pathwayIds.includes(id);
             return (
-              <ToggleButton
-                key={id}
-                label={label}
-                size="sm"
-                icon={<Icon icon={pathway.isDeleted ? AppIcon.Delete : AppIcon.Pathways} />}
-                isPressed={isPressed}
-                isDisabled={isAtLimit && !isPressed}
-                tooltip={isAtLimit && !isPressed ? `Choose at most ${MAX_TIMELINE_PATHWAYS} pathways` : undefined}
-                onPressedChange={(isOn) => onFiltersChange({...filters, pathwayIds: toggle(filters.pathwayIds, id, isOn)})}>
-                {label}
-              </ToggleButton>
+              <DisabledReason key={id} reason={isAtLimit && !isPressed ? `Choose at most ${MAX_TIMELINE_PATHWAYS} pathways` : undefined}>
+                <ToggleButton
+                  label={label}
+                  size="sm"
+                  icon={<Icon icon={pathway.isDeleted ? AppIcon.Delete : AppIcon.Pathways} />}
+                  isPressed={isPressed}
+                  isDisabled={isAtLimit && !isPressed}
+                  onPressedChange={(isOn) => onFiltersChange({...filters, pathwayIds: toggle(filters.pathwayIds, id, isOn)})}>
+                  {label}
+                </ToggleButton>
+              </DisabledReason>
             );
           })}
           {pathways.length > PATHWAY_CHIPS_SHOWN && (

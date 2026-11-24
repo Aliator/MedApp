@@ -31,6 +31,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {CardSection} from '../../components/views/CardSection';
 import {ViewCard} from '../../components/views/ViewCard';
+import {DisabledReason} from '../../components/shared/DisabledReason';
 
 /** Why it can't be turned off, when the account must use it. */
 export const REQUIRED = 'Admin accounts must use two-factor authentication here, so it can\'t be turned off.';
@@ -284,14 +285,15 @@ export function SecurityPage() {
                   onClick={() => startSetUp('Authenticator')}
                 />
               )}
-              <Button
-                label="Turn Off"
-                variant="destructive"
-                icon={<Icon icon={AppIcon.Cancel} />}
-                isDisabled={required}
-                tooltip={required ? REQUIRED : undefined}
-                onClick={() => open('disable')}
-              />
+              <DisabledReason reason={required ? REQUIRED : undefined}>
+                <Button
+                  label="Turn Off"
+                  variant="destructive"
+                  icon={<Icon icon={AppIcon.Cancel} />}
+                  isDisabled={required}
+                  onClick={() => open('disable')}
+                />
+              </DisabledReason>
             </>
           ) : (
             <Button

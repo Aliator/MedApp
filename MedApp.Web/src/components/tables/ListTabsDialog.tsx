@@ -11,6 +11,7 @@ import {useMemo, useState} from 'react';
 import type {FavouriteValues, ListTab} from '../../app/favourites';
 import {ConfirmDialog} from '../modals/ConfirmDialog';
 import {AppIcon} from '../shared/icons';
+import {DisabledReason} from '../shared/DisabledReason';
 
 /** What the dialog shows: the tabs, one tab's name and search (a new one has no ID), or the question before a reset. */
 type Mode = {kind: 'list'} | {kind: 'edit'; id?: string; name: string; filters: PowerSearchFilter[]} | {kind: 'reset'};
@@ -149,15 +150,17 @@ export function ListTabsDialog({
                     size="sm"
                     onClick={() => setMode({kind: 'edit', id: tab.id, name: tab.label, filters: toFilters(tab.values)})}
                   />
-                  <IconButton
-                    label={`Remove ${tab.label}`}
-                    tooltip={tabs.length === 1 ? 'A list keeps one favourite at least' : 'Remove'}
-                    icon={<Icon icon={AppIcon.Delete} />}
-                    variant="ghost"
-                    size="sm"
-                    isDisabled={tabs.length === 1}
-                    onClick={() => onRemove(tab.id)}
-                  />
+                  <DisabledReason reason={tabs.length === 1 ? 'A list keeps one favourite at least' : undefined}>
+                    <IconButton
+                      label={`Remove ${tab.label}`}
+                      tooltip={tabs.length === 1 ? undefined : 'Remove'}
+                      icon={<Icon icon={AppIcon.Delete} />}
+                      variant="ghost"
+                      size="sm"
+                      isDisabled={tabs.length === 1}
+                      onClick={() => onRemove(tab.id)}
+                    />
+                  </DisabledReason>
                 </HStack>
               }
             />

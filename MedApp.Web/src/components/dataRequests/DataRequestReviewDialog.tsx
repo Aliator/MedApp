@@ -25,6 +25,7 @@ import {DialogFrame} from '../modals/DialogFrame';
 import {PatientBanner, type BannerPatient} from '../patients/PatientBanner';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
+import {DisabledReason} from '../shared/DisabledReason';
 
 /** Plain text keeps the lines it was written with. */
 const PRESERVE_LINES = {whiteSpace: 'pre-wrap'} as const;
@@ -116,15 +117,16 @@ export function DataRequestReviewDialog({request, patient, onCancel, onDone}: Da
       footer={
         <>
           <Button label="Cancel" variant="secondary" isDisabled={isSaving} onClick={onCancel} />
-          <Button
-            label="Save Review"
-            variant="primary"
-            icon={<Icon icon={AppIcon.Save} />}
-            isLoading={isSaving}
-            isDisabled={!items.isSuccess || isMissingReason}
-            tooltip={isMissingReason ? 'Give a reason for each item withheld.' : undefined}
-            onClick={save}
-          />
+          <DisabledReason reason={isMissingReason ? 'Give a reason for each item withheld.' : undefined}>
+            <Button
+              label="Save Review"
+              variant="primary"
+              icon={<Icon icon={AppIcon.Save} />}
+              isLoading={isSaving}
+              isDisabled={!items.isSuccess || isMissingReason}
+              onClick={save}
+            />
+          </DisabledReason>
         </>
       }>
       <VStack gap={4} hAlign="stretch">
