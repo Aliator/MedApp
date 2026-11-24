@@ -2,6 +2,7 @@ import {fireEvent, renderHook, screen, waitFor} from '@testing-library/react';
 import {json, mockApi, renderWithApp, staffUser} from '../../test/render';
 import {AppSideNav} from './AppSideNav';
 import {TOUCH_NAV_QUERY, useIsTouchNav} from './touchNav';
+import {appSettings} from '../../app/settingsStore';
 
 function givenTouchScreen(isTouch: boolean) {
   vi.stubGlobal('matchMedia', (media: string) => ({
@@ -50,5 +51,26 @@ describe('the side nav on a touch screen', () => {
 
     await screen.findByRole('link', {name: /^patients$/i});
     expect(document.querySelector('button[aria-label="Patients options"]')).not.toBeNull();
+  });
+
+  it('brings the row menus back, always shown, when Always show the side nav\'s menu buttons is on', async () => {
+    givenTouchScreen(true);
+    appSettings.set('medapp.navAlwaysShowRowMenus', 'true');
+    renderNav(`/patients/${patientId}/edit`);
+
+    await screen.findByRole('link', {name: /^patients$/i});
+    const button = document.querySelector<HTMLElement>('button[aria-label="Patients options"]');
+    expect(button).not.toBeNull();
+    expect(button!.closest('[style*="visibility: hidden"]')).toBeNull();
+  });
+
+  it('shows a mouse user the row menus without hovering when the setting is on', async () => {
+    givenTouchScreen(false);
+    appSettings.set('medapp.navAlwaysShowRowMenus', 'true');
+    renderNav(`/patients/${patientId}/edit`);
+
+    await screen.findByRole('link', {name: /^patients$/i});
+    const button = document.querySelector<HTMLElement>('button[aria-label="Patients options"]');
+    expect(button!.closest('[style*="visibility: hidden"]')).toBeNull();
   });
 });

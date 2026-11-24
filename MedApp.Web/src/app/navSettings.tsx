@@ -29,6 +29,7 @@ type StartPath = (typeof START_PAGES)[number]['path'];
 const FLYOUT_DELAY_KEY = defineSetting('medapp.navFlyoutDelay');
 const START_PAGE_KEY = defineSetting('medapp.startPage');
 const FOLDS_IN_HALF_VIEW_KEY = defineSetting('medapp.navFoldsInHalfView');
+const ALWAYS_SHOW_ROW_MENUS_KEY = defineSetting('medapp.navAlwaysShowRowMenus');
 
 interface NavSettingsContextValue {
   flyoutDelay: FlyoutDelay;
@@ -42,6 +43,9 @@ interface NavSettingsContextValue {
   /** Whether opening a half view folds the side nav to its icon rail (on unless turned off). */
   foldsInHalfView: boolean;
   setFoldsInHalfView: (folds: boolean) => void;
+  /** Whether each side nav row's menu button always shows, rather than only while the row is hovered (off unless turned on). */
+  alwaysShowRowMenus: boolean;
+  setAlwaysShowRowMenus: (always: boolean) => void;
 }
 
 const NavSettingsContext = createContext<NavSettingsContextValue | null>(null);
@@ -67,13 +71,16 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
   const [storedDelay, storeDelay] = useAppSetting(FLYOUT_DELAY_KEY);
   const [storedStart, storeStart] = useAppSetting(START_PAGE_KEY);
   const [storedFolds, storeFolds] = useAppSetting(FOLDS_IN_HALF_VIEW_KEY);
+  const [storedAlways, storeAlways] = useAppSetting(ALWAYS_SHOW_ROW_MENUS_KEY);
   const flyoutDelay: FlyoutDelay = FLYOUT_DELAYS.find((option) => option.value === storedDelay)?.value ?? 'standard';
   const startPage: StartPage = START_PAGES.find((option) => option.value === storedStart)?.value ?? 'home';
   const foldsInHalfView = storedFolds !== 'false';
+  const alwaysShowRowMenus = storedAlways === 'true';
 
   const setFlyoutDelay = useCallback((delay: FlyoutDelay) => storeDelay(delay), [storeDelay]);
   const setStartPage = useCallback((page: StartPage) => storeStart(page), [storeStart]);
   const setFoldsInHalfView = useCallback((folds: boolean) => storeFolds(String(folds)), [storeFolds]);
+  const setAlwaysShowRowMenus = useCallback((always: boolean) => storeAlways(String(always)), [storeAlways]);
 
   const value = useMemo(
     () => ({
@@ -85,8 +92,10 @@ export function NavSettingsProvider({children}: {children: ReactNode}) {
       setStartPage,
       foldsInHalfView,
       setFoldsInHalfView,
+      alwaysShowRowMenus,
+      setAlwaysShowRowMenus,
     }),
-    [flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView],
+    [flyoutDelay, setFlyoutDelay, startPage, setStartPage, foldsInHalfView, setFoldsInHalfView, alwaysShowRowMenus, setAlwaysShowRowMenus],
   );
   return <NavSettingsContext.Provider value={value}>{children}</NavSettingsContext.Provider>;
 }
@@ -100,6 +109,8 @@ const DEFAULTS: NavSettingsContextValue = {
   setStartPage: () => {},
   foldsInHalfView: true,
   setFoldsInHalfView: () => {},
+  alwaysShowRowMenus: false,
+  setAlwaysShowRowMenus: () => {},
 };
 
 /** The side nav settings; outside the provider (tests of one part), the defaults. */
