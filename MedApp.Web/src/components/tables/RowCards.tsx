@@ -14,7 +14,7 @@ import type {TableSort} from './sorting';
 /** Below this width (rem), a card's actions go under its title, and `TableActions` folds more than two into a menu. */
 export const COMPACT_ROW_REM = 30;
 
-const CompactRowContext = createContext(false);
+export const CompactRowContext = createContext(false);
 
 /** Whether a row's actions are in a narrow card (a phone), under its title: more than two go in one Actions menu. */
 export const useIsCompactRow = () => useContext(CompactRowContext);

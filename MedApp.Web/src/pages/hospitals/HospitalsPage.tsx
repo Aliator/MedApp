@@ -1,6 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
-import {List, ListItem} from '@astryxdesign/core/List';
 import {MetadataList, MetadataListItem} from '@astryxdesign/core/MetadataList';
 import {NumberInput} from '@astryxdesign/core/NumberInput';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
@@ -25,6 +24,7 @@ import {Page} from '../../components/pages/Page';
 import {SetupNameCell, SetupStatusToken} from '../../components/pathways/SetupCells';
 import {AlertMessage, ValidationAlert} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
+import {ActionsList, ActionsListItem} from '../../components/tables/ActionsList';
 import {TableActions} from '../../components/tables/TableActions';
 import {PanelCard} from '../../components/views/PanelCard';
 import {NO_PROBLEM, saveProblem, type SaveProblem} from '../saveProblem';
@@ -226,12 +226,12 @@ export function HospitalsPage() {
             </Text>
           </VStack>
         ) : (
-          <List edge="bleed" hasDividers aria-label="Hospitals">
+          <ActionsList edge="bleed" hasDividers aria-label="Hospitals">
             {items.map((hospital) => (
-              <ListItem
+              <ActionsListItem
                 key={hospital.id}
                 label={<SetupNameCell name={hospital.name ?? ''} secondary={hospitalDetailWords(hospital)} />}
-                endContent={
+                actions={
                   <HStack gap={2} vAlign="center">
                     <SetupStatusToken isArchived={hospital.isArchived ?? false} />
                     <TableActions
@@ -256,7 +256,7 @@ export function HospitalsPage() {
                 }
               />
             ))}
-          </List>
+          </ActionsList>
         )}
       </PanelCard>
     </Page>
