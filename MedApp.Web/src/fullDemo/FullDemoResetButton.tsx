@@ -18,7 +18,7 @@ export function FullDemoResetButton({path = '/', isDisabled = false}: {path?: st
       <ConfirmDialog
         isOpen={isOpen}
         title="Reset the Demo?"
-        message="Everything you’ve changed in this browser goes, and the demo starts again from the published data."
+        message="The demo’s data is downloaded again, and everything you’ve changed in it goes. Your settings stay."
         isDanger
         confirmText="Reset the Demo"
         isProcessing={isResetting}

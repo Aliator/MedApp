@@ -17,7 +17,7 @@ describe('FullDemoResetCard', () => {
     expect(await screen.findByText(/own copy of the demo data \(published 2026-11-23\)/)).toBeInTheDocument();
     await user.click(await screen.findByRole('button', {name: 'Reset the Demo'}));
     const dialog = openDialog()!;
-    expect(within(dialog).getByText(/Everything you’ve changed in this browser goes/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/The demo’s data is downloaded again/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', {name: 'Reset the Demo'}));
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith('/'));
