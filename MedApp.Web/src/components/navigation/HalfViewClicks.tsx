@@ -85,16 +85,16 @@ export function HalfViewClicks() {
     const take = (event: MouseEvent | KeyboardEvent): void => {
       const {halfViews: views, isMobile: isPhone} = latest.current;
       if (!views || isPhone || event.defaultPrevented) return;
-      const side = halfViewSide(event);
-      const isPlain = !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey;
-      if (isPlain && event.target instanceof Element && event.target.closest('[aria-label="Right half"]')) {
-        const href = halfViewHref(event.target, router.options.basepath);
-        if (!href || event.target.closest(`[${HALF_VIEW_HREF}]`)) return;
+      const back = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-page-back] a[href]') : null;
+      if (back) {
+        if (!event.shiftKey && !event.ctrlKey && !event.metaKey) return;
         event.preventDefault();
         event.stopPropagation();
-        void router.navigate({href});
+        back.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, button: 0}));
         return;
       }
+      const side = halfViewSide(event);
+      const inRight = event.target instanceof Element && event.target.closest('[aria-label="Right half"]') !== null;
       if (!side) return;
       const basepath = router.options.basepath;
       const href = halfViewHref(event.target, basepath);
@@ -109,6 +109,10 @@ export function HalfViewClicks() {
       if (pathOf(href) === pathOf(withoutBase(router.state.location.pathname, basepath))) {
         // Already on the left: what a plain click does (the link's own handlers, or the browser's).
         element?.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, button: 0}));
+        return;
+      }
+      if (side === 'right' && inRight) {
+        void router.navigate({href});
         return;
       }
       if (side === 'right') views.open(href);
