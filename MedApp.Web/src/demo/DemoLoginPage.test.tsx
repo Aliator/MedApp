@@ -3,6 +3,9 @@ import {renderWithApp} from '../test/render';
 import {startLightDemo} from '../test/lightDemo';
 import {EYE_CLINIC_ADMIN, STAFF} from './accounts';
 import {DemoLoginPage} from './DemoLoginPage';
+import {refreshApp} from './refreshApp';
+
+vi.mock('./refreshApp', () => ({refreshApp: vi.fn()}));
 
 describe('DemoLoginPage', () => {
   it('offers the five demo accounts, and signs in as the one chosen', async () => {
@@ -18,5 +21,14 @@ describe('DemoLoginPage', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(state.user).toBe(STAFF.username);
+  });
+
+  it('starts the demo again from scratch with Refresh App', async () => {
+    startLightDemo(null);
+    const {user} = renderWithApp(<DemoLoginPage />, {path: '/login'});
+
+    await user.click(await screen.findByRole('button', {name: 'Refresh App'}));
+
+    expect(refreshApp).toHaveBeenCalled();
   });
 });
