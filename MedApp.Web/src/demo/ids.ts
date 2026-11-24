@@ -20,12 +20,14 @@ export const USERS = {
   aldous: id(0xd0, 7),
   varma: id(0xd0, 8),
   ferrand: id(0xd0, 9),
+  castell: id(0xd0, 10),
 } as const;
 
 export const TEAMS = {
   /** The two clinics and the lab (20 Nov: Dermatology, the Eye clinic and the lab). */
   dermatology: id(0xd1, 1),
   eyeClinic: id(0xd1, 7),
+  lowerLimb: id(0xd1, 8),
   lab: id(0xd1, 6),
 } as const;
 
@@ -33,6 +35,7 @@ export const TEAMS = {
 export const TEAM_NAMES: [string, string][] = [
   [TEAMS.dermatology, 'Dermatology'],
   [TEAMS.eyeClinic, 'Eye clinic'],
+  [TEAMS.lowerLimb, 'Lower limb biomechanics'],
   // The lab (decision 182): a team of its own kind, serving every clinic.
   [TEAMS.lab, 'Lab'],
 ];
@@ -56,6 +59,7 @@ export const TEMPLATES = {
   glaucoma: id(0xd2, 18),
   redEye: id(0xd2, 19),
   macular: id(0xd2, 20),
+  lowerLimb: id(0xd2, 21),
 } as const;
 
 /** Addable routes (MC10): routes a clinician may add on new information, never suggested. */
@@ -101,6 +105,7 @@ export const PATIENTS = {
   hamishDewar: id(0xd4, 19),
   /** Referred to the Eye clinic: awaiting triage. */
   ruthPenhaligon: id(0xd4, 20),
+  joelBrannock: id(0xd4, 21),
 } as const;
 
 export const PATHWAYS = {
@@ -136,6 +141,7 @@ export const PATHWAYS = {
   eyeRedEye: id(0xd5, 20),
   /** Macular assessment, Hamish Dewar: at Triage, nobody assigned yet. */
   eyeMacular: id(0xd5, 21),
+  lowerLimb: id(0xd5, 22),
 } as const;
 
 export const REFERRALS = {
@@ -158,6 +164,8 @@ export const APPOINTMENTS = {
   edithBiometry: id(0xd7, 7),
   oliverGlaucoma: id(0xd7, 8),
   freyaExam: id(0xd7, 9),
+  joelAssessment: id(0xd7, 10),
+  joelFitting: id(0xd7, 11),
 } as const;
 
 export const MEETINGS = {
