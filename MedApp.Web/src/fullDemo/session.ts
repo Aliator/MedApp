@@ -98,13 +98,12 @@ export async function switchAccount(username: string, path: string, resolvePath:
 
 /**
  * Reset: forgets this browser's copy of the database, so the next start downloads the published one, and reloads at
- * `path` (who's signed in is kept, as the light demo's Reset keeps them). The browser's app storage (pins, settings,
- * list choices) goes too, as a first visit has it.
+ * `path` (who's signed in is kept, as the light demo's Reset keeps them). Only the data: settings and pins stay
+ * (Refresh App clears those too).
  */
 export async function resetFullDemo(path = '/'): Promise<void> {
   const backend = await backendModule();
   await backend.forgetSavedDatabase();
-  clearAllAppStorage();
   closeHalfView();
   fullDemoNavigation.assign(`${base()}${path}`);
 }
