@@ -24,6 +24,7 @@ const member = (teamId: string): DemoMembership => ({teamId, role: 'Member'});
 
 /** What the Clinician role allows (the API's `StandardRoles.Clinician`). */
 const CLINICIAN: Permission[] = [
+  'ArrangeMeetings',
   'UseApp',
   'ViewPatients',
   'EditPatients',
@@ -45,7 +46,7 @@ const CLINICIAN: Permission[] = [
 ];
 
 /** What the Lab role allows (the API's `StandardRoles.Lab`). */
-const LAB_ROLE: Permission[] = ['UseApp', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'];
+const LAB_ROLE: Permission[] = ['UseApp', 'ArrangeMeetings', 'ViewPatients', 'WorkPathways', 'AttachFiles', 'RecordSpecimens', 'ProcessSpecimens'];
 
 /** What the Pathologist role allows (MC15's new starting role): the Lab role's, and authorising lab reports. */
 export const PATHOLOGIST_ROLE: Permission[] = [...LAB_ROLE, 'AuthoriseLabReports'];
