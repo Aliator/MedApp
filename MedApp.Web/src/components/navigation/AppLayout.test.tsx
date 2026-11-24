@@ -1,7 +1,7 @@
 import {SideNavRenderContext} from '@astryxdesign/core/SideNav';
 import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {adminUser, isDisabled, json, mockFetch, pageOf, renderApp, rowMenuItem} from '../../test/render';
+import {adminUser, isDisabled, json, mockFetch, openDialog, pageOf, renderApp, rowMenuItem} from '../../test/render';
 import {SideNavTheme} from './AppLayout';
 
 /** Every list is empty: enough for the pages to render their headers. */
@@ -470,5 +470,23 @@ describe('AppLayout notepad', {timeout: 20_000}, () => {
     await user.click(screen.getByRole('button', {name: 'Close notepad'}));
     await waitFor(() => expect(screen.queryByRole('region', {name: 'Notepad'})).not.toBeInTheDocument());
     await waitFor(() => expect(nav.getByRole('button', {name: 'Notepad'})).toHaveFocus());
+  });
+});
+
+describe('AppLayout sign out', {timeout: 15_000}, () => {
+  it("asks outside the side nav, which a phone hides (its drawer closes as Sign Out is tapped), then signs out", async () => {
+    emptyApi();
+    const {user, router} = renderApp({path: '/patients', user: adminUser});
+    await heading('Patients');
+
+    const nav = screen.getAllByRole('navigation', {name: 'Side navigation'})[0];
+    await user.click(within(nav).getByRole('button', {name: 'Sign Out'}));
+    const dialog = openDialog()!;
+    expect(dialog).toHaveAccessibleName('Sign Out');
+    // Outside the shell, whose side nav (column, top bar or drawer) a phone may hide.
+    expect(dialog.closest('.astryx-app-shell')).toBeNull();
+
+    await user.click(within(dialog).getByRole('button', {name: 'Sign Out'}));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
   });
 });

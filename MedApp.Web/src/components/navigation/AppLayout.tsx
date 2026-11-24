@@ -23,11 +23,12 @@ import {
   type DialogRegion,
   type HalfView,
 } from '../pages/halfView';
-import {AppSideNav} from './AppSideNav';
+import {AppSideNav, AskToSignOutContext, SignOutDialog} from './AppSideNav';
 import {KeyboardShortcuts} from './KeyboardShortcuts';
 import {PermissionMissingWatcher} from './PermissionMissingWatcher';
 import {SessionTimeout} from './SessionTimeout';
 import {HalfViewClicks} from './HalfViewClicks';
+import {useIsTouchNav} from './touchNav';
 
 const STORAGE_KEY = 'medapp.halfView';
 
@@ -110,6 +111,7 @@ export function AppLayout() {
 
 function MainLayout() {
   const router = useRouter();
+  const isTouchNav = useIsTouchNav();
   // Whether opening a half view folds the side nav to its icons (Account Settings; on by default).
   const {foldsInHalfView} = useNavSettings();
   // The half view's page; `key` starts it afresh when another page is opened in it.
@@ -208,6 +210,8 @@ function MainLayout() {
   const mainHalf: HalfView = {isHalf: true, side: 'left', onClose: () => close(true)};
   const otherHalf: HalfView = {isHalf: true, side: 'right', onClose: () => close(false)};
   const isNotepadDocked = useNotepadDocked();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const askToSignOut = useCallback(() => setIsSigningOut(true), []);
 
   // Where dialogs go: over the region of the page that opened them while something is beside it (a half of a half
   // view, or the page beside the docked notepad), so the rest stays usable (`DialogFrame`, `RegionDialog`).
@@ -222,7 +226,7 @@ function MainLayout() {
   const leftRegion = useMemo<DialogRegion>(() => ({element: leftArea, host: dialogHost, isBeside: true}), [leftArea, dialogHost]);
   const rightRegion = useMemo<DialogRegion>(() => ({element: rightArea, host: dialogHost, isBeside: true}), [rightArea, dialogHost]);
 
-  const pages = half ? (
+  const pages = half && !isTouchNav ? (
     // Each half scrolls on its own: a long page scrolls in its half, not the whole window, and only up and
     // down (a page that's too wide for its half shrinks or wraps its parts instead). The shell has no padding
     // here, so each page's frame insets it from the window's edges and the divider by the usual 24px, and
@@ -252,7 +256,7 @@ function MainLayout() {
   return (
     // Ctrl+S saves the form that's open, in either half.
     <SaveShortcutProvider>
-      <HalfViewsContext.Provider value={halfViews}>
+      <HalfViewsContext.Provider value={isTouchNav ? null : halfViews}>
         {/* The settings, kept with the account while signed in. */}
         <SettingsSync />
         {/* The keyboard shortcuts (Account Settings, Accessibility), and their list (?). */}
@@ -268,13 +272,15 @@ function MainLayout() {
           sideNav={
             // The side nav is dark in both modes: in light mode it keeps the dark mode's colours.
             <SideNavTheme>
-              <AppSideNav
-                collapsible={{
-                  isCollapsed: isNavCollapsed,
-                  onCollapsedChange: setIsNavCollapsed,
-                  hasButton: half !== null,
-                }}
-              />
+              <AskToSignOutContext.Provider value={askToSignOut}>
+                <AppSideNav
+                  collapsible={{
+                    isCollapsed: isNavCollapsed,
+                    onCollapsedChange: setIsNavCollapsed,
+                    hasButton: half !== null,
+                  }}
+                />
+              </AskToSignOutContext.Provider>
             </SideNavTheme>
           }
           // In a half view, or beside the docked notepad, each page's frame insets it instead (see below).
@@ -321,6 +327,8 @@ function MainLayout() {
         </Center>
         {/* On a narrow window, the notepad is a full-screen sheet instead. */}
         <NotepadSheet />
+        {/* Sign Out asks here, not in the nav, which a phone hides (its drawer closes as Sign Out is tapped). */}
+        <SignOutDialog isOpen={isSigningOut} onClose={() => setIsSigningOut(false)} />
       </HalfViewsContext.Provider>
     </SaveShortcutProvider>
   );

@@ -1,4 +1,5 @@
 import {screen, waitFor, within} from '@testing-library/react';
+import {givenWidth} from '../../test/layout';
 import {mdtItem, mdtMeeting} from '../../test/mdt';
 import {calls, json, mockApi, openDialog, renderWithApp} from '../../test/render';
 import {meetingLabel} from './MdtDialogs';
@@ -199,6 +200,33 @@ describe('MdtItemList', () => {
   it("offers Record Outcome only when the item's flag says so", async () => {
     renderWithApp(<MdtItemList items={[mdtItem({canRecordOutcome: true})]} meetings={[mdtMeeting()]} emptyText="None." />);
     expect(await screen.findByRole('button', {name: 'Record Outcome'})).toBeInTheDocument();
+  });
+});
+
+describe('MdtItemList in a narrow list (a phone)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('puts the actions under the item: the first a button, the rest in one Actions menu', async () => {
+    givenWidth(358);
+    const item = mdtItem({canRecordOutcome: true, canChoosePresenter: true});
+    const {user} = renderWithApp(<MdtItemList items={[item]} meetings={[mdtMeeting()]} emptyText="None." />);
+
+    const record = await screen.findByRole('button', {name: 'Record Outcome'});
+    expect(screen.getByText(/^Question:/).compareDocumentPosition(record) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('button', {name: 'Withdraw'})).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', {name: 'Actions'}));
+    await user.click(await screen.findByRole('menuitem', {name: 'Withdraw'}));
+
+    await waitFor(() => expect(openDialog()).toHaveAccessibleName(/Withdraw/));
+  });
+
+  it('keeps two actions as buttons', async () => {
+    givenWidth(358);
+    renderWithApp(<MdtItemList items={[mdtItem()]} meetings={[mdtMeeting()]} emptyText="None." />);
+
+    expect(await screen.findByRole('button', {name: 'Move'})).toBeInTheDocument();
+    expect(screen.getByRole('button', {name: 'Withdraw'})).toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: 'Actions'})).not.toBeInTheDocument();
   });
 });
 

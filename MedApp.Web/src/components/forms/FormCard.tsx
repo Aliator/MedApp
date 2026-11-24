@@ -4,6 +4,7 @@ import {Card} from '@astryxdesign/core/Card';
 import {Section} from '@astryxdesign/core/Section';
 import {HStack, StackItem, VStack} from '@astryxdesign/core/Stack';
 import {useRef, type FormEvent, type ReactNode} from 'react';
+import {useIsNarrow} from '../pages/Page';
 import {AppIcon} from '../shared/icons';
 import {InCardContext} from '../views/CardSection';
 import {useSaveShortcut} from './SaveShortcut';
@@ -37,7 +38,8 @@ const FILL = {height: '100%'};
 /**
  * A form in a card (replaces Blazor's FormCard): sections, each with its title as a header bar across the card,
  * then a footer with Delete at the start and Cancel and Save at the end. It is a native <form>, so Enter submits
- * it, and Save is its submit button. Ctrl+S (⌘S on a Mac) submits it too (`useSaveShortcut`).
+ * it, and Save is its submit button. Ctrl+S (⌘S on a Mac) submits it too (`useSaveShortcut`). In a narrow layout the
+ * footer's buttons wrap onto more lines rather than cutting their names short.
  */
 export function FormCard({
   children,
@@ -53,6 +55,7 @@ export function FormCard({
   fill = false,
 }: FormCardProps) {
   const form = useRef<HTMLFormElement>(null);
+  const isNarrow = useIsNarrow();
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isProcessing) onSave?.();
@@ -85,7 +88,7 @@ export function FormCard({
   function footer() {
     return (
       <Section variant="muted" padding={4}>
-        <HStack gap={2} vAlign="center">
+        <HStack gap={2} vAlign="center" wrap={isNarrow ? 'wrap' : undefined}>
           {onDelete && (
             <Button
               label={deleteText}

@@ -11,6 +11,7 @@ import {AnchoredSelector} from '../../components/forms/AnchoredSelector';
 import {meetingLabel} from '../../components/mdt/MdtDialogs';
 import {MdtItemList} from '../../components/mdt/MdtItemList';
 import {Page} from '../../components/pages/Page';
+import {useIsTouchNav} from '../../components/navigation/touchNav';
 import {AlertMessage} from '../../components/shared/AlertMessage';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {AppIcon} from '../../components/shared/icons';
@@ -40,7 +41,8 @@ export interface MdtPageProps {
  * pathway (with its files), and once discussed the outcome as written and who was present; and below, items whose
  * meeting was cancelled, to list again. Another team's MDT shows only the cases its attendees may read, and why
  * (MC26). Print prints the list. Opening the list records that each patient on it was
- * listed (the API does). A meeting's title and notes never name patients: the list is separate.
+ * listed (the API does). A meeting's title and notes never name patients: the list is separate. On a phone the page
+ * scrolls as a whole, without the description, so the meeting's list isn't a sliver under the header and choices.
  */
 export function MdtPage({search, onSearchChange}: MdtPageProps) {
   const teams = useQuery(teamsQuery(true));
@@ -49,12 +51,38 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
   const list = useQuery({...mdtMeetingListQuery(meeting?.id ?? ''), enabled: Boolean(meeting?.id)});
   const awaiting = useQuery(mdtAwaitingMeetingQuery(search.team));
   const go = (next: Partial<MdtSearch>) => onSearchChange({...search, ...next});
+  const isPhone = useIsTouchNav();
+
+  const meetingCard = (
+    <PanelCard title={meeting ? meetingLabel(meeting) : 'No MDT chosen'}>
+      {!meeting ? (
+        <Text type="body" color="secondary">
+          {meetings.isLoading ? 'Loading...' : 'No MDTs in the last 60 days or the next 180. Whoever arranges a meeting ticks This is an MDT meeting.'}
+        </Text>
+      ) : list.isError ? (
+        <AlertMessage label="List not loaded" message={problemMessage(list.error, 'The list could not be loaded.')} />
+      ) : !list.data ? (
+        <Text type="body" color="secondary">Loading...</Text>
+      ) : (
+        <MdtItemList
+          items={list.data.items ?? []}
+          meetings={meetings.data ?? []}
+          isLoadingMeetings={meetings.isLoading}
+          showsPatient
+          linksPathway
+          emptyText={
+            list.data.readOnlyReason ? 'No cases on this MDT for you to see.' : 'No pathways are listed for this MDT yet. List one from its page.'
+          }
+        />
+      )}
+    </PanelCard>
+  );
 
   return (
     <Page
       title="MDT"
-      subtitle="Multidisciplinary team meetings: the pathways listed, and the team's outcomes as recorded."
-      fill
+      subtitle={isPhone ? undefined : "Multidisciplinary team meetings: the pathways listed, and the team's outcomes as recorded."}
+      fill={!isPhone}
       message={
         meetings.isError ? (
           <AlertMessage label="MDTs not loaded" message={problemMessage(meetings.error, 'The MDTs could not be loaded.')} />
@@ -63,7 +91,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
         )
       }
       actions={<Button label="Print" variant="secondary" icon={<Icon icon={AppIcon.Print} />} onClick={() => window.print()} isDisabled={!list.data} />}>
-      <VStack gap={4} height="100%">
+      <VStack gap={4} height={isPhone ? undefined : '100%'}>
         <HStack gap={2} vAlign="end" wrap="wrap">
           <AnchoredSelector
             label="Team"
@@ -80,30 +108,7 @@ export function MdtPage({search, onSearchChange}: MdtPageProps) {
             options={(meetings.data ?? []).map((m) => ({value: m.id ?? '', label: meetingLabel(m)}))}
           />
         </HStack>
-        <StackItem size="fill">
-          <PanelCard title={meeting ? meetingLabel(meeting) : 'No MDT chosen'}>
-            {!meeting ? (
-              <Text type="body" color="secondary">
-                {meetings.isLoading ? 'Loading...' : 'No MDTs in the last 60 days or the next 180. Whoever arranges a meeting ticks This is an MDT meeting.'}
-              </Text>
-            ) : list.isError ? (
-              <AlertMessage label="List not loaded" message={problemMessage(list.error, 'The list could not be loaded.')} />
-            ) : !list.data ? (
-              <Text type="body" color="secondary">Loading...</Text>
-            ) : (
-              <MdtItemList
-                items={list.data.items ?? []}
-                meetings={meetings.data ?? []}
-                isLoadingMeetings={meetings.isLoading}
-                showsPatient
-                linksPathway
-                emptyText={
-                  list.data.readOnlyReason ? 'No cases on this MDT for you to see.' : 'No pathways are listed for this MDT yet. List one from its page.'
-                }
-              />
-            )}
-          </PanelCard>
-        </StackItem>
+        {isPhone ? meetingCard : <StackItem size="fill">{meetingCard}</StackItem>}
         {(awaiting.data ?? []).length > 0 && (
           <PanelCard title="Meeting cancelled: list again">
             <MdtItemList
