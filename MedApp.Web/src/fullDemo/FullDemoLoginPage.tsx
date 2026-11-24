@@ -11,7 +11,8 @@ import {accountDescription, accountLabel, orderAccounts} from './accounts';
 import type {DemoAccount} from './backend';
 import {FullDemoProgress, useStartup} from './FullDemoProgress';
 import {FullDemoResetButton} from './FullDemoResetButton';
-import {DEMO_PASSWORD} from './session';
+import {useState} from 'react';
+import {DEMO_PASSWORD, refreshFullDemo} from './session';
 
 /**
  * The full demo's login page (its build only): the people in the demo database (`db-version.json`'s `accounts`), the
@@ -23,6 +24,7 @@ export function FullDemoLoginPage({redirectTo}: {redirectTo?: string}) {
   const login = useLogin(redirectTo);
   const state = useStartup();
   const isReady = state.phase === 'ready';
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const {demo, others} = orderAccounts(state.version?.accounts ?? []);
 
   const row = (account: DemoAccount, isMain: boolean) => (
@@ -65,10 +67,24 @@ export function FullDemoLoginPage({redirectTo}: {redirectTo?: string}) {
           </VStack>
         )}
         <VStack gap={2} hAlign="stretch">
-          <Text type="supporting">Reset the Demo starts again from the published data, without your changes.</Text>
-          <HStack>
+          <Text type="supporting">
+            Reset the Demo starts again from the published data, without your changes. Refresh App does that too, clears your settings and
+            this browser&apos;s stored copies of the app, and loads the latest version.
+          </Text>
+          <HStack gap={2} wrap="wrap">
             {/* Not while it starts: the start would save the database it's downloading after it was forgotten. */}
             <FullDemoResetButton path="/login" isDisabled={!isReady && state.phase !== 'failed'} />
+            <Button
+              label="Refresh App"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.Refresh} />}
+              isDisabled={!isReady && state.phase !== 'failed'}
+              isLoading={isRefreshing}
+              onClick={() => {
+                setIsRefreshing(true);
+                void refreshFullDemo('/login');
+              }}
+            />
           </HStack>
         </VStack>
       </VStack>
