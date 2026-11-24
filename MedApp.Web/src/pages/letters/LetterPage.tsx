@@ -54,6 +54,7 @@ import {RichText} from '../../components/shared/RichText';
 import {SummaryAlert} from '../../components/shared/SummaryAlert';
 import {FoldingCard, type FoldingSection} from '../../components/views/FoldingCard';
 import {formatDateTime} from '../../utils/dates';
+import {DisabledReason} from '../../components/shared/DisabledReason';
 
 /** The dialog open, if any: a letter's, or a recipient's. */
 type Dialog =
@@ -275,24 +276,26 @@ export function LetterPage({id}: {id: string}) {
           <Button label="Download PDF" variant="secondary" icon={<Icon icon={AppIcon.Download} />} href={attachmentContentUrl(letter.pdfAttachmentId)} as={DownloadLink} />
         )}
         {letter.canSubmit && (
-          <Button
-            label="Submit for Approval"
-            variant={letter.canApprove ? 'secondary' : 'primary'}
-            icon={<Icon icon={AppIcon.Send} />}
-            isDisabled={Boolean(waitsForSave)}
-            tooltip={waitsForSave}
-            onClick={() => setDialog({kind: 'submit'})}
-          />
+          <DisabledReason reason={waitsForSave}>
+            <Button
+              label="Submit for Approval"
+              variant={letter.canApprove ? 'secondary' : 'primary'}
+              icon={<Icon icon={AppIcon.Send} />}
+              isDisabled={Boolean(waitsForSave)}
+              onClick={() => setDialog({kind: 'submit'})}
+            />
+          </DisabledReason>
         )}
         {letter.canApprove && (
-          <Button
-            label="Approve"
-            variant="primary"
-            icon={<Icon icon={AppIcon.Success} />}
-            isDisabled={Boolean(waitsForSave)}
-            tooltip={waitsForSave}
-            onClick={() => setDialog({kind: 'approve'})}
-          />
+          <DisabledReason reason={waitsForSave}>
+            <Button
+              label="Approve"
+              variant="primary"
+              icon={<Icon icon={AppIcon.Success} />}
+              isDisabled={Boolean(waitsForSave)}
+              onClick={() => setDialog({kind: 'approve'})}
+            />
+          </DisabledReason>
         )}
         {letter.canReturn && <Button label="Return" variant="secondary" icon={<Icon icon={AppIcon.Back} />} onClick={() => setDialog({kind: 'return'})} />}
         {letter.canWriteCorrection && (

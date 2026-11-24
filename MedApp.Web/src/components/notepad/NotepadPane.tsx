@@ -20,6 +20,7 @@ import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {AddToPathwayDialog, type NoteToAdd} from './AddToPathwayDialog';
 import {useNotepad} from './NotepadContext';
+import {DisabledReason} from '../shared/DisabledReason';
 
 /** How long typing must pause before the notepad saves by itself. */
 export const AUTOSAVE_MS = 1500;
@@ -377,14 +378,15 @@ function NotepadEditor({notepad, onReload, onRefresh}: NotepadEditorProps) {
             isDisabled={isEmpty || state.kind === 'conflict'}
           />
           <StackItem size="fill" />
-          <Button
-            label="Add Note to Pathway"
-            variant="secondary"
-            icon={<Icon icon={AppIcon.Add} />}
-            onClick={addToPathway}
-            isDisabled={pathways.length === 0 || isEmpty}
-            tooltip={pathways.length === 0 ? "Open a pathway's page to add a note to it" : undefined}
-          />
+          <DisabledReason reason={pathways.length === 0 ? "Open a pathway's page to add a note to it" : undefined}>
+            <Button
+              label="Add Note to Pathway"
+              variant="secondary"
+              icon={<Icon icon={AppIcon.Add} />}
+              onClick={addToPathway}
+              isDisabled={pathways.length === 0 || isEmpty}
+            />
+          </DisabledReason>
         </HStack>
       </VStack>
       <ConfirmDialog
