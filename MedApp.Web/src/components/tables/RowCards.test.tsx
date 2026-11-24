@@ -4,6 +4,7 @@ import {givenWidth} from '../../test/layout';
 import {renderWithApp} from '../../test/render';
 import {AppIcon} from '../shared/icons';
 import {RowCards} from './RowCards';
+import {AvatarCell} from './AvatarCell';
 import {TableActions} from './TableActions';
 
 type Row = {id: string; name: string; status: string};
@@ -142,6 +143,19 @@ describe('RowCards in a narrow card (a phone)', () => {
     expect(card.queryByRole('button', {name: 'Edit Biopsy'})).not.toBeInTheDocument();
     await user.click(menu);
     expect(await screen.findByRole('menuitem', {name: 'Delete Biopsy'})).toBeInTheDocument();
+  });
+
+  it("lets a person's name and details shrink beside their avatar, so they're cut short rather than widening the card", async () => {
+    const avatar: TableColumn<Row> = {key: 'name', header: 'User', renderCell: (r) => <AvatarCell primaryText={r.name} secondaryText="Synthetic Person, a long job title" />};
+    givenWidth(358);
+    const {unmount} = renderWithApp(<RowCards data={rows} columns={[avatar]} idKey="id" skeletonRows={3} />);
+    const textBox = async () => (await screen.findByText('Biopsy')).parentElement!.parentElement!;
+    expect(await textBox()).toHaveAttribute('data-size', 'fill');
+    unmount();
+
+    givenWidth(700);
+    renderWithApp(<RowCards data={rows} columns={[avatar]} idKey="id" skeletonRows={3} />);
+    expect(await textBox()).not.toHaveAttribute('data-size', 'fill');
   });
 
   it('keeps two actions as buttons', async () => {

@@ -16,7 +16,7 @@ export const COMPACT_ROW_REM = 30;
 
 export const CompactRowContext = createContext(false);
 
-/** Whether a row's actions are in a narrow card (a phone), under its title: more than two go in one Actions menu. */
+/** Whether a row's cells are in a narrow card (a phone): its actions under its title, more than two in one Actions menu. */
 export const useIsCompactRow = () => useContext(CompactRowContext);
 
 export interface RowCardsProps<T extends Record<string, unknown>> {
@@ -113,7 +113,7 @@ export function RowCards<T extends Record<string, unknown>>({
               <VStack gap={2}>
                 {isCompact ? (
                   <>
-                    {title?.renderCell?.(row)}
+                    <CompactRowContext.Provider value>{title?.renderCell?.(row)}</CompactRowContext.Provider>
                     {actions && (
                       <HStack gap={2} wrap="wrap">
                         <CompactRowContext.Provider value>{actions.renderCell?.(row)}</CompactRowContext.Provider>
