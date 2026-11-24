@@ -16,14 +16,14 @@ The owner's request: "Do a full pass over the mobile UI, check that everything w
 - **Touch targets:** nearly every button is 28 to 32 px tall (the bell 28 × 28, the menu button 32 × 32, the drawer's rows 32 px, row card icons 28 px). "Bigger buttons and fields" exists in Account Settings but is off.
 - **The side nav fix holds:** on touch there are no row menus or half view buttons, and a tap on any item opens its page and closes the drawer, at both sizes (every clinician item, and Samples for the lab).
 
-**Broken (can't be done on a phone):**
-1. **Sign Out from the drawer does nothing visible.** The "Are you sure?" dialog opens inside the desktop side nav column, which is `display: none` on a phone: it's open but 0 × 0 px, the drawer closes, and nobody can confirm. Both sizes.
-2. **Add Patient and Edit Patient:** the First name and Date of birth column is 10 px wide (the First name box 0 px), with the labels overlapping the next column's. A patient can't be added on a phone.
-3. **A pathway's MDT section:** Record Outcome overlaps the meeting's text, and Set Presenter, Move and Withdraw are cut off by up to 228 px (258 px at 360), out of reach.
-4. **The MDT page:** its title, description, Print, Team and Meeting leave the meeting's card a 41 px window (85 px at 360) on 6,678 px of content.
-5. **Hospital Request:** two columns that never stack, so the patient's name, date of birth and NHS number show a few letters per line, and the lab case number one character per line.
-6. **Users:** each card's eight icon buttons sit on top of the username; the row is 128 px (158 px) wider than the card.
-7. **Retention Review:** the card's Review, Keep and Anonymise buttons take the title's place, so the patient's name doesn't show at all (and Anonymise is cut 27 to 57 px). Nobody can tell whose record they'd anonymise.
+**Broken (can't be done on a phone):** all seven fixed on 24 November 2026 (see [5](#5-fixed-24-november-2026)).
+1. **Sign Out from the drawer does nothing visible.** The "Are you sure?" dialog opens inside the desktop side nav column, which is `display: none` on a phone: it's open but 0 × 0 px, the drawer closes, and nobody can confirm. Both sizes. **Fixed** (`dd702b7a`): the dialog is the app's (`AppLayout`), outside the shell.
+2. **Add Patient and Edit Patient:** the First name and Date of birth column is 10 px wide (the First name box 0 px), with the labels overlapping the next column's. A patient can't be added on a phone. **Fixed** (`0d35662d`): one column on a phone.
+3. **A pathway's MDT section:** Record Outcome overlaps the meeting's text, and Set Presenter, Move and Withdraw are cut off by up to 228 px (258 px at 360), out of reach. **Fixed** (`327a77ab`): the actions are under the item, Record Outcome and an Actions menu.
+4. **The MDT page:** its title, description, Print, Team and Meeting leave the meeting's card a 41 px window (85 px at 360) on 6,678 px of content. **Fixed** (`16b9d9c9`, with `327a77ab`): on a phone the page scrolls as a whole, without the description.
+5. **Hospital Request:** two columns that never stack, so the patient's name, date of birth and NHS number show a few letters per line, and the lab case number one character per line. **Fixed** (`fc6f32bb`): the cards stack, and their labels go above the values.
+6. **Users:** each card's eight icon buttons sit on top of the username; the row is 128 px (158 px) wider than the card. **Fixed** (`327a77ab`, `34bfec2b`): one Actions menu under the username, and the name and details cut short beside the avatar rather than widening the card.
+7. **Retention Review:** the card's Review, Keep and Anonymise buttons take the title's place, so the patient's name doesn't show at all (and Anonymise is cut 27 to 57 px). Nobody can tell whose record they'd anonymise. **Fixed** (`327a77ab`): the name first, then Review and an Actions menu (Keep, Anonymise).
 
 ## 2. Shared causes, and a better design for each
 
@@ -35,6 +35,8 @@ Fixing these components fixes most pages. Each names the pages it affects.
 
 **Better:** `columns={{minWidth: 240, max: 2}}`, Astryx's own advice for columns that reflow: one column on a phone or half view, two where they fit. Check that no form relies on two columns for meaning (the date and NHS number pairs don't).
 
+**Fixed** (`0d35662d`): in a narrow layout (`useIsNarrow`) `FormSection` uses `{minWidth: 240, max: 2}`; wide, it keeps its two fixed columns, so desktop is unchanged.
+
 ### 2.2 Rows with a title and actions side by side
 
 **What happens:** four components put a title and its buttons in one row that doesn't wrap, so the buttons keep their width and the title gets what's left, which on a phone is little or nothing:
@@ -45,11 +47,19 @@ Fixing these components fixes most pages. Each names the pages it affects.
 
 **Better, one rule for all four:** below about 480 px (or when the row's own width is short, `useNarrowerThan`), the title takes the whole first line and the actions go on a line of their own under it, wrapping. When a row has more than two actions, they become one "Actions" button (`AppIcon.Menu`) opening a menu, with at most the primary one left as a button. A card footer wraps, the primary button last and full width. Names and titles on cards wrap to two lines rather than being cut with an ellipsis.
 
+**Fixed** (`327a77ab`, `a9f2c65c`), except the wrapping of names and the primary button full width:
+- `RowCards`: on a card narrower than 30rem (`COMPACT_ROW_REM`, measured with `useNarrowerThan`), the title has the first line and the actions go under it; `TableActions` folds more than two into one `ActionsMenu` (new, `src/components/shared/`). Retention Review's own cell does the same (`useIsCompactRow`): Review, then Actions (Keep, Anonymise).
+- `MdtItemList`: in a list narrower than 30rem, the actions go under the item, the first a button and the rest in an Actions menu when there are more than two.
+- `PanelHeader` and `FormCard`'s footer wrap in a narrow layout (`useIsNarrow`): Home's Today title on two lines with Open Calendar under it; Edit Role's footer Archive, Cancel, then Save, uncut.
+- The setup lists that are `List`s rather than tables (Consent Forms, Hospitals, Specimen Setup) use the new `ActionsList`, with the same rule. Sites (deprecated) is left as it is.
+
 ### 2.3 `TwoColumns` doesn't stack by itself (`src/components/pages/TwoColumns.tsx`)
 
 **What happens:** it always renders two equal halves; each page is meant to ask `useIsNarrow()` and stack or show one column instead. Two pages don't: Hospital Request (broken) and Colours (Light Mode and Dark Mode squeezed side by side, "Standard" spilling out of its swatch, the Dark Mode badge cut). Every other page using it does it by hand, 13 times.
 
 **Better:** `TwoColumns` asks `useIsNarrow()` itself and stacks (or takes a `narrow="stack" | "tabs"` prop), and the pages drop their own copies.
+
+**Fixed** (`fc6f32bb`): `TwoColumns` stacks in a narrow layout, each card as tall as its content, and the page scrolls. The other pages' narrow layouts aren't copies of stacking (they merge the columns into one card of folding sections), so they stay. Hospital Request's details also put their labels above the values in a card under 30rem. As `useIsNarrow` is true below 1,400 px, Hospital Request and Colours now stack on a 1,280 px laptop too, as the other two-column pages already change layout there.
 
 ### 2.4 `Page` with `fill`: the chrome eats the screen (`src/components/pages/Page.tsx`)
 
@@ -89,7 +99,7 @@ Fixing these components fixes most pages. Each names the pages it affects.
 
 ### 2.10 The side nav, the bell and the notepad
 
-- **Sign Out (broken):** `AppSideNav`'s confirm dialog is rendered with the side nav column, which a phone hides; render it at the app's level (or in the drawer), as the drawer is what's shown.
+- **Sign Out (broken):** `AppSideNav`'s confirm dialog is rendered with the side nav column, which a phone hides; render it at the app's level (or in the drawer), as the drawer is what's shown. **Fixed** (`dd702b7a`): `AppLayout` gives the nav `AskToSignOutContext` and renders `SignOutDialog` itself (the drawer's copy of the nav was inside a hidden `Activity` once the drawer closed).
 - **The drawer:** works. Tapping MedApp while on Home leaves the drawer open (no navigation happens); close it on any tap of a link.
 - **The bell's list:** opens as a 632 px popover with its Close at the bottom, below the screen; a tap outside it (the 16 px margins) closes it. Better as a full-screen sheet with Close at the top, like the notepad.
 - **The notepad sheet:** works (full screen, Close at the top). It remembers being open (`medapp.notepadOpen`), so a page opened or reloaded on a phone comes back under the full-screen sheet; on a phone, don't reopen it on load.
@@ -110,22 +120,22 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 
 - **`/patients/`**: bad. Email cut 6 / 36 px; 2 cards a screen; internal ID shown. Better: card = name, NHS number, date of birth with age; three icons behind one Actions menu (2.2, 2.7); Add Patient stays.
 - **`/patients/$id/`**: bad. No overflow. The Details card shows about 300 px between the header and a footer of three buttons. Better: the page scrolls (2.4); patient banner, then Pathways, Appointments, Timeline as folding sections; Book Appointment as the one header action, Pathways and Edit Patient in More.
-- **`/patients/$id/edit`**: broken (First name 0 px wide, labels overlapping; 2.1). Better: one column.
+- **`/patients/$id/edit`**: broken (First name 0 px wide, labels overlapping; 2.1). Better: one column. **Fixed** (`0d35662d`).
 - **`/patients/$id/export`**: cosmetic. No overflow; scrolls as a page, which suits it. Print and Download JSON fine.
 - **`/patients/$id/pathways`**: bad. Tabs scroll sideways; the list gets 120 px under the banner and New Pathway. Better: page scrolls, banner compact (name and NHS number on one line).
-- **`/patients/add`**: broken (as Edit; 2.1).
+- **`/patients/add`**: broken (as Edit; 2.1). **Fixed** (`0d35662d`).
 - **`/practices`** (admin): cosmetic. "Harbour View Medical Practice (synth…" cut. Better: wrap names; card = name, ODS code, status.
 
 ### Pathways
 
 - **`/pathways/`**: cosmetic. Tabs scroll; titles wrap well. Better: card = title, patient, status and target date tokens; the rest behind a tap.
-- **`/pathways/$id/`**: broken (MDT actions cut 228 / 258 px and overlapping, 2.2). Also bad: about 260 px of content between a header of two rows and a footer of two rows (Add Branch, Edit Details, View Patient). Finish Stage, Book Appointment and Record Consent open and work. Better: the page scrolls (2.4); the current stage first with its one primary action (Start Stage or Finish Stage) as a pinned bottom button; Stages as a progress bar that opens the list; Put on Hold, Cancel Pathway, Add Branch, Edit Details in More; MDT, Notes, Consults, Samples, Results, Consent, Files, Letters folded, each with its actions under its title.
+- **`/pathways/$id/`**: broken (MDT actions cut 228 / 258 px and overlapping, 2.2; **fixed**, `327a77ab`). Also bad: about 260 px of content between a header of two rows and a footer of two rows (Add Branch, Edit Details, View Patient). Finish Stage, Book Appointment and Record Consent open and work. Better: the page scrolls (2.4); the current stage first with its one primary action (Start Stage or Finish Stage) as a pinned bottom button; Stages as a progress bar that opens the list; Put on Hold, Cancel Pathway, Add Branch, Edit Details in More; MDT, Notes, Consults, Samples, Results, Consent, Files, Letters folded, each with its actions under its title.
 - **`/pathways/$id/` (Eye clinic, Saira Varma)**: bad, for the same space; no MDT items, so nothing cut.
 - **`/pathways/$id/edit`**: bad. Title box and Target date label squeezed (2.1). Better: one column.
 - **`/pathways/new`**: cosmetic. With no patient chosen it's a single banner (correct: a pathway starts from a patient).
 - **`/tasks`** (My Worklist): cosmetic. Tabs scroll (1,020 px of tabs); empty state fine.
 - **`/team/`**: cosmetic. Second lines cut with an ellipsis ("· Target 20 Novemb…"). Better: wrap to two lines.
-- **`/mdt`**: broken (41 / 85 px window; 2.2, 2.4). Better: Team and Meeting as one select row (or in a menu), the description dropped on phones, Print in More; the meeting's items as cards (patient, pathway, presenter, outcome), actions under each.
+- **`/mdt`**: broken (41 / 85 px window; 2.2, 2.4). **Fixed** (`16b9d9c9`, `327a77ab`): the page scrolls on a phone, with no description; items' actions under each. Better: Team and Meeting as one select row (or in a menu), the description dropped on phones, Print in More; the meeting's items as cards (patient, pathway, presenter, outcome), actions under each.
 - **`/admin/pathway-templates/`**: cosmetic. Stage summaries cut ("11 stages: Triage, Eczema assessment, Take bi…"); icons beside names. Better: name, team, status; the stage summary behind a tap.
 - **`/admin/pathway-templates/$id`** and **`/new`**: bad. Each stage row's parts sit in narrow columns ("2. Dermosco…", a 120 px column of description, "1 sele…" for what it comes after); 74 and 50 texts cut. Better: on a phone, the editor's stages as a list of one card each (number and name, then its settings stacked full width); editing routes (Draw Routes) desktop only, saying so.
 - **`/admin/stages`**: cosmetic. Descriptions cut; three icons beside each name (2.2).
@@ -146,7 +156,7 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 - **`/specimens/$id/`**: cosmetic. Print Label, Print Request Sheet and More on two rows (2.5).
 - **`/specimens/$id/print`**: cosmetic. The label preview is fine; printing from a phone is unlikely.
 - **`/hospital-requests/`**: bad. Register Request cut, the main area scrolls 42 / 72 px sideways (2.5). Better: Register Request as the header's one action, the hospital filter in the list's menu.
-- **`/hospital-requests/$id`**: broken (2.3). Better: one column: Details, then the sample and lab case.
+- **`/hospital-requests/$id`**: broken (2.3). **Fixed** (`fc6f32bb`). Better: one column: Details, then the sample and lab case.
 - **`/hospital-requests/new`**: bad. Fields 89 / 119 px off the card (2.1); selects cut ("Choose the t…").
 - **`/admin/specimen-setup`**: cosmetic. Two lists in one page; lines cut; footer buttons on two rows.
 - **`/admin/hospitals`**: cosmetic. Names cut ("Hillcrest Communi…"), three icons and a status beside them (2.2).
@@ -168,7 +178,7 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 - **`/calendar/`** (day, both clinics): bad. Four header buttons on two rows (three at 360), then the date row, before about 300 px of grid; it opens near the current time. Book Appointment opens and works (2.9). Better: on a phone, the header's New is the only button, the rest (Requires Appointment, MDT, Apply Template, View options) in More; the day as an agenda list (times down the side, items full width), with the grid one tap away.
 - **`/calendar/?view=week`**: bad. Five day columns of 60 px: "Lunc / h" breaks, times cut ("09:…"); 136 interactive elements under 44 px. Better: on a phone, Week is a list of days, each with its items; or three days at a time, swiped.
 - **`/calendar/clinics/`**: cosmetic. Fine; Site select sits alone on the right.
-- **`/calendar/clinics/patterns`** (admin): bad. The pattern's title in a narrow column ("Tuesda / ys, / 09:00 / to 12:00") beside Edit and Create Sessions (2.2).
+- **`/calendar/clinics/patterns`** (admin): bad. The pattern's title in a narrow column ("Tuesda / ys, / 09:00 / to 12:00") beside Edit and Create Sessions (2.2). **Fixed** (`327a77ab`).
 - **`/calendar/needs-booking`** → **`/calendar/requires-appointment`**: cosmetic. The To book / Did not attend switch and a single "All" tab: drop the tab row when there's one tab.
 - **`/calendar/templates/`** and **`/admin/calendar-templates`** (→ the same page): cosmetic. Two rows of tabs (Day / Week / Default, then Active / Archived / All), the first scrolling. Better: one select for both.
 - **`/calendar/templates/day/$id`**, **`/day/new`**, **`/week/$id`**, **`/week/new`**: bad for the new ones (footer "Can…", "Create Day Temp…"), cosmetic for edits. Blocks and days are long forms in a short window (2.4).
@@ -176,12 +186,12 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 
 ### Setup
 
-- **`/admin/users`**: broken (2.2).
+- **`/admin/users`**: broken (2.2). **Fixed** (`327a77ab`, `34bfec2b`).
 - **`/admin/roles/`**: cosmetic. Descriptions cut.
-- **`/admin/roles/$id`**, **`/admin/roles/new`**: bad. Footer "Arch…", "Can…", "Sa…" (2.2); every permission's description cut to one line (30 of them), and it's what the permission does. Better: wrap descriptions; footer wraps.
+- **`/admin/roles/$id`**, **`/admin/roles/new`**: bad. Footer "Arch…", "Can…", "Sa…" (2.2; the footer **fixed**, `327a77ab`); every permission's description cut to one line (30 of them), and it's what the permission does. Better: wrap descriptions; footer wraps.
 - **`/admin/teams`**: cosmetic. The "Nobody can triage: Lab" banner squeezes the title; waiting-time targets cut ("Medium 63,…").
 - **`/admin/sites`** (deprecated): cosmetic. Names cut beside five icons (2.2).
-- **`/admin/consent-forms`**: bad. Two forms both read "Consent to a proc…" (2.2).
+- **`/admin/consent-forms`**: bad. Two forms both read "Consent to a proc…" (2.2). **Fixed** (`a9f2c65c`): names in full, status and Actions under them.
 - **`/admin/settings`**: no problem found; a long card that scrolls.
 - **`/admin/monitoring`**: no problem found; rules as sentences read well.
 - **`/admin/jobs`**: cosmetic. Run Now beside the job's name pushes its description into a narrow column.
@@ -194,14 +204,14 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 
 ### Privacy
 
-- **`/admin/retention`**: broken (no patient name, Anonymise cut 27 / 57 px; 2.2). Better: card = patient's name, date of birth, retention class and due date; Review as the card's tap, Keep and Anonymise in the record's review.
+- **`/admin/retention`**: broken (no patient name, Anonymise cut 27 / 57 px; 2.2). **Fixed** (`327a77ab`): name, then Review and Actions. Better: card = patient's name, date of birth, retention class and due date; Review as the card's tap, Keep and Anonymise in the record's review.
 - **`/data-requests/`**: cosmetic. Tabs scroll; cards fine.
 - **`/data-requests/$id`**: cosmetic. Review, Record as Sent and More on two rows (2.5).
 
 ### Account
 
 - **`/account/`**: cosmetic. Scrolls as a page (right for it); the card footer's three buttons on two rows; an "Apply" button cut to "Ap…".
-- **`/account/colours`**: bad (2.3).
+- **`/account/colours`**: bad (2.3). **Fixed** (`fc6f32bb`): the two modes stack.
 - **`/account/email`**, **`/account/password`**, **`/account/security`**: no problem found.
 - **`/accessibility`**: bad. The statement's list of settings cuts each description to one line ("Buttons and fields at least 44 pixels high, e…"), hiding part of the statement. Better: wrap them.
 - **`/no-permission`**: no problem found.
@@ -211,12 +221,32 @@ Priority: **broken** (can't be done on a phone), **bad** (works, but hard or hid
 
 ## 4. Suggested order of work
 
-1. **Sign Out's confirm dialog** (2.10): small, and the only broken thing outside a page.
-2. **`FormSection`'s columns** (2.1): one line; fixes Add and Edit Patient, Edit Referral, Register Hospital Request and Edit Pathway.
-3. **Title and actions rows** (2.2), in `RowCards`, `PanelHeader`, `MdtItemList` and `FormCard`'s footer: fixes Users, Retention Review, the pathway's MDT section, Consent Forms, Clinic Patterns, Home's Today header, the role and template editors' footers, and the cut names on about ten setup lists.
-4. **`TwoColumns` stacking itself** (2.3): fixes Hospital Request and Colours, and removes 13 hand-written copies.
+1. **Sign Out's confirm dialog** (2.10): small, and the only broken thing outside a page. Done (`dd702b7a`).
+2. **`FormSection`'s columns** (2.1): one line; fixes Add and Edit Patient, Edit Referral, Register Hospital Request and Edit Pathway. Done (`0d35662d`).
+3. **Title and actions rows** (2.2), in `RowCards`, `PanelHeader`, `MdtItemList` and `FormCard`'s footer: fixes Users, Retention Review, the pathway's MDT section, Consent Forms, Clinic Patterns, Home's Today header, the role and template editors' footers, and the cut names on about ten setup lists. Done (`327a77ab`, `a9f2c65c`), but for names wrapping rather than being cut.
+4. **`TwoColumns` stacking itself** (2.3): fixes Hospital Request and Colours, and removes 13 hand-written copies. Done (`fc6f32bb`), with no copies removed (none was plain stacking).
 5. **Bigger targets on touch by default** (2.8): a default, not new UI.
 6. **A phone mode for `Page`** (2.4, 2.5): no `fill`, a compact sticky header with one primary action and More, card footers as a pinned bottom bar. This is the change that makes the pathway, letter, MDT, calendar and patient pages usable rather than cramped; it touches `Page`, `PageHeader`, `PanelCard`, `FormCard`, `FoldingCard`.
 7. **Dialogs as full-screen sheets** (2.9), and the bell's list as one (2.10).
 8. **Lists:** tabs as a select (2.6), shorter row cards (2.7).
 9. **Then page by page:** the MDT page, the pathway page's stage-first layout, the Calendar's agenda day and week, Home's Today as a list, the pathway template editor's stages, Hospital Requests' header, the demo's login.
+
+## 5. Fixed, 24 November 2026
+
+The seven broken tasks, re-measured with the same scripts in the light demo, iPhone 13 (390 × 664) / 360 × 740, and each done by tap:
+
+| Task | Before | After |
+|---|---|---|
+| Sign out from the drawer | no dialog shown; Sign Out can't be tapped | dialog 358 × 178 (328 × 178); tapped, at the login page |
+| Add Patient | First name box 0 px, First name and Date of birth can't be tapped | every field 220 to 274 px (220 to 244); filled, saved, the patient added |
+| The pathway's MDT section | Record Outcome over the meeting's text; Set Presenter, Move, Withdraw 58 / 152 / 277 px off the card (88 / 182 / 307) | Record Outcome and Actions, none off the card or over text; each of the four opens its dialog |
+| The MDT page | the meeting's list a 41 px window (85) on 6,678 px | the page scrolls (616 px of 1,217); the card 889 px tall, its list whole; Set Presenter opens its dialog |
+| Hospital Request | two 159 px cards (144); NHS number on 3 lines, lab case number on 10 | one 342 px card under another (312); each on one line |
+| Users | the username under eight icon buttons; the card scrolls sideways (340 px showing 468) | the username clear (258 px; 246), one Actions menu of eight; nothing sideways; Edit Teams opens |
+| Retention Review | the patient's name 0 px wide; Anonymise 26 px off the card (56) | the name shown (129 px); Review and Actions; Anonymise opens its dialog |
+
+The whole audit again (every route, both sizes, before `34bfec2b`): pages with content past a card or page edge, leaving out the tabs' scrollers, went from 11 to 7 at 390 px and 14 to 9 at 360 (Users is out of both since `34bfec2b`); text cut with an ellipsis, 340 to 312 and 410 to 377. What's left is mostly an alert's headline clipped beside its "i" (Export, New Pathway, a result, Teams, a pathway's consent note), Patients' email (6 / 36 px), Hospital Requests' header (the main area still scrolls 42 px sideways, 2.5), Account Settings' Pathways label (2 px) and Audit Log's sort row.
+
+Every change applies only in a narrow layout (`useIsNarrow`, a card under 30rem, or the phone query `useIsTouchNav` for the MDT page). At 1,440 × 900, screenshots of 21 affected pages before and after are identical but for the clock (Home's now line, Lab Case's times). At 1,280 × 800, Hospital Request and Colours stack (`useIsNarrow`), as above.
+
+Left from section 4: bigger touch targets (5), the phone mode for `Page` (6; only the MDT page has it so far), dialogs as sheets and the bell's list (7), the lists' tabs and shorter row cards (8), and the pages in 9 (the MDT page's selectors are still two rows; Hospital Requests' header still scrolls sideways). Card names still cut with an ellipsis rather than wrapping (2.2).
