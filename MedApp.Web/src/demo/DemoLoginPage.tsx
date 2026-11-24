@@ -7,7 +7,9 @@ import {Text} from '@astryxdesign/core/Text';
 import {useLogin} from '../auth/auth';
 import {StandalonePage} from '../components/pages/StandalonePage';
 import {AppIcon} from '../components/shared/icons';
+import {useState} from 'react';
 import {accountDescription, accountLabel, DEMO_ACCOUNTS} from './accounts';
+import {refreshApp} from './refreshApp';
 
 /**
  * The light demo's login page (the demo build only): no password, just a choice of the four demo accounts. Choosing one
@@ -15,6 +17,7 @@ import {accountDescription, accountLabel, DEMO_ACCOUNTS} from './accounts';
  */
 export function DemoLoginPage() {
   const login = useLogin();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   return (
     <StandalonePage title="MedApp: light demo" maxWidth={480}>
       <VStack gap={4} hAlign="stretch">
@@ -44,6 +47,21 @@ export function DemoLoginPage() {
             />
           ))}
         </List>
+        <VStack gap={2} hAlign="start">
+          <Button
+            label="Refresh App"
+            variant="secondary"
+            icon={<Icon icon={AppIcon.Refresh} />}
+            isLoading={isRefreshing}
+            onClick={() => {
+              setIsRefreshing(true);
+              void refreshApp();
+            }}
+          />
+          <Text type="supporting" color="secondary">
+            Starts the demo again from scratch: clears what this browser kept (your changes, settings and the walkthrough&apos;s place) and loads the latest version.
+          </Text>
+        </VStack>
       </VStack>
     </StandalonePage>
   );
