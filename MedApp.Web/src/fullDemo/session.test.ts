@@ -1,5 +1,5 @@
 import {answer, fakeBackend, resetFullDemoForTests} from '../test/fullDemo';
-import {fullDemoNavigation, noteAnswer, rememberedUser, resetFullDemo, switchAccount} from './session';
+import {fullDemoNavigation, noteAnswer, refreshFullDemo, rememberedUser, resetFullDemo, switchAccount} from './session';
 
 describe('the full demo’s session', () => {
   beforeEach(() => resetFullDemoForTests());
@@ -39,5 +39,21 @@ describe('the full demo’s session', () => {
     expect(backend.forgetSavedDatabase).toHaveBeenCalled();
     expect(localStorage.getItem('medapp.pins')).toBeNull();
     expect(assign).toHaveBeenCalledWith('/login');
+  });
+
+  it('refreshes: forgets the database and all this browser keeps, then loads the page past the cache', async () => {
+    const backend = fakeBackend();
+    const assign = vi.spyOn(fullDemoNavigation, 'assign').mockImplementation(() => {});
+    const fetch = vi.fn().mockResolvedValue(new Response(''));
+    vi.stubGlobal('fetch', fetch);
+    localStorage.setItem('medapp.pins', '{}');
+    sessionStorage.setItem('anything', '1');
+    await refreshFullDemo('/login');
+    expect(backend.forgetSavedDatabase).toHaveBeenCalled();
+    expect(localStorage.getItem('medapp.pins')).toBeNull();
+    expect(sessionStorage.length).toBe(0);
+    expect(fetch).toHaveBeenCalledWith('/login', {cache: 'reload'});
+    expect(assign).toHaveBeenCalledWith('/login');
+    vi.unstubAllGlobals();
   });
 });
