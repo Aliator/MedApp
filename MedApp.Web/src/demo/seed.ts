@@ -1,7 +1,7 @@
 import type {Schemas} from '../api/client';
 import {chainLinks, grownLinks, grownStageOrders} from '../api/pathwayRoutes';
 import {addDays, dayOfWeek, nextWeekday} from '../utils/calendarSlots';
-import {ADMIN, EYE_CLINIC_ADMIN, LAB, PEOPLE, STAFF, usernameOf} from './accounts';
+import {ADMIN, EYE_CLINIC_ADMIN, LAB, LOWER_LIMB_ADMIN, PEOPLE, STAFF, usernameOf} from './accounts';
 import {
   ACTIVITY_TYPES,
   APPOINTMENTS,
@@ -203,6 +203,7 @@ const PATIENT_SPECS: [string, string, string, string, string, number][] = [
   [PATIENTS.freyaTolland, 'Freya', 'Tolland', '1992-02-11', '9991061371', 27],
   [PATIENTS.hamishDewar, 'Hamish', 'Dewar', '1950-09-03', '9991062742', 28],
   [PATIENTS.ruthPenhaligon, 'Ruth', 'Penhaligon', '1966-12-29', '9991064117', 29],
+  [PATIENTS.joelBrannock, 'Joel', 'Brannock', '1985-04-23', '9991065008', 30],
 ];
 
 /** NHS numbers from the 999 range only (never issued to real people), each with a valid check digit. */
@@ -608,6 +609,11 @@ export function seed(): DemoState {
         n: 21, id: PATHWAYS.eyeMacular, patientId: PATIENTS.hamishDewar, templateId: TEMPLATES.macular,
         title: 'Distorted central vision, right eye', dueIn: 21, priority: 'High', done: 0, status: 'Unassigned', createdDaysAgo: 1,
       },
+      {
+        n: 22, id: PATHWAYS.lowerLimb, patientId: PATIENTS.joelBrannock, templateId: TEMPLATES.lowerLimb,
+        title: 'Heel pain, both feet', dueIn: 30, priority: 'Medium', done: 3, outcomes: {'Biomechanical assessment': 'Custom orthotics needed'},
+        status: 'InProgress', assignee: LOWER_LIMB_ADMIN.id, createdDaysAgo: 28,
+      },
     ] satisfies PathwaySpec[]
   ).map((spec) => makePathway(spec as PathwaySpec, templates, stageDefinitions));
   for (const template of templates) template.pathwayCount = pathways.filter((p) => p.templateId === template.id).length;
@@ -786,6 +792,10 @@ export function seed(): DemoState {
     appointment(APPOINTMENTS.freyaExam, PATHWAYS.eyeRedEye, 1, EYE_CLINIC_ADMIN, weekdayBack(3), 10, 0, 30, 'Attended', ROOMS.procedureRoom),
   ];
   appointments.push(...eyeVisits);
+  appointments.push(
+    appointment(APPOINTMENTS.joelAssessment, PATHWAYS.lowerLimb, 1, LOWER_LIMB_ADMIN, weekdayBack(14), 11, 0, 45, 'Attended', ROOMS.procedureRoom),
+    appointment(APPOINTMENTS.joelFitting, PATHWAYS.lowerLimb, 3, LOWER_LIMB_ADMIN, glaucomaDay, 10, 0, 30, 'Booked', ROOMS.procedureRoom),
+  );
   const [edithVisit, , , freyaVisit] = eyeVisits;
   // Edith Marlow's Cataract assessment was finished at her visit, so Biometry has been current since.
   Object.assign(edith.stages[1], {startedAtUtc: edithVisit.startUtc, completedAtUtc: edithVisit.endUtc});
@@ -822,6 +832,21 @@ export function seed(): DemoState {
       if (day === 4) varmaBlock(date, ACTIVITY_TYPES.admin, [14, 0], [15, 0], 'Letters');
     }
     if (isWeekend) for (const day of [5, 6]) varmaBlock(thisWeek(week + day, on), ACTIVITY_TYPES.clinic, [9, 0], [12, 0], 'Weekend eye clinic');
+  }
+
+  const castellVisits = appointments.filter((a) => a.staffUserId === LOWER_LIMB_ADMIN.id && a.startUtc && a.endUtc);
+  const castellBlock = (date: string, activity: string, from: [number, number], to: [number, number], note: string | null) => {
+    const [startUtc, endUtc] = [ukTime(date, ...from), ukTime(date, ...to)];
+    if (!castellVisits.some((a) => a.startUtc! < endUtc && a.endUtc! > startUtc)) block(LOWER_LIMB_ADMIN.id, date, activity, from, to, note);
+  };
+  for (const week of [0, 7]) {
+    for (let day = 0; day < 7; day++) {
+      if (day >= 5 && !isWeekend) continue;
+      const date = thisWeek(week + day, on);
+      castellBlock(date, ACTIVITY_TYPES.lunch, [12, 30], [13, 15], null);
+      castellBlock(date, ACTIVITY_TYPES.clinic, [9, 0], [12, 30], 'Biomechanics clinic');
+      if (day % 2 === 1) castellBlock(date, ACTIVITY_TYPES.admin, [14, 0], [15, 30], 'Orthotic prescriptions');
+    }
   }
 
   const mdtDate = weekdayAhead(2);

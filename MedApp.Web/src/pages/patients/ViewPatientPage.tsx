@@ -22,6 +22,7 @@ import {AppointmentList} from '../../components/pathways/AppointmentList';
 import {TwoColumns} from '../../components/pages/TwoColumns';
 import {LogDataRequestDialog} from '../../components/dataRequests/LogDataRequestDialog';
 import {AnonymiseDialog} from '../../components/patients/AnonymiseDialog';
+import {CustomOrthotics} from '../../components/patients/CustomOrthotics';
 import {PatientAccessReport} from '../../components/patients/PatientAccessReport';
 import {PatientFlagBanners} from '../../components/patients/PatientFlagBanners';
 import {PatientFlagDialog, type PatientFlagChange} from '../../components/patients/PatientFlagDialog';
@@ -327,6 +328,7 @@ function PatientDetails({patient}: {patient: Patient}) {
       <CardSection title="Appointments">
         <PatientAppointments patientId={patient.id ?? ''} />
       </CardSection>
+      <CustomOrthotics patientId={patient.id ?? ''} />
       <ViewSection title="Record Information" useGrid={false}>
         <MetadataListItem label="Patient ID">
           <Text type="code">{patient.id}</Text>

@@ -206,8 +206,7 @@ function holdInvokerThroughPress(control: HTMLElement) {
  * folded nav's flyouts. No tooltip: its icon says what it is.
  */
 function RowMenu(props: RowMenuProps) {
-  const {alwaysShowRowMenus} = useNavSettings();
-  return useTouchNav() && !alwaysShowRowMenus ? null : <RowMenuControls {...props} />;
+  return useTouchNav() ? null : <RowMenuControls {...props} />;
 }
 
 interface RowMenuProps {
