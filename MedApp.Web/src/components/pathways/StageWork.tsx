@@ -10,6 +10,7 @@ import {useSaveShortcut} from '../forms/SaveShortcut';
 import {AlertMessage} from '../shared/AlertMessage';
 import {AppIcon} from '../shared/icons';
 import {StageNotes} from './StageList';
+import {DisabledReason} from '../shared/DisabledReason';
 
 export interface StageWorkProps {
   stage: PathwayStage;
@@ -210,15 +211,15 @@ export function StageWork({
           onClick={() => onSaveNotes(draft)}
           isDisabled={!isChanged || isBusy}
         />
-        <Button
-          label="Finish Stage"
-          variant="primary"
-          icon={<Icon icon={AppIcon.Check} />}
-          onClick={() => onFinish(draft)}
-          isDisabled={isBusy || finishDisabledReason !== undefined}
-          // Also describes the button, so the reason is heard on it too.
-          tooltip={finishDisabledReason}
-        />
+        <DisabledReason reason={finishDisabledReason}>
+          <Button
+            label="Finish Stage"
+            variant="primary"
+            icon={<Icon icon={AppIcon.Check} />}
+            onClick={() => onFinish(draft)}
+            isDisabled={isBusy || finishDisabledReason !== undefined}
+          />
+        </DisabledReason>
       </HStack>
     </VStack>
   );

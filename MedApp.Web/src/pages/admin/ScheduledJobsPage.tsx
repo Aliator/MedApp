@@ -18,6 +18,7 @@ import {AlertMessage} from '../../components/shared/AlertMessage';
 import {AppIcon} from '../../components/shared/icons';
 import {DataTable, type DataTableColumn} from '../../components/tables/DataTable';
 import {formatDateTime} from '../../utils/dates';
+import {DisabledReason} from '../../components/shared/DisabledReason';
 
 /** A label on a job's status: its words, colour and (when "Icons on statuses" is on) icon. Never colour alone. */
 interface JobLabel {
@@ -224,21 +225,23 @@ export function ScheduledJobsPage() {
         // Its own size, never squeezed: as a card (a narrow window), it sits beside the title and description.
         return (
           <StackItem>
-            <Button
-              label={why ? `Run Now: ${job.title}, ${why.charAt(0).toLowerCase()}${why.slice(1)}` : `Run Now: ${job.title}`}
-              variant="secondary"
-              size="sm"
-              icon={<Icon icon={AppIcon.RunNow} />}
-              tooltip={why ?? `Run ${job.title} now`}
-              isDisabled={why !== null}
-              isLoading={isThisRunning}
-              onClick={() => {
-                setError(null);
-                setOutcome(null);
-                setConfirming(job);
-              }}>
-              Run Now
-            </Button>
+            <DisabledReason reason={why ?? undefined}>
+              <Button
+                label={why ? `Run Now: ${job.title}, ${why.charAt(0).toLowerCase()}${why.slice(1)}` : `Run Now: ${job.title}`}
+                variant="secondary"
+                size="sm"
+                icon={<Icon icon={AppIcon.RunNow} />}
+                tooltip={why ? undefined : `Run ${job.title} now`}
+                isDisabled={why !== null}
+                isLoading={isThisRunning}
+                onClick={() => {
+                  setError(null);
+                  setOutcome(null);
+                  setConfirming(job);
+                }}>
+                Run Now
+              </Button>
+            </DisabledReason>
           </StackItem>
         );
       },
