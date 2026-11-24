@@ -68,8 +68,8 @@ export function FullDemoLoginPage({redirectTo}: {redirectTo?: string}) {
         )}
         <VStack gap={2} hAlign="stretch">
           <Text type="supporting">
-            Reset the Demo starts again from the published data, without your changes. Refresh App does that too, clears your settings and
-            this browser&apos;s stored copies of the app, and loads the latest version.
+            Reset the Demo downloads the published data again, without your changes, and keeps your settings. Refresh App also clears your
+            settings and this browser&apos;s stored copies of the app, and loads the latest version.
           </Text>
           <HStack gap={2} wrap="wrap">
             {/* Not while it starts: the start would save the database it's downloading after it was forgotten. */}

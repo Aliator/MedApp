@@ -11,7 +11,7 @@ export function FullDemoResetCard() {
     <ViewCard footerActions={<FullDemoResetButton path="/" />}>
       <CardSection title="This Demo">
         <Text type="body">
-          {`MedApp runs in this browser, on its own copy of the demo data${version?.builtOn ? ` (published ${version.builtOn})` : ''}. Reset the Demo drops your changes and starts again from the published data.`}
+          {`MedApp runs in this browser, on its own copy of the demo data${version?.builtOn ? ` (published ${version.builtOn})` : ''}. Reset the Demo downloads the published data again, without your changes; your settings stay.`}
         </Text>
       </CardSection>
     </ViewCard>

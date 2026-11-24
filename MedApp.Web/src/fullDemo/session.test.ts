@@ -31,13 +31,13 @@ describe('the full demo’s session', () => {
     expect(assign).toHaveBeenCalledWith('/patients/full-id');
   });
 
-  it('resets: forgets the saved database and this browser’s app storage, then reloads', async () => {
+  it('resets: forgets only the saved database, keeping settings, then reloads', async () => {
     const backend = fakeBackend();
     const assign = vi.spyOn(fullDemoNavigation, 'assign').mockImplementation(() => {});
     localStorage.setItem('medapp.pins', '{}');
     await resetFullDemo('/login');
     expect(backend.forgetSavedDatabase).toHaveBeenCalled();
-    expect(localStorage.getItem('medapp.pins')).toBeNull();
+    expect(localStorage.getItem('medapp.pins')).toBe('{}');
     expect(assign).toHaveBeenCalledWith('/login');
   });
 
