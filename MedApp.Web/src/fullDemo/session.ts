@@ -108,3 +108,17 @@ export async function resetFullDemo(path = '/'): Promise<void> {
   closeHalfView();
   fullDemoNavigation.assign(`${base()}${path}`);
 }
+
+export async function refreshFullDemo(path = '/'): Promise<void> {
+  const backend = await backendModule();
+  await backend.forgetSavedDatabase();
+  clearAllAppStorage();
+  try {
+    sessionStorage.clear();
+    if (typeof caches !== 'undefined') for (const name of await caches.keys()) await caches.delete(name);
+    await fetch(`${base()}${path}`, {cache: 'reload'});
+  } catch {
+    void 0;
+  }
+  fullDemoNavigation.assign(`${base()}${path}`);
+}
