@@ -1,5 +1,5 @@
 import {Button} from '@astryxdesign/core/Button';
-import {Icon} from '@astryxdesign/core/Icon';
+import {Icon, type IconType} from '@astryxdesign/core/Icon';
 import {Link} from '@astryxdesign/core/Link';
 import {List, ListItem} from '@astryxdesign/core/List';
 import {HStack, VStack} from '@astryxdesign/core/Stack';
@@ -11,7 +11,10 @@ import {specimenStatusLabel} from '../../api/specimens';
 import {useAnnounce} from '../../app/announcements';
 import {formatDateTime} from '../../utils/dates';
 import {PatientBanner} from '../patients/PatientBanner';
+import {ActionsMenu, type MenuAction} from '../shared/ActionsMenu';
 import {AppIcon} from '../shared/icons';
+import {COMPACT_ROW_REM} from '../tables/RowCards';
+import {useNarrowerThan} from '../views/useNarrowerThan';
 import {ChooseMdtPresenterDialog, DeferMdtItemDialog, RecordMdtOutcomeDialog, WithdrawMdtItemDialog} from './MdtDialogs';
 
 export interface MdtItemListProps {
@@ -30,6 +33,8 @@ export interface MdtItemListProps {
 }
 
 type Asking = {item: MdtItem; kind: 'outcome' | 'defer' | 'withdraw' | 'presenter'};
+
+type ItemAction = MenuAction & {icon: IconType; variant: 'secondary' | 'ghost'};
 
 /** Where an item stands, in words: its meeting, or that its meeting was cancelled. */
 export function mdtMeetingWords(item: MdtItem): string {
@@ -51,7 +56,8 @@ export function labWorkWords(work: MdtLabWork): string {
  * where asked (hazard H-58), the question, where it stands, the outcome as written and who was present once discussed,
  * the presenter and the lab's samples and reports on the pathway (MC21),
  * and the actions each item's flags allow (Record Outcome, Presenter, Move, Withdraw), each in its dialog. Nothing is coloured
- * or ordered by clinical content.
+ * or ordered by clinical content. In a narrow list (a phone) the actions go under the item, the first a button and the
+ * rest in one Actions menu when there are more than two.
  */
 export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, linksPathway, isReadOnly, emptyText}: MdtItemListProps) {
   const [asking, setAsking] = useState<Asking | null>(null);
@@ -61,11 +67,27 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
   const isBusy = actions.withdraw.isPending || actions.defer.isPending || actions.recordOutcome.isPending || actions.choosePresenter.isPending;
   const attendeesOf = (item: MdtItem) => meetings.find((m) => m.id === item.meetingId)?.attendees ?? [];
 
+  const [measure, isCompact] = useNarrowerThan(COMPACT_ROW_REM);
+  const actionsOf = (item: MdtItem): ItemAction[] =>
+    isReadOnly
+      ? []
+      : [
+          ...(item.canRecordOutcome ? [{label: 'Record Outcome', icon: AppIcon.Mdt, variant: 'secondary' as const, kind: 'outcome' as const}] : []),
+          ...(item.canChoosePresenter ? [{label: 'Set Presenter', icon: AppIcon.Assign, variant: 'ghost' as const, kind: 'presenter' as const}] : []),
+          ...(item.canDefer ? [{label: item.meetingId ? 'Move' : 'List Again', icon: AppIcon.Calendar, variant: 'ghost' as const, kind: 'defer' as const}] : []),
+          ...(item.canWithdraw ? [{label: 'Withdraw', icon: AppIcon.Withdraw, variant: 'ghost' as const, kind: 'withdraw' as const}] : []),
+        ].map((action) => ({...action, isDisabled: isBusy, onClick: () => setAsking({item, kind: action.kind})}));
+  const buttons = (list: ItemAction[]) =>
+    list.map((action) => (
+      <Button key={action.label} label={action.label} variant={action.variant} size="sm" icon={<Icon icon={action.icon} />}
+        onClick={action.onClick} isDisabled={action.isDisabled} />
+    ));
+
   if (items.length === 0) return <Text type="body" color="secondary">{emptyText}</Text>;
 
   return (
     <>
-      <List>
+      <List ref={measure}>
         {items.map((item) => (
           <ListItem
             key={item.id}
@@ -106,31 +128,25 @@ export function MdtItemList({items, meetings, isLoadingMeetings, showsPatient, l
                 {item.status === 'Withdrawn' && (
                   <Text type="supporting" color="secondary">{`Withdrawn by ${item.withdrawnByUsername ?? ''}, ${formatDateTime(item.withdrawnAtUtc ?? '')}`}</Text>
                 )}
+                {isCompact && actionsOf(item).length > 0 && (
+                  <HStack gap={2} vAlign="center" wrap="wrap">
+                    {actionsOf(item).length > 2 ? (
+                      <>
+                        {buttons(actionsOf(item).slice(0, 1))}
+                        <ActionsMenu actions={actionsOf(item).slice(1)} />
+                      </>
+                    ) : (
+                      buttons(actionsOf(item))
+                    )}
+                  </HStack>
+                )}
               </VStack>
             }
-            endContent={
-              !isReadOnly &&
-              (item.canRecordOutcome || item.canChoosePresenter || item.canDefer || item.canWithdraw) && (
-                <HStack gap={1} vAlign="center" wrap="wrap">
-                  {item.canRecordOutcome && (
-                    <Button label="Record Outcome" variant="secondary" size="sm" icon={<Icon icon={AppIcon.Mdt} />}
-                      onClick={() => setAsking({item, kind: 'outcome'})} isDisabled={isBusy} />
-                  )}
-                  {item.canChoosePresenter && (
-                    <Button label="Set Presenter" variant="ghost" size="sm" icon={<Icon icon={AppIcon.Assign} />}
-                      onClick={() => setAsking({item, kind: 'presenter'})} isDisabled={isBusy} />
-                  )}
-                  {item.canDefer && (
-                    <Button label={item.meetingId ? 'Move' : 'List Again'} variant="ghost" size="sm" icon={<Icon icon={AppIcon.Calendar} />}
-                      onClick={() => setAsking({item, kind: 'defer'})} isDisabled={isBusy} />
-                  )}
-                  {item.canWithdraw && (
-                    <Button label="Withdraw" variant="ghost" size="sm" icon={<Icon icon={AppIcon.Withdraw} />}
-                      onClick={() => setAsking({item, kind: 'withdraw'})} isDisabled={isBusy} />
-                  )}
-                </HStack>
-              )
-            }
+            endContent={!isCompact && actionsOf(item).length > 0 && (
+              <HStack gap={1} vAlign="center" wrap="wrap">
+                {buttons(actionsOf(item))}
+              </HStack>
+            )}
           />
         ))}
       </List>

@@ -2,6 +2,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {fireEvent, screen} from '@testing-library/react';
 import {renderWithApp, isDisabled} from '../../test/render';
+import {HalfViewContext} from '../pages/halfView';
 import {FormCard} from './FormCard';
 import {SaveShortcutProvider} from './SaveShortcut';
 import {FormSection} from './FormSection';
@@ -130,6 +131,21 @@ describe('FormCard', () => {
     expect(isDisabled(await screen.findByRole('button', {name: 'Cancel'}))).toBe(true);
     await user.type(screen.getByLabelText(/first name/i), '{Enter}');
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("wraps the footer's buttons onto more lines in a narrow layout (a phone, a half view), rather than cutting them short", async () => {
+    const form = (
+      <FormCard onSave={() => {}} onCancel={() => {}} onDelete={() => {}}>
+        <p>Fields</p>
+      </FormCard>
+    );
+    const {unmount} = renderWithApp(form);
+    const footer = async () => (await screen.findByRole('button', {name: 'Save'})).parentElement!;
+    expect(await footer()).not.toHaveAttribute('data-wrap', 'wrap');
+    unmount();
+
+    renderWithApp(<HalfViewContext.Provider value={{isHalf: true}}>{form}</HalfViewContext.Provider>);
+    expect(await footer()).toHaveAttribute('data-wrap', 'wrap');
   });
 
   it('can hide the footer', async () => {
